@@ -41,7 +41,7 @@ Start with the [WTR specification index](docs/specs/WTR-index.md) and the [softw
 - **No vendor-cloud dependency.** A supported hardware profile must have a documented path to infrastructure controlled by the operator. Vendor SaaS may be optional but never mandatory.
 - **Transport is not semantics.** BLE, LTE-M/NB-IoT/Cat-1, LoRaWAN, Wi-Fi, MQTT, HTTP, and vendor wire protocols are ingress or interaction mechanisms. Applications consume WoT Properties, Actions, and Events.
 - **LoRaWAN is optional.** A device profile may use it, but the architecture does not require it.
-- **AI is optional.** RefPath may reason over validated Things and propose governed actions, but tracking, discovery, decoding, rules, alarms, and Thing materialisation must work with no AI engine present.
+- **AI is optional.** Refpath may reason over validated Things and propose governed actions, but tracking, discovery, decoding, rules, alarms, and Thing materialisation must work with no AI engine present.
 - **Safe by default.** Unknown devices stay unknown. Ambiguous matches are not auto-admitted. Physical Actions require stronger evidence and authorization than read-only Properties.
 
 ## Initial proof matrix
@@ -66,7 +66,7 @@ Hardware names in specifications are qualification targets, not architectural de
 - `wotex_continuum` may carry host-neutral observations/actions across edge/cloud boundaries.
 - `wotex_nx` may add deterministic numerical analysis.
 - `wotex_lab` remains the experimental/qualification laboratory.
-- RefPath is an optional AI/agent consumer of validated WoT affordances.
+- Refpath is an optional AI/agent consumer of validated WoT affordances.
 
 Core WoTEx packages must never depend on `wotex_tracker`.
 
