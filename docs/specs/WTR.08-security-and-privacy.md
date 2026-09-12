@@ -40,7 +40,11 @@ An AI engine may propose a physical Action but MUST NOT bypass the same authoriz
 
 ## Anti-stalking
 
-The reference application MUST include an abuse analysis before claiming production readiness. Deployments intended for personal tracking SHOULD provide owner enrollment, visible control of tracking state, access audit, credential revocation, and mechanisms appropriate to the hardware for detecting unauthorized tracker association.
+The application MUST include an abuse analysis before claiming production
+readiness. Personal tracking MUST provide owner enrollment, visible control of
+tracking state, access audit, credential revocation and mechanisms appropriate
+to the hardware for detecting unauthorized tracker association. Refusing location,
+notification or Bluetooth permission must not be bypassed through another bridge.
 
 The project MUST NOT market covert surveillance as a feature. Generic OSS cannot guarantee platform-level unwanted-tracker detection comparable to phone-vendor ecosystems; documentation must state this limitation.
 
@@ -55,3 +59,24 @@ Apply WTR.01 admission to every untrusted envelope, including JSON object keys, 
 Deployment Forms, paths and executables are explicit operator inputs, never inferred from device-supplied addresses or URLs. Pure matching/materialisation performs no URL retrieval, remote model/context fetch or filesystem access. A host that accepts configurable destinations must enforce its authorization and routing policy before any request, including redirects. File/native adapters must define traversal, symlink, executable-identity and bounded-output checks before being admitted. Lexical containment and digests alone neither authenticate a device nor isolate hostile concurrent filesystem writers.
 
 Raw evidence is private, bounded and subject to retention. Public serialization, structured errors, logs and telemetry must use reviewed projections that exclude credentials and stable private identifiers, including nested callback/provenance details. Do not use identifiers, payloads or arbitrary profile strings as unbounded metric labels. Tests exercise successful and rejected paths, not just logger formatting in isolation.
+
+## Application and analytics boundary
+
+WTR.07 authorization applies equally to HTTP, SSE, CLI and local service calls.
+WTR.15 adds native WebView origin/session binding, secure credential custody and
+mobile lifecycle requirements. Possessing the Pi touch panel, a loopback URL or
+a cached dashboard is not implicit authorization. Revocation must stop new reads,
+mutations and deliveries on existing sessions; reconnect rechecks authority.
+
+The host isolates caches, saved queries, exports, push tokens and pending work by
+server/principal/scope. Switching accounts or infrastructure cannot retain access
+to the previous scope. Define deletion across primary storage, cache, export and
+backup retention honestly; remote revocation cannot erase an already offline
+copy instantly. Revalidate at reconnect and apply local expiry/purge policy.
+
+Model translation and investigations use WTR.16's bounded data contract. Neither
+prompt instructions nor raw device text can choose executable tools, widen data
+scope, install code or bypass physical-action policy. Runtime introspection is
+privileged operator access, separate from ordinary user analytics. Egress of
+location or raw evidence needs explicit disclosure policy, independently of
+permission to render a graph locally.

@@ -1,8 +1,12 @@
 # Wotex Tracker
 
-**Deterministic physical-device discovery, capability evidence, and WoT Thing materialisation for Elixir.**
+**Your trackers. Your infrastructure.**
 
-`wotex_tracker` specifies a headless WoT intermediary library for turning heterogeneous physical trackers and sensors into validated W3C Web of Things Thing Descriptions. A separately started reference host may demonstrate the library.
+WoTEx Tracker specifies a complete physical asset-tracking product with an
+Elixir/OTP engine, a shared LiveView application, a Pi 5 control panel and an
+iPhone companion. The smart-bike application and third-party headless consumers
+use the same tracking contracts. Its reusable `wotex_tracker` library turns
+heterogeneous trackers and sensors into evidence-backed W3C Web of Things Things.
 
 The target design is hardware- and transport-agnostic. A physical device may first appear as a BLE advertisement, a cellular tracker connection, a LoRaWAN uplink, MQTT data, HTTP data, or another bounded ingress. The planned pipeline preserves observations as evidence, resolves a versioned device profile deterministically, decodes only what that profile proves, and materialises an instance Thing Description from a Thing Model. Explicit host integrations will expose the resulting Thing through ordinary WoT interfaces.
 
@@ -43,7 +47,10 @@ records findings, resolutions, executed checks and remaining limitations.
 
 ## Design rules
 
-- **Headless first.** The reusable service and machine interfaces are authoritative. CLIs, mobile apps, optional LiveView/HEEx hosts, and fleet products are consumers.
+- **Stable library, complete application.** Required service, web, Pi and mobile deliverables remain optional installations. The reusable service and machine interfaces are authoritative; every frontend is a consumer.
+- **Shared UI.** LiveView/HEEx screens power the web app, local Pi kiosk and native mobile WebView. Native bridges provide device capabilities without duplicating tracking policy.
+- **Usable without Elixir.** A bundled service release/container exposes versioned HTTP/JSON and resumable events for other languages and frontends.
+- **Interactive analytics.** Dynamic graphs, history queries and saved dashboards are required. Prompted queries are validated and executed by the service; AI remains explicitly configured and optional to operation.
 - **Evidence before inference.** Device identity and capabilities come from deterministic protocol evidence, not AI guesses.
 - **No vendor-cloud dependency.** A supported hardware profile must have a documented path to infrastructure controlled by the operator. Vendor SaaS may be optional but never mandatory.
 - **Transport is not semantics.** BLE, LTE-M/NB-IoT/Cat-1, LoRaWAN, Wi-Fi, MQTT, HTTP, and vendor wire protocols are ingress or interaction mechanisms. Applications consume WoT Properties, Actions, and Events.
@@ -79,9 +86,26 @@ Hardware names in specifications are qualification targets, not architectural de
 
 Core WoTEx packages must never depend on `wotex_tracker`.
 
-## Optional bootable host
+## Required product deliverables
 
-A planned [Nerves Pi 5 application](docs/specs/WTR.14-nerves-and-liveview-hosts.md) will explicitly start the tracking service at boot. Headless and optional LiveView/HEEx firmware use the same library API. The host owns startup, networking, storage and device access; the library remains inert. No image is built or hardware-qualified yet, and onboard Pi 5 Bluetooth requires separate qualification.
+The [application contract](docs/specs/WTR.15-product-and-mobile-applications.md)
+requires enrollment, live/last-known position, battery/connectivity, map and trip
+history, protection rules, alerts, privacy controls and offline/reconnect behavior.
+[Analytics](docs/specs/WTR.16-metrics-and-prompted-analytics.md) includes prompted
+queries, interactive graphs and saved dashboards over authorized data.
+
+The [service](docs/specs/WTR.07-headless-interfaces.md) ships independently of UI.
+The [Nerves Pi 5 application](docs/specs/WTR.14-nerves-and-liveview-hosts.md)
+provides headless and local touch-display profiles. The mobile companion shares
+the web UI and adds secure storage, notifications and qualified local BLE support.
+Each host owns startup and resources; the library remains inert. Framework gaps,
+missing hardware evidence or distribution funding block the relevant gate rather
+than reducing these requirements. No application or firmware has been built yet.
+
+No external metrics database, vendor tracking cloud, private AI engine or hosted
+build service is required to operate the deterministic product. Network bearers,
+map sources, optional model providers and mobile push/distribution have explicit
+host configuration and prerequisites. Sponsorship does not grant runtime access.
 
 ## License
 

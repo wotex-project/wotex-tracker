@@ -28,6 +28,13 @@ The exact public type may evolve, but capture data and derived data MUST remain 
 
 This is a value sketch, not executable Elixir. IDs are nonempty bounded UTF-8 binaries; `observed_at` is a caller-supplied Unix timestamp in milliseconds. Device time is separately named metadata and never silently replaces receiver time. Runtime monotonic deadlines are different values under WTR.13. Ingress uses a fixed admitted vocabulary; extensions use bounded strings, never input-created atoms. A capture imported from BLE retains BLE as its physical ingress and records fixture/replay status in provenance.
 
+Position-capable protocols MUST distinguish position-fix time, device message
+creation time and receiver admission time when supplied. Missing times stay
+missing; a profile documents the meaning, precision, timezone and trust of each
+available clock. Multiple gateway receptions retain separate reception identities.
+Delayed transmission does not make an old fix current, and a clock correction
+does not rewrite the original observation or fabricate a new measurement.
+
 Payload alternatives are explicit. Arbitrary binaries are not JSON strings. JSON values retain integers, floats, booleans, null, arrays and string-keyed objects without coercion. Wire formats use string keys; internal structs may use declared atom fields. Reject duplicate JSON members, atom/string key aliases, improper lists, structs inside JSON, invalid UTF-8 and non-JSON terms before decoding a profile. Use `Wotex.JSON.decode/2` for bytes declared to be JSON and `validate/2` for native JSON. A prior lossy map conversion cannot prove duplicate-free source JSON. Host binary export uses an explicitly versioned bytes envelope and canonical Base64, never `inspect/1` or implicit UTF-8 conversion.
 
 ## Identity is layered

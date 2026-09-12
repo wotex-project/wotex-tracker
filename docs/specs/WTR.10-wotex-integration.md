@@ -8,6 +8,11 @@ Accepted target contract. No implementation claim.
 
 Tracker is downstream of WoTEx foundation packages. Foundation packages MUST NOT depend on Tracker.
 
+The required product hosts and shared packages in WTR.15 remain downstream
+consumers. Service -> Tracker -> WoTEx values is the dependency direction; UI
+and mobile/Nerves platform integration never enter root library compilation.
+Runtime and analytics conveniences cannot introduce application policy upstream.
+
 ## Cross-repository ownership audit
 
 The Tracker boundary follows the repository contracts at the [recorded source cohort](../provenance/primary-sources.md). Source availability does not establish release availability or integration acceptance.
@@ -83,6 +88,10 @@ Conformance owns corpus/vector identity, an external target protocol and evidenc
 
 Lab MAY consume Tracker for experiments if useful. Tracker's implementation, fixtures, package tests, integration tests and hardware qualification MUST stand alone with Lab absent. Lab is neither a prerequisite nor the owner of Tracker acceptance. An experiment may contribute redacted, licensed evidence, but Tracker independently verifies any adopted contract. Tracker MUST NOT import Lab modules, hosts, stores, dependency graphs or release assumptions.
 
+The same application independence applies to other sibling products: shared
+presentation/query behavior belongs in Tracker's public contracts or a proven
+inert shared library, never a dependency on another product's application tree.
+
 ## Possible new repositories
 
 No new repository is required by the first milestone. Review reuse only when a concrete capability demonstrates it:
@@ -98,3 +107,28 @@ Repository creation is a graduation decision, not a prerequisite for the PoC.
 The pure milestone requires only `wotex` as a WoTEx dependency. Runtime and bindings enter when an executable interaction lane needs them; Directory, Continuum, Nx and Refpath remain optional host/adapter integrations. Prefer isolated host Mix projects for concrete clients, web servers, stores and native backends. Do not reference absent optional structs at core compile time or infer an adapter from installed modules.
 
 Coordinated development uses the existing `WOTEX_PATH_DEPS=1` convention only in dev/test/docs with explicit declared paths. Reject other values and production use. Ordinary package requirements use compatible available releases; immutable local archives may prove a source cohort separately. A sibling directory, `0.1.0` package metadata or path build is not proof of a published compatible release.
+
+## Product dependencies and services
+
+Required behavior does not make every integration a mandatory root dependency.
+The implementation must record exact compatible versions and executable evidence
+for each selected host cohort; a candidate name is not an installed dependency.
+
+| Concern | Planned implementation boundary | External service requirement |
+|---|---|---|
+| HTTP/JSON and SSE | Shared service with Plug/Bandit and a pinned OpenAPI contract | None; operator configures bind/TLS/network |
+| Durable local data | SQLite driver in the service host under WTR.06 | No database server; alternative databases are deployment adapters |
+| Web UI and charts | Phoenix LiveView/HEEx in the shared UI; narrow browser hooks | No frontend SaaS or notebook |
+| Pi firmware/display | Nerves, networking/time libraries, Pi system and Cog kiosk profile | NervesHub/cloud management optional |
+| Mobile shell | Local Phoenix/WebView; Mob candidate plus required native bridges | OS signing/distribution and configured push provider for that lane |
+| Operational metrics | Explicit `:telemetry` contract and bounded host collector | No metrics server; PromEx/Prometheus/GreptimeDB exporters optional |
+| Prompted analytics | Closed query engine plus one configured public model adapter; ReqLLM candidate | Selected local or remote model only when prompting is enabled |
+| Investigation | Optional BeamLens integration through authorized tools | Configured provider; privileged runtime tools isolated from end users |
+| Private AI | Refpath connector under WTR.11 | Private prerequisites only for explicitly enabled Refpath operation |
+| Maps | Shared map view with explicit tile/style configuration and bounded permitted cache | Operator-controlled/local sources supported; no mandatory paid map API |
+| Numerical processing | Optional `wotex_nx` conversion and qualified algorithm/backend | No required model-serving cloud |
+
+A native renderer or model framework can be replaced at its host boundary only
+after the replacement passes the same application/resource/security gates.
+Framework limitations do not reduce the product contract. No automatic selection
+based on installed modules or ambient configuration is allowed in shared libraries.

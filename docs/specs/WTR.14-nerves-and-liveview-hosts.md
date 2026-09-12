@@ -1,10 +1,11 @@
-# WTR.14 Optional Nerves firmware and LiveView hosts
+# WTR.14 Nerves firmware and Pi control panel
 
 ## Status
 
 Accepted target contract. No host, firmware image, UI or Pi hardware acceptance
-exists yet. These are consumers of the pure library, not additions to its startup
-or dependency contract. WTR.13 continues to govern the root package.
+exists yet. Bootable headless and local-display profiles are required product
+deliverables and optional installations. They are consumers of the pure library,
+not additions to its startup or dependency contract. WTR.13 governs the root.
 
 ## Separate library and appliance
 
@@ -15,11 +16,11 @@ persistent data, credentials and explicitly configured Tracker service instances
 Its dependency direction is host -> Tracker -> core WoTEx values. Nothing in core
 imports the host. The root archive excludes hosts and their locks/build assets.
 
-`hosts/workbench/` may provide a desktop/server application with the same public
-service and optional UI. Firmware must not start that application's whole tree.
-If both hosts need shared web code, extract inert LiveView/HEEx/router/endpoint
-modules with explicit child specs; keep application callbacks and deployment
-configuration in each host. No cross-host framework is needed for the first boot.
+`hosts/app/` supplies the server application. Both hosts consume the explicit
+service components and inert LiveView/HEEx package defined in WTR.15. Firmware
+must not start the server application's whole tree. Keep application callbacks,
+endpoints, device/network management and deployment configuration in each host.
+Shared components take explicit child specifications and service context.
 
 The boot application may start its declared services automatically at boot; the
 library never starts them merely because it is installed. Multiple Tracker
@@ -28,15 +29,17 @@ OS/network management does not become global Tracker configuration.
 
 ## Raspberry Pi 5 target
 
-The candidate baseline is `nerves_system_rpi5` 2.1.2, Nerves 1.15.0 and
-`MIX_TARGET=rpi5`, observed 2026-09-12. Exact firmware resolution and target OTP
-must be recorded from the built artifact; desktop Mix constraints do not select
-the embedded runtime. The system is a 64-bit Pi 5 target with Ethernet/Wi-Fi,
-but its documentation marks Bluetooth **untested**. Older boards can need an
-EEPROM update; the 2.x system requires firmware validation for updates to persist
-across reboot. These are upstream facts, not Tracker hardware qualification.
+The headless baseline is `nerves_system_rpi5`; the local-display baseline is
+`kiosk_system_rpi5` with Cog. The initial system candidates are 2.1.2 with Nerves
+1.15.0 and `MIX_TARGET=rpi5`. Exact firmware resolution, browser/native libraries,
+toolchain and target OTP MUST be recorded from the built artifact; desktop Mix
+constraints do not select the embedded runtime. Pin each profile separately and
+prove its compatibility rather than treating similar version numbers as identity.
+Bluetooth, board EEPROM, display and update behavior need exact target evidence.
+The 2.x Pi system requires firmware validation for updates to persist across
+reboot. Upstream support is not Tracker hardware qualification.
 [Pi 5 system documentation](https://nerves-system-rpi5.hexdocs.pm/readme.html),
-[exact system release](https://hex.pm/api/packages/nerves_system_rpi5/releases/2.1.2).
+[kiosk system](https://github.com/nerves-web-kiosk/kiosk_system_rpi5/tree/v2.1.2).
 
 Begin with a headless image and admitted fixture or network/software-peer input.
 Do not make onboard BLE a prerequisite for boot proof. A later BLE lane must
@@ -51,18 +54,40 @@ time/monotonic deadline distinction. Firmware/device serial numbers are private
 host identifiers, not public Thing IDs. Cloud management and NervesHub are
 optional; boot, local ingestion and local inspection must work without them.
 
-## Optional UI
+## Local control panel and remote UI
 
-The reference UI uses Phoenix LiveView, HEEx and Phoenix components. No separate
-SPA runtime is required. Minimal JavaScript hooks may support browser-specific
+The application UI uses shared Phoenix LiveView, HEEx and Phoenix components.
+No separate SPA runtime is required. Minimal JavaScript hooks may support browser-specific
 features such as a map, but do not own identity, evidence, policy or canonical
 state. Streams and history requests are bounded; socket assigns are projections.
 
 Ship separate tested headless and UI-enabled build profiles. A headless artifact
-contains no Phoenix/LiveView dependency or web endpoint. A UI-enabled host only
-starts its endpoint when explicitly configured. Enabling/disabling the endpoint
-must not reset ingestion or rewrite identity. The UI serves a browser on another
-device by default; a local HDMI kiosk/browser is not part of this contract.
+contains no Phoenix/LiveView dependency, display stack or UI endpoint; its machine
+API remains available under WTR.07. A UI-enabled host starts the presentation
+endpoint and local browser only when selected by its explicit build/runtime
+configuration. Disabling/restarting presentation must not reset ingestion or
+rewrite identity. The local control panel MUST work on a physically connected
+display with touch input, without a second computer or an internet connection.
+An authorized browser on another device may use the same shared application.
+
+Cog displays the local endpoint full-screen. Keep its process lifetime and
+restart budget separate from the ingestion service. Qualify GPU/DRM, the exact
+HDMI/DSI display path, touch controller, orientation, resolution, scaling, virtual
+keyboard and focus behavior. A successful HTTP response is not display evidence.
+An unavailable/crashed display cannot lose admitted telemetry or repeatedly
+restart the whole tracking service. Any alternative renderer must meet the same
+workflow, shared-component and fault-isolation gates; it cannot waive them.
+
+The panel MUST support initial setup, asset overview, map/history inspection,
+protection settings and interactive analytics under WTR.15/16. Missing internet,
+map tiles, AI or external metrics must have explicit states and leave local
+tracking, cached inspection and structured analytics usable. The selected product
+image includes durable storage; a volatile boot experiment is not product acceptance.
+
+Before qualification, fix measurable boot, input-to-render, refresh, memory,
+thermal and power budgets for the selected board/display/storage. Test the same
+workflows with concurrent ingestion, bounded history and slow/disconnected clients.
+Do not publish performance guarantees from an upstream demo or a cross-build.
 
 Both HTTP and connected LiveView mounts enforce authentication, and every
 mutation/probe/Action reaches the same service-side authorization as the CLI/API.
@@ -105,11 +130,18 @@ destructive steps; documentation is not authority to flash or erase a device.
 | Lane | Required executable evidence |
 |---|---|
 | Root package | Archive consumer with no Nerves/Phoenix/LiveView/Refpath; no Tracker startup callback or implicit I/O |
-| Headless firmware build | Pinned system/toolchain/dependency digests, artifact manifest, native target architecture, models included, secrets/web/private modules excluded |
+| Headless firmware build | Pinned system/toolchain/dependency digests, artifact manifest, native target architecture, models included, secrets/UI/private modules excluded |
 | Physical headless boot | Real Pi 5 board/EEPROM/storage record; deterministic fixture result matches desktop; service supervision and local inspection; bounded startup with network/AI absent |
 | Real ingress | Exact network or BLE backend; disconnect/reconnect and owner loss; observation -> TD -> Runtime proof; unsupported radio reported explicitly |
-| UI-enabled firmware | Same service API/results; authenticated LiveView inspection; revoked-session/mutation tests; bounded streams; endpoint disabled without stopping ingestion |
+| Local display | Real Pi/display/touch record; boot directly into authenticated setup/application; overview/history/graphs; keyboard, focus, scaling and gestures; offline operation and visible data gaps |
+| UI-enabled firmware | Same service API/results; revoked-session/mutation tests; bounded streams; browser crash/restart and presentation disabled without stopping ingestion; WTR.15 shared workflow scenario |
 | Recovery | Reboot, power interruption at transaction boundaries, full/unmountable storage, failed update/validation and firmware revert; truthful last-valid-state or recovery-required outcome |
+
+Both shipped profiles MUST pass their hardware gates. Separate artifacts permit
+headless consumers to omit display costs; they do not make the control-panel
+deliverable optional. A Pi 5 gateway/control panel does not itself qualify as a
+bike-mounted tracker: power, enclosure, environment and radio evidence for that
+role remain governed by WTR.09.
 
 A successful cross-build proves no physical boot, Bluetooth support, durability
 or GUI operation. Real hardware tests are recorded separately from local software

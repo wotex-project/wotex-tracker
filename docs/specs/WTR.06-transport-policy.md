@@ -39,7 +39,15 @@ This is a later host capability, not a persistence requirement for the pure core
 
 A host admission unit atomically checks scoped observation/measurement identity, stores the new evidence and canonical state, applies stale deletion belonging to that update, and records any publication/event intent. Concurrent writers use a conditional version/generation check; a losing writer receives `:conflict` without partially changing state. Reads observe a single committed generation. Independent retention jobs must not invalidate evidence still referenced by that generation without an explicit tombstone policy.
 
-The smallest reference host starts with explicitly volatile per-instance state. A durable adapter is admitted only after tests establish its transaction and crash semantics. Do not implement separate uncoordinated writes to observation, deduplication and event stores or claim ETS multi-operation atomicity. Use the chosen store's real transaction boundary; do not create a generic database framework in Tracker.
+An early development host may start with explicitly volatile per-instance state.
+The shipped service and Pi product profiles MUST provide durable observations,
+enrollment, policy state, event intents and saved application data. SQLite is the
+initial local-store implementation target in the service host; it is not a core
+dependency. Pin the actual driver/schema and qualify its native builds, writer
+ownership, transaction mode, checkpoint/backup and full-disk behavior. A remote
+database remains a deployment choice. Do not implement separate uncoordinated
+writes to observation, deduplication and event stores or claim ETS multi-operation
+atomicity. Use the store's real transaction boundary, not a generic database framework.
 
 TD publication to Directory or an external endpoint is a separate host effect and cannot be made atomic with local storage by calling two library APIs. Use a persisted publication intent when durable retry is required, bind it to the exact TD/deployment generation, and reconcile the same operation identity. A later generation cannot be overwritten by a stale retry. Retain the last valid published state if preparation/validation fails.
 
@@ -52,6 +60,14 @@ Before the durable lane is accepted, inject failure before commit, after commit 
 An RF transmission is not delivery evidence. Policies that escalate after failed delivery MUST define what acknowledgement means at each layer: radio acknowledgement, LoRaWAN confirmed uplink, application acknowledgement, cellular socket/protocol acknowledgement, or durable server admission.
 
 The cellular listener specification must define exactly which accepted records an acknowledgement covers and whether acceptance is volatile or durable. A checksum and a socket acknowledgement establish neither authenticated identity nor a physical Action effect. A timeout means the outcome may be unknown; it does not imply remote rollback. Protocol-required retransmission and deduplication are qualified together.
+
+The production admission contract records per-record disposition and its stable
+measurement/operation identity. Atomic versus partial batch admission is explicit
+for each protocol; one accepted count cannot conceal rejected records. A repeated
+frame after a lost ACK must neither duplicate history nor retrigger an alarm.
+Protocol ACK timing that precedes durable commit must be identified as transport
+acceptance and cannot be sold as lossless admission. Device-effect evidence stays
+separate from command acceptance, send success and acknowledgement.
 
 ## Sweden baseline
 

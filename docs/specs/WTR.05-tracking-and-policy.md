@@ -12,7 +12,13 @@ Position sources may include GNSS, cellular/network-derived location, Wi-Fi-deri
 
 ## Position evidence
 
-A normalized position observation SHOULD include coordinate when available, source, source-specific accuracy/uncertainty, device timestamp when trustworthy, receiver timestamp, profile provenance, and freshness.
+A normalized position observation MUST include coordinate when available, source,
+source-specific accuracy/uncertainty when supplied, distinct fix/device/receiver
+times under WTR.01, profile provenance and availability/quality. Coordinates use
+WGS84 latitude/longitude in degrees; normalized distance/altitude use metres and
+speed uses metres per second. Retain source units and conversion revision. Reject
+out-of-range coordinates; `(0, 0)` is valid and not a universal missing sentinel.
+Missing accuracy is unknown, not zero. Derived freshness uses explicit time.
 
 ## Deterministic selection/fusion
 
@@ -22,7 +28,21 @@ AI-generated location guesses MUST NOT become canonical position.
 
 ## State and events
 
-Tracker MAY derive state such as stationary/moving, present/absent, owner-nearby, geofence membership, overdue heartbeat, suspicious movement and transport degradation. Every derived state MUST declare its input evidence and deterministic rule revision.
+The tracking service MUST implement stationary/moving, trips/stops, geofence
+membership/transitions, overdue heartbeat, suspicious movement, low-battery and
+transport-degradation rules for evidence-qualified profiles. Every derived state
+declares its input evidence, prerequisites and deterministic rule revision.
+Present/absent and owner-nearby are distinct from radio reception and require
+their own explicit evidence policy. Unsupported inputs produce unknown or an
+explicit unsupported rule, never invented state. WTR.15 requires a qualified
+smart-bike lane that actually exercises the required product rules.
+
+Motion/trip policy MUST declare speed/distance thresholds, minimum movement and
+stop durations, jitter/uncertainty treatment, event-time ordering and gap handling.
+Do not equate a single speed spike with a trip or require car ignition evidence
+for a bicycle. State transitions are pure functions of prior state, admitted
+evidence, versioned policy and explicit time. Events have stable scoped identities;
+persist transition state and event intent atomically under WTR.06.
 
 ## Rules
 
@@ -47,8 +67,28 @@ Pure evaluation receives a fixed `now` value, not a clock-reading side effect. L
 
 Geofence evaluation is deterministic geometry over qualified position evidence. A geofence transition MUST retain the position/evidence that caused it and MUST tolerate uncertainty according to explicit policy rather than pretending every coordinate is exact.
 
+Support bounded circle and polygon fences with validated coordinates, explicit
+edge/boundary inclusion, uncertainty and antimeridian handling. Pin the geometry
+algorithm and supported shape constraints before implementation; reject invalid
+or unsupported shapes rather than silently simplifying them. Initial membership
+establishes a baseline instead of inventing a previously observed transition.
+Fence/rule edits recompute membership with a new revision and an explicit reason.
+
+Observed entry/exit and an inferred crossing between sparse fixes are distinct
+event kinds. Segment interpolation MUST identify both endpoint observations and
+its maximum permitted time/distance gap; it is not proof of the actual route.
+Route replay displays gaps and uncertainty. Trips and distances cannot silently
+include rejected positions or bridge gaps excluded by the versioned policy.
+
 ## Store and replay
 
 Late/offline observations may update history without necessarily generating a present-time alarm. Replay policy MUST distinguish event time from ingestion time and prevent old records from re-triggering live theft/tamper actions unless explicitly configured.
 
 Before implementing stateful policy, specify deterministic ordering/tie behavior, a bounded late-arrival window, sequence wrap/reset and reconnect scope, and the event idempotency key. Measurement deduplication must not discard distinct reception provenance or treat matching sequence numbers from different devices as one measurement. Apply deduplication, canonical state changes and resulting event intent in the same host transaction. Replay and live evaluation have explicit modes; historical reprocessing does not dispatch physical Actions. WTR.06 defines admission and publication outcomes.
+
+Acceptance MUST include movement fluctuations, threshold equality, first fix,
+missing accuracy, valid zero coordinates, repeated timestamps, out-of-order fixes,
+clock jumps, long gaps, fence edits, boundary/antimeridian cases and sequence
+reset/wrap. Replay the same admitted history through independent reference
+expectations and live ingestion; explain intentional historical/live differences.
+Last-received status may advance while last-valid position remains unchanged.

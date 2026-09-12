@@ -80,6 +80,50 @@ Apply the full gate in WTR.13, including actual archive contents and clean consu
 
 Optional `wotex_conformance` reports use its external artifact boundary and exact corpus/subject identity. They cannot be relabelled Tracker hardware qualification. Lab may help experiment but owns no Tracker acceptance gate. Refpath-private execution is separately labelled and never required for public software acceptance.
 
+## Product acceptance
+
+The required delivery targets in `catalogue.yaml` bind the complete product to
+owning contracts and explicit evidence. Core-only software and library-release
+gates remain separately scoped. The product MUST additionally pass:
+
+1. durable standalone service, versioned HTTP/OpenAPI/SSE and clean non-Elixir
+   release/image consumption under WTR.06/07;
+2. the required BLE and finished direct-cellular hardware paths plus smart-bike
+   capability coverage under WTR.09;
+3. the complete shared application workflows under WTR.15;
+4. physical Pi 5 headless boot/recovery and local touch-panel operation under WTR.14;
+5. real iPhone native bridges, lifecycle, secure storage, signed installation and
+   the documented distribution path under WTR.15;
+6. known-answer analytics, actual dynamic graphs, saved-query semantics and a real
+   public-provider prompted query under WTR.16; and
+7. the integrated same-tracker web/Pi/iPhone/non-Elixir scenario under WTR.15.
+
+Delivery prerequisites refer to completed acceptance, not module build order.
+Each target accepts its listed behavior, not every downstream feature mentioned
+by an owning contract. The headless-service target proves admission, durability,
+machine-interface foundations and clean artifacts; feature targets extend and
+test that same API. Complete service capability is checked again in the integrated
+product, so foundation acceptance cannot advertise unimplemented operations.
+The analytics target verifies query/provider contracts and browser graph behavior;
+the shared-application target verifies complete browser workflows using them.
+Pi/mobile targets verify their physical surfaces, and the integrated target binds
+the same tracker across all of them. Shared UI modules can be developed before
+any complete application target passes. Cross-surface requirements are discharged
+in the physical/integrated targets, without circular prerequisite waivers.
+
+An explicitly selected gate fails when its required test is skipped or its
+prerequisite is absent. No upstream demo, synthetic peer, build, static screenshot,
+funding plan or documentation check can substitute for the corresponding real
+execution. Funding/account/store-review status is recorded separately from
+software/hardware results, with remaining distribution prerequisites unpassed.
+Private Refpath and optional LoRaWAN do not replace or gate public product paths.
+
+The evidence record must identify which shipped artifacts and configuration
+profiles passed, including UI-disabled and integration-absent operation. Resource
+budgets are fixed for the selected target before qualification. A regression
+introduced by a shared module invalidates affected downstream acceptance until
+the appropriate scenario is rerun; a passing core test alone cannot restore it.
+
 ## Conformance language
 
 Passing Tracker tests does not by itself establish W3C WoT conformance, Bluetooth qualification, LoRaWAN certification, cellular certification, regulatory approval or hardware safety certification. Such claims require their own evidence.

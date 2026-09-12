@@ -53,6 +53,26 @@ The initial qualification region is Sweden/EU. Profiles must record the exact ce
 
 For portable/bicycle use, a reference target is a finished compact rugged enclosure comparable in intent to small commercial asset trackers. Development boards without a suitable enclosure may be used for protocol development but MUST NOT satisfy the portable-hardware qualification lane.
 
+## Smart-bike and application coverage
+
+Complete product acceptance MUST include a qualified portable tracker/configuration
+covering position, battery, movement and the reporting/alert path, plus an exact
+local BLE provisioning/read path used by the companion. Record whether these
+capabilities belong to one device or explicitly associated components; proximity
+alone cannot associate a sensor with a bicycle. Manufacturer brochure claims,
+an unavailable control or a development board do not satisfy required coverage.
+
+Qualify the Pi 5 as a separate gateway/control-panel target under WTR.14, including
+display/touch/storage and power interruption. Its boot proof does not establish
+portable enclosure or bike power suitability. Qualify the iPhone and selected
+BLE accessory/firmware under WTR.15, with native permissions, central role,
+provisioning/read/write, lifecycle and reconnect evidence. A desktop scanner or
+mobile peripheral advertisement does not establish those capabilities.
+
+No component is forced to implement unsupported capabilities merely to complete
+a matrix. Select or implement a suitable qualified path; missing required
+hardware coverage leaves the product gate unpassed.
+
 ## Vendor lock
 
 Mandatory vendor cloud, non-exportable tenant identity, cloud-only decoding, or inability to point the device/network path at operator infrastructure is a hard failure for the OSS reference profile.

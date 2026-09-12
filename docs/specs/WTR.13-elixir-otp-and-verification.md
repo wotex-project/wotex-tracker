@@ -135,6 +135,14 @@ upstream lifecycle rather than adding a second Tracker subscription engine.
 
 ## Performance and resource evidence
 
+Use OTP processes for resource lifetime and concurrency. Connection/command
+lifecycles may use `:gen_statem` when state-specific events and deadlines justify
+it; deterministic decoding, geometry and rule transitions remain pure functions.
+Socket active-once/credit or pull control must be tied to downstream capacity,
+not an unbounded mailbox. Per-device ordering and cross-process store concurrency
+must agree; one process per connection does not serialize a device reconnecting
+through a second connection. Bound incomplete frames and expire abandoned sessions.
+
 Use binary pattern matching for fixed frames, prepend/reverse accumulation,
 maps for repeated identity lookups, and iodata at suitable output boundaries.
 Avoid growing-left list append and indexed list scans in repeated work. Keep
@@ -177,3 +185,17 @@ honestly; no resolver override counts as compatibility. Build is not publication
 WTR.12 and the implementation plan distinguish spec checks, software acceptance,
 host integration and hardware qualification. Do not mark an unimplemented
 capability complete because this document or a static source scan passes.
+
+Service-only, UI-enabled, Pi and mobile projects each run their applicable full
+gate with an explicit runtime/native-toolchain manifest. Shared service/UI
+packages follow root library ownership rules and are tested with independent
+instances and absent host modules. A newer host runtime cannot silently alter
+the core's supported lanes. CI definitions or counts of tests are not evidence
+that a physical plugin, browser, display or radio worked.
+
+Before declaring application readiness, run WTR.07/14/15/16 observable behavior
+and integrated failure scenarios on the actual packaged hosts. Measure cold/warm
+startup, input-to-render latency, query/stream load, peak RSS and device energy
+under comparable conditions; allocation is a separate measurement. Preserve
+full test selection, coverage, strict analysis and security checks. No disabled
+dependency capability or missing account changes a required product gate to optional.

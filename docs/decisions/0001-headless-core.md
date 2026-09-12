@@ -1,10 +1,13 @@
-# ADR 0001: Headless core with replaceable reference UI
+# ADR 0001: Headless core with complete replaceable applications
 
 Status: Accepted
 
 ## Decision
 
-`wotex_tracker` is a headless-first library/service. The authoritative interfaces are Elixir domain APIs and machine interfaces. A reference UI may be shipped later as an isolated host that consumes those same interfaces.
+`wotex_tracker` is an inert domain library. The product supplies a required
+standalone service and complete applications through isolated hosts. Elixir APIs
+and versioned machine interfaces are authoritative. Shared LiveView screens run
+in the web host, Pi kiosk and native mobile WebView, with explicit service access.
 
 ## Why
 
@@ -18,4 +21,8 @@ The project must support mobile, LiveView, CLI, fleet, embedded and AI consumers
 - a UI can be replaced without changing profiles or Thing semantics; and
 - UI convenience may not bypass evidence/security boundaries.
 
-The optional reference UI uses Phoenix LiveView/HEEx. A bootable Nerves Pi 5 host may own an application callback and explicitly supervise Tracker services; the root library does not. WTR.14 defines firmware and UI acceptance separately from the pure package.
+Applications and bootable firmware own startup callbacks and explicitly supervise
+services; the root library does not. WTR.07/14/15/16 define required product gates
+separately from core software acceptance. Consumers may omit every UI component
+without losing the headless contract. Dependency limitations cannot waive a
+required workflow or turn a partial application into an accepted product.

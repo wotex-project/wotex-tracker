@@ -17,7 +17,15 @@ The WTR contracts describe required target behavior. Implementation readiness do
 - [WTR.11 Optional Refpath AI integration](WTR.11-refpath-integration.md)
 - [WTR.12 Executable evidence, fixtures and PoC graduation](WTR.12-evidence-and-graduation.md)
 - [WTR.13 Elixir/OTP implementation and verification floor](WTR.13-elixir-otp-and-verification.md)
-- [WTR.14 Optional Nerves firmware and LiveView hosts](WTR.14-nerves-and-liveview-hosts.md)
+- [WTR.14 Nerves firmware and Pi control panel](WTR.14-nerves-and-liveview-hosts.md)
+- [WTR.15 Tracking application and mobile companion](WTR.15-product-and-mobile-applications.md)
+- [WTR.16 Metrics, prompted analytics and dynamic graphs](WTR.16-metrics-and-prompted-analytics.md)
+
+The complete application, service distribution, Pi control panel, iPhone companion
+and interactive/prompted analytics are required deliverables. Their hosts remain
+optional installations for library consumers. Required delivery targets and
+unexecuted evidence are recorded in the catalogue; a framework or funding gap
+cannot waive their gates. LoRaWAN and private Refpath remain optional integrations.
 
 [Primary source revisions](../provenance/primary-sources.md), [hardware qualification](../provenance/hardware-qualification.md), and future executed evidence are separate records.
 

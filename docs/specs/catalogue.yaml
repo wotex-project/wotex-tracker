@@ -3,7 +3,7 @@ package: wotex_tracker
 status: target-contracts
 implementation_status: not-started
 executed_evidence: []
-updated: 2026-09-12
+updated: 2026-09-13
 
 principles:
   - headless-first
@@ -14,6 +14,9 @@ principles:
   - privacy-by-default
   - caller-owned-library-instances
   - native-elixir-otp-first
+  - complete-product-with-optional-host-installation
+  - shared-liveview-native-webview
+  - required-gates-not-framework-limits
 
 # depends_on identifies contract references, not installation or phase order.
 # WTR.13 governs every implementation from Phase 0.
@@ -22,11 +25,11 @@ contracts:
   - id: WTR.00
     file: WTR.00-library-contract.md
     owns: library/application boundary
-    depends_on: [wotex]
+    depends_on: [wotex, WTR.07, WTR.10, WTR.13, WTR.14, WTR.15, WTR.16]
   - id: WTR.01
     file: WTR.01-observation-identity-evidence.md
     owns: observations, identity evidence, provenance
-    depends_on: [WTR.00]
+    depends_on: [WTR.00, WTR.02, WTR.13]
   - id: WTR.02
     file: WTR.02-discovery-and-capabilities.md
     owns: discovery, fingerprinting, probes, capabilities
@@ -34,7 +37,7 @@ contracts:
   - id: WTR.03
     file: WTR.03-device-profiles-and-adapters.md
     owns: profiles, decoders, vertical adapters
-    depends_on: [WTR.01, WTR.02]
+    depends_on: [WTR.01, WTR.02, WTR.06]
   - id: WTR.04
     file: WTR.04-thing-materialisation.md
     owns: profile/TM/TD materialisation
@@ -42,43 +45,119 @@ contracts:
   - id: WTR.05
     file: WTR.05-tracking-and-policy.md
     owns: tracking state, position evidence, deterministic rules
-    depends_on: [WTR.01, WTR.04]
+    depends_on: [WTR.01, WTR.04, WTR.06, WTR.13, WTR.15]
   - id: WTR.06
     file: WTR.06-transport-policy.md
     owns: transport preference, fallback, store-and-forward
     depends_on: [WTR.03, WTR.05]
   - id: WTR.07
     file: WTR.07-headless-interfaces.md
-    owns: public service/CLI/UI boundary
-    depends_on: [WTR.00, WTR.04, WTR.05]
+    owns: public service, versioned HTTP/SSE, standalone release and CLI boundary
+    depends_on: [WTR.00, WTR.01, WTR.02, WTR.04, WTR.05, WTR.06, WTR.13, WTR.14, WTR.15, WTR.16]
   - id: WTR.08
     file: WTR.08-security-and-privacy.md
     owns: tracker threat/privacy/physical-action floor
-    depends_on: [WTR.01, WTR.02, WTR.05, WTR.07]
+    depends_on: [WTR.01, WTR.02, WTR.05, WTR.07, WTR.09, WTR.15, WTR.16]
   - id: WTR.09
     file: WTR.09-hardware-qualification.md
     owns: hardware and vendor-independence qualification
-    depends_on: [WTR.03, WTR.08]
+    depends_on: [WTR.03, WTR.08, WTR.14, WTR.15]
   - id: WTR.10
     file: WTR.10-wotex-integration.md
     owns: WoTEx repository boundaries and graduation
-    depends_on: [WTR.00, WTR.04]
+    depends_on: [WTR.00, WTR.04, WTR.06, WTR.11, WTR.15]
   - id: WTR.11
     file: WTR.11-refpath-integration.md
     owns: optional AI/agent boundary
-    depends_on: [WTR.04, WTR.05, WTR.08]
+    depends_on: [WTR.04, WTR.05, WTR.08, WTR.16]
   - id: WTR.12
     file: WTR.12-evidence-and-graduation.md
     owns: executable evidence and support claims
-    depends_on: [WTR.01, WTR.02, WTR.03, WTR.04, WTR.08, WTR.09, WTR.10]
+    depends_on: [WTR.01, WTR.02, WTR.03, WTR.04, WTR.05, WTR.06, WTR.07, WTR.08, WTR.09, WTR.10, WTR.13, WTR.14, WTR.15, WTR.16]
   - id: WTR.13
     file: WTR.13-elixir-otp-and-verification.md
     owns: native Elixir/OTP ownership, bounds, runtime and verification floor
-    depends_on: [WTR.00, WTR.01, WTR.06, WTR.07, WTR.12]
+    depends_on: [WTR.00, WTR.01, WTR.06, WTR.07, WTR.10, WTR.12, WTR.14, WTR.15, WTR.16]
   - id: WTR.14
     file: WTR.14-nerves-and-liveview-hosts.md
-    owns: optional bootable Pi 5 firmware and native LiveView host boundary
-    depends_on: [WTR.00, WTR.06, WTR.07, WTR.08, WTR.10, WTR.11, WTR.12, WTR.13]
+    owns: required headless Pi 5 firmware and local LiveView control panel
+    depends_on: [WTR.00, WTR.06, WTR.07, WTR.08, WTR.09, WTR.10, WTR.11, WTR.12, WTR.13, WTR.15, WTR.16]
+  - id: WTR.15
+    file: WTR.15-product-and-mobile-applications.md
+    owns: complete shared application, native mobile companion and distribution gates
+    depends_on: [WTR.00, WTR.05, WTR.06, WTR.07, WTR.08, WTR.09, WTR.10, WTR.13, WTR.14, WTR.16]
+  - id: WTR.16
+    file: WTR.16-metrics-and-prompted-analytics.md
+    owns: operational metrics, authorized queries, prompted analytics and dynamic graphs
+    depends_on: [WTR.01, WTR.05, WTR.06, WTR.07, WTR.08, WTR.10, WTR.11, WTR.12, WTR.13, WTR.15]
+
+# Delivery prerequisites are acceptance edges, distinct from contract references.
+# All targets are required for complete product acceptance. Core software can be
+# verified earlier; no target is implemented or accepted by this catalogue.
+delivery_targets:
+  - id: core_library
+    required_for_product: true
+    contracts: [WTR.00, WTR.01, WTR.02, WTR.03, WTR.04, WTR.13]
+    requires: []
+    implementation_status: not-started
+    evidence_refs: []
+    acceptance: pure fixture-to-TD, complete gate, clean optional-absent archive consumers
+  - id: headless_service
+    required_for_product: true
+    contracts: [WTR.06, WTR.07, WTR.08, WTR.13]
+    requires: [core_library]
+    implementation_status: not-started
+    evidence_refs: []
+    acceptance: durable admission/recovery, versioned HTTP/SSE, clean release/image and non-Elixir client
+  - id: tracking_hardware
+    required_for_product: true
+    contracts: [WTR.03, WTR.05, WTR.06, WTR.09, WTR.12]
+    requires: [headless_service]
+    implementation_status: not-started
+    evidence_refs: []
+    acceptance: real passive BLE, finished direct cellular tracker and complete smart-bike capability coverage
+  - id: shared_application
+    required_for_product: true
+    contracts: [WTR.07, WTR.08, WTR.15]
+    requires: [headless_service, analytics]
+    implementation_status: not-started
+    evidence_refs: []
+    acceptance: complete browser workflows, shared LiveView components, authorization, privacy and accessibility
+  - id: analytics
+    required_for_product: true
+    contracts: [WTR.05, WTR.07, WTR.08, WTR.16]
+    requires: [headless_service]
+    implementation_status: not-started
+    evidence_refs: []
+    acceptance: known-answer queries, browser graph behavior, saved windows/snapshots, real prompted query and AI-absent operation
+  - id: pi5_headless
+    required_for_product: true
+    contracts: [WTR.06, WTR.07, WTR.09, WTR.14]
+    requires: [headless_service]
+    implementation_status: not-started
+    evidence_refs: []
+    acceptance: physical boot, target-runtime proof, durable storage and firmware/data recovery without UI
+  - id: pi5_panel
+    required_for_product: true
+    contracts: [WTR.08, WTR.14, WTR.15, WTR.16]
+    requires: [pi5_headless, shared_application, analytics]
+    implementation_status: not-started
+    evidence_refs: []
+    acceptance: physical display/touch, complete shared workflows, offline use and isolated browser failure
+  - id: ios_companion
+    required_for_product: true
+    contracts: [WTR.08, WTR.09, WTR.15, WTR.16]
+    requires: [tracking_hardware, shared_application, analytics]
+    implementation_status: not-started
+    evidence_refs: []
+    acceptance: real iPhone, native secure storage/BLE/push/lifecycle, signed install and distribution evidence
+  - id: integrated_product
+    required_for_product: true
+    contracts: [WTR.07, WTR.09, WTR.12, WTR.14, WTR.15, WTR.16]
+    requires: [core_library, headless_service, tracking_hardware, shared_application, analytics, pi5_headless, pi5_panel, ios_companion]
+    implementation_status: not-started
+    evidence_refs: []
+    acceptance: same-tracker web/Pi/iPhone/non-Elixir scenario, resource budgets, failures and recovery
 
 initial_profiles:
   ruuvi_ruuvitag:

@@ -55,6 +55,28 @@ A cellular tracker that opens TCP/UDP/MQTT/HTTP directly to operator infrastruct
 
 For protocols such as Teltonika AVL, a profile/adapter MUST preserve protocol identifiers, codec/version, record sequence where available, IO element provenance, acknowledgement semantics, and connection identity evidence before mapping records to tracking capabilities.
 
+Framing, session negotiation, pure decoding, authorized admission and outbound
+acknowledgement are separate responsibilities. Login, heartbeat and command
+responses can be valid messages with no position; one frame can contain multiple
+records. An empty measurement list alone cannot represent all of these outcomes.
+Use explicit message variants and return bounded incomplete-frame state, decoded
+records or a typed rejection. Never treat a socket read as one complete frame.
+
+The selected adapter MUST specify length/count/checksum coverage, byte ordering,
+supported codec/IO revisions, sequence scope, reconnect behavior and the exact
+acknowledgement for accepted/rejected/duplicate records. Per-device admission is
+serialized through explicit ownership or store concurrency control; transport
+sessions cannot race canonical state updates. ACK encoding follows WTR.06 commit
+outcomes and the physical protocol, not an assumption that decoding means storage.
+
+Before hardware acceptance, exercise independent byte fixtures and a software
+peer with every frame split boundary, concatenated frames, incomplete EOF,
+oversized declared lengths, unknown IO elements, mixed record validity, checksum
+failure, login without telemetry and command responses. Test connection loss
+before and after commit, retransmission and bounded session/buffer exhaustion.
+Protocol documentation and device/firmware evidence must agree; another decoder
+is not the authority for undocumented behavior.
+
 ## LoRaWAN
 
 LoRaWAN is optional. A LoRaWAN profile MUST distinguish the end-device application payload from the network-server integration. AppSKey/NwkKey material belongs to credential custody, never Thing Descriptions, observations, logs, or fixtures.

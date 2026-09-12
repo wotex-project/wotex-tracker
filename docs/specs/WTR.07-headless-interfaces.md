@@ -8,7 +8,10 @@ Accepted target contract. No implementation claim.
 
 Tracker is **headless first, not UI-less**.
 
-The core/library and service interfaces are the product boundary. A reference UI is valuable to prove scan -> evidence -> Thing workflows, but it must be a replaceable consumer.
+The library and authorized service interfaces are the stable product boundary.
+The complete first-party application is required under WTR.15 and remains a
+replaceable consumer. UI, native shell and firmware installation are choices
+for deployments, not optional implementation of required product workflows.
 
 ## Public Elixir facade
 
@@ -58,17 +61,89 @@ They MUST NOT expose BlueZ structs, CoreBluetooth structs, socket connection pro
 
 ## Service host
 
-A reference headless host MAY provide HTTP/JSON and streaming APIs. It SHOULD be suitable for a LiveView app, mobile app, CLI, Home Assistant integration, fleet backend, or Refpath connector without privileged in-process access.
+The service host MUST provide versioned HTTP/JSON operations, an OpenAPI document
+and resumable Server-Sent Events (SSE). These interfaces MUST support the complete
+application workflows without privileged in-process access. A non-Elixir client
+can enroll, submit/query observations, inspect state/history, manage policies,
+query analytics and invoke authorized interactions through that boundary.
 
 The host MUST NOT expose raw credentials, LoRaWAN keys, SIM secrets, BLE pairing secrets, or stable private identifiers by default.
 
-Machine endpoints SHOULD mirror the public domain operations rather than invent a second model: observations, resolutions, evidence, Things, current state, events and authorized actions.
+Machine endpoints MUST mirror the public domain operations: observations,
+resolutions, evidence, Things, enrollment, current state/history, policies,
+events, analytics and authorized interactions. WTR.16 owns the query/result
+schema; the service does not expose arbitrary storage queries.
 
 Before shipping machine interfaces, version their exact request/result/error schemas, binary encoding, integer precision policy, pagination, subscription cursor/overflow behavior and idempotency semantics. Follow WTR.01 JSON admission and WTR.06 commit outcomes. Expected boundary errors have stable codes/paths and bounded redacted details, not inspected exception text. Protocol/scanner absence returns an explicit unsupported/unavailable result rather than a successful empty scan.
 
+The first machine surface uses `/api/v1`, JSON success/error envelopes and a
+separately versioned event envelope. Publish an OpenAPI revision supported by the
+selected validator/client tools; pin that revision and validate actual requests
+and responses against it. Operation IDs, error codes, query/result schemas and
+event types are public contracts. Adding a frontend cannot change their meaning.
+
+IDs and opaque cursors are strings. Browser-facing numeric fields declare exact
+ranges; wider protocol values use an explicit schema-defined lossless projection.
+Raw evidence exports preserve WTR.01 native types/bytes and must not pass through
+a lossy browser parse/re-encode path. Identity/generation tokens are issued by
+the service rather than recomputed from JavaScript numbers. Test `1` versus `1.0`,
+zero/false/null and counters beyond JavaScript's exact integer range end to end.
+
+Every mutation has a caller-scoped idempotency identity and a documented retry
+contract. Reuse with different admitted content is a conflict. Conditional writes
+include the expected generation. Results expose WTR.06 commit/publication state;
+an operation-status lookup resolves retained unknown outcomes without executing
+the operation again. Retention expiry is explicit. Never retry a physical Action
+solely because the caller timed out.
+
+Paginated reads bind scope, filters and sort order to a committed snapshot.
+Subscriptions bind principal/scope, source generation and event cursor; deliver
+stable event IDs with at-least-once replay within retained history. Clients
+deduplicate. The snapshot-to-stream handoff MUST neither miss commits nor present
+a mixed generation. Expired/invalid cursors require an explicit resnapshot, not
+an empty success or silent jump to the latest event. Retention and overflow are
+visible, and slow clients cannot retain unlimited server memory.
+
+Authenticate requests and streams without credentials in URLs. Cookie sessions
+use CSRF/origin controls; non-browser callers use scoped credentials over TLS.
+Authorization applies at admission, query and delivery time. Revoke existing
+streams when access changes and re-authorize resumed cursors; signing a cursor
+does not grant access. Credential exchange and TLS termination are host-owned.
+
+Before listener implementation, fix finite request/body/batch/page/event sizes,
+concurrent request/stream limits, retention, deadlines and shutdown budgets under
+WTR.13. Enforce input bounds before parsing and output bounds before publication.
+
+## Standalone service and sidecar distribution
+
+Ship a headless Mix release with bundled ERTS and an OCI image for declared Linux
+architectures. A consumer MUST be able to start the service, configure persistent
+storage/credentials, use HTTP/SSE and stop it without installing Elixir, Erlang,
+Phoenix, a notebook, an AI service or a compiler. Artifacts are OS/architecture
+specific; a single release is not a universal executable.
+
+The headless service may use Plug/Bandit for HTTP without requiring Phoenix or
+LiveView. The UI-enabled host adds the shared web package. Root and service-only
+consumers compile with all UI/mobile/Nerves/private integrations absent. Expose
+separate liveness, readiness and capability/status results: a running endpoint
+does not mean writable storage or qualified device ingress is ready.
+
+The host owns explicit bind addresses, TLS/proxy policy, data paths, secret input,
+shutdown and resource budgets. Loopback sidecar deployment still uses scoped
+authorization; remote access requires configured networking and authentication.
+No public tunnel, vendor account or external discovery service is implicit.
+Stopping/restarting the UI must not stop ingestion or corrupt admission state.
+
+Acceptance requires a clean release/image consumer and an independent non-Elixir
+HTTP/SSE client exercising enrollment, observation admission, query/history,
+events, reconnection, authorization and operation outcomes. Test signal shutdown,
+restart, unwritable/full storage, API version mismatch, duplicate mutations,
+snapshot/stream races and revoked access. Documented commands must execute against
+the built artifact. Building does not authorize publishing an image or release.
+
 ## CLI
 
-A CLI SHOULD prove the complete non-UI flow, conceptually:
+A CLI MUST prove the complete non-UI flow, conceptually:
 
 ```console
 wotex-tracker scan --ble
@@ -81,9 +156,11 @@ wotex-tracker observe THING temperature
 
 Command names are illustrative until implementation stabilizes.
 
-## Reference UI
+## Application UI
 
-A reference UI uses Phoenix LiveView/HEEx under `hosts/workbench` or a shared inert UI boundary used by an explicitly started Nerves host. WTR.14 separates bootable firmware from the library and defines headless/UI-enabled acceptance. The UI should show:
+A shared Phoenix LiveView/HEEx application under WTR.15 MUST provide the complete
+tracking workflows. WTR.14 defines Pi display/firmware acceptance and WTR.16
+defines prompted queries and dynamic graphs. Its inspection surfaces also show:
 
 - nearby observations without pretending they are trusted Things;
 - fingerprint evidence and candidate profiles;
@@ -96,7 +173,11 @@ A reference UI uses Phoenix LiveView/HEEx under `hosts/workbench` or a shared in
 
 ## Persistence
 
-Stateful interfaces accept caller-owned persistence ports only when implemented. Pure tests pass immutable state directly. The first reference host may use per-instance volatile state; ETS requires explicit ownership and consistency rules and provides no durability. SQLite is an optional later host adapter after WTR.06 crash/transaction acceptance. PostgreSQL or other stores belong to deployments. No store library is a pure-core dependency.
+Stateful interfaces accept explicitly configured persistence components. Pure
+tests pass immutable state directly. Volatile storage is a development/test
+profile and cannot satisfy product durability. WTR.06 owns the local SQLite
+target, crash/transaction acceptance and alternative-store boundary. ETS provides
+no durability. No store library is a pure-core dependency.
 
 ## API stability
 

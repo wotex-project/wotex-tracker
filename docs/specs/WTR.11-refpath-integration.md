@@ -10,6 +10,11 @@ Refpath is an optional AI/agent engine above validated WoT semantics. Tracker MU
 
 Refpath is private and under development. It is absent and disabled by default in public packages, hosts and firmware. Private availability is not inferred from a module name, a configured endpoint or a promotional example.
 
+The required prompted-query capability in WTR.16 has a public-provider path
+independent of this connector. Refpath can add investigations and governed
+proposals, but cannot become the prerequisite for analytics, saved dashboards
+or the complete application's deterministic workflows.
+
 ## Natural integration
 
 Validated WoT affordances may be projected into Refpath as policy-bound tools/context:

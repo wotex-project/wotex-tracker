@@ -6,7 +6,14 @@ Accepted target contract. No implementation claim.
 
 ## Purpose
 
-`wotex_tracker` is a generic tracking/sensing vertical built on WoTEx. It proves that physical devices with different discovery and transport mechanisms can become evidence-backed W3C WoT Things without making a UI, vendor cloud, radio technology, database, or AI engine part of the semantic core.
+`wotex_tracker` is the reusable tracking/sensing domain library of the WoTEx Tracker product. Physical devices with different discovery and transport mechanisms become evidence-backed W3C WoT Things without making a UI, vendor cloud, radio technology, database, or AI engine part of the semantic core.
+
+The complete product MUST deliver an independently usable headless service, a
+full tracking application, bootable Pi 5 service/control panel, mobile companion
+and interactive/prompted analytics under WTR.07/14/15/16. These are required
+deliverables, optional installations for library consumers. A partial software
+milestone is not product completion. Missing dependency capabilities, funding or
+hardware evidence block the affected gate; they do not remove its requirement.
 
 ## Required boundary
 
@@ -44,7 +51,7 @@ Tracker owns the vertical concepts that do not belong in protocol-neutral WoTEx 
 - transport preference/fallback policy descriptions;
 - hardware qualification records and vendor-independence gates;
 - anti-stalking/privacy controls specific to physical tracking deployments; and
-- reference PoC orchestration across those boundaries.
+- application/service orchestration across those boundaries, isolated in hosts.
 
 ## Not owned
 
@@ -68,7 +75,13 @@ No LLM or external AI service may participate in the acceptance path for device 
 
 ## UI boundary
 
-The authoritative product surface is a headless Elixir API plus machine-readable interfaces. A reference UI MAY be added under a separate host/application directory and MUST consume the same public service boundary available to third-party applications. UI-only state MUST NOT become canonical device or tracking state.
+The authoritative product surface is a headless Elixir API plus machine-readable
+interfaces. The first-party application MUST consume the same authorized service
+boundary available to third-party applications. WTR.15 defines shared LiveView
+screens and native WebView composition; WTR.14 defines the local Pi display.
+UI-only state MUST NOT become canonical device or tracking state. An application
+can start its declared services at boot without changing the library's inert
+installation contract. Replacing a frontend does not require replacing the engine.
 
 ## Vendor independence
 
