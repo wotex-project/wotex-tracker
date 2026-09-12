@@ -15,7 +15,7 @@ contracts:
   - id: WTR.00
     file: WTR.00-library-contract.md
     owns: library/application boundary
-    depends_on: [wotex, wotex_runtime]
+    depends_on: [wotex]
   - id: WTR.01
     file: WTR.01-observation-identity-evidence.md
     owns: observations, identity evidence, provenance
@@ -86,7 +86,7 @@ initial_profiles:
     note: no hardware selected until operator-controlled network path is verified
 
 candidate_graduations:
-  - repo: wotex-binding-ble
-    trigger: generic BLE WoT Form/discovery contract proven beyond tracking
+  - repo: wotex-ble
+    trigger: missing reusable BLE capability requires an extension to the existing owner
   - repo: undecided-lorawan-package
     trigger: generic LoRaWAN network-server/WoT contract proven beyond tracking

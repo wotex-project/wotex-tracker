@@ -2,9 +2,9 @@
 
 **Deterministic physical-device discovery, capability evidence, and WoT Thing materialisation for Elixir.**
 
-`wotex_tracker` is a headless-first WoT intermediary and reference application for turning heterogeneous physical trackers and sensors into validated W3C Web of Things Thing Descriptions.
+`wotex_tracker` specifies a headless WoT intermediary library for turning heterogeneous physical trackers and sensors into validated W3C Web of Things Thing Descriptions. A separately started reference host may demonstrate the library.
 
-The project is intentionally hardware- and transport-agnostic. A physical device may first appear as a BLE advertisement, a cellular tracker connection, a LoRaWAN uplink, MQTT data, HTTP data, or another bounded ingress. Tracker preserves the raw observation as evidence, identifies a versioned device profile deterministically, decodes only what that profile proves, materialises an instance Thing Description from a Thing Model, and exposes the resulting Thing through ordinary WoT interfaces.
+The target design is hardware- and transport-agnostic. A physical device may first appear as a BLE advertisement, a cellular tracker connection, a LoRaWAN uplink, MQTT data, HTTP data, or another bounded ingress. The planned pipeline preserves observations as evidence, resolves a versioned device profile deterministically, decodes only what that profile proves, and materialises an instance Thing Description from a Thing Model. Explicit host integrations will expose the resulting Thing through ordinary WoT interfaces.
 
 ```text
 physical device
@@ -31,6 +31,8 @@ fingerprint -> device profile -> decoder -> capability evidence
 ## Status
 
 This repository starts from **accepted target specifications**. Specification presence, fixtures, examples, or catalogue entries do not imply implementation, hardware qualification, interoperability, or W3C conformance. Executed evidence is tracked separately from target contracts.
+
+There is currently no Mix package, Tracker runtime code, test suite, or CI gate. The first implementation milestone is a pure imported-fixture-to-TD path; it requires no live scanner, host, storage, or Runtime integration.
 
 Start with the [WTR specification index](docs/specs/WTR-index.md) and the [software implementation sequence](docs/plans/software-implementation.md).
 
@@ -61,11 +63,13 @@ Hardware names in specifications are qualification targets, not architectural de
 
 - `wotex` owns TD/TM/DataSchema/Form values and validation.
 - `wotex_runtime` owns portable ConsumedThing/ExposedThing interaction planning and ports.
+- `wotex_ble` owns generic BLE/GATT values and WoT mapping. Passive advertisement ingestion is a separate capability to qualify; GATT discovery does not prove scanner availability.
 - `wotex_directory` owns Thing Description Directory semantics.
 - protocol bindings such as HTTP and MQTT own WoT Form-to-protocol mapping.
-- `wotex_continuum` may carry host-neutral observations/actions across edge/cloud boundaries.
-- `wotex_nx` may add deterministic numerical analysis.
-- `wotex_lab` remains the experimental/qualification laboratory.
+- `wotex_continuum` defines inert exchange values; the host supplies any edge/cloud transport.
+- `wotex_nx` optionally converts typed observations to numerical inputs and inert outputs; Tracker/its consumer owns any fusion algorithm.
+- `wotex_conformance` can evaluate exact artifacts through an external adapter; it is not a production dependency or a hardware qualification authority.
+- `wotex_lab` may optionally be used for experiments. Tracker owns its acceptance tests and qualification evidence and must work with Lab absent.
 - Refpath is an optional AI/agent consumer of validated WoT affordances.
 
 Core WoTEx packages must never depend on `wotex_tracker`.

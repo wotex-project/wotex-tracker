@@ -10,18 +10,21 @@ Tracker is downstream of WoTEx foundation packages. Foundation packages MUST NOT
 
 ## Cross-repository ownership audit
 
-The Tracker boundary is intentionally aligned with the current repository contracts:
+The Tracker boundary follows the repository contracts at the [recorded source cohort](../provenance/primary-sources.md). Source availability does not establish release availability or integration acceptance.
 
 | Concern | Owner | Tracker role |
 |---|---|---|
 | TD/TM/DataSchema/Form values and validation | `wotex` | consume; never fork |
 | Form selection, ConsumedThing/ExposedThing planning, credentials/transport ports, subscriptions, retry classification | `wotex_runtime` | invoke after TD validation; never replace |
 | Thing Description Directory registration/retrieval/replacement/listing/expiry/patch/introduction/lifecycle event values | `wotex_directory` | publish/query validated TDs through consumer integration |
-| HTTP/MQTT/etc. WoT binding semantics | binding repositories | install/use bindings; do not reimplement in Tracker |
+| HTTP/MQTT WoT binding semantics | `wotex_binding_http`, `wotex_binding_mqtt` | supply client ports in a host; neither package is a server or broker |
+| BLE/GATT values, operations and Form mapping | `wotex_ble` | consume public APIs; separately qualify passive scanning |
+| CoAP, Thread, BACnet, Matter, Modbus and OPC UA | `wotex_coap`, `wotex_thread`, `wotex_bacnet`, `wotex_matter`, `wotex_modbus`, `wotex_opcua` | optional protocol integrations only for evidenced profile needs |
 | Host-neutral observation proposals, action intent/result, evidence and delivery/lifecycle exchange values | `wotex_continuum` | optionally project Tracker state across edge/cloud boundaries |
 | Canonical physical observations, device/profile evidence, tracking identity association, tracking state and safety policy | `wotex_tracker` consumer/domain | own as the tracking vertical |
-| Numerical fusion primitives | `wotex_nx` | optional dependency where deterministic numerical work is needed |
-| Experimental cross-repo/hardware qualification | `wotex_lab` | research before graduation into normative Tracker profiles |
+| Typed observations to tensors/masks and inert numerical outputs | `wotex_nx` | optional numerical conversion; consumer owns model/fusion policy |
+| Artifact/vector conformance reports | `wotex_conformance` | optional external verification; no production dependency in either direction |
+| Experimental consumer workbench | `wotex_lab` | optional place to experiment; no Tracker dependency or acceptance authority |
 | AI/agent/tool orchestration | Refpath | optional downstream consumer/integration |
 
 The critical distinction is that Runtime and Continuum explicitly leave canonical observations, final authority, authorization/policy, persistence and Action-effect truth with the consumer. Tracker is that consumer/domain for tracking-specific evidence and state; it does not move those responsibilities into generic WoTEx core.
@@ -30,7 +33,7 @@ The critical distinction is that Runtime and Continuum explicitly leave canonica
 
 Tracker uses `wotex` for Thing Description, Thing Model, DataSchema, Form, security declaration and validation semantics. Tracker-specific structs MUST NOT become alternate TD/TM implementations.
 
-Thing materialisation ends by constructing a candidate map/value and validating it through `wotex`; a Tracker profile cannot declare a TD valid on its own authority.
+`Wotex.ThingModel.from_map/2` and `parse/2` validate models; they do not instantiate TDs. Tracker owns only its explicit profile/model selection and bounded transformation under WTR.04. The candidate map enters `Wotex.ThingDescription.from_map/2` with validation enabled. No encode-then-parse round trip is needed for an admitted native map.
 
 ## `wotex_runtime`
 
@@ -44,7 +47,7 @@ Long-lived observations/events remain caller-supervised. Tracker may provide hos
 
 HTTP and MQTT forms use their dedicated WoTEx bindings when compatible. Tracker-specific cellular/AVL/advertisement decoding happens before WoT exposure and is not mislabeled as an HTTP/MQTT binding.
 
-A generic BLE binding/discovery package is a likely future repository once the PoC proves reusable semantics. Candidate name: `wotex-binding-ble`. It should be created only when a protocol-neutral contract can be stated independently of tracking.
+`wotex_ble` already supplies `Wotex.BLE`, `profile/1`, session-based GATT discovery and Runtime adapters. Its recorded checkout distinguishes existing Python/dbus-next execution from an accepted C++ Port target. Tracker MUST NOT claim that target is implemented, require the legacy backend for its pure core, or reproduce it locally. Passive advertisements, Linux scanning and macOS scanning each require their own public API and evidence. BLE GATT discovery and physical advertisement discovery remain distinct.
 
 A LoRaWAN repository should likewise be created only if there is a reusable WoT binding/network-server abstraction beyond tracker-specific payload profiles. LoRaWAN radio/network semantics must not be forced into core merely to satisfy this PoC.
 
@@ -56,7 +59,7 @@ Tracker MUST NOT implement its own generic Directory repository semantics, pagin
 
 ## `wotex_continuum`
 
-Continuum is the preferred future boundary for carrying normalized observation proposals, evidence, Action intents/results and deployment-mode values across edge/cloud placement when its contracts fit.
+Continuum's `WotexContinuum.*` values and `WotexContinuum.Codec` are an optional boundary for observation proposals, evidence, Action intents/results and deployment-mode values when their contracts fit. The package supplies no transport, replication engine or store-and-forward service; those are host-owned.
 
 Tracker remains the authority that decides whether continuum-carried input becomes canonical tracking evidence/state. It MUST NOT treat receipt of a Continuum value as proof of device identity, measurement truth, authorization or Action effect.
 
@@ -70,18 +73,28 @@ Therefore BLE advertisements, cellular first-contact frames, LoRaWAN uplinks and
 
 ## `wotex_nx`
 
-Numerical positioning, anomaly detection or sensor fusion may use NX when deterministic and evidence-preserving. NX is optional; baseline tracking remains functional without it.
+`Wotex.Nx.Encoder`/`Decoder` convert explicitly typed observations and numerical outputs. They do not supply a positioning/fusion algorithm or choose, train or serve a model. Any Tracker integration supplies units, time windows, missing-value policy, algorithm and backend evidence. Nx is optional; baseline tracking remains functional without it.
+
+## `wotex_conformance`
+
+Conformance owns corpus/vector identity, an external target protocol and evidence reports. Tracker may be an artifact-under-test through a host-supplied external adapter. Do not make Conformance compile-depend on Tracker, send expected answers to the target, or treat a generic WoT vector as hardware evidence. Reports bind exact artifact/corpus/environment identities and apply only to the exercised claim.
 
 ## `wotex_lab`
 
-Lab remains the place for experimental hardware captures, cross-repository qualification and exploratory protocol work that is not yet an accepted Tracker contract. Once a profile is accepted, its normative contract/fixtures graduate into Tracker.
+Lab MAY consume Tracker for experiments if useful. Tracker's implementation, fixtures, package tests, integration tests and hardware qualification MUST stand alone with Lab absent. Lab is neither a prerequisite nor the owner of Tracker acceptance. An experiment may contribute redacted, licensed evidence, but Tracker independently verifies any adopted contract. Tracker MUST NOT import Lab modules, hosts, stores, dependency graphs or release assumptions.
 
 ## Possible new repositories
 
-The PoC is expected to reveal reusable packages. The current recommended candidates are:
+No new repository is required by the first milestone. Review reuse only when a concrete capability demonstrates it:
 
-- `wotex-binding-ble` — generic BLE Form mapping plus explicitly bounded discovery primitives, if the contract proves useful beyond tracking;
+- extend the existing `wotex_ble` owner for reusable BLE capabilities;
 - a LoRaWAN integration package only if generic network-server/application semantics emerge; and
 - no dedicated Teltonika repository initially: AVL tracker decoding is a vertical profile/adapter until broader non-tracking reuse is proven.
 
 Repository creation is a graduation decision, not a prerequisite for the PoC.
+
+## Dependency installation boundary
+
+The pure milestone requires only `wotex` as a WoTEx dependency. Runtime and bindings enter when an executable interaction lane needs them; Directory, Continuum, Nx and Refpath remain optional host/adapter integrations. Prefer isolated host Mix projects for concrete clients, web servers, stores and native backends. Do not reference absent optional structs at core compile time or infer an adapter from installed modules.
+
+Coordinated development uses the existing `WOTEX_PATH_DEPS=1` convention only in dev/test/docs with explicit declared paths. Reject other values and production use. Ordinary package requirements use compatible available releases; immutable local archives may prove a source cohort separately. A sibling directory, `0.1.0` package metadata or path build is not proof of a published compatible release.

@@ -45,7 +45,7 @@ The exact module names are not fixed by this document.
 
 ## Generic protocol graduation
 
-Tracker MAY initially contain a vertical BLE scanner/adapter needed to prove the PoC. Once the boundary is demonstrated, generic BLE WoT Form mapping or generic BLE discovery SHOULD move to a dedicated package such as `wotex-binding-ble` rather than becoming a permanent tracker-specific protocol implementation.
+Tracker MAY contain the vertical observation adapter needed for its PoC. Generic BLE/GATT values, protocol execution and WoT Form mapping belong to the existing `wotex_ble` package. Its current `discover/2` discovers characteristics on a selected GATT session; it is not a passive advertisement scanner. The live provider MUST verify an appropriate public scanning surface before using it. Missing reusable scanning support belongs in a reviewed upstream contract; imported captures keep the pure milestone independent of that work.
 
 The same rule applies to any future generic LoRaWAN network-server integration. LoRaWAN device profiles and tracking payload decoders may remain here; a reusable WoT binding or discovery provider should graduate upstream.
 

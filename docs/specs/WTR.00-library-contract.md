@@ -50,13 +50,13 @@ Tracker MUST NOT fork or reimplement:
 
 - TD/TM parsing, validation, canonical WoT values or generic DataSchema semantics owned by `wotex`;
 - generic ConsumedThing/ExposedThing execution, Form selection, credentials ports, transport ports, subscriptions, or retry classification owned by `wotex_runtime`;
-- generic HTTP/MQTT/Matter/Modbus/OPC UA binding semantics owned by their binding packages;
+- generic HTTP/MQTT/BLE/CoAP/Thread/BACnet/Matter/Modbus/OPC UA protocol and binding semantics owned by their respective packages;
 - Thing Description Directory registration, retrieval, listing, expiry, patch, lifecycle-event or introduction semantics owned by `wotex_directory`;
 - generic host-neutral continuum wire values, compatibility, action-intent/result or delivery-state schemas owned by `wotex_continuum`;
 - generic numerical/ML primitives owned by `wotex_nx`; or
 - agent/model/tool orchestration owned by Refpath.
 
-If implementation work reveals a reusable generic BLE WoT binding, generic discovery provider, or other protocol-neutral capability, that work SHOULD graduate to a dedicated WoTEx repository rather than remain tracker-specific. Tracker may host the first vertical adapter only while the generic boundary is still being proven.
+Generic BLE/GATT belongs to the existing `wotex_ble` package. A Tracker discovery provider may adapt physical observations, but MUST NOT duplicate that package's protocol execution or Form mapping. A missing generic capability is an upstream integration requirement, not a reason to create another BLE repository. Other graduation decisions require concrete reuse evidence and an ownership review under WTR.10.
 
 ## Determinism floor
 

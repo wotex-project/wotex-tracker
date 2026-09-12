@@ -5,7 +5,7 @@ This plan orders implementation by contract dependency and evidence value. It do
 ## Phase 0 — repository/package foundation
 
 - Mirror WoTEx project hygiene: Mix package, formatter, test helper, CI, LICENSE, NOTICE, SECURITY, CONTRIBUTING and changelog.
-- During coordinated development, use explicit sibling path dependencies for `wotex` and `wotex_runtime`; never auto-discover adjacent repositories.
+- During coordinated development, use explicit `WOTEX_PATH_DEPS=1` development dependencies as specified in WTR.10; the pure milestone requires only `wotex`. Never auto-discover adjacent repositories.
 - Add catalogue validation and spec-link checks.
 - Define typed errors and finite limits before live scanners/listeners.
 
@@ -73,9 +73,9 @@ Implement position evidence, freshness, movement/geofence/heartbeat state, event
 
 Select hardware only after WTR.09 qualification. Integrate through an operator-controlled LoRaWAN network server. Keep device payload profiles in Tracker; graduate reusable generic network-server/WoT semantics only when proven.
 
-## Phase 8 — generic BLE graduation
+## Phase 8 — existing BLE owner integration review
 
-Review the BLE scanner/GATT interaction boundary. If it is useful to non-tracker Things, create `wotex-binding-ble` and move generic protocol semantics there without breaking Tracker profiles.
+Review any remaining scanner/GATT integration against the existing `wotex_ble` owner. Contribute missing generic contracts upstream when reuse is demonstrated, preserving Tracker profiles. This review does not create a second BLE package or imply passive scanning is already available.
 
 ## Phase 9 — optional Refpath
 
