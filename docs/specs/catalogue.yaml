@@ -1,0 +1,92 @@
+family: WTR
+package: wotex_tracker
+status: target-contracts
+updated: 2026-09-12
+
+principles:
+  - headless-first
+  - evidence-before-inference
+  - deterministic-without-ai
+  - vendor-cloud-independent
+  - transport-agnostic
+  - privacy-by-default
+
+contracts:
+  - id: WTR.00
+    file: WTR.00-library-contract.md
+    owns: library/application boundary
+    depends_on: [wotex, wotex_runtime]
+  - id: WTR.01
+    file: WTR.01-observation-identity-evidence.md
+    owns: observations, identity evidence, provenance
+    depends_on: [WTR.00]
+  - id: WTR.02
+    file: WTR.02-discovery-and-capabilities.md
+    owns: discovery, fingerprinting, probes, capabilities
+    depends_on: [WTR.01]
+  - id: WTR.03
+    file: WTR.03-device-profiles-and-adapters.md
+    owns: profiles, decoders, vertical adapters
+    depends_on: [WTR.01, WTR.02]
+  - id: WTR.04
+    file: WTR.04-thing-materialisation.md
+    owns: profile/TM/TD materialisation
+    depends_on: [WTR.02, WTR.03, wotex]
+  - id: WTR.05
+    file: WTR.05-tracking-and-policy.md
+    owns: tracking state, position evidence, deterministic rules
+    depends_on: [WTR.01, WTR.04]
+  - id: WTR.06
+    file: WTR.06-transport-policy.md
+    owns: transport preference, fallback, store-and-forward
+    depends_on: [WTR.03, WTR.05]
+  - id: WTR.07
+    file: WTR.07-headless-interfaces.md
+    owns: public service/CLI/UI boundary
+    depends_on: [WTR.00, WTR.04, WTR.05]
+  - id: WTR.08
+    file: WTR.08-security-and-privacy.md
+    owns: tracker threat/privacy/physical-action floor
+    depends_on: [WTR.01, WTR.02, WTR.05, WTR.07]
+  - id: WTR.09
+    file: WTR.09-hardware-qualification.md
+    owns: hardware and vendor-independence qualification
+    depends_on: [WTR.03, WTR.08]
+  - id: WTR.10
+    file: WTR.10-wotex-integration.md
+    owns: WoTEx repository boundaries and graduation
+    depends_on: [WTR.00, WTR.04]
+  - id: WTR.11
+    file: WTR.11-refpath-integration.md
+    owns: optional AI/agent boundary
+    depends_on: [WTR.04, WTR.05, WTR.08]
+  - id: WTR.12
+    file: WTR.12-evidence-and-graduation.md
+    owns: executable evidence and support claims
+    depends_on: [WTR.01, WTR.02, WTR.03, WTR.04, WTR.08, WTR.09, WTR.10]
+
+initial_profiles:
+  ruuvi_ruuvitag:
+    role: passive_ble_environmental_sensor
+    target_evidence: hardware-qualified
+    mandatory_vendor_cloud: false
+  teltonika_tat140:
+    role: rugged_cellular_asset_tracker
+    target_evidence: hardware-qualified
+    mandatory_vendor_cloud: false
+  teltonika_atc700:
+    role: compact_rechargeable_cellular_tracker
+    target_evidence: hardware-qualified
+    mandatory_vendor_cloud: false
+    caution: do_not_claim_ble_sensor_gateway_without_current_real-device_evidence
+  lorawan_tracker:
+    role: optional_low-power_wide-area_tracker
+    target_evidence: research
+    mandatory_vendor_cloud: false
+    note: no hardware selected until operator-controlled network path is verified
+
+candidate_graduations:
+  - repo: wotex-binding-ble
+    trigger: generic BLE WoT Form/discovery contract proven beyond tracking
+  - repo: undecided-lorawan-package
+    trigger: generic LoRaWAN network-server/WoT contract proven beyond tracking
