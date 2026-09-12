@@ -14,7 +14,7 @@ The WTR contracts describe required target behavior. Implementation readiness do
 - [WTR.08 Security, privacy, anti-stalking and physical actions](WTR.08-security-and-privacy.md)
 - [WTR.09 Hardware qualification and vendor-independence](WTR.09-hardware-qualification.md)
 - [WTR.10 WoTEx ecosystem integration](WTR.10-wotex-integration.md)
-- [WTR.11 Optional RefPath AI integration](WTR.11-refpath-integration.md)
+- [WTR.11 Optional Refpath AI integration](WTR.11-refpath-integration.md)
 - [WTR.12 Executable evidence, fixtures and PoC graduation](WTR.12-evidence-and-graduation.md)
 
 [Primary source revisions](../provenance/primary-sources.md), [hardware qualification](../provenance/hardware-qualification.md), and future executed evidence are separate records.
