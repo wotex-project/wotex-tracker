@@ -38,6 +38,8 @@ Start with the [WTR specification index](docs/specs/WTR-index.md) and the [softw
 
 The dated [ecosystem research](docs/provenance/ecosystem-research.md) records
 Nerves/Nx/library candidates, related tracker patterns and unresolved qualification.
+The [specification readiness review](docs/provenance/spec-readiness-review.md)
+records findings, resolutions, executed checks and remaining limitations.
 
 ## Design rules
 

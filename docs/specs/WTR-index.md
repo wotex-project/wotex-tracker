@@ -23,6 +23,8 @@ The WTR contracts describe required target behavior. Implementation readiness do
 
 The dated [ecosystem and hardware research](../provenance/ecosystem-research.md)
 records dependency candidates, current-source caveats and patterns to borrow.
+The [readiness review](../provenance/spec-readiness-review.md) records the audit
+and its executable evidence without promoting implementation status.
 
 - [Versioned specification catalogue](catalogue.yaml) — owning contracts, dependencies, status and baseline evidence
 - [Architecture decision: headless core](../decisions/0001-headless-core.md)
