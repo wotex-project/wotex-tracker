@@ -28,11 +28,11 @@ Initial WTR contracts were shaped against the intended boundaries documented by:
 
 Tracker specifications intentionally follow the WoTEx convention of numbered target contracts, an index, a machine-readable catalogue, provenance, decisions and an implementation plan. Implementation evidence remains separate.
 
-## RefPath
+## Refpath
 
-The optional AI boundary was checked against the current RefPath design in which the runtime owns agent sessions, tool policy, durable execution, model routing, verification/audit and recovery. WTR therefore exposes validated WoT affordances to RefPath optionally; RefPath does not become the deterministic IoT/tracking engine.
+The optional AI boundary was checked against the current Refpath design in which the runtime owns agent sessions, tool policy, durable execution, model routing, verification/audit and recovery. WTR therefore exposes validated WoT affordances to Refpath optionally; Refpath does not become the deterministic IoT/tracking engine.
 
-Because RefPath is not an OSS dependency of Tracker, no private RefPath source is copied into this repository.
+Because Refpath is not an OSS dependency of Tracker, no private Refpath source is copied into this repository.
 
 ## Updating
 
