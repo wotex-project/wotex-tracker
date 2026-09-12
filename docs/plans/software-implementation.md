@@ -9,6 +9,30 @@ This plan orders implementation by contract dependency and evidence value. It do
 - Add catalogue validation and spec-link checks.
 - Define typed errors and finite limits before live scanners/listeners.
 
+## First implementation boundary
+
+The first code milestone ends at a validated TD produced from deterministic physical evidence. It includes only:
+
+- immutable domain values for observations, evidence, profiles, capabilities, resolution results and typed errors;
+- pure fingerprint/profile resolution;
+- pure bounded decoder contracts;
+- fixture-backed RuuviTag Raw v2 decoding;
+- explicit identity strategy inputs with no persistence assumption;
+- reusable Thing Model selection;
+- deterministic instance TD materialisation through upstream `wotex` validation;
+- caller-owned discovery/profile/clock ports; and
+- a narrow `Wotex.Tracker` headless facade.
+
+It explicitly excludes Phoenix/Svelte UI work, Refpath, LoRaWAN, cellular listeners, SQLite/PostgreSQL requirements, a generic Directory host, Continuum transport, and replacement implementations of Wotex Runtime or protocol bindings.
+
+The milestone is complete when an imported Ruuvi fixture can traverse:
+
+```text
+Observation -> profile resolution -> decoder evidence -> capabilities -> Thing Model -> validated TD
+```
+
+with zero processes required and deterministic output for fixed inputs.
+
 ## Phase 1 — pure domain floor
 
 Implement immutable values and pure functions for Observation, Evidence, DeviceProfile, capability declarations, fingerprint predicates, profile resolution, identity strategies and decoder results.
@@ -53,9 +77,9 @@ Select hardware only after WTR.09 qualification. Integrate through an operator-c
 
 Review the BLE scanner/GATT interaction boundary. If it is useful to non-tracker Things, create `wotex-binding-ble` and move generic protocol semantics there without breaking Tracker profiles.
 
-## Phase 9 — optional RefPath
+## Phase 9 — optional Refpath
 
-Expose validated Things to RefPath through a public connector/plugin boundary. Demonstrate read-only investigation first, then policy-gated Actions. No RefPath dependency enters core Tracker.
+Expose validated Things to Refpath through a public connector/plugin boundary. Demonstrate read-only investigation first, then policy-gated Actions. No Refpath dependency enters core Tracker.
 
 ## Phase 10 — reference workbench
 
