@@ -10,9 +10,23 @@ Accepted target contract. No implementation claim.
 
 ## Required boundary
 
-The reusable core MUST be headless and embeddable. It MUST NOT require Phoenix, Svelte, a browser, a mobile application, RefPath, a database server, Docker, a LoRaWAN deployment, a cellular operator, or a specific hardware vendor merely to construct and test its deterministic domain values.
+The reusable core MUST be headless and embeddable. It MUST NOT require Phoenix, Svelte, a browser, a mobile application, Refpath, a database server, Docker, a LoRaWAN deployment, a cellular operator, or a specific hardware vendor merely to construct and test its deterministic domain values.
 
 The package MAY provide supervised runtime components for scanners, ingresses, profile registries, observations, and Thing publication. Starting the dependency MUST NOT silently start radios, open listeners, claim Bluetooth adapters, contact vendor services, or transmit device data. Resource ownership is caller-configured and explicit.
+
+## First implementation boundary
+
+The first implementation slice is deliberately narrower than the complete product:
+
+1. immutable `Observation`, `Evidence`, `DeviceProfile`, `Capability`, `MatchResult`, and typed error values;
+2. pure deterministic fingerprint matching and profile resolution;
+3. pure bounded decoder contracts plus fixture-driven RuuviTag Raw v2 decoding;
+4. deterministic Thing Model selection and TD materialisation inputs;
+5. validation through upstream `wotex`;
+6. a caller-owned `DiscoveryProvider` behaviour with a fixture provider first, followed by a BLE provider; and
+7. a stable headless facade that exposes those operations without leaking scanner/library implementation details.
+
+This slice MUST NOT include a web UI, database dependency, Refpath integration, LoRaWAN requirement, cellular listener, generic Directory server, generic Continuum transport, or generic WoT Runtime replacement.
 
 ## Owned concepts
 
@@ -22,6 +36,7 @@ Tracker owns the vertical concepts that do not belong in protocol-neutral WoTEx 
 - physical-device fingerprints and candidate identity evidence;
 - tracker/sensor device profiles and versioned decoders;
 - capability evidence and confidence classification;
+- canonical tracking-domain observation/state chosen by explicit consumer policy;
 - profile-to-Thing-Model mapping and instance TD materialisation inputs;
 - tracking-specific position evidence and deterministic source selection;
 - transport preference/fallback policy descriptions;
@@ -34,12 +49,12 @@ Tracker owns the vertical concepts that do not belong in protocol-neutral WoTEx 
 Tracker MUST NOT fork or reimplement:
 
 - TD/TM parsing, validation, canonical WoT values or generic DataSchema semantics owned by `wotex`;
-- generic ConsumedThing/ExposedThing execution owned by `wotex_runtime`;
+- generic ConsumedThing/ExposedThing execution, Form selection, credentials ports, transport ports, subscriptions, or retry classification owned by `wotex_runtime`;
 - generic HTTP/MQTT/Matter/Modbus/OPC UA binding semantics owned by their binding packages;
-- Thing Description Directory semantics owned by `wotex_directory`;
-- generic edge/cloud continuity owned by `wotex_continuum`;
+- Thing Description Directory registration, retrieval, listing, expiry, patch, lifecycle-event or introduction semantics owned by `wotex_directory`;
+- generic host-neutral continuum wire values, compatibility, action-intent/result or delivery-state schemas owned by `wotex_continuum`;
 - generic numerical/ML primitives owned by `wotex_nx`; or
-- agent/model/tool orchestration owned by RefPath.
+- agent/model/tool orchestration owned by Refpath.
 
 If implementation work reveals a reusable generic BLE WoT binding, generic discovery provider, or other protocol-neutral capability, that work SHOULD graduate to a dedicated WoTEx repository rather than remain tracker-specific. Tracker may host the first vertical adapter only while the generic boundary is still being proven.
 
