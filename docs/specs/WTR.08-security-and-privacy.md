@@ -47,3 +47,11 @@ The project MUST NOT market covert surveillance as a feature. Generic OSS cannot
 ## Supply chain
 
 Profiles record firmware/protocol revisions where available. Dependencies, firmware blobs and native components require provenance. Mandatory opaque vendor cloud components fail hardware qualification under WTR.09.
+
+## Library input and execution boundary
+
+Apply WTR.01 admission to every untrusted envelope, including JSON object keys, UTF-8, bytes, nested collections and provenance. No input-created atoms, dynamic module lookup from wire names, evaluated profile source, or Erlang external-term deserialization is accepted. Trusted callback configuration is application code, not sandboxed device content; validate its results at the declared seam. Do not broadly suppress internal defects.
+
+Deployment Forms, paths and executables are explicit operator inputs, never inferred from device-supplied addresses or URLs. Pure matching/materialisation performs no URL retrieval, remote model/context fetch or filesystem access. A host that accepts configurable destinations must enforce its authorization and routing policy before any request, including redirects. File/native adapters must define traversal, symlink, executable-identity and bounded-output checks before being admitted. Lexical containment and digests alone neither authenticate a device nor isolate hostile concurrent filesystem writers.
+
+Raw evidence is private, bounded and subject to retention. Public serialization, structured errors, logs and telemetry must use reviewed projections that exclude credentials and stable private identifiers, including nested callback/provenance details. Do not use identifiers, payloads or arbitrary profile strings as unbounded metric labels. Tests exercise successful and rejected paths, not just logger formatting in isolation.

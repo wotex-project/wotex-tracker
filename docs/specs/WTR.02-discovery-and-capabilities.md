@@ -65,6 +65,10 @@ A fingerprint is a declarative predicate over bounded evidence, not arbitrary co
 
 Profiles SHOULD prefer the narrowest stable evidence available. Device names and RSSI alone are weak evidence and MUST NOT yield `:exact` identity/profile confidence.
 
+The first resolver uses declarative, bounded predicates over an admitted catalogue. Confidence ordering is `:exact`, `:strong`, `:candidate`, `:unknown`. Only `:exact` and `:strong` matches are initially eligible; a single highest eligible profile resolves, none yields `:unknown`, and an equal highest eligible tie yields `:ambiguous`. Candidate-only matches yield `:unknown` with reason `:insufficient_evidence` and retained candidates. Explicit enrollment may supply additional evidence in a new resolution; it must not silently lower the threshold or turn profile confidence into authenticated identity. Catalogue enumeration order, decoder success and arbitrary profile names MUST NOT break a tie. Sort diagnostic candidates by bounded profile ID/version for stable output; this order conveys no preference. Reject duplicate/conflicting profile definitions and limit exhaustion instead of truncating candidates and accidentally resolving an ambiguous input.
+
+First-slice predicates cannot invoke probes, evaluate source text, compile regexes supplied by devices, or choose callback modules from payloads. Callbacks are trusted caller configuration with explicit result validation, not a sandbox for untrusted code.
+
 ## Active probes
 
 Active probing can alter device power use, privacy, connection state, or physical behavior. A probe MUST declare:
@@ -95,6 +99,8 @@ Capabilities describe what the device/profile evidence proves, not everything a 
 - remote configuration or firmware action, when safely qualified.
 
 Capabilities MUST distinguish observable/readable, configurable/writable, invokable, and event-producing behavior so later WoT affordances are not invented from a flat feature list.
+
+Supported capability and current measurement availability are separate. A transient unavailable value does not by itself remove/recreate an affordance or imply a capability upgrade. A counter or repeated advertisement does not automatically establish an Event or a current moving/stationary state. Those interpretations require a specified rule and time/sequence evidence.
 
 ## Capability changes
 

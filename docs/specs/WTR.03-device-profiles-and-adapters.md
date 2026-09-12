@@ -61,7 +61,13 @@ LoRaWAN is optional. A LoRaWAN profile MUST distinguish the end-device applicati
 
 ## Decoder safety
 
-Decoders MUST be pure or bounded with explicit input/output limits. They MUST reject truncated, oversized, unsupported-version, impossible-range, and checksum/authentication failures as typed errors. Unknown fields SHOULD be preserved as bounded opaque evidence when doing so is safe, rather than guessed.
+First-slice decoders MUST be pure with explicit input/output limits. Framing, unsupported-version and required checksum/authentication failures return typed errors; a checksum is not authentication. Known missing-value sentinels are valid field states, not malformed frames. Out-of-range interpretations must not become valid measurements: preserve bounded raw evidence and report the field's quality/reason, rejecting the frame only when its declared format requires that. Unknown fields may be retained as bounded opaque evidence without inventing their meaning. Unexpected callback returns fail explicitly; programming errors are not swallowed by a broad pipeline rescue.
+
+Decoded output carries a declared measurement kind, native value when available, unit, availability/quality, and complete evidence references. Missing, false and zero are distinct. Never emit NaN, a string pretending to be a number, or an invented zero as a missing measurement. A null wire value is valid only when the affordance schema admits it; otherwise the host reports unavailable state using its declared error contract.
+
+## First decoder acceptance
+
+Ruuvi RAWv2 uses the exact manufacturer-data slice defined by the [source record](../provenance/primary-sources.md), separating the company identifier from its 24-byte format-5 payload. Match length/version before bit-syntax decoding; test both manufacturer-byte ordering and signed field ordering. Required cases include ordinary, minimum, maximum, unavailable and mixed-availability vectors; independent battery/TX sentinels; truncated/extra bytes; unsupported versions; and counter rollover. Preserve anomalous humidity as suspect evidence. Do not infer battery percentage, authenticated identity, movement state or a movement event from this frame alone. Record exact units and source-derived expectations with the fixtures, separately from any real-device qualification.
 
 ## Vendor cloud prohibition
 

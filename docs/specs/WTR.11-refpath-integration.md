@@ -8,6 +8,8 @@ Accepted target contract. No implementation claim.
 
 Refpath is an optional AI/agent engine above validated WoT semantics. Tracker MUST compile, run, discover, decode, materialise Things, evaluate deterministic rules, generate alarms and enforce physical-action authorization with Refpath absent.
 
+Refpath is private and under development. It is absent and disabled by default in public packages, hosts and firmware. Private availability is not inferred from a module name, a configured endpoint or a promotional example.
+
 ## Natural integration
 
 Validated WoT affordances may be projected into Refpath as policy-bound tools/context:
@@ -46,3 +48,11 @@ An LLM MAY help an operator research an unknown device or suggest a candidate pr
 ## Packaging
 
 The Refpath adapter SHOULD be optional and isolated so `wotex_tracker` has no hard dependency on private Refpath repositories. A public protocol/connector surface is preferred. If a Refpath-specific package becomes substantial, it belongs in Refpath's plugin/connector ecosystem rather than WoTEx core.
+
+## Showcase and acceptance
+
+A promotional integration may demonstrate validated affordances, read-only investigation and governed proposals before Refpath becomes publicly available. Public source can document the intended connector messages and use a synthetic test peer, with no private source or credentials. Label these examples `synthetic showcase`; a private live demonstration records its actual compatible revisions and execution separately. Neither is advertised as generally available public integration.
+
+The connector has explicit enablement, endpoint/provider configuration, authentication, finite deadlines and redacted error/stream limits. Disabled means no connection, background process, model request or compile-time private module dependency. A missing/incompatible provider produces an unavailable result without blocking Tracker boot, discovery, decoding, rules or the ordinary UI.
+
+Before implementation, version the projection/connector schema and test Thing-plus-affordance identity, explicit unsupported schema constructs, numeric fidelity, stale TD revisions, stream cancellation and policy-denied proposals. Authenticate and re-authorize at execution time, not at tool-schema generation. Only validated, authorized projections leave the host; raw tracking history, stable identifiers and credential material require their own explicit disclosure policy. The public suite tests absence, synthetic operation and connector failure; a private integration suite is optional and honestly unavailable without its prerequisites.

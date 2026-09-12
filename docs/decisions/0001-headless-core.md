@@ -8,7 +8,7 @@ Status: Accepted
 
 ## Why
 
-The project must support arbitrary mobile, Phoenix/Svelte, CLI, fleet, embedded and AI consumers. Making a UI canonical would couple device semantics and lifecycle to one application shape and weaken the WoT intermediary proof.
+The project must support mobile, LiveView, CLI, fleet, embedded and AI consumers. Making a UI canonical would couple device semantics and lifecycle to one application shape and weaken the WoT intermediary proof.
 
 ## Consequences
 
@@ -17,3 +17,5 @@ The project must support arbitrary mobile, Phoenix/Svelte, CLI, fleet, embedded 
 - the CLI must be able to demonstrate the full PoC;
 - a UI can be replaced without changing profiles or Thing semantics; and
 - UI convenience may not bypass evidence/security boundaries.
+
+The optional reference UI uses Phoenix LiveView/HEEx. A bootable Nerves Pi 5 host may own an application callback and explicitly supervise Tracker services; the root library does not. WTR.14 defines firmware and UI acceptance separately from the pure package.

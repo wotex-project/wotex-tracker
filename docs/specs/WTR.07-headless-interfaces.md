@@ -23,9 +23,9 @@ Initial public operations SHOULD cover:
 {:ok, td} = Wotex.Tracker.materialize(evidence, deployment, context)
 ```
 
-The exact arities may change before implementation stabilizes, but the semantic boundary is fixed: capture facts -> resolve profile -> decode evidence -> materialise validated WoT value.
+These are planned API sketches, not executable examples today. The semantic boundary is fixed: capture facts -> resolve profile -> decode evidence -> materialise validated WoT value. `observe/2` admits supplied data; it does not scan or read a clock. `resolve/3` returns `{:ok, %Resolution{status: :resolved | :unknown | :ambiguous, ...}}` for valid input, with candidates/reasons and the immutable catalogue identity. Candidate-only evidence yields `:unknown` with reason `:insufficient_evidence` under WTR.02. Malformed input, conflicting catalogue definitions and exhausted limits return `{:error, %Error{}}`. `decode/2` refuses unresolved input and consumes the selected snapshot; `materialize/3` refuses incomplete/mismatched evidence. No stage reads a newer registry snapshot implicitly.
 
-The facade MUST also expose bounded query/control operations for host applications:
+Later implemented host capabilities MUST expose corresponding bounded operations; these are outside the pure milestone:
 
 - start/stop an explicitly configured discovery session through a caller-owned provider;
 - submit imported/network observations;
@@ -40,7 +40,7 @@ The facade MUST also expose bounded query/control operations for host applicatio
 
 ## Public behaviours/ports
 
-The first implementation SHOULD define narrow behaviours for:
+The pure milestone takes immutable values and explicit time/identity inputs directly. Later integrations introduce only the narrow behaviours required by real interchangeable providers:
 
 - `DiscoveryProvider` — emits bounded observations and owns no canonical state;
 - `ProfileRegistry` — returns immutable/versioned profiles for one resolution run;
@@ -48,21 +48,23 @@ The first implementation SHOULD define narrow behaviours for:
 - `Clock` — explicit time input for freshness/rule evaluation; and
 - `IdentityStore` or equivalent — consumer-owned stable association/enrollment state where persistence is required.
 
-A decoder and fingerprint SHOULD preferably be pure values/functions or profile callbacks rather than long-lived processes.
+A decoder and fingerprint are pure values/functions or trusted profile callbacks, never processes for code organization. A `Clock` behaviour is unnecessary when passing an integer suffices. A profile registry returns a complete immutable snapshot; it is not consulted separately at every pipeline stage. Store and identity-association behaviour signatures are fixed with the host transaction acceptance, not pre-built as generic CRUD abstractions.
 
 ## Stable values
 
-Public values SHOULD include `Observation`, `Evidence`, `DeviceProfile`, `Capability`, `Resolution`, `PositionEvidence`, `TransportDecision`, and typed `Error` values plus upstream WoTEx TD/TM values.
+First-slice values are `Observation`, `Evidence`, `DeviceProfile`, `Capability`, `Resolution` and typed `Error`, plus upstream WoTEx TD/TM values. `PositionEvidence` and `TransportDecision` are introduced with their later implemented capabilities.
 
 They MUST NOT expose BlueZ structs, CoreBluetooth structs, socket connection processes, Teltonika parser internals, LoRaWAN network-server SDK types, Phoenix structs, database records, or Refpath-specific types.
 
 ## Service host
 
-A reference headless host MAY provide HTTP/JSON and streaming APIs. It SHOULD be suitable for a Phoenix/Svelte app, mobile app, CLI, Home Assistant integration, fleet backend, or Refpath connector without privileged in-process access.
+A reference headless host MAY provide HTTP/JSON and streaming APIs. It SHOULD be suitable for a LiveView app, mobile app, CLI, Home Assistant integration, fleet backend, or Refpath connector without privileged in-process access.
 
 The host MUST NOT expose raw credentials, LoRaWAN keys, SIM secrets, BLE pairing secrets, or stable private identifiers by default.
 
 Machine endpoints SHOULD mirror the public domain operations rather than invent a second model: observations, resolutions, evidence, Things, current state, events and authorized actions.
+
+Before shipping machine interfaces, version their exact request/result/error schemas, binary encoding, integer precision policy, pagination, subscription cursor/overflow behavior and idempotency semantics. Follow WTR.01 JSON admission and WTR.06 commit outcomes. Expected boundary errors have stable codes/paths and bounded redacted details, not inspected exception text. Protocol/scanner absence returns an explicit unsupported/unavailable result rather than a successful empty scan.
 
 ## CLI
 
@@ -81,7 +83,7 @@ Command names are illustrative until implementation stabilizes.
 
 ## Reference UI
 
-A reference UI MAY live under `hosts/workbench` or an equivalent isolated host. It should show:
+A reference UI uses Phoenix LiveView/HEEx under `hosts/workbench` or a shared inert UI boundary used by an explicitly started Nerves host. WTR.14 separates bootable firmware from the library and defines headless/UI-enabled acceptance. The UI should show:
 
 - nearby observations without pretending they are trusted Things;
 - fingerprint evidence and candidate profiles;
@@ -94,7 +96,7 @@ A reference UI MAY live under `hosts/workbench` or an equivalent isolated host. 
 
 ## Persistence
 
-Core interfaces MUST accept caller-owned persistence ports. ETS/in-memory storage is sufficient for deterministic tests. SQLite is a preferred self-contained PoC host option. PostgreSQL or other stores belong to host deployments, not the core contract.
+Stateful interfaces accept caller-owned persistence ports only when implemented. Pure tests pass immutable state directly. The first reference host may use per-instance volatile state; ETS requires explicit ownership and consistency rules and provides no durability. SQLite is an optional later host adapter after WTR.06 crash/transaction acceptance. PostgreSQL or other stores belong to deployments. No store library is a pure-core dependency.
 
 ## API stability
 

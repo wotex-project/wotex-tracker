@@ -16,8 +16,13 @@ The WTR contracts describe required target behavior. Implementation readiness do
 - [WTR.10 WoTEx ecosystem integration](WTR.10-wotex-integration.md)
 - [WTR.11 Optional Refpath AI integration](WTR.11-refpath-integration.md)
 - [WTR.12 Executable evidence, fixtures and PoC graduation](WTR.12-evidence-and-graduation.md)
+- [WTR.13 Elixir/OTP implementation and verification floor](WTR.13-elixir-otp-and-verification.md)
+- [WTR.14 Optional Nerves firmware and LiveView hosts](WTR.14-nerves-and-liveview-hosts.md)
 
 [Primary source revisions](../provenance/primary-sources.md), [hardware qualification](../provenance/hardware-qualification.md), and future executed evidence are separate records.
+
+The dated [ecosystem and hardware research](../provenance/ecosystem-research.md)
+records dependency candidates, current-source caveats and patterns to borrow.
 
 - [Versioned specification catalogue](catalogue.yaml) — owning contracts, dependencies, status and baseline evidence
 - [Architecture decision: headless core](../decisions/0001-headless-core.md)

@@ -14,4 +14,4 @@ AI output is never accepted as evidence.
 - ambiguous profile matches require more evidence or explicit enrollment;
 - every decoded claim retains observation/profile/decoder provenance;
 - historical observations are not silently reinterpreted after profile changes; and
-- RefPath or another AI may assist an operator only outside the acceptance path.
+- Refpath or another AI may assist an operator only outside the acceptance path.

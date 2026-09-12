@@ -4,6 +4,10 @@ This records reviewed contracts and source identities, not package availability,
 
 Baseline date: 2026-09-12.
 
+See the [ecosystem research](ecosystem-research.md) for dated public release
+candidates and adoption decisions. Local source pins and public package releases
+are different evidence; neither implies a passing Tracker consumer build.
+
 ## W3C Web of Things
 
 The design is intentionally aligned with the WoTEx ecosystem's existing standards baseline rather than creating tracker-specific alternatives. Relevant W3C families include Thing Description 1.1, Thing Model semantics, WoT Discovery, WoT Architecture, WoT Security and Privacy guidance, and binding-template/binding specifications used by installed WoTEx packages.

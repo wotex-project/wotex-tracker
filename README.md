@@ -36,14 +36,17 @@ There is currently no Mix package, Tracker runtime code, test suite, or CI gate.
 
 Start with the [WTR specification index](docs/specs/WTR-index.md) and the [software implementation sequence](docs/plans/software-implementation.md).
 
+The dated [ecosystem research](docs/provenance/ecosystem-research.md) records
+Nerves/Nx/library candidates, related tracker patterns and unresolved qualification.
+
 ## Design rules
 
-- **Headless first.** The reusable service and machine interfaces are authoritative. CLIs, mobile apps, Phoenix/Svelte UIs, and fleet products are consumers.
+- **Headless first.** The reusable service and machine interfaces are authoritative. CLIs, mobile apps, optional LiveView/HEEx hosts, and fleet products are consumers.
 - **Evidence before inference.** Device identity and capabilities come from deterministic protocol evidence, not AI guesses.
 - **No vendor-cloud dependency.** A supported hardware profile must have a documented path to infrastructure controlled by the operator. Vendor SaaS may be optional but never mandatory.
 - **Transport is not semantics.** BLE, LTE-M/NB-IoT/Cat-1, LoRaWAN, Wi-Fi, MQTT, HTTP, and vendor wire protocols are ingress or interaction mechanisms. Applications consume WoT Properties, Actions, and Events.
 - **LoRaWAN is optional.** A device profile may use it, but the architecture does not require it.
-- **AI is optional.** Refpath may reason over validated Things and propose governed actions, but tracking, discovery, decoding, rules, alarms, and Thing materialisation must work with no AI engine present.
+- **AI is optional.** Refpath is private, under development and disabled by default. An optional showcase may demonstrate validated Things and governed proposals, but tracking, discovery, decoding, rules, alarms and Thing materialisation work without it.
 - **Safe by default.** Unknown devices stay unknown. Ambiguous matches are not auto-admitted. Physical Actions require stronger evidence and authorization than read-only Properties.
 
 ## Initial proof matrix
@@ -73,6 +76,10 @@ Hardware names in specifications are qualification targets, not architectural de
 - Refpath is an optional AI/agent consumer of validated WoT affordances.
 
 Core WoTEx packages must never depend on `wotex_tracker`.
+
+## Optional bootable host
+
+A planned [Nerves Pi 5 application](docs/specs/WTR.14-nerves-and-liveview-hosts.md) will explicitly start the tracking service at boot. Headless and optional LiveView/HEEx firmware use the same library API. The host owns startup, networking, storage and device access; the library remains inert. No image is built or hardware-qualified yet, and onboard Pi 5 Bluetooth requires separate qualification.
 
 ## License
 

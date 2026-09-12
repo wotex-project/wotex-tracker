@@ -26,7 +26,7 @@ Tracker MAY derive state such as stationary/moving, present/absent, owner-nearby
 
 ## Rules
 
-Safety/security rules run without RefPath. Example policy:
+Safety/security rules run without Refpath. Example policy:
 
 ```text
 unexpected movement
@@ -41,6 +41,8 @@ The rule engine MUST distinguish `false` from `unknown`. Missing BLE owner evide
 
 Rules consume explicit timestamps and a caller-owned clock. Device clocks may be untrusted or drifted; receiver time and device time MUST remain distinguishable.
 
+Pure evaluation receives a fixed `now` value, not a clock-reading side effect. Live host deadlines use local monotonic milliseconds under WTR.13. Device event time, receiver Unix time and monotonic deadlines are never compared as if they shared an epoch. Freshness, permitted future skew and the handling of missing device time are explicit rule inputs.
+
 ## Geofences
 
 Geofence evaluation is deterministic geometry over qualified position evidence. A geofence transition MUST retain the position/evidence that caused it and MUST tolerate uncertainty according to explicit policy rather than pretending every coordinate is exact.
@@ -48,3 +50,5 @@ Geofence evaluation is deterministic geometry over qualified position evidence. 
 ## Store and replay
 
 Late/offline observations may update history without necessarily generating a present-time alarm. Replay policy MUST distinguish event time from ingestion time and prevent old records from re-triggering live theft/tamper actions unless explicitly configured.
+
+Before implementing stateful policy, specify deterministic ordering/tie behavior, a bounded late-arrival window, sequence wrap/reset and reconnect scope, and the event idempotency key. Measurement deduplication must not discard distinct reception provenance or treat matching sequence numbers from different devices as one measurement. Apply deduplication, canonical state changes and resulting event intent in the same host transaction. Replay and live evaluation have explicit modes; historical reprocessing does not dispatch physical Actions. WTR.06 defines admission and publication outcomes.

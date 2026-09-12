@@ -8,11 +8,13 @@ This ledger separates research candidates from real hardware evidence. Nothing l
 | Teltonika TAT140 | Finished rugged direct cellular tracker -> operator listener -> tracking Thing | research target | No | exact hardware/firmware, direct endpoint configuration, real AVL capture/ack, Swedish SIM test |
 | Teltonika ATC700 | Compact rechargeable cellular/GNSS tracker | research target | No | exact firmware/config path, direct endpoint test, AVL evidence; separately prove any BLE capability before claiming it |
 | LoRaWAN tracker | Optional low-power wide-area path and fallback policy | unselected | No | choose finished compact hardware only after own-network-server/key control is proven |
+| Raspberry Pi 5 host | Optional headless Nerves appliance and LiveView browser endpoint | research target; no image or boot test | No | WTR.14 pinned cross-build, physical boot/recovery, separate radio qualification and UI-enabled/absent tests |
 
 ## Hard rules
 
 - A vendor dashboard/API is not sufficient evidence of openness.
 - Development boards do not satisfy the finished portable tracker lane.
+- The Pi 5 is a host qualification target, not a replacement for a finished portable tracker.
 - Product-page feature lists do not prove protocol capabilities.
 - A radio appearing in firmware/changelog material does not prove an exposed supported sensor-gateway function.
 - Swedish cellular qualification records operator, SIM/eSIM, bearer, bands/model variant, attach/data behavior and fallback assumptions.

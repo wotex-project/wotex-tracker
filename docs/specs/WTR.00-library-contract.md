@@ -12,21 +12,23 @@ Accepted target contract. No implementation claim.
 
 The reusable core MUST be headless and embeddable. It MUST NOT require Phoenix, Svelte, a browser, a mobile application, Refpath, a database server, Docker, a LoRaWAN deployment, a cellular operator, or a specific hardware vendor merely to construct and test its deterministic domain values.
 
-The package MAY provide supervised runtime components for scanners, ingresses, profile registries, observations, and Thing publication. Starting the dependency MUST NOT silently start radios, open listeners, claim Bluetooth adapters, contact vendor services, or transmit device data. Resource ownership is caller-configured and explicit.
+The package MAY provide explicitly started runtime components for scanners, ingresses, observations and Thing publication. It MUST NOT define an application startup callback, start a Tracker supervision tree on dependency load, install global handlers, or read ambient configuration to choose a provider. Caller-supplied options and child specifications control each independent instance. Radios, listeners, Bluetooth adapters and data transmission require explicit calls. WTR.13 defines the Elixir/OTP floor; host applications are separate consumers.
 
 ## First implementation boundary
 
 The first implementation slice is deliberately narrower than the complete product:
 
-1. immutable `Observation`, `Evidence`, `DeviceProfile`, `Capability`, `MatchResult`, and typed error values;
+1. immutable `Observation`, `Evidence`, `DeviceProfile`, `Capability`, `Resolution`, and typed error values;
 2. pure deterministic fingerprint matching and profile resolution;
 3. pure bounded decoder contracts plus fixture-driven RuuviTag Raw v2 decoding;
 4. deterministic Thing Model selection and TD materialisation inputs;
 5. validation through upstream `wotex`;
-6. a caller-owned `DiscoveryProvider` behaviour with a fixture provider first, followed by a BLE provider; and
+6. an imported-fixture entry point using caller-supplied observations and an immutable catalogue; and
 7. a stable headless facade that exposes those operations without leaking scanner/library implementation details.
 
 This slice MUST NOT include a web UI, database dependency, Refpath integration, LoRaWAN requirement, cellular listener, generic Directory server, generic Continuum transport, or generic WoT Runtime replacement.
+
+It does not require a clock, store, profile-registry process, scanner behaviour or application startup. Introduce a behaviour only when an implemented integration needs interchangeable providers. First-slice acceptance and later host gates are distinct in the implementation plan.
 
 ## Owned concepts
 
@@ -53,7 +55,7 @@ Tracker MUST NOT fork or reimplement:
 - generic HTTP/MQTT/BLE/CoAP/Thread/BACnet/Matter/Modbus/OPC UA protocol and binding semantics owned by their respective packages;
 - Thing Description Directory registration, retrieval, listing, expiry, patch, lifecycle-event or introduction semantics owned by `wotex_directory`;
 - generic host-neutral continuum wire values, compatibility, action-intent/result or delivery-state schemas owned by `wotex_continuum`;
-- generic numerical/ML primitives owned by `wotex_nx`; or
+- generic numerical WoT conversion contracts owned by `wotex_nx`; or
 - agent/model/tool orchestration owned by Refpath.
 
 Generic BLE/GATT belongs to the existing `wotex_ble` package. A Tracker discovery provider may adapt physical observations, but MUST NOT duplicate that package's protocol execution or Form mapping. A missing generic capability is an upstream integration requirement, not a reason to create another BLE repository. Other graduation decisions require concrete reuse evidence and an ownership review under WTR.10.

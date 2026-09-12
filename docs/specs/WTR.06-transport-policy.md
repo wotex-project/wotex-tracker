@@ -33,9 +33,25 @@ This is an example profile, not a mandatory global ordering.
 
 Observations MUST support bounded local or ingress-side store-and-forward where the physical protocol provides it. Deduplication/replay handling MUST use protocol sequence/identity evidence where available rather than timestamp alone.
 
+This is a later host capability, not a persistence requirement for the pure core. Before enabling it, the adapter contract must fix queue count/byte/age limits, admission ordering, overflow outcome, retry budget and restart behavior. An in-memory acknowledgement cannot be described as durable. Lossy radio input exposes drop/overflow evidence; reliable ingresses backpressure or reject admission without acknowledging a commit that did not happen.
+
+## Commit, publication and recovery
+
+A host admission unit atomically checks scoped observation/measurement identity, stores the new evidence and canonical state, applies stale deletion belonging to that update, and records any publication/event intent. Concurrent writers use a conditional version/generation check; a losing writer receives `:conflict` without partially changing state. Reads observe a single committed generation. Independent retention jobs must not invalidate evidence still referenced by that generation without an explicit tombstone policy.
+
+The smallest reference host starts with explicitly volatile per-instance state. A durable adapter is admitted only after tests establish its transaction and crash semantics. Do not implement separate uncoordinated writes to observation, deduplication and event stores or claim ETS multi-operation atomicity. Use the chosen store's real transaction boundary; do not create a generic database framework in Tracker.
+
+TD publication to Directory or an external endpoint is a separate host effect and cannot be made atomic with local storage by calling two library APIs. Use a persisted publication intent when durable retry is required, bind it to the exact TD/deployment generation, and reconcile the same operation identity. A later generation cannot be overwritten by a stale retry. Retain the last valid published state if preparation/validation fails.
+
+Public host results must distinguish `not_committed`, `committed` (with generation and publication status), and `unknown` when a crash/timeout prevents determining the commit outcome. A committed mutation followed by failed publication/cleanup must not be reported as an ordinary pre-commit failure inviting duplicate admission. Cleanup failure after successful publication reports publication success plus a separate cleanup failure. Retrying an unknown physical Action is never automatic.
+
+Before the durable lane is accepted, inject failure before commit, after commit before acknowledgement, during publication, after publication before local confirmation, and during stale deletion/cleanup. Race duplicate submissions and concurrent updates; restart the host; prove no mixed snapshot, lost deduplication record or spurious repeated live alarm. Ordinary filesystem staging checks do not provide containment against a hostile concurrent writer; any file-backed adapter must state its actual filesystem/crash assumptions and reject unsafe paths without claiming portable race-proof security.
+
 ## Acknowledgements
 
 An RF transmission is not delivery evidence. Policies that escalate after failed delivery MUST define what acknowledgement means at each layer: radio acknowledgement, LoRaWAN confirmed uplink, application acknowledgement, cellular socket/protocol acknowledgement, or durable server admission.
+
+The cellular listener specification must define exactly which accepted records an acknowledgement covers and whether acceptance is volatile or durable. A checksum and a socket acknowledgement establish neither authenticated identity nor a physical Action effect. A timeout means the outcome may be unknown; it does not imply remote rollback. Protocol-required retransmission and deduplication are qualified together.
 
 ## Sweden baseline
 

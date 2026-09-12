@@ -1,6 +1,8 @@
 family: WTR
 package: wotex_tracker
 status: target-contracts
+implementation_status: not-started
+executed_evidence: []
 updated: 2026-09-12
 
 principles:
@@ -10,6 +12,11 @@ principles:
   - vendor-cloud-independent
   - transport-agnostic
   - privacy-by-default
+  - caller-owned-library-instances
+  - native-elixir-otp-first
+
+# depends_on identifies contract references, not installation or phase order.
+# WTR.13 governs every implementation from Phase 0.
 
 contracts:
   - id: WTR.00
@@ -64,23 +71,43 @@ contracts:
     file: WTR.12-evidence-and-graduation.md
     owns: executable evidence and support claims
     depends_on: [WTR.01, WTR.02, WTR.03, WTR.04, WTR.08, WTR.09, WTR.10]
+  - id: WTR.13
+    file: WTR.13-elixir-otp-and-verification.md
+    owns: native Elixir/OTP ownership, bounds, runtime and verification floor
+    depends_on: [WTR.00, WTR.01, WTR.06, WTR.07, WTR.12]
+  - id: WTR.14
+    file: WTR.14-nerves-and-liveview-hosts.md
+    owns: optional bootable Pi 5 firmware and native LiveView host boundary
+    depends_on: [WTR.00, WTR.06, WTR.07, WTR.08, WTR.10, WTR.11, WTR.12, WTR.13]
 
 initial_profiles:
   ruuvi_ruuvitag:
     role: passive_ble_environmental_sensor
+    implementation_status: not-started
+    current_evidence: research
+    evidence_refs: []
     target_evidence: hardware-qualified
     mandatory_vendor_cloud: false
   teltonika_tat140:
     role: rugged_cellular_asset_tracker
+    implementation_status: not-started
+    current_evidence: research
+    evidence_refs: []
     target_evidence: hardware-qualified
     mandatory_vendor_cloud: false
   teltonika_atc700:
     role: compact_rechargeable_cellular_tracker
+    implementation_status: not-started
+    current_evidence: research
+    evidence_refs: []
     target_evidence: hardware-qualified
     mandatory_vendor_cloud: false
     caution: do_not_claim_ble_sensor_gateway_without_current_real-device_evidence
   lorawan_tracker:
     role: optional_low-power_wide-area_tracker
+    implementation_status: not-started
+    current_evidence: research
+    evidence_refs: []
     target_evidence: research
     mandatory_vendor_cloud: false
     note: no hardware selected until operator-controlled network path is verified
