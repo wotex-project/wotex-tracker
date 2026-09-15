@@ -1,9 +1,9 @@
 family: WTR
 package: wotex_tracker
 status: target-contracts
-implementation_status: not-started
-executed_evidence: []
-updated: 2026-09-13
+implementation_status: in-progress
+executed_evidence: [docs/evidence/implementation.md]
+updated: 2026-09-15
 
 principles:
   - headless-first
@@ -99,8 +99,8 @@ delivery_targets:
     required_for_product: true
     contracts: [WTR.00, WTR.01, WTR.02, WTR.03, WTR.04, WTR.13]
     requires: []
-    implementation_status: not-started
-    evidence_refs: []
+    implementation_status: in-progress
+    evidence_refs: [docs/evidence/implementation.md]
     acceptance: pure fixture-to-TD, complete gate, clean optional-absent archive consumers
   - id: headless_service
     required_for_product: true

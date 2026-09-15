@@ -1,9 +1,9 @@
 # Software implementation sequence
 
-This plan orders accepted work by executable dependency. Tracker currently has
-specifications only: no Mix project, runtime code, fixture suite, host or firmware
-exists. Every milestone below is **not started**. Specification checks are not
-implementation evidence. [WTR.13](../specs/WTR.13-elixir-otp-and-verification.md)
+This plan orders accepted work by executable dependency. Implementation has started with Phase 0. The current executed scope and unpassed
+gates are recorded in [implementation evidence](../evidence/implementation.md).
+The milestones below remain target acceptance criteria; their presence does not
+claim implementation or hardware qualification. [WTR.13](../specs/WTR.13-elixir-otp-and-verification.md)
 applies from the first line of code.
 
 Required product gates cannot be demoted to optional work to fit a dependency's

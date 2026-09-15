@@ -36,7 +36,11 @@ fingerprint -> device profile -> decoder -> capability evidence
 
 This repository starts from **accepted target specifications**. Specification presence, fixtures, examples, or catalogue entries do not imply implementation, hardware qualification, interoperability, or W3C conformance. Executed evidence is tracked separately from target contracts.
 
-There is currently no Mix package, Tracker runtime code, test suite, or CI gate. The first implementation milestone is a pure imported-fixture-to-TD path; it requires no live scanner, host, storage, or Runtime integration.
+The Mix library foundation now includes bounded error values, catalogue/link validation,
+a complete local verification gate and explicit archive packaging. The first domain
+milestone remains the pure imported-fixture-to-TD path. No live scanner, host, storage
+or Runtime integration has been implemented. See the [implementation evidence](docs/evidence/implementation.md)
+for executed checks and unpassed release/host/hardware gates.
 
 Start with the [WTR specification index](docs/specs/WTR-index.md) and the [software implementation sequence](docs/plans/software-implementation.md).
 
@@ -109,4 +113,4 @@ host configuration and prerequisites. Sponsorship does not grant runtime access.
 
 ## License
 
-Apache-2.0. See `LICENSE` once the repository foundation is completed.
+Apache-2.0. See `LICENSE`.

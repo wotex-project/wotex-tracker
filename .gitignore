@@ -1,0 +1,10 @@
+/_build/
+/deps/
+/doc/
+/cover/
+/.elixir_ls/
+/.fetch/
+/*.ez
+/*.tar
+/erl_crash.dump
+*.beam
