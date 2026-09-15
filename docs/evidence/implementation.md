@@ -329,3 +329,33 @@ artifacts, followed by real Runtime Property reads and complete teardown.
 Property subscriptions, CLI, bundled release/image and its clean signal/restart
 consumer remain outstanding Phase 3 work. Typed analytics queries and automatic
 retention/deletion policy remain separately specified later work.
+
+## WTR.07 standalone host startup and HTTP CLI — 2026-09-15
+
+`hosts/app` now owns explicit service startup from a closed `wtr.host.v1` private
+configuration file. It validates file type/permissions/links/ancestors, bounded
+JSON, hashes, instance key, credential grants, numeric listen address and exposure
+policy. The host has the application callback; the reusable packages remain
+inert. Startup failures are bounded and do not expose configuration contents.
+
+The POSIX Python 3.11+ standard-library CLI provisions a new private loopback
+instance and performs the available machine workflows over HTTP. It separates
+token custody from arguments/URLs, requires conditional generations, prints
+operation identities before mutation attempts, distinguishes preflight failure
+from uncertain network outcomes and never retries automatically. Finite request,
+response, header, frame and stream budgets are enforced. Raw downloads preserve
+the original response bytes in exclusive 0600 output files.
+
+Both required host runtime lanes pass their complete configured checks with
+5 ExUnit tests, 98.1% production Elixir line coverage and 5 additional Python CLI
+tests. A separate process executes import/inspect/raw export/enrollment/
+materialisation/Property reads/history/replay/SSE/revocation through the actual
+host listener. Failure tests cover private-file admission, duplicate/oversized
+input, disconnected mutation ambiguity, HTTP 202 receipts, proxy isolation,
+redirect refusal, response/header/media/version limits, stream expiry and socket
+closure. Host startup and shutdown own the listener and store lifecycle.
+
+This is source-host evidence. Bundled ERTS release, OCI, clean artifact startup,
+signal/restart/full-storage qualification and Runtime Property subscriptions
+remain outstanding. No image or release is published, and no user instance is
+configured by these tests.

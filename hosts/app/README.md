@@ -1,0 +1,103 @@
+# Standalone Tracker host
+
+This optional application owns startup of the headless service. The root library
+and service package keep their explicit, inert installation contract.
+
+Startup requires `WOTEX_TRACKER_CONFIG` to name an absolute regular 0600 JSON
+file in a 0700 directory. Paths must not traverse symlinks. There is no default
+configuration or token. The closed `wtr.host.v1` document contains:
+
+- `instance_id`: nonempty instance identifier;
+- `secret_key`: canonical Base64 of a fresh random 32-byte instance key;
+- `data_directory`: existing private absolute directory for SQLite;
+- `listen`: numeric `ip` and integer `port`;
+- `exposure`: `loopback`, `proxy` or `tls`;
+- `public_origin`: explicit origin, or `listener` in loopback mode;
+- `credentials`: 1–32 entries with `id`, `principal`, lowercase hexadecimal
+  `token_sha256`, scope-to-grants map `grants`, and Unix-millisecond `expires_at`;
+- optional `tls`: exact `certfile` and `keyfile` absolute paths in TLS mode.
+
+HTTP server exposure and grant semantics are those of `wotex_tracker_service`.
+The instance key is secret; credential entries contain token hashes. The host
+reads at most 64 KiB, rejects duplicate/unknown fields and fails startup with a
+fixed error that contains no secret or path. The OS account is trusted.
+
+Development uses `WOTEX_PATH_DEPS=1 MIX_ENV=test mise exec -- mix check --no-retry`.
+Tests explicitly start dependencies and test host startup; the test runner does
+not boot an unconfigured service. Production rejects the path-dependency switch.
+
+## Command-line workflow
+
+`bin/trackerctl` is a Python 3.11+ POSIX client using only the standard library.
+It uses the authenticated HTTP API. Tokens are read from a private 0600 file;
+they never belong in command arguments, URLs or environment variables. The
+client ignores proxy environment variables, verifies HTTPS certificates, follows
+no redirects and retries no operation.
+
+Create a new loopback configuration (the parent directory must already exist):
+
+```sh
+bin/trackerctl --scope workshop init --directory "$PWD/_build/local" \
+  --instance-id workshop --bind 127.0.0.1 --port 4000
+```
+
+This creates a 0700 directory, a private configuration and a fresh operator token
+with all scope grants and a one-day expiry. `--expires-in` permits 1–604800 seconds.
+Initialization refuses existing files; it never rotates credentials or replaces
+data implicitly. It prints file paths, never the token. A partial filesystem
+failure requires inspecting the newly created directory before trying again.
+
+For source development, start the configured host from this directory:
+
+```sh
+WOTEX_PATH_DEPS=1 MIX_ENV=test WOTEX_TRACKER_CONFIG="$PWD/_build/local/config.json" \
+  mise exec -- mix run --no-halt
+```
+
+In a second terminal, use the same explicit origin, scope and token file:
+
+```sh
+bin/trackerctl --url http://127.0.0.1:4000 --scope workshop \
+  --token-file "$PWD/_build/local/operator.token" capabilities
+```
+
+With those global options before the command, the available commands are:
+
+| Command | Purpose |
+| --- | --- |
+| `ready`, `capabilities` | Writable storage and explicit capability status |
+| `import observation.json --generation 0` | Admit an observation envelope |
+| `list observations`, `inspect observations ID` | Public inspection |
+| `enroll ID --title "Sensor" --confirm --generation 1` | Confirm the operator association |
+| `materialize THING --generation 2` | Persist the evidence-backed TD and initial state |
+| `list things`, `read THING temperature` | Inspect TDs and read Properties |
+| `history state THING --limit 25` | Immutable history; resume with `--cursor` |
+| `events --cursor CURSOR` | Bounded replay from a snapshot/event cursor |
+| `events --cursor CURSOR --stream --seconds 30 --max-events 100` | Bounded SSE delivery |
+| `raw observations ID --output export.json` | Original native JSON bytes to a new 0600 file |
+| `operation UUID` | Resolve the retained outcome without repeating an operation |
+| `revoke CREDENTIAL_ID --generation N` | Permanently revoke this scope's credential ID |
+
+Every mutation requires the expected generation. Supply `--operation UUID` to
+choose its identity, or retain the generated UUID printed to stderr before the
+attempt. Output is JSON, one event per line for SSE. Exit 0 means success; 1 is
+an API/client failure; 2 is argument usage; 3 means an uncertain mutation outcome
+and requires `operation UUID` lookup. A preflight failure is `not_committed`;
+after a network attempt, a failure is conservatively `unknown`. Interruptions
+also close the connection and do not authorize a retry.
+
+`priv/examples/ruuvi-raw-v2.observation.json` is the documented RAWv2 fixture for
+trying the import workflow. Its timestamp and provenance explicitly describe
+fixture data; it is not a live scan or trusted physical-device association.
+
+Finite requests have a five-second absolute deadline and a 4 MiB response limit.
+Streams have a 1–300 second deadline, 1–1000 event ceiling and 32 KiB frame limit;
+deadline expiry is explicit. Response headers are admitted at 32 fields/8 KiB
+after Python's finite HTTP parser ceiling of 100 fields/64 KiB per line. Compressed
+responses and undeclared media/version envelopes are rejected. Raw exports use
+their original response bytes; ordinary JSON output preserves native wide
+integers and `1` versus `1.0` through Python's numeric types.
+
+Property observation and physical scanner/Action commands are not implemented;
+capabilities report their current status. Bundled release, OCI and clean artifact
+consumer qualification are in progress.

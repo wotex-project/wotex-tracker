@@ -1,0 +1,19 @@
+{
+  "schema": "wtr.observation.v1",
+  "id": "ruuvi-raw-v2-documentation-fixture",
+  "observed_at": 1700000000000,
+  "ingress": "ble",
+  "source": {"kind": "imported_documentation_fixture"},
+  "addressing": {},
+  "radio": {},
+  "transport": {"manufacturer_id": 1177},
+  "provenance": {
+    "kind": "fixture",
+    "source": "https://docs.ruuvi.com/communication/bluetooth-advertisements/data-format-5-rawv2"
+  },
+  "payload": {
+    "kind": "bytes",
+    "encoding": "base64",
+    "data": "BRL8U5TDfAAE//wEDKw2QgDNy7gzTIhP"
+  }
+}
