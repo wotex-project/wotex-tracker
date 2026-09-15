@@ -12,7 +12,10 @@ defmodule Wotex.Tracker.Limits do
     max_id_bytes: 256,
     max_claims: 256,
     max_sources: 64,
-    max_lineage_depth: 16
+    max_lineage_depth: 16,
+    max_profiles: 256,
+    max_predicates: 32,
+    max_candidates: 256
   ]
   @json_keys ~w(max_bytes max_depth max_nodes max_string_bytes max_collection_size)a
   @type t :: %__MODULE__{}

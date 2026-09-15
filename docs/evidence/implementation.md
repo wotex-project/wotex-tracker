@@ -54,3 +54,27 @@ Both required runtime lanes passed with 2 properties and 20 tests, 0 failures,
 archive contents. The upstream source revision remained unchanged and clean.
 No profile resolution, decoder, TD pipeline, live adapter or hardware is claimed
 by this slice. Published-package consumer gates remain unpassed as above.
+
+## WTR.02 resolution and WTR.03 profile values — 2026-09-15
+
+Implemented closed declarative predicates, immutable DeviceProfile/Catalogue and
+Resolution values. See [the profile guide](../guides/profiles.md). Matching retains
+all candidates, rejects exhaustion, preserves equal-best ambiguity and does not
+invoke decoders. Weak name/radio evidence cannot create an eligible profile.
+
+Both required runtime lanes passed the complete local gate: 3 properties and
+25 tests, 0 failures, 99.7% production line coverage. Cases include 255/256/257
+profiles, 31/32/33 predicates, candidate overflow, full revision identity,
+permutations, strict numeric matching, escaped pointers and forged selections.
+
+An elapsed-time diagnostic on the floor runtime used 256 profiles, 32 identical
+predicates each and 50,000 bytes of source metadata. Setup was excluded; zero
+warmup, one caller, five sequential samples. Before removing repeated admission
+from internal predicate execution, samples were 1,511,096–1,574,702 microseconds;
+afterwards 56,166–62,081 microseconds. Public boundaries still admit complete
+inputs. Reproduce the latter using `scripts/bench_resolution.exs` with `MIX_ENV=test`.
+These are diagnostic timings, not an SLA, allocation measurement or peak RSS.
+
+Capabilities, profile-specific decoding, materialisation and hardware remain
+subsequent acceptance work. No new protocol integration or release compatibility
+is claimed by this batch.

@@ -1,6 +1,6 @@
 defmodule Wotex.Tracker.Fixtures do
   @moduledoc false
-  alias Wotex.Tracker.{Evidence, EvidenceBundle, Observation}
+  alias Wotex.Tracker.{DeviceProfile, Evidence, EvidenceBundle, Observation}
 
   def observation_input(changes \\ %{}) do
     Map.merge(
@@ -45,6 +45,28 @@ defmodule Wotex.Tracker.Fixtures do
   def evidence(changes \\ %{}) do
     {:ok, value} = Evidence.new(evidence_input(changes))
     value
+  end
+
+  def profile_input(changes \\ %{}) do
+    Map.merge(
+      %{
+        id: "synthetic",
+        version: "1",
+        confidence: :exact,
+        fingerprints: [%{"op" => "byte", "offset" => 0, "value" => 5}],
+        decoder: {"synthetic", "1"},
+        model: {"urn:wotex:tm:environment", "1"},
+        mapping_revision: "1",
+        mapping: %{"temperature" => "/properties/temperature"},
+        source_provenance: %{"kind" => "synthetic", "revision" => "1"}
+      },
+      changes
+    )
+  end
+
+  def profile(changes \\ %{}) do
+    {:ok, profile} = DeviceProfile.new(profile_input(changes))
+    profile
   end
 
   def thing_id, do: "urn:uuid:aca49b80-1e09-40cf-929e-b193047f6ca9"
