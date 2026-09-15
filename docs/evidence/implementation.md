@@ -40,3 +40,17 @@ The current `wotex_ble` public API provides connected GATT discovery, with no
 passive advertisement scanning entry point. Live BLE is blocked on that upstream
 contract plus qualified controller/hardware evidence. Imported observations do
 not depend on a scanner. No sibling repository was modified.
+
+## WTR.01 software values — 2026-09-15
+
+Implemented bounded Observation, Evidence, EvidenceBundle, Identity and Limits
+values. See [the API guide](../guides/observations.md). Native JSON and canonical
+Base64 exports preserve type identity. Complete content digests, explicit
+UUIDv4 pseudonymous associations, strict duplicate handling, bounded graph
+lineage and aggregate claim admission are exercised independently of profiles.
+
+Both required runtime lanes passed with 2 properties and 20 tests, 0 failures,
+99.5% production line coverage. Each ran all configured checks and inspected
+archive contents. The upstream source revision remained unchanged and clean.
+No profile resolution, decoder, TD pipeline, live adapter or hardware is claimed
+by this slice. Published-package consumer gates remain unpassed as above.
