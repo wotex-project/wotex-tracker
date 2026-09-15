@@ -4,12 +4,13 @@ defmodule Wotex.Tracker.Service.Read do
 
   @retention 604_800_000
 
-  def snapshot(db, query) do
+  def snapshot(db, query, authorize \\ fn -> :ok end) do
     with true <- valid_query?(query),
          {:ok, generation} <- requested_generation(db, query) do
       SQL.execute!(db, "BEGIN")
 
       try do
+        authorize.()
         # The caller's first generation and high-water cursor share one snapshot.
         current = Transaction.generation(db, query.scope)
         generation = generation || current
@@ -50,7 +51,9 @@ defmodule Wotex.Tracker.Service.Read do
     end
   end
 
-  def events(db, %{scope: scope, after: cursor, limit: limit, now: now} = query)
+  def events(db, query, authorize \\ fn -> :ok end)
+
+  def events(db, %{scope: scope, after: cursor, limit: limit, now: now} = query, authorize)
       when map_size(query) in 4..5 do
     with true <- Codec.id?(scope) and Codec.time?(now) and is_integer(limit) and limit in 1..100,
          true <-
@@ -63,6 +66,7 @@ defmodule Wotex.Tracker.Service.Read do
       SQL.execute!(db, "BEGIN")
 
       try do
+        authorize.()
         validate_cursor!(db, scope, sequence, now, snapshot)
 
         rows =
@@ -95,7 +99,7 @@ defmodule Wotex.Tracker.Service.Read do
     end
   end
 
-  def events(_, _), do: {:error, :invalid_query}
+  def events(_, _, _), do: {:error, :invalid_query}
 
   defp snapshot_generation(%{snapshot_generation: value}), do: Codec.generation(value)
   defp snapshot_generation(_), do: {:ok, nil}

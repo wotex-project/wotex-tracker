@@ -1,7 +1,7 @@
 defmodule Wotex.Tracker.Service.Transaction do
   @moduledoc false
   alias Wotex.Tracker.Observation
-  alias Wotex.Tracker.Service.{Codec, SQL}
+  alias Wotex.Tracker.Service.{Authority, Codec, SQL}
 
   @retention 604_800_000
 
@@ -9,6 +9,7 @@ defmodule Wotex.Tracker.Service.Transaction do
     SQL.execute!(db, "BEGIN IMMEDIATE")
 
     try do
+      Authority.mutation!(db, options.credentials, update)
       result = admission(db, update, options)
       fault!(options, :before_commit)
 

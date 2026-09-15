@@ -183,3 +183,33 @@ Integration inspection found Runtime at
 `c150da67867933eb3fb040cc5049d11eb75d3f6a`, both with callable source APIs.
 Those checkouts were inspected without modification. Passive BLE scanning still
 has no upstream contract to consume; connected GATT discovery is not a scanner.
+
+## WTR.07/08 authorization and privacy foundation — 2026-09-15
+
+The service now has explicit hashed credential configuration, redacted scoped
+access proofs, durable revocation checks, encrypted cursors and reviewed public
+observation/resolution/measurement projections. The
+[service contract](../contracts/service-v1.md) fixes the grant vocabulary,
+credential limits, cursor binding and lossless browser scalar format.
+
+Tests prove changed principal/scope/expiry/proof, credential replacement and
+instance changes fail authorization; revoked credentials fail historical reads,
+existing delivery checks, replayed mutations and a second writer after restart.
+Ingestion cannot create enrollment, policy or revocation records. Cursor tests
+cover tampering, wrong key/instance/principal/scope/purpose, expiry, future issue
+time, malformed authenticated payloads and positions within a multi-event
+generation. Public DTOs exclude raw receiver/hardware/protocol identity fields.
+Zero/false/null, `1`/`1.0` and signed wide integer boundaries are distinct.
+
+The guarded Store ports and prepared values are host primitives; a public
+authenticated facade, HTTP/OpenAPI/SSE, access audit and production session
+handling remain required. No listener or default credential is introduced by
+this foundation. Physical Action authorization remains unimplemented.
+
+Both required service runtime lanes passed the complete configured gate with
+2 properties and 36 tests, zero failures and at least 98.4% production line
+coverage. No tool or threshold was disabled. ExCheck 0.16.0 emits a development
+startup warning when its umbrella probe reloads `../../mix.exs` under a temporary
+project identity; this nested package is not an umbrella. The warnings-as-errors
+compile and all verification commands still pass. This tooling warning is not
+suppressed, and the isolated production consumers do not load ExCheck.

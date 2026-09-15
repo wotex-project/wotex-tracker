@@ -96,6 +96,55 @@ No listener defaults to remote binding, no URL credentials, and no unauthenticat
 loopback privilege. Only reviewed public projections are eligible for HTTP/SSE;
 raw evidence requires a separate scope and a byte-preserving export response.
 
+## Credential and cursor boundary
+
+The implemented host credential value holds at most 32 SHA-256 hashes of
+canonical 256-bit bearer tokens, with explicit principal, expiry and at most 16
+scope grants per credential. Allowed permissions are `read`, `ingest`, `enroll`,
+`raw`, `admin` and `interact`; none implies another. The host supplies a stable
+instance ID and 32 random secret bytes. Inspection omits hashes, secret keys and
+access proofs. No credential or clock source is implicit.
+
+Proofs bind the current credential digest, principal, scope, instance and expiry.
+The host rechecks its latest configuration. A configured store also checks
+durable scope revocation before reads, delivery and mutations. Mutations check
+inside `BEGIN IMMEDIATE`, before idempotent replay. Required grants are derived
+from all affected record kinds: ingestion cannot insert enrollment, policy or
+revocation records. Revoked credential IDs cannot be reused in that scope;
+rotation uses a new ID. Revocation records are retained with other evidence.
+Clock readings passed to these ports must come from the host, not request JSON.
+
+The low-level Store handle remains a privileged host port. The forthcoming public
+facade must authenticate every call, including local calls, use the guarded read
+ports, and reauthorize immediately before each stream delivery. The existence
+of these primitives is not HTTP/session or complete access-audit acceptance.
+
+Cursor format `wtrc1` uses AES-256-GCM, fresh 96-bit nonces, an authenticated
+instance/principal/scope/purpose binding and explicit issue/expiry times. Internal
+sort keys are encrypted, not merely Base64-encoded or signed. Keys are derived
+separately for cursors and scope-specific observation pseudonyms. A cursor never
+grants access. Page cursors pin kind, generation, lexical ascending ID order,
+last ID and page size. Event cursors distinguish the snapshot high-water handoff
+from a replay position within a multi-event generation. Retention expiry and key
+rotation require resnapshot. Query filters will need an explicit versioned
+extension to this closed cursor schema when those queries are implemented.
+
+Ordinary projections omit source/addressing/radio/provenance, hardware IDs and
+raw decoder interpretation. Scalar values use a closed tagged representation:
+
+| `type` | `value` |
+| --- | --- |
+| `integer` | JSON integer within ±9,007,199,254,740,991 |
+| `wide_integer` | Canonical decimal string outside that range |
+| `number` | JSON floating-point number |
+| `boolean` | JSON boolean |
+| `null` | JSON null |
+
+Thus `1` and `1.0`, false and null remain distinct to a browser. Raw evidence
+exports instead preserve the original WTR.01 native representation and bytes;
+the frontend must download those bytes without parse/re-encode. The concrete
+HTTP envelopes, OpenAPI and stream transport are the next implementation slice.
+
 ## Source references
 
 The selected driver and its direct API are described by the

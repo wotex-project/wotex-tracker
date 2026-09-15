@@ -10,12 +10,12 @@ defmodule Wotex.Tracker.Service.Update do
   """
 
   alias Wotex.Tracker.Observation
-  alias Wotex.Tracker.Service.Codec
+  alias Wotex.Tracker.Service.{Access, Authority, Codec}
 
-  @kinds ~w(enrollments things state policies saved_queries evidence resolutions)
+  @kinds ~w(enrollments things state policies saved_queries evidence resolutions access)
   @keys ~w(principal scope operation_id expected_generation request now observation records events publication)a
   @enforce_keys @keys
-  defstruct @keys
+  defstruct @keys ++ [authority: nil]
 
   @type t :: %__MODULE__{
           principal: String.t(),
@@ -27,15 +27,18 @@ defmodule Wotex.Tracker.Service.Update do
           observation: Observation.t() | nil,
           records: [map()],
           events: [map()],
-          publication: map() | nil
+          publication: map() | nil,
+          authority: Access.t() | nil
         }
 
   @doc "Admits one bounded transaction; derived records must already be authorized."
   @spec new(term()) :: {:ok, t()} | {:error, :invalid_update}
   def new(input) do
     with true <-
-           is_map(input) and not is_struct(input) and map_size(input) == length(@keys) and
-             Enum.sort(Map.keys(input)) == Enum.sort(@keys),
+           is_map(input) and not is_struct(input) and
+             map_size(input) in length(@keys)..(length(@keys) + 1) and
+             Enum.sort(Map.keys(Map.delete(input, :authority))) == Enum.sort(@keys),
+         true <- Authority.valid?(Map.get(input, :authority)),
          true <- Enum.all?([input.principal, input.scope, input.operation_id], &Codec.id?/1),
          {:ok, _} <- Codec.generation(input.expected_generation),
          true <- Codec.time?(input.now),
@@ -74,7 +77,7 @@ defmodule Wotex.Tracker.Service.Update do
 
   defp event?(%{"type" => type, "data" => data} = event) when map_size(event) == 2,
     do:
-      type in ~w(observation.admitted enrollment.changed thing.changed policy.changed query.changed tracker.event) and
+      type in ~w(observation.admitted enrollment.changed thing.changed policy.changed query.changed tracker.event access.revoked) and
         is_map(data) and match?({:ok, _}, Codec.encode(event, 16_384))
 
   defp event?(_), do: false
@@ -100,6 +103,7 @@ defmodule Wotex.Tracker.Service.Update do
       end
 
     input
+    |> Map.update(:authority, nil, &Authority.projection/1)
     |> Map.update!(:records, &Enum.map(&1, fn record -> stringify(record) end))
     |> Map.update!(:publication, fn value -> if value, do: stringify(value), else: nil end)
     |> Map.put(:observation, document)

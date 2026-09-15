@@ -13,7 +13,10 @@ defmodule Wotex.Tracker.Service.Store do
   alias Exqlite.Sqlite3
 
   alias Wotex.Tracker.Service.{
+    Access,
+    Authority,
     Codec,
+    Credentials,
     Publication,
     Read,
     Schema,
@@ -58,6 +61,22 @@ defmodule Wotex.Tracker.Service.Store do
   @doc "Reads a bounded durable event batch, rejecting expired or foreign cursors."
   @spec events(t(), map()) :: {:ok, map()} | {:error, atom()}
   def events(store, query), do: StoreCall.run(store, {:events, query})
+
+  @doc "Checks current credential grants and durable revocation before a delivery."
+  @spec authorized(t(), Access.t(), String.t(), integer()) :: :ok | {:error, atom()}
+  def authorized(store, access, permission, now),
+    do: StoreCall.run(store, {:authorized, access, permission, now})
+
+  @doc "Checks current authority inside the same SQLite read snapshot as the requested page."
+  @spec authorized_snapshot(t(), Access.t(), String.t(), map(), integer()) ::
+          {:ok, map()} | {:error, atom()}
+  def authorized_snapshot(store, access, permission, query, now),
+    do: StoreCall.run(store, {:authorized_snapshot, access, permission, query, now})
+
+  @doc "Reauthorizes resumed event reads inside their database snapshot."
+  @spec authorized_events(t(), Access.t(), map()) :: {:ok, map()} | {:error, atom()}
+  def authorized_events(store, access, query),
+    do: StoreCall.run(store, {:authorized_events, access, query})
 
   @doc "Checks actual write access using a rolled-back SQLite transaction."
   @spec readiness(t()) :: {:ok, map()} | {:error, atom()}
@@ -143,10 +162,11 @@ defmodule Wotex.Tracker.Service.Store do
       max_pages: 262_144,
       busy_timeout: 1000,
       timeout: 5000,
-      fault: fn _ -> :ok end
+      fault: fn _ -> :ok end,
+      credentials: nil
     ]
 
-    if Keyword.keyword?(options) and length(options) <= 6 and
+    if Keyword.keyword?(options) and length(options) <= 7 and
          length(Keyword.keys(options)) == length(Enum.uniq(Keyword.keys(options))) and
          Enum.all?(Keyword.keys(options), &(&1 in [:directory | Keyword.keys(defaults)])) do
       validate_options(defaults |> Keyword.merge(options) |> Map.new(), defaults)
@@ -161,10 +181,15 @@ defmodule Wotex.Tracker.Service.Store do
         is_integer(merged[key]) and merged[key] in 1..defaults[key]
       end)
 
-    if Map.has_key?(merged, :directory) and limits_valid and is_function(merged.fault, 1),
-      do: {:ok, merged},
-      else: {:error, :invalid_options}
+    if Map.has_key?(merged, :directory) and limits_valid and is_function(merged.fault, 1) and
+         valid_credentials?(merged.credentials),
+       do: {:ok, merged},
+       else: {:error, :invalid_options}
   end
+
+  defp valid_credentials?(nil), do: true
+
+  defp valid_credentials?(credentials), do: match?({:ok, _}, Credentials.validate(credentials))
 
   defp dispatch({:mutate, update}, state), do: Transaction.mutate(state.db, update, state.options)
 
@@ -173,6 +198,43 @@ defmodule Wotex.Tracker.Service.Store do
 
   defp dispatch({:snapshot, query}, state), do: Read.snapshot(state.db, query)
   defp dispatch({:events, query}, state), do: Read.events(state.db, query)
+
+  defp dispatch({:authorized, access, permission, now}, state),
+    do:
+      Authority.check!(
+        state.db,
+        state.options.credentials,
+        access,
+        access_scope(access),
+        permission,
+        now
+      )
+
+  defp dispatch({:authorized_snapshot, access, permission, query, now}, state),
+    do:
+      Read.snapshot(state.db, query, fn ->
+        Authority.check!(
+          state.db,
+          state.options.credentials,
+          access,
+          query.scope,
+          permission,
+          now
+        )
+      end)
+
+  defp dispatch({:authorized_events, access, query}, state),
+    do:
+      Read.events(state.db, query, fn ->
+        Authority.check!(
+          state.db,
+          state.options.credentials,
+          access,
+          query.scope,
+          "read",
+          query.now
+        )
+      end)
 
   defp dispatch({:publication, scope, thing, generation}, state),
     do: Publication.status(state.db, scope, thing, generation)
@@ -210,4 +272,7 @@ defmodule Wotex.Tracker.Service.Store do
       end
     end
   end
+
+  defp access_scope(%Access{scope: scope}), do: scope
+  defp access_scope(_), do: nil
 end
