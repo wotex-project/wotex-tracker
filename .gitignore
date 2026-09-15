@@ -8,3 +8,11 @@
 /*.tar
 /erl_crash.dump
 *.beam
+**/_build/
+**/deps/
+**/doc/
+**/cover/
+**/erl_crash.dump
+*.db
+*.db-wal
+*.db-shm

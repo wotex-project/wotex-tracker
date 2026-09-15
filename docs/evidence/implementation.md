@@ -137,3 +137,49 @@ public `wotex` package remains unavailable and public-release compatibility is
 unpassed. Synthetic Forms are not reachable-endpoint evidence. Phase 3 must still
 prove actual host/Runtime/binding interaction and durability; physical BLE/cellular,
 Pi, iPhone and integrated product gates remain unpassed.
+
+## WTR.06 durable store foundation — 2026-09-15
+
+`packages/tracker_service/` now implements the direct SQLite transaction boundary
+pinned in the [service contract](../contracts/service-v1.md). The package has no
+application callback; a caller starts its store explicitly. Root dependencies
+and startup remain unchanged. The typed prepared-update seam is trusted host
+code after authorization, not a remotely exposed CRUD or authenticated API.
+
+Admission atomically writes observation identity/content, versioned records,
+operation result, event intents and optional TD publication intent. Tests race
+two independent SQLite writer connections, distinguish numeric/native values,
+reject conflicting IDs and expected generations, preserve operation tombstones,
+read immutable pages, and check snapshot-to-event continuity and expiry. A fresh
+snapshot can resume a quiet scope with an old high-water event. Thirty-two
+reserved helpers bound the writer queue; timeouts/caller death retain capacity
+until the write finishes, and late replies are discarded.
+
+Executed failure cases include pre-commit and stale-tombstone abort, process
+crash before/after commit, lost acknowledgement, SQLite's actual page-limit full
+error, busy writer locks, corrupt/foreign schemas, unsafe paths and failed startup.
+Backup uses SQLite `VACUUM INTO`; a restored backup preserves observations,
+deduplication and events. Publication persistence tests retain an uncertain
+intent, reject stale confirmation and distinguish confirmed publication from
+failed cleanup. No external publication client or physical power-cut durability
+is claimed. Network filesystems, hostile same-user filesystem races, automatic
+retention/purge and hardware power-loss tests remain unqualified.
+
+The service uses Exqlite 0.40.0 / bundled SQLite 3.53.4, compiled from source with
+Apple clang 21.0.0 (`clang-2100.3.34.2`), target `arm64-apple-darwin25.6.0`.
+Its Hex lock fixes the driver/native source provenance. SHA-256 source identities:
+
+- `sqlite3.c`: `b1dd5d74ec7f29055a6684fa06fb3c2f6821c87dd38f9a458dfd2e8a1db28189`
+- `sqlite3.h`: `919e7f2e8ed1d8f56ac17b412b8971c76aa5d1a879752cc6058f75e7d5910e1d`
+
+Both required runtime lanes pass the service's full gate with one property and
+24 tests, no failures, at least 98% production line coverage. Strict analysis,
+docs, audit, licenses and archive inspection are enabled. This is the storage
+foundation of Phase 3; authentication, HTTP/OpenAPI/SSE, actual Runtime binding
+peers, release/OCI and the non-Elixir client workflow remain to be implemented.
+
+Integration inspection found Runtime at
+`65d0b521ccb6b7838fe37bf26bf9dac65b40cc68` and HTTP binding at
+`c150da67867933eb3fb040cc5049d11eb75d3f6a`, both with callable source APIs.
+Those checkouts were inspected without modification. Passive BLE scanning still
+has no upstream contract to consume; connected GATT discovery is not a scanner.

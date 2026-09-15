@@ -8,6 +8,7 @@ import hashlib
 import http.server
 import json
 import os
+import argparse
 from pathlib import Path
 import shutil
 import subprocess
@@ -33,6 +34,9 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--service", action="store_true", help="also qualify the durable service archive")
+    service = parser.parse_args().service
     with tempfile.TemporaryDirectory(prefix="wtr-source-cohort-") as temporary:
         workspace = Path(temporary)
         env = os.environ.copy()
@@ -59,7 +63,11 @@ def main():
             raise RuntimeError("Upstream lock changed during snapshot verification")
         run(["mix", "hex.build", "--output", str(tarballs / "wotex-0.1.0.tar")], source, env)
         run(["mix", "hex.build", "--output", str(tarballs / "wotex_tracker-0.1.0.tar")], ROOT, env)
-        for package in ("jason-1.4.5", "ex_json_schema-0.11.5", "decimal-3.1.1", "jason-1.4.0", "ex_json_schema-0.11.0", "decimal-2.0.0"):
+        packages = ["jason-1.4.5", "ex_json_schema-0.11.5", "decimal-3.1.1", "jason-1.4.0", "ex_json_schema-0.11.0", "decimal-2.0.0"]
+        if service:
+            run(["mix", "hex.build", "--output", str(tarballs / "wotex_tracker_service-0.1.0.tar")], ROOT / "packages/tracker_service", env)
+            packages += ["exqlite-0.40.0", "db_connection-2.10.2", "telemetry-1.4.2", "elixir_make-0.10.0", "cc_precompiler-0.1.11"]
+        for package in packages:
             run(["mix", "hex.package", "fetch", package.rsplit("-", 1)[0], package.rsplit("-", 1)[1],
                  "--output", str(workspace / "downloads")], ROOT, env)
             shutil.copyfile(workspace / "downloads" / f"{package}.tar", tarballs / f"{package}.tar")
@@ -92,6 +100,12 @@ end
                             'deps: [{:wotex_tracker, "~> 0.1.0"}]',
                             'deps: [{:wotex_tracker, "~> 0.1.0"}, {:jason, "1.4.0"}, {:ex_json_schema, "0.11.0"}, {:decimal, "2.0.0"}]')
                         (consumer / "mix.exs").write_text(project)
+                    if service:
+                        project = (consumer / "mix.exs").read_text().replace(
+                            '{:wotex_tracker, "~> 0.1.0"}', '{:wotex_tracker_service, "~> 0.1.0"}')
+                        (consumer / "mix.exs").write_text(project)
+                        (consumer / "config").mkdir()
+                        (consumer / "config/config.exs").write_text('import Config\nconfig :exqlite, force_build: true\n')
                     if mode == "locked":
                         shutil.copyfile(workspace / f"consumer-{lane[0]}-fresh" / "mix.lock", consumer / "mix.lock")
                     print(f"Consumer {lane}: {mode}", flush=True)
@@ -102,6 +116,11 @@ end
                     if "SOURCE_COHORT_PASS" not in output or lock_before != (consumer / "mix.lock").read_bytes():
                         raise RuntimeError("Consumer contract or immutable lock check failed")
                     print(output.strip(), flush=True)
+                    if service:
+                        output = run(["mix", "run", str(ROOT / "scripts" / "service_consumer.exs")], consumer, consumer_env, lane)
+                        if "SERVICE_COHORT_PASS" not in output:
+                            raise RuntimeError("Service consumer contract failed")
+                        print(output.strip(), flush=True)
                     results.append({"elixir": lane[0], "otp": lane[1], "mode": mode, "result": "pass", "lock_sha256": hashlib.sha256(lock_before).hexdigest()})
         finally:
             server.shutdown()
@@ -112,8 +131,9 @@ end
                   "consumers": results}
         destination = ROOT / "_build" / "verification"
         destination.mkdir(parents=True, exist_ok=True)
-        (destination / "source-consumer.json").write_text(json.dumps(report, indent=2) + "\n")
-        print("Recorded _build/verification/source-consumer.json; temporary registry and keys removed on exit", flush=True)
+        report_name = "service-consumer.json" if service else "source-consumer.json"
+        (destination / report_name).write_text(json.dumps(report, indent=2) + "\n")
+        print(f"Recorded _build/verification/{report_name}; temporary registry and keys removed on exit", flush=True)
 
 
 if __name__ == "__main__":

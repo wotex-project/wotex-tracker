@@ -1,5 +1,8 @@
 archive =
-  Path.join(Mix.Project.build_path(), "wotex_tracker-#{Mix.Project.config()[:version]}.tar")
+  Path.join(
+    Mix.Project.build_path(),
+    "#{Mix.Project.config()[:app]}-#{Mix.Project.config()[:version]}.tar"
+  )
 
 {output, status} =
   System.cmd("env", ["-u", "WOTEX_PATH_DEPS", "mix", "hex.build", "--output", archive],
@@ -16,13 +19,22 @@ contents =
 {:ok, files} = :erl_tar.extract({:binary, contents}, [:memory, :compressed])
 names = Enum.map(files, fn {name, _} -> List.to_string(name) end)
 
-for required <-
-      ~w(mix.exs README.md LICENSE NOTICE SECURITY.md CONTRIBUTING.md lib/wotex/tracker/error.ex docs/specs/catalogue.yaml priv/thing_models/environmental-sensor-1.0.0.tm.json) do
+required_files =
+  case Mix.Project.config()[:app] do
+    :wotex_tracker ->
+      ~w(mix.exs README.md LICENSE NOTICE SECURITY.md CONTRIBUTING.md lib/wotex/tracker/error.ex docs/specs/catalogue.yaml priv/thing_models/environmental-sensor-1.0.0.tm.json)
+
+    :wotex_tracker_service ->
+      ~w(mix.exs README.md LICENSE NOTICE lib/wotex/tracker/service/store.ex priv/schema/1.sql)
+  end
+
+for required <- required_files do
   if required not in names, do: Mix.raise("Archive missing #{required}")
 end
 
 for name <- names do
-  if String.starts_with?(name, ~w(hosts/ packages/ _build/ deps/ test/ .git/ .env)) do
+  if String.starts_with?(name, ~w(hosts/ packages/ _build/ deps/ test/ .git/ .env)) or
+       String.ends_with?(name, ~w(.db .db-wal .db-shm .pem)) do
     Mix.raise("Forbidden archive member #{name}")
   end
 end

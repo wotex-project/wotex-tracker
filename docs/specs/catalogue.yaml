@@ -92,8 +92,8 @@ contracts:
     depends_on: [WTR.01, WTR.05, WTR.06, WTR.07, WTR.08, WTR.10, WTR.11, WTR.12, WTR.13, WTR.15]
 
 # Delivery prerequisites are acceptance edges, distinct from contract references.
-# All targets are required for complete product acceptance. Core software can be
-# verified earlier; no target is implemented or accepted by this catalogue.
+# All targets are required for complete product acceptance. Status and linked
+# executed evidence are separate from the target acceptance contracts.
 delivery_targets:
   - id: core_library
     required_for_product: true
@@ -106,8 +106,8 @@ delivery_targets:
     required_for_product: true
     contracts: [WTR.06, WTR.07, WTR.08, WTR.13]
     requires: [core_library]
-    implementation_status: not-started
-    evidence_refs: []
+    implementation_status: in-progress
+    evidence_refs: [docs/evidence/implementation.md]
     acceptance: durable admission/recovery, versioned HTTP/SSE, clean release/image and non-Elixir client
   - id: tracking_hardware
     required_for_product: true

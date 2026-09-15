@@ -112,6 +112,10 @@ Directory, databases, CLI/server/UI, cellular listeners, firmware, LoRaWAN and A
 
 ## Phase 3 — service, machine API, durable store and Runtime proof
 
+The durable SQLite foundation is implemented in `packages/tracker_service/`;
+HTTP/SSE, authenticated facade, host/CLI, release/image and Runtime proof remain
+in progress. See [executed evidence](../evidence/implementation.md).
+
 Add the explicitly started shared service, server host and CLI using imported
 observations first. Introduce only the real host's needed discovery/state/clock
 ports. Volatile per-instance state is an early development substep only. Consume

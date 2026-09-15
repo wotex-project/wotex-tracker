@@ -42,8 +42,11 @@ identity evidence, a packaged environmental model, and upstream-validated Thing
 Descriptions. The library has a complete local verification gate and explicit
 archive packaging. Start with the [pipeline guide](docs/guides/materialisation.md).
 
-No live scanner, service host, durable store, UI or Runtime interaction has been
-implemented yet. [Implementation evidence](docs/evidence/implementation.md) records
+The separate service package now implements a bounded SQLite store with atomic
+admission, historical snapshots, durable event/publication intents and recovery
+tests. See its [storage contract](docs/contracts/service-v1.md). HTTP/SSE, a running
+service host, live scanning, UI and Runtime interaction remain subsequent work.
+[Implementation evidence](docs/evidence/implementation.md) records
 executed software checks and unpassed release, host and hardware gates.
 
 Start with the [WTR specification index](docs/specs/WTR-index.md) and the [software implementation sequence](docs/plans/software-implementation.md).
