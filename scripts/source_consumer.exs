@@ -203,8 +203,26 @@ true = exported["position"]["longitude"] === 0.0
 {:ok, %{"status" => "stale", "time_basis" => "fix", "age_ms" => 100}} =
   Wotex.Tracker.PositionFreshness.evaluate(position, positions, policy, 1000)
 
+{:ok, selection_policy} =
+  Wotex.Tracker.PositionSelection.new(%{
+    revision: "archive-selection-v1",
+    accepted_freshness: [:stale],
+    source_priority: [:operator],
+    unlisted_sources: :reject,
+    missing_accuracy: :last,
+    max_horizontal_accuracy_m: nil
+  })
+
+{:ok, %{"status" => "selected", "selected" => %{"evidence_id" => "position-claim"}}} =
+  Wotex.Tracker.PositionSelection.select(
+    [%{position: position, bundle: positions}],
+    selection_policy,
+    policy,
+    1000
+  )
+
 true = MapSet.subset?(MapSet.new(Process.list()), before_processes)
 
 IO.puts(
-  "SOURCE_COHORT_PASS Elixir=#{System.version()} OTP=#{System.otp_release()} properties=10 position_freshness=true no_new_processes=true optional_hosts_absent=true"
+  "SOURCE_COHORT_PASS Elixir=#{System.version()} OTP=#{System.otp_release()} properties=10 position_freshness=true position_selection=true no_new_processes=true optional_hosts_absent=true"
 )

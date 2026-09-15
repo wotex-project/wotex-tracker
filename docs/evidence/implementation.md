@@ -508,6 +508,32 @@ position provenance and delayed-fix freshness with zero new processes; exact
 artifact/lock identities are in `verification/source-consumer.json`.
 
 The service/host reports retain the earlier Property-observation artifact snapshots.
-Multi-source selection, geometry, motion/trips/fences, rule persistence and physical
-position qualification remain subsequent work. The pure root still requires only
-Wotex and OTP crypto at runtime.
+Geometry, motion/trips/fences, rule persistence and physical position qualification
+remain subsequent work. The pure root still requires only Wotex and OTP crypto at
+runtime.
+
+## WTR.05 deterministic multi-source position selection — 2026-09-16
+
+The pure selector validates each complete position/evidence bundle and recomputes
+freshness from the caller's explicit time and admitted freshness policy. Its
+content-bound policy fixes accepted freshness order, source priority, unlisted
+source handling, missing-accuracy handling and an optional stated-accuracy limit.
+It returns either one fully ranked position or a reasoned unknown result; it does
+not fuse coordinates or accept caller-supplied freshness labels.
+
+The total order is freshness, declared source, valid/suspect quality, stated
+accuracy, fix/reception time, evidence ID and bundle identity. Input permutations
+and generated tie sets select identically. A delayed stale higher-priority source
+cannot defeat a fresh lower-priority source. Duplicate evidence/bundle identities,
+more than 64 candidates, forged position content and modified policy identities
+fail explicitly. Unknown freshness, unavailable coordinates, missing accuracy,
+unlisted sources and accuracy-limit rejection remain visible.
+
+Both required runtime lanes passed the complete root gate with 1 doctest,
+6 properties and 60 tests, no failures, 98.2% production line coverage. Six
+fresh/locked/minimum production archive consumers re-evaluated the synthetic
+position and selected it under an explicit stale-accepting policy, with no new
+processes. Exact archive and lock identities are recorded in the updated
+`verification/source-consumer.json`. This remains deterministic selection over
+qualified evidence; geometry, motion state, trips and stateful policy are not
+claimed by this slice.

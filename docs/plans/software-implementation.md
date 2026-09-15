@@ -183,8 +183,9 @@ network. Telemetry support does not establish a qualified physical Action.
 
 ## Phase 6 — deterministic tracking and policy
 
-The first pure slice admits normalized position evidence and versioned freshness
-policies with explicit clock qualification. See the
+The pure tracking foundation admits normalized position evidence, versioned
+freshness policies with explicit clock qualification and deterministic
+multi-source selection. See the
 [position guide](../guides/positions.md). Canonical selection, geometry, stateful
 rule transitions and atomic host integration remain subsequent work.
 

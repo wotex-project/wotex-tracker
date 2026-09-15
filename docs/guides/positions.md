@@ -99,3 +99,36 @@ timestamp, signed `age_ms`, explicit evaluation time, position evidence/bundle
 identity and policy revision/identity. Unknown decisions retain the reason and
 available decision provenance; they are not boolean false. No state transition,
 reception deduplication, live alarm, physical Action or historical rewrite occurs.
+
+## Deterministic best-position selection
+
+`PositionSelection` accepts at most 64 `%{position: position, bundle: bundle}`
+candidates, an admitted selection policy, the admitted freshness policy, and the
+same explicit Unix `now`. It validates every complete bundle and re-evaluates
+freshness itself. Callers cannot provide a freshness label. Duplicate pairs of
+evidence ID and bundle identity fail instead of increasing a candidate count.
+
+The selection policy declares a nonempty ordered subset of accepted freshness
+classes (`:fresh`, optionally `:stale`), a nonempty source priority, whether
+unlisted sources are rejected or ranked last, how missing accuracy ranks or is
+rejected, and an optional maximum stated horizontal accuracy. Every field and
+the fixed algorithm name are bound to its identity. This is deterministic source
+selection, not statistical or numerical fusion.
+
+Qualified candidates have one total rank, in this exact order:
+
+1. accepted freshness order;
+2. declared source priority;
+3. valid before suspect quality;
+4. smaller stated horizontal accuracy, with missing accuracy handled by policy;
+5. later selected freshness timestamp, then later receiver time;
+6. lexical evidence ID, then lexical bundle identity.
+
+Source priority therefore applies only after freshness. A delayed old GNSS fix
+cannot defeat a fresh lower-priority source. Accuracy `estimate` and `bound` stay
+distinct in the position claim; selection compares their stated metres only and
+does not promote an estimate to a guarantee. Unknown/unavailable freshness,
+unlisted sources, missing accuracy and accuracy-limit failures appear as explicit
+rejections. No qualified candidate produces a successful `unknown` result rather
+than choosing stale or unsupported data. The result records both policy identities,
+evaluation time, selected rank, qualified count and stable rejected identities.
