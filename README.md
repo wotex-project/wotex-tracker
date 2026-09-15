@@ -44,9 +44,15 @@ archive packaging. Start with the [pipeline guide](docs/guides/materialisation.m
 
 The separate service package implements a bounded SQLite store with atomic
 admission, historical snapshots, durable event/publication intents and recovery
-tests, authenticated HTTP/OpenAPI/SSE workflows, and Runtime Property reads through
-an actual local HTTP binding peer. See its [service contract](docs/contracts/service-v1.md).
-A bundled service host, live scanning, UI and Runtime subscriptions remain subsequent work.
+tests, authenticated HTTP/OpenAPI/SSE workflows, and Runtime Property reads and
+committed-value subscriptions through actual local HTTP binding peers. The
+standalone CLI and bundled Darwin/Linux ARM64 service artifacts pass local probes.
+See the [service contract](docs/contracts/service-v1.md). Live scanning and UI
+remain subsequent work.
+
+The first WTR.05 pure slice admits position evidence and evaluates explicit
+freshness policies. See the [position guide](docs/guides/positions.md); canonical
+selection, geofences and stateful tracking rules remain subsequent work.
 [Implementation evidence](docs/evidence/implementation.md) records
 executed software checks and unpassed release, host and hardware gates.
 

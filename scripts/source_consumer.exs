@@ -128,6 +128,83 @@ true = MapSet.subset?(MapSet.new(Process.list()), before_processes)
 {:ok, %{decoded: nil, resolution: %{status: :unknown}}} =
   Tracker.import_observation(observation, empty, :absent)
 
+# Independent synthetic position evidence; no GPS capability is attributed to Ruuvi.
+{:ok, capture} =
+  Tracker.observation(%{
+    id: "synthetic-position",
+    observed_at: 1000,
+    ingress: "imported",
+    source: %{},
+    addressing: %{},
+    radio: %{},
+    transport: %{},
+    provenance: %{"kind" => "synthetic-fixture"},
+    payload: {:json, %{"latitude" => 0, "longitude" => 0.0}}
+  })
+
+{:ok, claim} =
+  Evidence.new(%{
+    id: "position-claim",
+    kind: :position,
+    source_observation_ids: [capture.id],
+    evidence_ids: [],
+    profile: {"synthetic-position", "1"},
+    decoder: {"synthetic-position", "1"},
+    confidence: :exact,
+    reasons: ["synthetic_fixture"],
+    association_id: nil,
+    claim: %{
+      "schema" => "wtr.position.v1",
+      "latitude" => 0,
+      "longitude" => 0.0,
+      "altitude_m" => nil,
+      "speed_m_s" => 0.0,
+      "horizontal_accuracy_m" => nil,
+      "accuracy_kind" => "unknown",
+      "source" => "operator",
+      "fix_at" => 900,
+      "device_at" => nil,
+      "received_at" => 1000,
+      "fix_clock" => "trusted",
+      "device_clock" => "unknown",
+      "availability" => "available",
+      "quality" => "valid",
+      "receiver_observation_id" => capture.id,
+      "source_units" => %{
+        "latitude" => "degree",
+        "longitude" => "degree",
+        "altitude" => nil,
+        "speed" => "m/s",
+        "accuracy" => nil,
+        "fix_time" => "unix-ms",
+        "device_time" => nil,
+        "receiver_time" => "unix-ms"
+      },
+      "raw" => %{},
+      "conversion_revision" => "identity-v1"
+    }
+  })
+
+{:ok, positions} = EvidenceBundle.new([capture], [claim])
+{:ok, position} = Wotex.Tracker.Position.new(claim.id, positions)
+{:ok, exported} = Wotex.Tracker.Position.to_map(position, positions)
+0 = exported["position"]["latitude"]
+true = exported["position"]["longitude"] === 0.0
+
+{:ok, policy} =
+  Wotex.Tracker.PositionFreshness.new(%{
+    revision: "archive-clock-v1",
+    max_age_ms: 10,
+    future_skew_ms: 0,
+    missing_fix: :receiver_time,
+    accept_suspect: false
+  })
+
+{:ok, %{"status" => "stale", "time_basis" => "fix", "age_ms" => 100}} =
+  Wotex.Tracker.PositionFreshness.evaluate(position, positions, policy, 1000)
+
+true = MapSet.subset?(MapSet.new(Process.list()), before_processes)
+
 IO.puts(
-  "SOURCE_COHORT_PASS Elixir=#{System.version()} OTP=#{System.otp_release()} properties=10 no_new_processes=true optional_hosts_absent=true"
+  "SOURCE_COHORT_PASS Elixir=#{System.version()} OTP=#{System.otp_release()} properties=10 position_freshness=true no_new_processes=true optional_hosts_absent=true"
 )

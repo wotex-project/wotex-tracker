@@ -480,3 +480,34 @@ published. Sibling Runtime/HTTP revisions are unchanged; BLE still exposes no
 passive scanner contract. The service's observation means committed host values,
 not physical sensor notification qualification. UI composition, deterministic
 rules, analytics and required physical delivery targets remain unpassed.
+
+
+## WTR.05 position evidence and explicit freshness — 2026-09-16
+
+The first pure tracking-policy slice admits closed normalized position claims
+from validated evidence bundles. Receiver time must match a named source capture;
+fix time, device time, source units, raw uncertainty, profile/decoder revisions,
+confidence and association remain distinct. Zero coordinates, missing accuracy,
+wide/negative times and native numeric identity are preserved. Private exports
+retain provenance; no public location projection or physical positioning profile
+is enabled by this slice.
+
+Freshness uses an immutable content-bound policy and explicit Unix time. A trusted
+fix takes precedence over reception; stale fixes cannot become fresh through late
+delivery. Missing-time fallback, suspect quality and future-skew allowances require
+explicit policy fields. Untrusted clocks, unavailable coordinates and inconsistent
+time return reasoned unknown decisions. No clock is read, process started, canonical
+position selected, rule state changed or physical Action dispatched.
+
+Both required runtime lanes pass the complete root gate: 1 doctest, 5 properties
+and 55 tests, no failures, 98.2% production line coverage. Independent reference
+cases and generated replay cases cover threshold equality, clock jumps, delayed
+receptions, altered provenance, missing/partial coordinates and all declared
+admission shapes. Six fresh/locked/minimum production archive consumers exercise
+position provenance and delayed-fix freshness with zero new processes; exact
+artifact/lock identities are in `verification/source-consumer.json`.
+
+The service/host reports retain the earlier Property-observation artifact snapshots.
+Multi-source selection, geometry, motion/trips/fences, rule persistence and physical
+position qualification remain subsequent work. The pure root still requires only
+Wotex and OTP crypto at runtime.
