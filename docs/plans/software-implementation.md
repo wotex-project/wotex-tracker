@@ -192,8 +192,9 @@ uncertainty and antimeridian rules. See the
 [position guide](../guides/positions.md) and
 [geofence guide](../guides/geofences.md). Ordered baseline, entry/exit, bounded-gap
 and fence/rule-edit recomputation are implemented with stable event identities and
-explicit live/replay effects. Sparse crossing inference and atomic host integration
-remain subsequent work.
+explicit live/replay effects. Sparse crossing inference identifies both endpoints,
+enforces time/distance gaps and makes no route or crossing-time claim. Atomic host
+integration remains subsequent work.
 
 Implement explicit time/freshness, quality selection, motion/trips/stops,
 geofence membership/transitions, heartbeat, suspicious movement, low-battery,

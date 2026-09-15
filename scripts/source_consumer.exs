@@ -268,8 +268,72 @@ true = exported["position"]["longitude"] === 0.0
 {:ok, ^transition_state} =
   Wotex.Tracker.GeofenceTransition.validate_state(transition_state)
 
+crossing_sample = fn id, longitude, event_at ->
+  {:ok, crossing_capture} =
+    Tracker.observation(%{
+      id: "crossing-capture-" <> id,
+      observed_at: event_at,
+      ingress: "imported",
+      source: %{},
+      addressing: %{},
+      radio: %{},
+      transport: %{},
+      provenance: %{"kind" => "synthetic-fixture"},
+      payload: {:json, %{"latitude" => 0, "longitude" => longitude}}
+    })
+
+  crossing_claim =
+    claim.claim
+    |> Map.put("longitude", longitude)
+    |> Map.put("fix_at", event_at)
+    |> Map.put("received_at", event_at)
+    |> Map.put("receiver_observation_id", crossing_capture.id)
+
+  {:ok, crossing_evidence} =
+    Evidence.new(%{
+      Map.from_struct(claim)
+      | id: "crossing-position-" <> id,
+        claim: crossing_claim,
+        source_observation_ids: [crossing_capture.id]
+    })
+
+  {:ok, crossing_bundle} = EvidenceBundle.new([crossing_capture], [crossing_evidence])
+  {:ok, crossing_position} = Wotex.Tracker.Position.new(crossing_evidence.id, crossing_bundle)
+
+  {:ok, crossing_position_sample} =
+    Wotex.Tracker.PositionSample.new(crossing_position, crossing_bundle)
+
+  crossing_position_sample
+end
+
+crossing_from = crossing_sample.("from", -0.0001, 1_000)
+crossing_to = crossing_sample.("to", 0.0001, 1_001)
+
+{:ok, crossing_policy} =
+  Wotex.Tracker.GeofenceCrossing.new(%{
+    id: "archive-yard-crossing",
+    revision: "archive-crossing-v1",
+    order_policy: order_policy,
+    max_gap_ms: 1_000,
+    max_distance_m: 100
+  })
+
+{:ok,
+ %{
+   "status" => "inferred_crossing",
+   "event" => %{"kind" => "geofence.crossing_inferred", "crossing_time" => nil}
+ }} =
+  Wotex.Tracker.GeofenceCrossing.evaluate(
+    fence,
+    crossing_from,
+    crossing_to,
+    crossing_policy,
+    :replay,
+    1_001
+  )
+
 true = MapSet.subset?(MapSet.new(Process.list()), before_processes)
 
 IO.puts(
-  "SOURCE_COHORT_PASS Elixir=#{System.version()} OTP=#{System.otp_release()} properties=10 position_freshness=true position_selection=true position_order=true geofence=true geofence_transition=true no_new_processes=true optional_hosts_absent=true"
+  "SOURCE_COHORT_PASS Elixir=#{System.version()} OTP=#{System.otp_release()} properties=10 position_freshness=true position_selection=true position_order=true geofence=true geofence_transition=true geofence_crossing=true no_new_processes=true optional_hosts_absent=true"
 )

@@ -54,8 +54,8 @@ The WTR.05 pure foundation admits position evidence, freshness, deterministic
 selection, event ordering with modular sequence evidence, and bounded geofence
 membership. See the [position guide](docs/guides/positions.md) and
 [geofence guide](docs/guides/geofences.md). Ordered geofence baseline, entry/exit
-and edit recomputation are implemented; sparse crossings, motion/trips and host
-rule persistence remain subsequent work.
+and edit recomputation plus bounded sparse-crossing inference are implemented;
+motion/trips and host rule persistence remain subsequent work.
 [Implementation evidence](docs/evidence/implementation.md) records
 executed software checks and unpassed release, host and hardware gates.
 

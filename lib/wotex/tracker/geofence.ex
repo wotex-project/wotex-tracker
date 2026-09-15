@@ -64,6 +64,31 @@ defmodule Wotex.Tracker.Geofence do
     end
   end
 
+  @doc "Evaluates whether the straight centreline between two outside positions enters the fence."
+  @spec trace(term(), term(), term(), term(), term(), term()) ::
+          {:ok, map()} | {:error, Error.t()}
+  def trace(fence, from_position, from_bundle, to_position, to_bundle, options \\ []) do
+    with {:ok, fence} <- validate(fence, options),
+         {:ok, from_bundle} <- EvidenceBundle.validate(from_bundle, options),
+         {:ok, from_position} <- Position.validate(from_position, from_bundle, options),
+         {:ok, to_bundle} <- EvidenceBundle.validate(to_bundle, options),
+         {:ok, to_position} <- Position.validate(to_position, to_bundle, options) do
+      from_membership = membership(fence, from_position)
+      to_membership = membership(fence, to_position)
+      endpoint_distance = endpoint_distance(from_position, to_position)
+
+      {:ok,
+       trace_result(
+         fence,
+         from_position,
+         to_position,
+         from_membership,
+         to_membership,
+         endpoint_distance
+       )}
+    end
+  end
+
   defp shape(%{kind: :circle} = value) do
     with :ok <- Admission.fields(value, ~w(kind latitude longitude radius_m)a),
          true <- coordinate?(value.latitude, value.longitude),
@@ -274,6 +299,194 @@ defmodule Wotex.Tracker.Geofence do
 
   defp algorithm(%{geometry: %{kind: :circle}}), do: "wgs84-authalic-haversine-v1"
   defp algorithm(%{geometry: %{kind: :polygon}}), do: "wgs84-authalic-local-polygon-v1"
+
+  defp endpoint_distance(
+         %{claim: %{"availability" => "available"} = from},
+         %{claim: %{"availability" => "available"} = to}
+       ),
+       do: distance({from["latitude"], from["longitude"]}, {to["latitude"], to["longitude"]})
+
+  defp endpoint_distance(_, _), do: nil
+
+  defp trace_result(
+         fence,
+         from_position,
+         to_position,
+         from_membership,
+         to_membership,
+         endpoint_distance
+       ) do
+    {status, reason, details} =
+      cond do
+        from_membership["status"] in ~w(unknown uncertain) or
+            to_membership["status"] in ~w(unknown uncertain) ->
+          {"unknown", "endpoint_membership_unknown", %{}}
+
+        from_membership["status"] != "outside" or to_membership["status"] != "outside" ->
+          {"does_not_infer", "endpoint_not_outside", %{}}
+
+        fence.geometry.kind == :circle ->
+          circle_trace(fence, from_position, to_position, endpoint_distance)
+
+        true ->
+          polygon_trace(fence, from_position, to_position)
+      end
+
+    Map.merge(details, %{
+      "schema" => "wtr.geofence-segment.v1",
+      "status" => status,
+      "reason" => reason,
+      "fence_id" => fence.id,
+      "fence_revision" => fence.revision,
+      "fence_identity" => fence.identity,
+      "from_position_evidence_id" => from_position.evidence_id,
+      "from_position_bundle_identity" => from_position.bundle_identity,
+      "from_membership" => from_membership["status"],
+      "to_position_evidence_id" => to_position.evidence_id,
+      "to_position_bundle_identity" => to_position.bundle_identity,
+      "to_membership" => to_membership["status"],
+      "endpoint_distance_m" => endpoint_distance,
+      "algorithm" => trace_algorithm(fence)
+    })
+  end
+
+  defp circle_trace(fence, from_position, to_position, endpoint_distance) do
+    radius = fence.geometry.radius_m
+    from = {from_position.claim["latitude"], from_position.claim["longitude"]}
+    to = {to_position.claim["latitude"], to_position.claim["longitude"]}
+    center = {fence.geometry.latitude, fence.geometry.longitude}
+    from_distance = distance(from, center)
+    to_distance = distance(to, center)
+
+    if min(from_distance, to_distance) > radius + endpoint_distance + @epsilon_m do
+      {"does_not_cross", "segment_too_far_from_circle",
+       %{"closest_center_distance_m" => nil, "interior_intervals" => 0}}
+    else
+      closest = segment_distance({0.0, 0.0}, azimuthal(from, center), azimuthal(to, center))
+
+      cond do
+        closest < radius - @epsilon_m ->
+          {"crosses", "centerline_enters_interior",
+           %{"closest_center_distance_m" => closest, "interior_intervals" => 1}}
+
+        abs(closest - radius) <= @epsilon_m ->
+          {"does_not_cross", "centerline_touches_boundary",
+           %{"closest_center_distance_m" => closest, "interior_intervals" => 0}}
+
+        true ->
+          {"does_not_cross", "centerline_misses_fence",
+           %{"closest_center_distance_m" => closest, "interior_intervals" => 0}}
+      end
+    end
+  end
+
+  defp polygon_trace(fence, from_position, to_position) do
+    from = projected_position(from_position, fence.geometry.reference)
+    to = projected_position(to_position, fence.geometry.reference)
+    intervals = interior_intervals(from, to, fence.geometry.vertices)
+
+    if intervals > 0,
+      do:
+        {"crosses", "centerline_enters_interior",
+         %{"closest_center_distance_m" => nil, "interior_intervals" => intervals}},
+      else:
+        {"does_not_cross", "centerline_does_not_enter_interior",
+         %{"closest_center_distance_m" => nil, "interior_intervals" => 0}}
+  end
+
+  defp azimuthal({latitude, longitude} = point, {center_latitude, center_longitude} = center) do
+    radial = distance(point, center)
+    latitude = radians(latitude)
+    center_latitude = radians(center_latitude)
+    delta_longitude = radians(normalize_delta(longitude - center_longitude))
+
+    bearing =
+      :math.atan2(
+        :math.sin(delta_longitude) * :math.cos(latitude),
+        :math.cos(center_latitude) * :math.sin(latitude) -
+          :math.sin(center_latitude) * :math.cos(latitude) * :math.cos(delta_longitude)
+      )
+
+    {radial * :math.sin(bearing), radial * :math.cos(bearing)}
+  end
+
+  defp projected_position(position, reference) do
+    project(
+      {position.claim["latitude"] * 1.0,
+       unwrap_near(position.claim["longitude"], reference.longitude)},
+      reference
+    )
+  end
+
+  defp interior_intervals(from, to, vertices) do
+    parameters =
+      vertices
+      |> edges()
+      |> Enum.flat_map(&intersection_parameters(from, to, &1))
+      |> Kernel.++([0.0, 1.0])
+      |> Enum.sort()
+      |> Enum.reduce([], fn value, acc ->
+        if acc == [] or abs(value - hd(acc)) > 1.0e-12, do: [value | acc], else: acc
+      end)
+      |> Enum.reverse()
+
+    parameters
+    |> Enum.chunk_every(2, 1, :discard)
+    |> Enum.count(fn [left, right] ->
+      right - left > 1.0e-12 and
+        elem(polygon_coordinate(interpolate(from, to, (left + right) / 2), vertices, :outside), 0) ==
+          "inside"
+    end)
+  end
+
+  defp intersection_parameters(from, to, {edge_from, edge_to}) do
+    direction = subtract(to, from)
+    edge_direction = subtract(edge_to, edge_from)
+    offset = subtract(edge_from, from)
+    denominator = cross(direction, edge_direction)
+
+    cond do
+      abs(denominator) > @epsilon_m ->
+        t = cross(offset, edge_direction) / denominator
+        u = cross(offset, direction) / denominator
+        if within_segment?(t) and within_segment?(u), do: [clamp(t)], else: []
+
+      abs(cross(offset, direction)) <= @epsilon_m ->
+        collinear_parameters(from, to, edge_from, edge_to)
+
+      true ->
+        []
+    end
+  end
+
+  defp collinear_parameters(from, to, edge_from, edge_to) do
+    direction = subtract(to, from)
+    denominator = elem(direction, 0) ** 2 + elem(direction, 1) ** 2
+
+    if denominator <= @epsilon_m ** 2 do
+      []
+    else
+      [edge_from, edge_to]
+      |> Enum.map(fn point -> dot(subtract(point, from), direction) / denominator end)
+      |> Enum.filter(&within_segment?/1)
+      |> Enum.map(&clamp/1)
+    end
+  end
+
+  defp interpolate({x1, y1}, {x2, y2}, ratio),
+    do: {x1 + ratio * (x2 - x1), y1 + ratio * (y2 - y1)}
+
+  defp subtract({x1, y1}, {x2, y2}), do: {x1 - x2, y1 - y2}
+  defp cross({x1, y1}, {x2, y2}), do: x1 * y2 - y1 * x2
+  defp dot({x1, y1}, {x2, y2}), do: x1 * x2 + y1 * y2
+  defp within_segment?(value), do: value >= -1.0e-12 and value <= 1 + 1.0e-12
+  defp clamp(value), do: min(max(value, 0.0), 1.0)
+
+  defp trace_algorithm(%{geometry: %{kind: :circle}}),
+    do: "wgs84-authalic-azimuthal-circle-segment-v1"
+
+  defp trace_algorithm(%{geometry: %{kind: :polygon}}),
+    do: "wgs84-authalic-local-polygon-segment-v1"
 
   defp distance({latitude1, longitude1}, {latitude2, longitude2}) do
     latitude1 = radians(latitude1)

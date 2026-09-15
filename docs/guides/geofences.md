@@ -115,6 +115,28 @@ Replay always returns `physical_action_dispatch: "prohibited"`; a live event say
 that separate authorization is required. This pure module never dispatches an
 Action or persists state.
 
-Sparse segment-crossing inference remains separate work. It must identify both
-endpoints and enforce its own maximum time and distance gaps. Atomic state/event
-persistence in the host is also subsequent work.
+## Sparse inferred crossings
+
+`Geofence.trace/6` evaluates the straight centreline between two separately
+validated endpoint positions. Both endpoint memberships must be certainly
+`outside`; an inside endpoint belongs to observed entry/exit processing, while an
+uncertain or unknown endpoint remains unknown. A boundary-only touch is not a
+crossing.
+
+Circle traces use `wgs84-authalic-azimuthal-circle-segment-v1`: each endpoint is
+placed in an authalic azimuthal plane centred on the circle, then the closest
+point on the straight projected segment is compared with the radius. Polygon
+traces use `wgs84-authalic-local-polygon-segment-v1`, the fence's existing bounded
+projection, and test each interval split by edge intersections for polygon
+interior. Both algorithms are interpolation conventions, not reconstructed routes.
+
+`GeofenceCrossing` adds a content-bound rule and the complete ordering policy.
+It requires event order and enforces maximum event-time and endpoint-distance
+gaps; equality is accepted. A successful `geofence.crossing_inferred` event binds
+both sample/evidence identities, both event times, both measured gaps and the
+geometry algorithm. `crossing_time` is deliberately `nil`: sparse endpoints only
+establish an interval. Event identity excludes processing mode and evaluation
+time, so live and replay agree; replay prohibits physical Action dispatch.
+
+Atomic transition/crossing state and event-intent persistence in the host remains
+subsequent work.

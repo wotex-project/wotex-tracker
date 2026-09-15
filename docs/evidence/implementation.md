@@ -631,3 +631,34 @@ identities are recorded in `verification/source-consumer.json`. The pure result
 is an atomic persistence input, not a persisted transaction: host storage/event
 intent integration, sparse segment-crossing inference and any separately governed
 Action rule remain subsequent work.
+
+## WTR.05 bounded sparse-crossing inference — 2026-09-16
+
+The pure geometry API now evaluates whether the straight centreline between two
+certainly outside endpoint positions enters a circle or polygon interior. Circle
+segments use an authalic azimuthal projection centred on the fence. Polygon
+segments use the existing bounded antimeridian-aware local projection and split
+the segment at edge intersections before testing interior intervals. Boundary
+touches, inside endpoints and uncertain/unknown endpoints remain distinct from
+an inferred crossing.
+
+The content-bound crossing policy composes the complete event/sequence ordering
+policy with maximum event-time and endpoint-distance gaps. Equality is accepted;
+excess gaps return `not_inferred`. A crossing event retains both position/evidence
+identities, both event times, both gaps and the geometry algorithm. It declares
+straight-segment interpolation as the only route claim and leaves crossing time
+`nil`. Live and replay produce the same event identity; replay prohibits physical
+Action dispatch.
+
+Both required runtime lanes passed the complete root gate with 1 doctest,
+10 properties and 90 tests, no failures and 97.3% production line coverage.
+Cases include circle/polygon interiors, exact circle tangency, a polygon edge,
+antimeridian traversal, far misses, inside/uncertain/unavailable endpoints,
+time/distance threshold equality and excess, out-of-order evidence, policy
+mutation and generated direction symmetry. Strict analysis, docs, dependency,
+license and archive checks passed.
+
+Six fresh, locked and minimum production archive consumers infer a crossing and
+inspect its no-crossing-time event on both runtime lanes. Exact identities are in
+`verification/source-consumer.json`. This establishes bounded interpolation only;
+it is not actual-route evidence, and host transaction integration remains separate.
