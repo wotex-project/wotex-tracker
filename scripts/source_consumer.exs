@@ -221,8 +221,20 @@ true = exported["position"]["longitude"] === 0.0
     1000
   )
 
+{:ok, fence} =
+  Wotex.Tracker.Geofence.new(%{
+    id: "archive-yard",
+    revision: "archive-fence-v1",
+    shape: %{kind: :circle, latitude: 0, longitude: 0, radius_m: 1},
+    boundary: :inside,
+    uncertainty: :coordinate_only
+  })
+
+{:ok, %{"status" => "inside", "algorithm" => "wgs84-authalic-haversine-v1"}} =
+  Wotex.Tracker.Geofence.evaluate(fence, position, positions)
+
 true = MapSet.subset?(MapSet.new(Process.list()), before_processes)
 
 IO.puts(
-  "SOURCE_COHORT_PASS Elixir=#{System.version()} OTP=#{System.otp_release()} properties=10 position_freshness=true position_selection=true no_new_processes=true optional_hosts_absent=true"
+  "SOURCE_COHORT_PASS Elixir=#{System.version()} OTP=#{System.otp_release()} properties=10 position_freshness=true position_selection=true geofence=true no_new_processes=true optional_hosts_absent=true"
 )

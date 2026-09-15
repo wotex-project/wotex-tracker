@@ -185,9 +185,11 @@ network. Telemetry support does not establish a qualified physical Action.
 
 The pure tracking foundation admits normalized position evidence, versioned
 freshness policies with explicit clock qualification and deterministic
-multi-source selection. See the
-[position guide](../guides/positions.md). Canonical selection, geometry, stateful
-rule transitions and atomic host integration remain subsequent work.
+multi-source selection. Bounded circle/polygon membership is implemented with
+explicit boundary, uncertainty and antimeridian rules. See the
+[position guide](../guides/positions.md) and
+[geofence guide](../guides/geofences.md). Stateful membership transitions,
+crossing inference and atomic host integration remain subsequent work.
 
 Implement explicit time/freshness, quality selection, motion/trips/stops,
 geofence membership/transitions, heartbeat, suspicious movement, low-battery,

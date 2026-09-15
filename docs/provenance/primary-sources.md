@@ -55,6 +55,20 @@ All 15 sibling libraries excluding Lab have no first-party `mod:` application ca
 
 Teltonika models and LoRaWAN remain research targets in the [hardware ledger](hardware-qualification.md). No new hardware, radio, operator, regulatory or direct-endpoint compatibility claim is made here.
 
+## Position geometry
+
+- [NGA World Geodetic System 1984](https://earth-info.nga.mil/?action=wgs84&dir=wgs84),
+  read 2026-09-16: official defining semi-major axis 6,378,137.0 m and inverse
+  flattening 298.257223563. Tracker derives the authalic radius documented in the
+  [geofence guide](../guides/geofences.md) and pins its own bounded approximation;
+  citing WGS 84 parameters does not turn that approximation into an NGA geodesic
+  implementation or survey/conformance claim.
+- [GeographicLib geocentric reference](https://geographiclib.sourceforge.io/2009-03/classGeographicLib_1_1Geocentric.html),
+  read 2026-09-16: distinguishes WGS 84 geodetic latitude/longitude/height from
+  Earth-centred Cartesian coordinates. Tracker does not import GeographicLib or
+  claim its accuracy; the reference is retained to keep coordinate-system terms
+  precise.
+
 ## Refpath
 
 Refpath remains an optional downstream consumer under WTR.11. Its private implementation and compatibility were not verified in this review. Tracker acceptance must work with it absent.

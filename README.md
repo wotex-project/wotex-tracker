@@ -52,7 +52,9 @@ remain subsequent work.
 
 The first WTR.05 pure slice admits position evidence and evaluates explicit
 freshness policies. See the [position guide](docs/guides/positions.md); canonical
-selection, geofences and stateful tracking rules remain subsequent work.
+selection and bounded geofence membership are also implemented. Stateful tracking
+transitions, trips and host rule persistence remain subsequent work. See the
+[geofence guide](docs/guides/geofences.md).
 [Implementation evidence](docs/evidence/implementation.md) records
 executed software checks and unpassed release, host and hardware gates.
 

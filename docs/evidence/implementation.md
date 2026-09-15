@@ -537,3 +537,33 @@ processes. Exact archive and lock identities are recorded in the updated
 `verification/source-consumer.json`. This remains deterministic selection over
 qualified evidence; geometry, motion state, trips and stateful policy are not
 claimed by this slice.
+
+## WTR.05 bounded geofence membership — 2026-09-16
+
+The pure geofence value admits content-bound circles and simple polygons over
+validated position evidence. Circle membership pins a WGS 84 authalic-radius
+haversine calculation. Polygon membership pins a bounded local projection with
+explicit antimeridian unwrapping. Boundary inclusion and coordinate-uncertainty
+treatment are policy fields, and every result binds the fence identity to the
+position evidence and bundle identities.
+
+Admission rejects ambiguous 180-degree edges, duplicate and repeated closing
+vertices, self-intersection, sub-square-metre areas, polar projection origins,
+projected extents above 1,000 km and more than 64 vertices. Tests independently
+check one-degree and antimeridian circle distances, boundary equality, uncertainty
+bounds, wrapped polygons, unavailable positions, forged values and malformed
+geometry. The implementation reads no clock and retains no process or rule state.
+
+Both required runtime lanes passed the complete root gate with 1 doctest,
+7 properties and 67 tests, no failures. Production line coverage was 97.0% on
+Elixir 1.18.4 / OTP 27 and 97.1% on Elixir 1.20.4 / OTP 29. Six fresh, locked and
+minimum production archive consumers exercised circle membership and the pinned
+algorithm on both lanes with no new retained processes. Exact archive and lock
+identities are recorded in `verification/source-consumer.json`.
+
+The official WGS 84 defining parameters and the distinction between geodetic and
+Earth-centred coordinates are recorded in the primary-source ledger. Tracker's
+geometry remains its own documented bounded approximation; this evidence does not
+claim ellipsoidal geodesic, survey or physical position accuracy. Initial state,
+entry/exit transitions, sparse crossing inference, persistence and Actions remain
+subsequent work.
