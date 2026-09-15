@@ -5,8 +5,8 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
   require Logger
   alias Wotex.Runtime.Context
   alias Wotex.Tracker.Service
-  alias Wotex.Tracker.Service.{Events, Identifier, Result, Store}
-  alias Wotex.Tracker.Service.HTTP.{Capacity, Server, Stream, Wire}
+  alias Wotex.Tracker.Service.{Events, Identifier, PropertyObservation, Result, Store}
+  alias Wotex.Tracker.Service.HTTP.{Capacity, PropertyStream, Server, Stream, Wire}
 
   @mutations %{
     "observations" => {:submit, "ingest"},
@@ -76,6 +76,9 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
   defp uncommitted(result), do: result
 
   defp media(["api", "v1", "scopes", _, "events", "stream"]), do: "text/event-stream"
+
+  defp media(["api", "v1", "scopes", _, "things", _, "properties", _, "observe"]),
+    do: "text/event-stream"
 
   defp media(["api", "v1", "scopes", _, "observations", _, "raw"]),
     do: "application/vnd.wotex.tracker.observation+json"
@@ -160,6 +163,21 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
     {:property, conn, Service.read_property(service, token, scope, thing, name, context, now)}
   end
 
+  defp scoped(
+         %{method: "GET"} = conn,
+         ["things", thing, "properties", name, "observe"],
+         params,
+         {service, token, scope, now}
+       ) do
+    with {:ok, access} <- Service.authorize(service, token, scope, "read", now),
+         {:ok, cursor} <- property_cursor(conn, params),
+         {:ok, page} <- PropertyObservation.open(service, access, thing, name, cursor, now) do
+      {:property_stream, conn, service, access, page}
+    else
+      error -> {conn, normalize(error)}
+    end
+  end
+
   defp scoped(%{method: "GET"} = conn, ["events", "stream"], params, {service, token, scope, now}) do
     with {:ok, access} <- Service.authorize(service, token, scope, "read", now),
          {:ok, cursor} <- stream_cursor(conn, params),
@@ -223,7 +241,7 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
            "analytics" => "unsupported",
            "runtime" => %{
              "readproperty" => "available",
-             "observeproperty" => "unsupported",
+             "observeproperty" => "available",
              "invokeaction" => "unsupported"
            },
            "directory" => "unconfigured"
@@ -282,6 +300,13 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
 
   defp list_params(params), do: {:ok, params}
 
+  defp property_cursor(conn, params) do
+    case {params, Wire.single_header(conn, "last-event-id")} do
+      {empty, {:ok, nil}} when map_size(empty) == 0 -> {:ok, nil}
+      _ -> stream_cursor(conn, params)
+    end
+  end
+
   defp stream_cursor(conn, params) do
     case {params, Wire.single_header(conn, "last-event-id")} do
       {%{"cursor" => cursor}, {:ok, nil}} when map_size(params) == 1 -> {:ok, cursor}
@@ -330,6 +355,13 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
   defp respond({:property, conn, error}, _, _, _), do: Wire.send_result(conn, error)
   defp respond({:raw, conn, {:ok, bytes}, type}, _, _, _), do: Wire.bytes(conn, 200, bytes, type)
   defp respond({:raw, conn, error, _}, _, _, _), do: Wire.send_result(conn, error)
+
+  defp respond({:property_stream, conn, service, access, page}, capacity, lease, config) do
+    case Capacity.stream(capacity, lease) do
+      :ok -> PropertyStream.run(conn, service, access, page, config)
+      error -> Wire.send_result(conn, error)
+    end
+  end
 
   defp respond({:stream, conn, service, access, cursor, page}, capacity, lease, config) do
     case Capacity.stream(capacity, lease) do

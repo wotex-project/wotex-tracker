@@ -135,7 +135,7 @@ def document():
     paths[base + "/capabilities"] = {"get": operation("capabilities", envelope(obj({
         "api_version": {"const": "v1"}, "import": {"const": "available"},
         **{key: {"const": "unsupported"} for key in ("ble_scan", "cellular", "rules", "analytics")},
-        "runtime": obj({"readproperty": {"const": "available"}, "observeproperty": {"const": "unsupported"},
+        "runtime": obj({"readproperty": {"const": "available"}, "observeproperty": {"const": "available"},
                         "invokeaction": {"const": "unsupported"}}),
         "directory": {"const": "unconfigured"}})), ("Scope",))}
     for resource, schema in [("observations", "Observation"), ("resolutions", "Resolution"),
@@ -161,6 +161,21 @@ def document():
     property_read["responses"]["200"]["headers"] = {"X-Wotex-Generation": {
         "description": "Committed snapshot generation shared by TD and state", "schema": generation}}
     paths[base + "/things/{id}/properties/{property}"] = {"get": property_read}
+    paths[base + "/things/{id}/properties/{property}/observe"] = {"get": operation(
+        "observe_property", {"type": "string", "description":
+            "Bounded SSE of native JSON scalars constrained by the selected observable TD Property. "
+            "Without a cursor, sends the current committed value and then every committed Thing update. "
+            "Supply at most one cursor or Last-Event-ID to resume after an acknowledged sample. "
+            "The id field is an encrypted cursor bound to principal, scope, Thing and Property. "
+            "The event field is property:snapshot:<generation>:<generation> for the initial sample, "
+            "or property:event:<event-id>:<generation> for an update; this stable metadata supports deduplication. "
+            "The data field contains only the native Property value, without an envelope. "
+            "No physical sensor subscription or automatic reconnect is implied. "
+            "Requires read authority; missing returns 404, unavailable 503, unsupported 501 before headers. "
+            "Authorization, availability gaps, retention or storage failures close an established stream. "
+            "Use a fresh snapshot after a gap or expired cursor. At most 300 seconds, 32 KiB per frame, "
+            "16 instance-wide streams shared with events/stream; polling is at most one second."},
+        ("Scope", "ID", "Property", "Cursor", "Resume"), media="text/event-stream")}
     for path, name, body in [("observations", "import_observation", "ImportRequest"),
                              ("enrollments", "enroll", "EnrollmentRequest"),
                              ("associations", "associate", "AssociationRequest"),
@@ -181,7 +196,7 @@ def document():
                        "Connection lifetime 300 s; idle reauthorization/poll 1 s; no unlimited queue."},
         ("Scope", "Cursor", "Resume"), media="text/event-stream")}
     paths["/api/v1/openapi.json"] = {"get": operation("openapi", {"type": "object"}, public=True)}
-    return {"openapi": "3.1.0", "info": {"title": "WoTEx Tracker service", "version": "1.1.0",
+    return {"openapi": "3.1.0", "info": {"title": "WoTEx Tracker service", "version": "1.2.0",
         "description": "Authenticated imported-observation foundation. No scanner, rules, analytics or physical interaction is implied."},
         "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema", "security": [{"bearer": []}],
         "paths": paths, "components": {"securitySchemes": {"bearer": {"type": "http", "scheme": "bearer"}},

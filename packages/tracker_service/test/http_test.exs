@@ -33,7 +33,7 @@ defmodule Wotex.Tracker.HTTPTest do
     assert status == 0, output
     assert output =~ "HTTP_CONSUMER_PASS"
     assert {:ok, capacity} = Server.child(server, :capacity)
-    assert %{requests: 0, streams: 0} = Capacity.counts(capacity)
+    assert_capacity_released(capacity)
     File.rm!(path)
   end
 
@@ -69,6 +69,18 @@ defmodule Wotex.Tracker.HTTPTest do
 
     assert {:error, :invalid_configuration} = Server.start_link([])
     assert {:error, :invalid_configuration} = Server.start_link(nil)
+  end
+
+  defp assert_capacity_released(capacity, attempts \\ 100) do
+    case Capacity.counts(capacity) do
+      %{requests: 0, streams: 0} ->
+        :ok
+
+      counts ->
+        assert attempts > 0, "HTTP peer closure retained capacity: #{inspect(counts)}"
+        Process.sleep(10)
+        assert_capacity_released(capacity, attempts - 1)
+    end
   end
 
   defp options(context),

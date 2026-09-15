@@ -74,6 +74,7 @@ With those global options before the command, the available commands are:
 | `associate THING OBSERVATION --confirm --generation N` | Confirm a later observation for the same Thing |
 | `materialize THING --generation 2` | Persist the evidence-backed TD and initial state |
 | `list things`, `read THING temperature` | Inspect TDs and read Properties |
+| `observe THING temperature --seconds 30 --max-events 100` | Committed Property values; resume explicitly with `--cursor` |
 | `history state THING --limit 25` | Immutable history; resume with `--cursor` |
 | `events --cursor CURSOR` | Bounded replay from a snapshot/event cursor |
 | `events --cursor CURSOR --stream --seconds 30 --max-events 100` | Bounded SSE delivery |
@@ -101,8 +102,13 @@ responses and undeclared media/version envelopes are rejected. Raw exports use
 their original response bytes; ordinary JSON output preserves native wide
 integers and `1` versus `1.0` through Python's numeric types.
 
-Property observation and physical scanner/Action commands are not implemented;
-capabilities report their current status.
+`observe` emits one `wtr.property.v1` JSON object per sample: native `value`, stable
+`event`, decimal `generation` and opaque `cursor`. Save the cursor to resume after
+that sample. Replayed metadata stays stable even when encrypted cursors differ.
+There is no automatic reconnect. Unavailable samples close the stream; after
+recovery, start a fresh snapshot without a cursor. This is observation of committed
+Thing state; imports require explicit association and materialisation first.
+Physical scanner/Action commands remain unsupported in capabilities.
 
 ## Bundled release and local OCI qualification
 

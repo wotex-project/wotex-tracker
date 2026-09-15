@@ -45,8 +45,11 @@ defmodule Wotex.Tracker.LoopbackClientTest do
 
     assert {:error, :request_failed} = LoopbackClient.request(request, "invalid", config)
     assert {:error, :request_failed} = LoopbackClient.request(nil, credential, config)
-    assert {:error, :unsupported} = LoopbackClient.subscribe(request, credential, self(), config)
-    assert {:error, :unsupported} = LoopbackClient.close(:unknown, config)
+
+    assert {:error, :request_failed} =
+             LoopbackClient.subscribe(request, credential, self(), config)
+
+    assert {:error, :request_failed} = LoopbackClient.close(:unknown, config)
     assert {:error, :request_failed} = LoopbackClient.request(request, credential, config)
 
     assert {:error, :timeout} =

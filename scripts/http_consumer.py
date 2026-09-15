@@ -226,7 +226,45 @@ def main():
     request("history_state", prefix + "/state/missing/history", status=404)
     wide_history = data("history_observations", prefix + "/observations/" + wide_id + "/history")
     assert wide_history["items"][0]["value"]["observed_at"]["value"] == "9007199254740993"
-    print("HTTP_CONSUMER_PASS openapi=true enrollment=true materialisation=true native_types=true history=true replay=true revoked_stream_closed=true")
+    observe_path = thing_path + "/properties/temperature/observe"
+    request("observe_property", observe_path, who=None, status=401)
+    request("observe_property", observe_path, who="reader", status=401)
+    request("observe_property", thing_path + "/properties/missing/observe", status=404)
+    request("observe_property", observe_path + "?cursor=wtrc1.invalid", status=400)
+    request("observe_property", observe_path + "?" + urllib.parse.urlencode({"cursor": page["stream_cursor"]}), status=400)
+    assert td["properties"]["temperature"]["observable"] is True
+    assert td["properties"]["temperature"]["forms"][1]["op"] == ["observeproperty", "unobserveproperty"]
+
+    def property_stream(cursor=None, resume=False):
+        fields = {**headers("token"), "Accept": "text/event-stream"}
+        path = observe_path
+        if cursor:
+            if resume:
+                fields["Last-Event-ID"] = cursor
+            else:
+                path += "?" + urllib.parse.urlencode({"cursor": cursor})
+        response = urllib.request.urlopen(urllib.request.Request(base + path, headers=fields), timeout=5)
+        assert response.status == 200 and response.headers.get_content_type() == "text/event-stream"
+        return response
+
+    with property_stream() as response:
+        first = frame(response)
+        assert first["event"] == "property:snapshot:8:8"
+        assert json.loads(first["data"]) == 24.3
+        check(td["properties"]["temperature"], json.loads(first["data"]))
+        data("materialize", prefix + "/materialisations", {"thing_id": thing, "expected_generation": "8"})
+        updated = frame(response)
+        assert updated["event"] == "property:event:9:9"
+        assert json.loads(updated["data"]) == 24.3
+    for resume in (False, True):
+        with property_stream(first["id"], resume=resume) as response:
+            replayed = frame(response)
+            assert (replayed["event"], replayed["data"]) == (updated["event"], updated["data"])
+    request("observe_property", thing_path + "/properties/pressure/observe?" + urllib.parse.urlencode({"cursor": first["id"]}), status=400)
+    request("observe_property", observe_path + "?" + urllib.parse.urlencode({"cursor": first["id"]}),
+            extra_headers={"Last-Event-ID": first["id"]}, status=400)
+    print("HTTP_CONSUMER_PASS openapi=true enrollment=true materialisation=true native_types=true history=true replay=true revoked_stream_closed=true property_observation=true")
+
 
 
 if __name__ == "__main__":

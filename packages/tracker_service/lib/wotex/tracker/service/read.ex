@@ -16,7 +16,17 @@ defmodule Wotex.Tracker.Service.Read do
         current = Transaction.generation(db, scope)
         version = version || current
         if version > current, do: throw({:storage, :invalid_cursor})
-        fetch_row(db, scope, kind, id, version)
+
+        with {:ok, row} <- fetch_row(db, scope, kind, id, version) do
+          [[cursor]] =
+            SQL.rows!(
+              db,
+              "SELECT coalesce(max(sequence),0) FROM events WHERE scope=? AND generation<=?",
+              [scope, version]
+            )
+
+          {:ok, Map.put(row, "event_cursor", Integer.to_string(cursor))}
+        end
       after
         SQL.rollback(db)
       end

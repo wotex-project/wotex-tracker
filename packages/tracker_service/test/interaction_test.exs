@@ -86,7 +86,7 @@ defmodule Wotex.Tracker.InteractionTest do
       assert {:error, _} = ConsumedThing.write_property(consumed, "temperature", 1, context)
 
       assert {:error, _} =
-               ConsumedThing.observation_child_spec(consumed, "temperature", context,
+               ConsumedThing.observation_child_spec(consumed, "missing", context,
                  id: :unsupported,
                  receiver: self()
                )

@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "WoTEx Tracker service",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "description": "Authenticated imported-observation foundation. No scanner, rules, analytics or physical interaction is implied."
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
@@ -175,7 +175,7 @@
                               "const": "available"
                             },
                             "observeproperty": {
-                              "const": "unsupported"
+                              "const": "available"
                             },
                             "invokeaction": {
                               "const": "unsupported"
@@ -2444,6 +2444,51 @@
                   "type": "string",
                   "pattern": "^(0|[1-9][0-9]{0,18})$",
                   "description": "Canonical decimal integer below 9223372036854775807."
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scopes/{scope}/things/{id}/properties/{property}/observe": {
+      "get": {
+        "operationId": "observe_property",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/ID"
+          },
+          {
+            "$ref": "#/components/parameters/Property"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "$ref": "#/components/parameters/Resume"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string",
+                  "description": "Bounded SSE of native JSON scalars constrained by the selected observable TD Property. Without a cursor, sends the current committed value and then every committed Thing update. Supply at most one cursor or Last-Event-ID to resume after an acknowledged sample. The id field is an encrypted cursor bound to principal, scope, Thing and Property. The event field is property:snapshot:<generation>:<generation> for the initial sample, or property:event:<event-id>:<generation> for an update; this stable metadata supports deduplication. The data field contains only the native Property value, without an envelope. No physical sensor subscription or automatic reconnect is implied. Requires read authority; missing returns 404, unavailable 503, unsupported 501 before headers. Authorization, availability gaps, retention or storage failures close an established stream. Use a fresh snapshot after a gap or expired cursor. At most 300 seconds, 32 KiB per frame, 16 instance-wide streams shared with events/stream; polling is at most one second."
                 }
               }
             }

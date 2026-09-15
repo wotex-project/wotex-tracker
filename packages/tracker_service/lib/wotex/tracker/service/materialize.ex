@@ -2,8 +2,8 @@ defmodule Wotex.Tracker.Service.Materialize do
   @moduledoc false
   alias Wotex.Tracker
   alias Wotex.Tracker.Decoders.RuuviRawV2
-  alias Wotex.Tracker.{Deployment, Evidence, EvidenceBundle, Identity, Observation}
-  alias Wotex.Tracker.Service.{Codec, Identifier, Projection, Snapshot, Update}
+  alias Wotex.Tracker.{Evidence, EvidenceBundle, Identity, Observation}
+  alias Wotex.Tracker.Service.{Codec, Delivery, Identifier, Projection, Snapshot, Update}
 
   def admit(%{"thing_id" => "urn:uuid:" <> id, "expected_generation" => generation} = request)
       when map_size(request) == 2 do
@@ -70,13 +70,14 @@ defmodule Wotex.Tracker.Service.Materialize do
     }
 
     with {:ok, claim} <- identity_claim(identity_input, enrollment, imported),
+         {:ok, deployment, delivery} <-
+           Delivery.prepare(service, access, enrollment, imported, operation),
          {:ok, bundle} <-
            EvidenceBundle.new(
              [imported.observation],
-             [claim | Map.values(imported.decoded.bundle.evidence)]
+             [claim | delivery ++ Map.values(imported.decoded.bundle.evidence)]
            ),
          {:ok, identity} <- Identity.new(identity_input, bundle),
-         {:ok, deployment} <- deployment(service, access, enrollment, profile, operation),
          {:ok, result} <-
            Tracker.materialize(%{
              observation: imported.observation,
@@ -118,35 +119,6 @@ defmodule Wotex.Tracker.Service.Materialize do
       association_id: identity.association_id
     })
   end
-
-  defp deployment(service, access, enrollment, profile, operation) do
-    path =
-      "/api/v1/scopes/" <>
-        segment(access.scope) <>
-        "/things/" <> segment(enrollment["public"]["id"]) <> "/properties/"
-
-    forms =
-      Map.new(profile.mapping, fn {name, pointer} ->
-        {pointer,
-         [
-           %{
-             "href" => service.base_url <> path <> segment(name),
-             "op" => "readproperty",
-             "contentType" => "application/json"
-           }
-         ]}
-      end)
-
-    Deployment.new(%{
-      revision: operation,
-      title: enrollment["public"]["title"],
-      forms: forms,
-      security_definitions: %{"bearer" => %{"scheme" => "bearer", "in" => "header"}},
-      security: ["bearer"]
-    })
-  end
-
-  defp segment(value), do: URI.encode(value, &URI.char_unreserved?/1)
 
   defp update(access, operation, request, enrollment, imported, materialised, now) do
     id = request["thing_id"]

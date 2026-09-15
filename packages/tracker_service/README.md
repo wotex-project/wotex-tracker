@@ -42,8 +42,9 @@ It does not authenticate the radio device or associate future packets implicitly
 Materialisation persists a validated upstream TD, initial state and private
 lineage together. Forms use the configured origin and the service Property API.
 Runtime `ExposedThing` dispatches authorized reads against the TD and state from
-one committed generation. Unavailable measurements return HTTP 503. Property
-observation and Actions remain unsupported. No Directory destination or
+one committed generation. Unavailable measurements return HTTP 503. Explicit
+host delivery evidence enables observation of committed Property values. Physical
+Actions remain unsupported. No Directory destination or
 publication effect is implicit.
 
 An `enroll` grant can derive initial state/evidence for the same Thing in its
@@ -99,15 +100,27 @@ active stream shutdown is tested below the ten-second budget.
 ## Runtime software peer
 
 `HTTP.LoopbackClient.new(origin, scope)` admits one numeric HTTP loopback origin
-and scope for finite Property reads through `Wotex.Binding.HTTP`. Pass the
+and scope for Property reads and SSE observation through `Wotex.Binding.HTTP`. Pass the
 result as the binding client configuration, and supply a caller-owned Runtime
 credential provider separately. That provider must retain only opaque custody
 references in the consumed Thing; resolve each bearer token immediately before
-execution. Tests use a private caller-owned ETS table for that purpose.
+execution. Finite-read tests use private caller-owned ETS; subscription tests use
+a caller-owned credential vault because Runtime resolves credentials in its
+opening worker. Neither transport plans nor long-lived readers retain tokens.
 
 The client uses Mint 1.10.0 with a five-second maximum deadline, one socket per
 call, at most 1 MiB of response data, 32 headers and 8 KiB of header/status-line
 data, or the binding's smaller limits. It does not resolve DNS, use a proxy,
 follow redirects or retry. Socket ownership follows the caller and every return
-path closes it. This adapter qualifies local reads; remote peers and Property
-subscriptions require their own explicit implementations.
+path closes it. Subscription opening monitors owner/caller before connecting;
+after the handshake each stream owns one monitored reader, bounded to 300 seconds,
+32 KiB frames and 32 queued owner messages. Close, owner loss, malformed input,
+overload or deadline closes that connection without reconnect. Two simultaneous
+Runtime subscriptions, independent close, resume and revocation are exercised.
+
+`GET …/things/{id}/properties/{property}/observe` initially delivers the current
+native value, then committed Thing updates. Optional Property-specific `cursor`
+or `Last-Event-ID` resumes delivery; gaps in availability close the stream and
+require an explicit fresh snapshot after recovery. Stable SSE event metadata
+supports deduplication; the scalar body remains compatible with the TD. The repository contract is documented in `docs/contracts/service-v1.md`.
+Remote peers and physical sensor subscriptions remain separately qualified.

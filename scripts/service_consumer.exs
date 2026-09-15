@@ -2,17 +2,22 @@
 alias Wotex.Tracker.Service
 alias Wotex.Tracker.Service.{Codec, Credentials, Cursor, Identifier, Projection, Store, Update}
 alias Wotex.Binding.HTTP
-alias Wotex.Runtime.{ConsumedThing, Context, Result}
+alias Wotex.Runtime.{ConsumedThing, Context, Result, Subscription}
 alias Wotex.Tracker.Service.HTTP.{LoopbackClient, Server}
 
 defmodule ArchivePeerCredentials do
   @moduledoc false
+  use GenServer
   @behaviour Wotex.Runtime.Credentials
+  def start_link(token), do: GenServer.start_link(__MODULE__, token)
   @impl true
-  def resolve(%{names: ["bearer"]}, _, _, table) do
-    [{:token, token}] = :ets.lookup(table, :token)
-    {:ok, token}
-  end
+  def init(token), do: {:ok, token}
+  @impl true
+  def handle_call(:resolve, _, token), do: {:reply, {:ok, token}, token}
+  @impl true
+  def format_status(status), do: Map.put(status, :state, :redacted)
+  @impl Wotex.Runtime.Credentials
+  def resolve(%{names: ["bearer"]}, _, _, vault), do: GenServer.call(vault, :resolve)
 end
 
 [] = Application.spec(:wotex_tracker_service, :mod)
@@ -340,14 +345,13 @@ origin = "http://127.0.0.1:#{port}"
 {:ok, client} = LoopbackClient.new(origin, "workshop")
 {:ok, binding} = HTTP.config(client: {LoopbackClient, client})
 {:ok, profile} = HTTP.profile()
-table = :ets.new(:archive_peer_credentials, [:private])
-:ets.insert(table, {:token, token})
+{:ok, vault} = ArchivePeerCredentials.start_link(token)
 
 {:ok, consumed} =
   ConsumedThing.new(td,
     profiles: [profile],
     transports: %{http: HTTP.transport(binding)},
-    credentials: {ArchivePeerCredentials, table}
+    credentials: {ArchivePeerCredentials, vault}
   )
 
 false = :erlang.term_to_binary(consumed) =~ token
@@ -361,12 +365,68 @@ context =
 {:ok, %Result{status: :ok, operation: :readproperty, payload: 100_044}} =
   ConsumedThing.read_property(consumed, "pressure", context)
 
-:ets.delete(table)
+{:ok, subscriptions} = Supervisor.start_link([], strategy: :one_for_one)
+
+peers =
+  for {name, expected} <- [{"temperature", 24.3}, {"pressure", 100_044}] do
+    request_id = "observe-" <> name
+
+    stream_context =
+      Context.new!(request_id: request_id, deadline: System.monotonic_time(:millisecond) + 3000)
+
+    {:ok, spec} =
+      ConsumedThing.observation_child_spec(consumed, name, stream_context,
+        id: name,
+        receiver: self(),
+        max_queue_length: 32,
+        overflow: :stop
+      )
+
+    {:ok, subscription} =
+      Supervisor.start_child(subscriptions, Supervisor.child_spec(spec, restart: :temporary))
+
+    receive do
+      {:wotex_runtime, ^name, {:ok, ^expected, meta}} ->
+        :observeproperty = meta.operation
+        true = String.starts_with?(meta.event, "property:snapshot:")
+    after
+      2000 -> raise "archive Property subscription did not deliver"
+    end
+
+    {LoopbackClient, {_, {connection, _}, _, _}, _, _} =
+      subscription |> :sys.get_state() |> Map.fetch!(:handle) |> HTTP.Subscription.unwrap()
+
+    false = :erlang.term_to_binary(:sys.get_state(connection)) =~ token
+    {subscription, connection}
+  end
+
+[{first, first_connection}, {second, second_connection}] = peers
+first_monitor = Process.monitor(first_connection)
+:ok = Subscription.stop(first)
+
+receive do
+  {:DOWN, ^first_monitor, :process, ^first_connection, _} -> :ok
+after
+  1000 -> raise "first archive subscription leaked"
+end
+
+true = Process.alive?(second_connection)
+second_monitor = Process.monitor(second_connection)
+:ok = Subscription.stop(second)
+
+receive do
+  {:DOWN, ^second_monitor, :process, ^second_connection, _} -> :ok
+after
+  1000 -> raise "second archive subscription leaked"
+end
+
+Supervisor.stop(subscriptions)
+GenServer.stop(vault)
 Supervisor.stop(server)
 File.rm_rf!(directory)
 retained = Process.list() |> MapSet.new() |> MapSet.difference(before_processes) |> MapSet.size()
 0 = retained
 
 IO.puts(
-  "SERVICE_COHORT_PASS durable_restart=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true explicit_association=true independent_http_sse=true actual_runtime_http_peer=true retained_new_processes=#{retained}"
+  "SERVICE_COHORT_PASS durable_restart=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true explicit_association=true independent_http_sse=true actual_runtime_http_peer=true actual_runtime_sse=true retained_new_processes=#{retained}"
 )

@@ -5,15 +5,30 @@ defmodule Wotex.Tracker.Service.Interaction do
   alias Wotex.Tracker.Service.{Codec, Snapshot}
 
   def read(service, access, thing, name, context, now) do
+    with {:ok, sample} <-
+           execute(service, access, thing, name, {:readproperty, nil}, context, now),
+         do: {:ok, Map.take(sample, ["value", "generation"])}
+  end
+
+  def observe(service, access, thing, name, generation, context, now),
+    do: execute(service, access, thing, name, {:observeproperty, generation}, context, now)
+
+  defp execute(service, access, thing, name, {operation, generation}, context, now) do
     with true <- Codec.id?(thing) and Codec.id?(name),
          :ok <- deadline(context),
-         {:ok, row} <- Snapshot.fetch(service, access, "things", thing, nil, "read", now),
+         {:ok, row} <- Snapshot.fetch(service, access, "things", thing, generation, "read", now),
          {:ok, state} <-
            Snapshot.fetch(service, access, "state", thing, row["generation"], "read", now),
          {:ok, td} <- ThingDescription.from_map(row["value"]["public"]),
+         :ok <- supported(td, name, operation),
          {:ok, exposed} <- ExposedThing.new(td, handlers(td, state["value"]["public"])),
-         {:ok, value} <- ExposedThing.dispatch(exposed, :readproperty, name, nil, context) do
-      {:ok, %{"value" => value, "generation" => row["generation"]}}
+         {:ok, value} <- ExposedThing.dispatch(exposed, operation, name, nil, context) do
+      {:ok,
+       %{
+         "value" => value,
+         "generation" => row["generation"],
+         "event_cursor" => row["event_cursor"]
+       }}
     else
       false -> {:error, :invalid_request}
       {:error, %Wotex.Runtime.Error{code: :affordance_not_found}} -> {:error, :not_found}
@@ -24,13 +39,34 @@ defmodule Wotex.Tracker.Service.Interaction do
     end
   end
 
+  defp supported(td, name, :observeproperty) do
+    case ThingDescription.to_map(td)["properties"][name] do
+      nil -> {:error, :not_found}
+      %{"observable" => true} -> :ok
+      _ -> {:error, :unsupported}
+    end
+  end
+
+  defp supported(_, _, :readproperty), do: :ok
+
   defp handlers(td, state) do
-    Map.new(ThingDescription.to_map(td)["properties"], fn {name, property} ->
-      {{:readproperty, name},
-       fn _, context ->
-         with :ok <- deadline(context), do: sample(state, name, property)
-       end}
+    td
+    |> ThingDescription.to_map()
+    |> Map.fetch!("properties")
+    |> Enum.flat_map(fn {name, property} ->
+      operations =
+        if property["observable"] == true,
+          do: [:readproperty, :observeproperty],
+          else: [:readproperty]
+
+      Enum.map(operations, fn operation ->
+        {{operation, name},
+         fn _, context ->
+           with :ok <- deadline(context), do: sample(state, name, property)
+         end}
+      end)
     end)
+    |> Map.new()
   end
 
   defp sample(state, name, property) do

@@ -437,3 +437,46 @@ The preceding bundled-host report remains the exact earlier artifact record;
 this source/API addition does not rewrite that report or claim a new published
 image. Automatic radio identity, physical-device authentication and autonomous
 association remain outside this operator-confirmed software workflow.
+
+
+## WTR.07 committed Property observation — 2026-09-15
+
+Materialisation now adds observable Properties through the explicit host delivery
+witness introduced in WTR.04. The new SSE endpoint dispatches upstream Runtime
+observation against immutable TD/state generations. Initial snapshot/high-water
+handoff, scoped encrypted resume and unavailable-sample gaps preserve the native
+Property scalar and stable sample metadata. The HTTP/OpenAPI contract is 1.2.0;
+`trackerctl observe` provides bounded delivery and explicit cursor resume.
+
+The local HTTP binding client supplies monitored pending establishment and one
+owned reader per subscription. Tests cover two simultaneous actual Runtime
+subscriptions, independent close, owner/receiver loss, revocation, unavailable
+samples, pending owner/caller death, handshake and stream deadlines, header/media
+ambiguity, malformed/oversized SSE, queue pressure and secret-free reader state.
+The SSE parser preserves UTF-8, BOM, CR/LF/CRLF and multiline fields across every
+byte split of an independent fixture. It does not reconnect automatically.
+
+Both service runtime lanes passed the complete gate: 2 properties and 87 tests,
+0 failures, 95.5% / 95.6% production line coverage. Host gates passed on both lanes
+with 5 ExUnit tests, 98.3% coverage and 6 independent Python tests. The root's
+unchanged pure code passed both complete gates with 1 doctest, 4 properties and
+48 tests. No threshold, warning rule or dependency constraint was reduced.
+
+Six fresh/locked/minimum production-archive consumers passed actual Runtime
+reads and subscriptions with zero newly retained processes. Both bundled releases
+passed the independent HTTP/OpenAPI/Property-SSE client and their packaged CLI's
+snapshot/resume checks. Darwin ARM64 SIGTERM with an active stream took 1.023 s;
+Linux ARM64 took 1.080 s. Restart/idempotency, SIGKILL recovery, retained revocation,
+secret-free logs, license presence, unsafe storage and SQLite-full rollback passed.
+The Linux runtime additionally passed read-only/non-root/no-network execution and
+contains no external BEAM tools or compiler. Darwin has no external BEAM tools in
+the probe PATH; its system compiler remains present, as previously recorded.
+
+Exact archive, source, dependency, six-consumer and image identities for this
+slice are recorded in `verification/host-consumer.json`. The separate source and
+service reports retain their earlier snapshots. This evidence paragraph and plan
+update were added after packaging. Nothing was
+published. Sibling Runtime/HTTP revisions are unchanged; BLE still exposes no
+passive scanner contract. The service's observation means committed host values,
+not physical sensor notification qualification. UI composition, deterministic
+rules, analytics and required physical delivery targets remain unpassed.

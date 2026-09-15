@@ -54,7 +54,12 @@ def main():
     assert [event["id"] for event in replay] == ["1", "2", "3"]
     streamed = call("events", "--cursor", snapshot["stream_cursor"], "--stream", "--max-events", "3", "--seconds", "3")
     assert [event["id"] for event in streamed] == ["1", "2", "3"]
+    initial = call("observe", thing, "temperature", "--max-events", "1", "--seconds", "3")[0]
+    assert initial["schema"] == "wtr.property.v1" and initial["value"] == 24.3
+    assert initial["event"] == "property:snapshot:3:3" and initial["generation"] == "3"
     call("materialize", thing, "--generation", "3")
+    next_value = call("observe", thing, "temperature", "--cursor", initial["cursor"], "--max-events", "1", "--seconds", "3")[0]
+    assert next_value["event"] == "property:event:4:4" and next_value["value"] == 24.3
     history = call("history", "things", thing, "--limit", "1")[0]["data"]
     assert history["items"][0]["generation"] == "3"
     assert call("history", "things", thing, "--cursor", history["cursor"])[0]["data"]["items"][0]["generation"] == "4"
@@ -73,7 +78,7 @@ def main():
     assert [row["generation"] for row in call("history", "enrollments", thing)[0]["data"]["items"]] == ["2", "6"]
     assert call("revoke", "operator", "--generation", "7")[0]["data"]["outcome"] == "committed"
     assert call("list", "things", code=1)[0]["error"]["code"] == "unauthorized"
-    print("CLI_CONSUMER_PASS workflow=true explicit_association=true history=true sse=true native_types=true self_revocation=true")
+    print("CLI_CONSUMER_PASS workflow=true explicit_association=true history=true sse=true property_observation=true native_types=true self_revocation=true")
 
 
 if __name__ == "__main__":

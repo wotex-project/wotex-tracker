@@ -60,7 +60,10 @@ defmodule Wotex.Tracker.WorkflowTest do
     assert td["security"] == ["bearer"]
     assert map_size(td["properties"]) == 10
 
-    assert [form] = td["properties"]["temperature"]["forms"]
+    assert [form, stream] = td["properties"]["temperature"]["forms"]
+    assert stream["op"] == ["observeproperty", "unobserveproperty"]
+    assert stream["subprotocol"] == "sse"
+    assert td["properties"]["temperature"]["observable"]
     assert form["op"] == "readproperty"
 
     assert form["href"] ==

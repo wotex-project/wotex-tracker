@@ -210,7 +210,7 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
-## HTTP and stream contract 1.1.0
+## HTTP and stream contract 1.2.0
 
 The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
 2020-12. The independently maintained generator and validator check the packaged
@@ -236,6 +236,7 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | `…/{resource}/{id}` | GET one public value |
 | `…/{resource}/{id}/history` | GET ascending committed public versions, including deletion records |
 | `…/things/{id}/properties/{property}` | GET authorized Runtime Property scalar |
+| `…/things/{id}/properties/{property}/observe` | GET committed Property values as resumable SSE |
 | `…/observations/{id}/raw`, `…/evidence/{id}/raw` | GET raw-permission native JSON downloads |
 | `…/observations`, `…/enrollments`, `…/associations`, `…/materialisations`, `…/revocations` | POST corresponding domain mutation |
 | `…/operations/{operation}` | GET same-principal durable receipt |
@@ -261,7 +262,7 @@ Authentication uses current host time in the store after queueing; credential
 expiry is checked again immediately before commit. The optional clock on the
 low-level store is explicit; the HTTP composition always supplies its host clock.
 
-SSE accepts exactly one `cursor` query argument or `Last-Event-ID` header.
+The durable event stream accepts exactly one `cursor` query argument or `Last-Event-ID` header.
 Before headers, failures use the JSON error envelope. A ready frame has
 `event: ready` and `{"schema":"wtr.stream.v1","cursor":"…"}` data. Domain frames
 have `event: tracker`, encrypted cursor as the SSE `id`, and the complete
@@ -283,9 +284,9 @@ writes time out after five seconds. HTTP/2, WebSockets and response compression
 are disabled. Transport framing/header failures can close/reject before the
 versioned application envelope exists. There is no unbounded subscriber queue.
 
-This slice exposes imported data, durable events and Runtime Property reads.
-Property subscriptions, service release/OCI and the CLI remain later Phase 3
-work. Scanner/rule/analytics absence is explicit in capabilities. A listener
+This slice exposes imported data, durable events, Runtime Property reads and
+committed-value subscriptions, with a standalone CLI and local bundled releases.
+Scanner/rule/analytics absence is explicit in capabilities. A listener
 being live does not qualify those integrations or a production deployment.
 
 ## Runtime Property read contract
@@ -298,7 +299,7 @@ Success is native `application/json` data constrained by the TD, with the decima
 `X-Wotex-Generation` header. Errors retain the API error envelope: unavailable
 measurements are HTTP 503, expired execution deadlines HTTP 504, and missing
 Properties HTTP 404. No numeric null, stale substitute or changed TD masks a
-missing measurement. Physical mutation and Property observation are unsupported.
+missing measurement. Physical mutation remains unsupported.
 
 The supplied `HTTP.LoopbackClient` is an explicit local reader for Runtime
 `ConsumedThing` through the upstream HTTP binding. It admits only the configured
@@ -309,8 +310,59 @@ connection process, DNS, proxy, pooling, redirect following or retry. Reads have
 a maximum five-second deadline; header/status-line bytes are capped at 8 KiB,
 header count at 32, body at 1 MiB, each reduced by smaller binding limits.
 All completion/failure paths close the connection; caller death closes the owned
-socket. This is finite local peer evidence, not a remote client qualification or
-general JSON Schema instance validator.
+socket. Remote client qualification and general JSON Schema instance validation remain
+separate concerns.
+
+## Runtime Property observation contract
+
+Materialisation adds `observable: true` and combined `observeproperty` /
+`unobserveproperty` SSE Forms only through explicit host delivery evidence. Each
+transport claim binds the readable capability's lineage, source observation,
+profile/decoder revisions, exact Form and deployment revision. Its semantics are
+**committed values**: a newly materialised Thing state is a sample. Import or
+reassociation alone does not change that state. This declares host delivery, not
+a physical device notification capability.
+
+`GET …/things/{id}/properties/{property}/observe` requires current `read` authority.
+Without a cursor it obtains TD, state and event high-water mark in one snapshot,
+dispatches upstream Runtime `observeproperty`, then follows matching committed
+`thing.changed` events. Reads during replay use each event's immutable generation.
+A cursor resumes after the acknowledged sample; supply at most one `cursor`
+query argument or `Last-Event-ID`. Property cursors are encrypted and bound to
+instance, principal, scope, Thing and Property; event/history cursors cannot be
+substituted. Seven-day retention and current authorization still apply.
+
+Each SSE frame has native JSON scalar `data`, encrypted cursor `id`, and stable
+`event` metadata: `property:snapshot:<generation>:<generation>` initially, or
+`property:event:<event-id>:<generation>` for a committed update. Deduplicate using
+the stable event metadata within this Thing/Property; encrypted cursors can differ
+on replay. There is no Tracker envelope around the scalar on the wire. Comments
+are heartbeats. Repeated equal values remain distinct committed samples.
+
+An unavailable initial sample returns 503. An availability gap during replay
+closes delivery after preceding valid samples; it is neither skipped nor replaced
+with null. Resume at that gap returns 503. To continue after recovery, explicitly
+request a fresh snapshot. Unsupported observation returns 501; missing Properties
+return 404. Authorization, retention, storage, shutdown and write failures also
+close streams. The same 16-stream instance budget and 300-second lifetime apply
+as for durable events. Replay reads at most 25 events per batch and has a shared
+five-second execution deadline; frames are bounded to 32 KiB.
+
+The supplied `HTTP.LoopbackClient` implements the upstream binding subscription
+port for this endpoint. A transient guard monitors owner and caller before
+connection setup, with a five-second handshake ceiling and at most 100 ms for
+numeric-loopback connect. After validated SSE headers, socket ownership transfers
+to one monitored reader; the guard exits. Credentials are not retained by the
+reader or opaque handle. Closing one handle leaves other readers alive. Owner
+loss, finite lifetime (at most 300 seconds), transport/parse failure or an owner
+queue of 32 messages closes the reader. There is no reconnect, retry or pool.
+
+Mint 1.10.0 admits HTTP framing. The streaming parser admits BOM, UTF-8, CR/LF/CRLF,
+comments, multiline data and event IDs across arbitrary byte splits under fixed
+frame/line/batch bounds. Pending EOF data is discarded. Retry hints are preserved
+as metadata without scheduling retries. Duplicate content-type/encoding fields,
+compression, redirects and non-200 handshakes are rejected. These claims cover
+the explicit numeric-loopback peer, not arbitrary remote deployment.
 
 ## Public resource history
 

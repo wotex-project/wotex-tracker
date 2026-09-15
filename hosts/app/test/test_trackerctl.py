@@ -112,6 +112,26 @@ class CLITest(unittest.TestCase):
                 self.assertEqual(result.returncode, 1)
                 self.assertEqual(json.loads(result.stderr)["error"]["code"], code)
 
+    def test_property_stream_preserves_native_values_and_rejects_invalid_samples(self):
+        handshake = b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n\r\n"
+        prefix = b"id: wtrc1.opaque\nevent: property:event:4:4\ndata: "
+        for value in (b"0", b"1.0", b"false"):
+            result, _ = self.peer(handshake + prefix + value + b"\n\n", ["observe", "thing", "temperature", "--max-events", "1"])
+            self.assertEqual(result.returncode, 0)
+            sample = json.loads(result.stdout)
+            self.assertEqual(sample["schema"], "wtr.property.v1")
+            self.assertEqual(type(sample["value"]), type(json.loads(value)))
+            self.assertEqual(sample["value"], json.loads(value))
+            self.assertEqual(sample["generation"], "4")
+        for frame in (prefix + b"null\n\n", prefix + b"{}\n\n", b"data: 1\n\n",
+                      b"id: invalid\nevent: property:event:4:4\ndata: 1\n\n",
+                      prefix + b"1\ndata: 2\n\n"):
+            result, _ = self.peer(handshake + frame, ["observe", "thing", "temperature"])
+            self.assertEqual(result.returncode, 1)
+            self.assertEqual(json.loads(result.stderr)["error"]["code"], "invalid_event")
+        result = self.run_cli(["observe", "thing", "temperature", "--seconds", "301"])
+        self.assertEqual(json.loads(result.stderr)["error"]["code"], "invalid_stream_limit")
+
     def test_stream_deadline_closes_the_socket_and_oversized_frames_fail(self):
         handshake = b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n\r\n"
         result, observations = self.peer(handshake, ["events", "--cursor", "cursor", "--stream", "--seconds", "1"], pending=True)

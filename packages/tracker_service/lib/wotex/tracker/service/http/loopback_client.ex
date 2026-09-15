@@ -1,20 +1,23 @@
 defmodule Wotex.Tracker.Service.HTTP.LoopbackClient do
   @moduledoc """
-  Explicit, processless HTTP binding client for a local Tracker Property reader.
+  Explicit HTTP binding client for local Tracker Property reads and observation.
 
   Configuration admits one numeric loopback origin and one scope. Only finite
-  `readproperty` GETs are supported. Credentials arrive separately at execution;
-  configuration, requests and errors contain none. Each call owns and closes one
-  socket, with no pool, DNS, proxy, redirect, retry or background worker.
+  `readproperty` GETs and bounded `observeproperty` SSE streams are supported.
+  Credentials arrive separately at execution; configuration, requests, errors
+  and subscription readers contain none. Finite calls own their socket; each
+  subscription owns one monitored reader and closes independently. There is no
+  pool, DNS, proxy, redirect, retry or automatic reconnect.
 
   The caller owns its Runtime credential provider. This is a local peer adapter,
-  not a remote HTTP client or a Property observation implementation.
+  with caller-selected credentials and subscription lifetimes.
   """
   @behaviour Wotex.Binding.HTTP.Client
   alias Mint.HTTP1, as: HTTP
   alias Wotex.Binding.HTTP.{Headers, Request, Response}
   alias Wotex.Runtime.Context
   alias Wotex.Tracker.Service.{Codec, Credentials}
+  alias Wotex.Tracker.Service.HTTP.SSEClient
 
   @enforce_keys [:origin, :scope, :ip, :host, :port]
   defstruct @enforce_keys
@@ -37,6 +40,7 @@ defmodule Wotex.Tracker.Service.HTTP.LoopbackClient do
   @impl true
   def request(%Request{} = request, credential, %__MODULE__{} = config) do
     with {:ok, target} <- admit(request, config),
+         false <- Request.stream?(request),
          {:ok, _digest} <- Credentials.token_digest(credential),
          {:ok, deadline} <- budget(Request.deadline(request)),
          {:ok, conn} <- connect(config, request, deadline) do
@@ -55,29 +59,45 @@ defmodule Wotex.Tracker.Service.HTTP.LoopbackClient do
   def request(_, _, _), do: {:error, :request_failed}
 
   @impl true
-  def subscribe(_, _, _, _), do: {:error, :unsupported}
+  def subscribe(%Request{} = request, credential, owner, %__MODULE__{} = config)
+      when is_pid(owner) do
+    with {:ok, target} <- admit(request, config),
+         true <- Request.stream?(request),
+         {:ok, _} <- Credentials.token_digest(credential) do
+      SSEClient.open(request, credential, owner, config, target)
+    else
+      _ -> {:error, :request_failed}
+    end
+  end
+
+  def subscribe(_, _, _, _), do: {:error, :request_failed}
 
   @impl true
-  def close(_, _), do: {:error, :unsupported}
+  def close(handle, %__MODULE__{} = config), do: SSEClient.close(handle, config)
+  def close(_, _), do: {:error, :request_failed}
 
   defp admit(request, config) do
     uri = URI.parse(Request.uri(request))
     prefix = "/api/v1/scopes/" <> URI.encode(config.scope, &URI.char_unreserved?/1) <> "/things/"
 
     allowed =
-      finite_read?(request) and destination?(uri, config) and
+      supported?(request) and destination?(uri, config) and
         is_binary(uri.path) and String.starts_with?(uri.path, prefix) and safe_headers?(request)
 
-    if allowed and property_path?(String.replace_prefix(uri.path, prefix, "")),
-      do: {:ok, uri.path},
-      else: {:error, :destination_denied}
+    if allowed and
+         property_path?(String.replace_prefix(uri.path, prefix, ""), Request.stream?(request)),
+       do: {:ok, uri.path},
+       else: {:error, :destination_denied}
   end
 
-  defp finite_read?(request),
+  defp supported?(request),
     do:
       Request.method(request) == "GET" and
-        Request.operation(request) == :readproperty and not Request.stream?(request) and
-        is_nil(Request.body(request))
+        is_nil(Request.body(request)) and
+        {Request.operation(request), Request.stream?(request)} in [
+          {:readproperty, false},
+          {:observeproperty, true}
+        ]
 
   defp destination?(uri, config),
     do:
@@ -91,9 +111,10 @@ defmodule Wotex.Tracker.Service.HTTP.LoopbackClient do
         name in ["authorization", "proxy-authorization", "host", "connection"]
       end)
 
-  defp property_path?(path) do
-    case String.split(path, "/") do
-      [thing, "properties", name] when thing != "" and name != "" -> true
+  defp property_path?(path, stream?) do
+    case {String.split(path, "/"), stream?} do
+      {[thing, "properties", name], false} when thing != "" and name != "" -> true
+      {[thing, "properties", name, "observe"], true} when thing != "" and name != "" -> true
       _ -> false
     end
   end

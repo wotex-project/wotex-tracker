@@ -137,9 +137,28 @@ def lifecycle(release, root):
         if result.returncode or "HTTP_CONSUMER_PASS" not in result.stdout:
             raise RuntimeError("independent artifact HTTP/OpenAPI/SSE workflow failed")
         thing = instance.request("/things")["items"][0]["id"]
+        cli = [str(release / "bin/trackerctl"), "--url", instance.origin, "--scope", "workshop",
+               "--token-file", str(instance.directory / "operator.token"), "observe", thing, "temperature",
+               "--seconds", "3", "--max-events", "1"]
+
+        def cli_sample(cursor=None):
+            result = subprocess.run(cli + (["--cursor", cursor] if cursor else []),
+                capture_output=True, text=True, timeout=5)
+            if result.returncode or instance.token in result.stdout + result.stderr:
+                raise RuntimeError("bundled CLI Property observation failed")
+            value = json.loads(result.stdout)
+            if value["schema"] != "wtr.property.v1" or value["value"] != 24.3:
+                raise RuntimeError("bundled CLI changed the native Property sample")
+            return value
+
+        first_sample = cli_sample()
+        if first_sample["event"] != "property:snapshot:9:9":
+            raise RuntimeError("bundled CLI Property snapshot is inconsistent")
         operation = str(uuid.uuid4())
-        request = {"thing_id": thing, "expected_generation": "8"}
+        request = {"thing_id": thing, "expected_generation": "9"}
         receipt = instance.request("/materialisations", request, operation)
+        if cli_sample(first_sample["cursor"])["event"] != "property:event:10:10":
+            raise RuntimeError("bundled CLI Property resume skipped a committed update")
         snapshot = instance.request("/state")
         td = instance.request("/things/" + urllib.parse.quote(thing, safe=""))
         stream = urllib.request.urlopen(urllib.request.Request(instance.origin +
@@ -179,7 +198,7 @@ def lifecycle(release, root):
             raise RuntimeError("duplicate mutation changed after restart")
         if instance.request("/things/" + urllib.parse.quote(thing, safe="")) != td:
             raise RuntimeError("Thing changed after restart")
-        if instance.request("/state")["generation"] != "9":
+        if instance.request("/state")["generation"] != "10":
             raise RuntimeError("restart or duplicate mutation added a generation")
         if instance.request("/state", expected=401, token=instance.reader)["code"] != "unauthorized":
             raise RuntimeError("revocation was not retained")
@@ -188,11 +207,12 @@ def lifecycle(release, root):
         if instance.request("/operations/" + operation) != receipt:
             raise RuntimeError("committed receipt was lost after process kill")
         history = instance.request("/things/" + urllib.parse.quote(thing, safe="") + "/history")
-        if [item["generation"] for item in history["items"]] != ["3", "6", "7", "8", "9"]:
+        if [item["generation"] for item in history["items"]] != ["3", "6", "7", "8", "9", "10"]:
             raise RuntimeError("historical versions changed after recovery")
         instance.stop()
         instance.redacted()
-        return {"http_openapi_sse": "pass", "history": "pass", "sigterm_active_stream": "pass",
+        return {"http_openapi_sse": "pass", "property_observation": "pass", "cli_property_resume": "pass",
+            "history": "pass", "sigterm_active_stream": "pass",
             "shutdown_seconds": round(shutdown, 3), "restart_and_idempotency": "pass",
             "sigkill_recovery": "pass", "retained_revocation": "pass"}
     finally:
