@@ -190,8 +190,10 @@ ties, bounded late arrivals and modular sequence wrap/reset/reconnect semantics.
 Bounded circle/polygon membership is implemented with explicit boundary,
 uncertainty and antimeridian rules. See the
 [position guide](../guides/positions.md) and
-[geofence guide](../guides/geofences.md). Stateful membership transitions,
-crossing inference and atomic host integration remain subsequent work.
+[geofence guide](../guides/geofences.md). Ordered baseline, entry/exit, bounded-gap
+and fence/rule-edit recomputation are implemented with stable event identities and
+explicit live/replay effects. Sparse crossing inference and atomic host integration
+remain subsequent work.
 
 Implement explicit time/freshness, quality selection, motion/trips/stops,
 geofence membership/transitions, heartbeat, suspicious movement, low-battery,

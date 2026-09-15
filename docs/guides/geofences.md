@@ -80,6 +80,41 @@ position evidence/bundle identity. It includes policy values, accuracy, centre
 or boundary distance, algorithm and a stable reason. Unavailable positions are
 `unknown`; false, null and uncertainty never collapse into ordinary `outside`.
 
-This slice establishes membership only. Initial baseline versus entry/exit,
-fence-edit recomputation, sparse inferred crossings, event identity and atomic
-rule persistence are subsequent state-transition work.
+## Ordered state transitions
+
+`GeofenceTransition` consumes a `PositionSample`, the complete `PositionOrder`
+policy, an explicit `:live` or `:replay` mode and caller-owned Unix `now`. Its
+content-bound policy names the rule and revision and fixes a maximum time gap for
+ordinary entry/exit transitions. The first certain membership establishes a
+baseline. A later inside/outside change emits `geofence.entered` or
+`geofence.exited` only when the event-time gap is at or below that limit. A larger
+gap establishes a fresh baseline instead of silently bridging missing history.
+
+State keeps three facts separate:
+
+- the latest sample accepted by event/sequence ordering;
+- the latest admitted receiver capture and its ordering outcome;
+- the latest certain geofence membership and its full position evidence.
+
+An uncertain/unknown membership can therefore advance ordering and last-received
+status while leaving last-valid membership unchanged. A historical sample can
+advance last-received status without rewinding the ordering head. Exact duplicate,
+sequence conflict and future-time decisions do not invent a transition.
+
+Changing fence content or the rule policy recomputes against the supplied current
+sample. If a prior certain baseline exists, this emits `geofence.recomputed` with
+reason `fence_revised`, `rule_revised`, or `fence_and_rule_revised`; it never
+masquerades as entry or exit. An edit without certain membership clears the old
+baseline because membership under old geometry cannot be reused.
+
+Event identity hashes rule/fence identities, kind/reason, both endpoint sample
+identities/statuses and event time under algorithm
+`geofence-transition-idempotency-v1`. Processing mode and evaluation time are
+excluded, so the same ordered history yields the same event ID in live and replay.
+Replay always returns `physical_action_dispatch: "prohibited"`; a live event says
+that separate authorization is required. This pure module never dispatches an
+Action or persists state.
+
+Sparse segment-crossing inference remains separate work. It must identify both
+endpoints and enforce its own maximum time and distance gaps. Atomic state/event
+persistence in the host is also subsequent work.

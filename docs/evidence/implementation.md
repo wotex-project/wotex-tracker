@@ -599,3 +599,35 @@ policy on both runtime lanes; their exact identities are recorded in
 not buffer late samples, mutate a rule head, emit an event, define an Action or
 claim a protocol decoder supplied sequence evidence. Stateful rule event identity
 and live/replay effects remain explicit work in the consuming state machine.
+
+## WTR.05 ordered geofence transitions — 2026-09-16
+
+The pure transition policy now combines admitted position ordering with bounded
+geofence membership. Immutable state keeps the ordering head, last receiver
+capture and last certain membership separate. Initial certain membership is a
+baseline; uncertainty advances order without replacing the valid baseline; late
+evidence may advance last-received status without rewinding canonical order.
+Entry and exit require two certain endpoint memberships within the policy's
+maximum time gap. A longer gap starts a new baseline.
+
+Fence and rule changes recompute against an explicitly supplied current sample.
+They emit a distinct `geofence.recomputed` event with the old/new fence, policy,
+membership and evidence identities, rather than fabricating entry or exit. Event
+IDs bind both endpoints and exclude processing mode and evaluation time. Live and
+replay therefore produce identical state/event identities from the same ordered
+history; replay marks physical Action dispatch prohibited, while live events still
+require a separate authorized rule.
+
+Both required runtime lanes passed the complete root gate with 1 doctest,
+9 properties and 82 tests, no failures and 96.8% production line coverage. Tests
+cover first membership, stable updates, entry/exit, uncertainty gaps, late
+reception, exact transition-gap equality, exceeded gaps, fence/rule edits, modular
+sequence conflict, invalid state/scope and generated live/replay equivalence.
+Strict analysis, documentation, dependency, license and archive checks passed.
+
+Six fresh, locked and minimum production archive consumers establish and
+revalidate transition state on both runtime lanes. Their exact archive and lock
+identities are recorded in `verification/source-consumer.json`. The pure result
+is an atomic persistence input, not a persisted transaction: host storage/event
+intent integration, sparse segment-crossing inference and any separately governed
+Action rule remain subsequent work.

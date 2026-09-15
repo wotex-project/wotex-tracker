@@ -12,7 +12,7 @@
     "jason-1.4.0.tar": "79a3791085b2a0f743ca04cec0f7be26443738779d09302e01318f97bdb82121",
     "jason-1.4.5.tar": "b0c823996102bcd0239b3c2444eb00409b72f6a140c1950bc8b457d836b30684",
     "wotex-0.1.0.tar": "390d8f0f4e6c163f9345f8182cca79263e72619a1e230d7003528a533b20b631",
-    "wotex_tracker-0.1.0.tar": "cc20ceb8ab0b4d9e29f73ba3e9a25dc5a69b4973364dbede8c5eee2549f0952d"
+    "wotex_tracker-0.1.0.tar": "8d65883caa919bce9a59d9a39df98e5e923591cdd81bed54ecab464cb2ac2c2c"
   },
   "consumers": [
     {
@@ -20,42 +20,42 @@
       "otp": "27.3.4.15",
       "mode": "fresh",
       "result": "pass",
-      "lock_sha256": "931ed9b0194c1f9d7879ce0643c738f270e69a5d00b83f6e3227dad0b90e8713"
+      "lock_sha256": "6c5f3416c04643a0b897a030f1f49f5d457af21d4b4a17b65cba62ab05a89136"
     },
     {
       "elixir": "1.18.4-otp-27",
       "otp": "27.3.4.15",
       "mode": "locked",
       "result": "pass",
-      "lock_sha256": "931ed9b0194c1f9d7879ce0643c738f270e69a5d00b83f6e3227dad0b90e8713"
+      "lock_sha256": "6c5f3416c04643a0b897a030f1f49f5d457af21d4b4a17b65cba62ab05a89136"
     },
     {
       "elixir": "1.18.4-otp-27",
       "otp": "27.3.4.15",
       "mode": "minimum",
       "result": "pass",
-      "lock_sha256": "a532f872e0e0cac6b65d50531f43de4c3f09071c96ef78d17566930edceb11c0"
+      "lock_sha256": "a86469e50e3deee93d460b808bb8426f7592e61d2f5984d04b0d1a4d53eb501a"
     },
     {
       "elixir": "1.20.4-otp-29",
       "otp": "29.0.4",
       "mode": "fresh",
       "result": "pass",
-      "lock_sha256": "931ed9b0194c1f9d7879ce0643c738f270e69a5d00b83f6e3227dad0b90e8713"
+      "lock_sha256": "6c5f3416c04643a0b897a030f1f49f5d457af21d4b4a17b65cba62ab05a89136"
     },
     {
       "elixir": "1.20.4-otp-29",
       "otp": "29.0.4",
       "mode": "locked",
       "result": "pass",
-      "lock_sha256": "931ed9b0194c1f9d7879ce0643c738f270e69a5d00b83f6e3227dad0b90e8713"
+      "lock_sha256": "6c5f3416c04643a0b897a030f1f49f5d457af21d4b4a17b65cba62ab05a89136"
     },
     {
       "elixir": "1.20.4-otp-29",
       "otp": "29.0.4",
       "mode": "minimum",
       "result": "pass",
-      "lock_sha256": "a532f872e0e0cac6b65d50531f43de4c3f09071c96ef78d17566930edceb11c0"
+      "lock_sha256": "a86469e50e3deee93d460b808bb8426f7592e61d2f5984d04b0d1a4d53eb501a"
     }
   ]
 }

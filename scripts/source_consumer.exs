@@ -247,8 +247,29 @@ true = exported["position"]["longitude"] === 0.0
 {:ok, %{"status" => "accepted", "disposition" => "advance"}} =
   Wotex.Tracker.PositionOrder.evaluate(sample, nil, order_policy, 1_000)
 
+{:ok, transition_policy} =
+  Wotex.Tracker.GeofenceTransition.new(%{
+    id: "archive-yard-membership",
+    revision: "archive-transition-v1",
+    order_policy: order_policy,
+    max_transition_gap_ms: 1_000
+  })
+
+{:ok, %{"status" => "baseline", "event" => nil, "state" => transition_state}} =
+  Wotex.Tracker.GeofenceTransition.evaluate(
+    nil,
+    fence,
+    sample,
+    transition_policy,
+    :replay,
+    1_000
+  )
+
+{:ok, ^transition_state} =
+  Wotex.Tracker.GeofenceTransition.validate_state(transition_state)
+
 true = MapSet.subset?(MapSet.new(Process.list()), before_processes)
 
 IO.puts(
-  "SOURCE_COHORT_PASS Elixir=#{System.version()} OTP=#{System.otp_release()} properties=10 position_freshness=true position_selection=true position_order=true geofence=true no_new_processes=true optional_hosts_absent=true"
+  "SOURCE_COHORT_PASS Elixir=#{System.version()} OTP=#{System.otp_release()} properties=10 position_freshness=true position_selection=true position_order=true geofence=true geofence_transition=true no_new_processes=true optional_hosts_absent=true"
 )
