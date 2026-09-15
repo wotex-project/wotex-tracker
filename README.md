@@ -55,7 +55,9 @@ selection, event ordering with modular sequence evidence, and bounded geofence
 membership. See the [position guide](docs/guides/positions.md) and
 [geofence guide](docs/guides/geofences.md). Ordered geofence baseline, entry/exit
 and edit recomputation plus bounded sparse-crossing inference are implemented;
-motion/trips and host rule persistence remain subsequent work.
+two-fix movement/uncertainty classification is also implemented. See the
+[motion guide](docs/guides/motion.md). Dwell-based trips and host rule persistence
+remain subsequent work.
 [Implementation evidence](docs/evidence/implementation.md) records
 executed software checks and unpassed release, host and hardware gates.
 

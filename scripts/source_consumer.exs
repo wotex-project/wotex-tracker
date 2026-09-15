@@ -332,8 +332,30 @@ crossing_to = crossing_sample.("to", 0.0001, 1_001)
     1_001
   )
 
+{:ok, movement_policy} =
+  Wotex.Tracker.PositionMovement.new(%{
+    id: "archive-movement",
+    revision: "archive-movement-v1",
+    order_policy: order_policy,
+    moving_speed_m_s: 1,
+    stationary_speed_m_s: 0,
+    moving_distance_m: 1,
+    stationary_distance_m: 0,
+    max_plausible_speed_m_s: 100_000,
+    max_gap_ms: 1_000,
+    uncertainty: :coordinate_only
+  })
+
+{:ok, %{"status" => "moving", "reason" => "movement_thresholds_met"}} =
+  Wotex.Tracker.PositionMovement.evaluate(
+    crossing_from,
+    crossing_to,
+    movement_policy,
+    1_001
+  )
+
 true = MapSet.subset?(MapSet.new(Process.list()), before_processes)
 
 IO.puts(
-  "SOURCE_COHORT_PASS Elixir=#{System.version()} OTP=#{System.otp_release()} properties=10 position_freshness=true position_selection=true position_order=true geofence=true geofence_transition=true geofence_crossing=true no_new_processes=true optional_hosts_absent=true"
+  "SOURCE_COHORT_PASS Elixir=#{System.version()} OTP=#{System.otp_release()} properties=10 position_freshness=true position_selection=true position_order=true movement=true geofence=true geofence_transition=true geofence_crossing=true no_new_processes=true optional_hosts_absent=true"
 )

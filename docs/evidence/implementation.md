@@ -662,3 +662,33 @@ Six fresh, locked and minimum production archive consumers infer a crossing and
 inspect its no-crossing-time event on both runtime lanes. Exact identities are in
 `verification/source-consumer.json`. This establishes bounded interpolation only;
 it is not actual-route evidence, and host transaction integration remains separate.
+
+## WTR.05 bounded two-fix movement evidence — 2026-09-16
+
+The pure `PositionMovement` classifier combines two complete position samples
+with the complete event/sequence ordering policy. Its content-bound policy fixes
+moving and stationary distance/speed thresholds, a maximum plausible speed, a
+maximum event-time gap and either guaranteed-bound or coordinate-only uncertainty
+treatment. Stationary thresholds cannot exceed moving thresholds, so the
+hysteresis region is explicit rather than silently assigned to either state.
+
+Centreline distance uses the pinned WGS 84 authalic haversine calculation and is
+periodic across the antimeridian. Guaranteed horizontal-accuracy radii expand
+the possible distance into lower and upper bounds. Movement requires both lower
+bounds to meet their thresholds; stationarity requires both upper bounds to meet
+theirs. Missing guaranteed bounds, suspect/unavailable endpoints, repeated event
+time, late ordering and excessive gaps return reasoned non-motion results. A
+guaranteed lower speed above the declared physical limit is `implausible`.
+
+Both required runtime lanes passed the complete root gate with 1 doctest,
+11 properties and 98 tests, no failures and 97.4% production line coverage.
+Cases include threshold equality, hysteresis, guaranteed versus estimated
+accuracy, impossible speed, gap equality/excess, repeated timestamps, late
+samples, forged policies, antimeridian symmetry and generated identical points.
+Strict analysis, documentation, dependency, license and archive checks passed.
+
+Six fresh, locked and minimum production archive consumers classify a synthetic
+ordered segment on both runtime lanes. Exact archive and lock identities are in
+`verification/source-consumer.json`. This evidence establishes a stateless
+two-fix classification only. Dwell, trip/stop state, distance accumulation,
+persistence and any physical Action remain subsequent work.

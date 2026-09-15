@@ -194,7 +194,10 @@ uncertainty and antimeridian rules. See the
 and fence/rule-edit recomputation are implemented with stable event identities and
 explicit live/replay effects. Sparse crossing inference identifies both endpoints,
 enforces time/distance gaps and makes no route or crossing-time claim. Atomic host
-integration remains subsequent work.
+integration remains subsequent work. Two-fix motion classification implements
+bounded distance/speed uncertainty, hysteresis, impossible-speed rejection and
+gap handling; dwell-based trip/stop state remains subsequent work. See the
+[motion guide](../guides/motion.md).
 
 Implement explicit time/freshness, quality selection, motion/trips/stops,
 geofence membership/transitions, heartbeat, suspicious movement, low-battery,
