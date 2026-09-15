@@ -4,6 +4,27 @@ defmodule Wotex.Tracker.Service.Read do
 
   @retention 604_800_000
 
+  def fetch(db, query, authorize \\ fn -> :ok end) do
+    with %{scope: scope, kind: kind, id: id, generation: generation} when map_size(query) == 4 <-
+           query,
+         true <- Codec.id?(scope) and Codec.id?(id) and kind in ["observations" | Update.kinds()],
+         {:ok, version} <- requested_generation(db, %{generation: generation}) do
+      SQL.execute!(db, "BEGIN")
+
+      try do
+        authorize.()
+        current = Transaction.generation(db, scope)
+        version = version || current
+        if version > current, do: throw({:storage, :invalid_cursor})
+        fetch_row(db, scope, kind, id, version)
+      after
+        SQL.rollback(db)
+      end
+    else
+      _ -> {:error, :invalid_query}
+    end
+  end
+
   def snapshot(db, query, authorize \\ fn -> :ok end) do
     with true <- valid_query?(query),
          {:ok, generation} <- requested_generation(db, query) do
@@ -145,6 +166,37 @@ defmodule Wotex.Tracker.Service.Read do
 
   defp requested_generation(_db, %{generation: nil}), do: {:ok, nil}
   defp requested_generation(_db, query), do: Codec.generation(query.generation)
+
+  defp fetch_row(db, scope, kind, id, generation) do
+    rows =
+      if kind == "observations" do
+        SQL.rows!(
+          db,
+          "SELECT document,generation FROM observations WHERE scope=? AND id=? AND generation<=?",
+          [scope, id, generation]
+        )
+      else
+        SQL.rows!(
+          db,
+          "SELECT document,generation FROM records WHERE scope=? AND kind=? AND id=? AND generation<=? ORDER BY generation DESC LIMIT 1",
+          [scope, kind, id, generation]
+        )
+      end
+
+    case rows do
+      [[document, version]] when document != "null" ->
+        {:ok,
+         %{
+           "id" => id,
+           "generation" => Integer.to_string(generation),
+           "record_generation" => Integer.to_string(version),
+           "value" => Codec.decode!(document)
+         }}
+
+      _ ->
+        {:error, :not_found}
+    end
+  end
 
   defp page(db, %{kind: "observations"} = query, generation) do
     SQL.rows!(

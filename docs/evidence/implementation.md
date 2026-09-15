@@ -213,3 +213,28 @@ startup warning when its umbrella probe reloads `../../mix.exs` under a temporar
 project identity; this nested package is not an umbrella. The warnings-as-errors
 compile and all verification commands still pass. This tooling warning is not
 suppressed, and the isolated production consumers do not load ExCheck.
+
+## WTR.07 authenticated domain facade — 2026-09-15
+
+The service facade implements imported observations, public snapshots/inspection,
+raw exports, resumable event reads, explicit enrollment, TD materialisation,
+revocation and scoped operation-status lookup. Exact receipt replay precedes new
+interpretation. Enrollment/materialisation read one immutable committed
+generation and conditionally commit derived records, private lineage, generated
+IDs and event intents together. Unknown inputs remain unknown; no automatic
+hardware association or external publication is inferred.
+
+Both required service runtime lanes pass the complete configured gate with
+2 properties and 48 tests, zero failures and 97.9% production line coverage.
+Cases include native browser/raw separation, snapshot/resume boundaries, changed
+catalogue replay, request conflicts/expiry, explicit confirmation, unknown and
+missing observations, limited enrollment authority, private lineage, validated
+TDs, process restart and commit acknowledgement loss. The six isolated service
+archive consumers also exercise authenticated import → enrollment → materialisation
+and exact TD/receipt recovery after restart.
+
+This completes the facade slice, not the full WTR.07 service gate. The reserved
+property Forms are structurally validated against an explicit configured origin;
+HTTP/OpenAPI/SSE transport, actual Runtime peers, CLI, bundled release/OCI and
+the independent non-Elixir consumer remain outstanding. Rules, analytics and
+hardware are separate later slices.

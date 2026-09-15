@@ -1,5 +1,6 @@
 # Production archive consumer: no repository source imports and no host packages.
-alias Wotex.Tracker.Service.{Credentials, Cursor, Projection, Store, Update}
+alias Wotex.Tracker.Service
+alias Wotex.Tracker.Service.{Credentials, Cursor, Identifier, Projection, Store, Update}
 
 [] = Application.spec(:wotex_tracker_service, :mod)
 
@@ -23,7 +24,7 @@ token = Credentials.generate_token()
         id: "archive-credential",
         principal: "consumer",
         token_sha256: digest,
-        grants: %{"archive" => ~w(read raw ingest admin)},
+        grants: %{"archive" => ~w(read raw ingest enroll admin)},
         expires_at: 1_700_000_001_000
       }
     ]
@@ -124,18 +125,72 @@ true = restored === observation
     now: update.now
   })
 
+{:ok, service} =
+  Service.new(%{store: store, credentials: credentials, base_url: "http://127.0.0.1:43210"})
+
+{:ok, document} =
+  Wotex.Tracker.Observation.to_map(%{
+    observation
+    | id: "ruuvi-fixture",
+      ingress: "ble",
+      transport: %{"manufacturer_id" => 1177},
+      payload: {:bytes, Base.decode16!("0512FC5394C37C0004FFFC040CAC364200CDCBB8334C884F")}
+  })
+
+{:ok, imported} =
+  Service.submit(
+    service,
+    token,
+    "archive",
+    Identifier.uuid(),
+    %{
+      "observation" => document,
+      "expected_generation" => "1"
+    },
+    update.now
+  )
+
+{:ok, enrolled} =
+  Service.enroll(
+    service,
+    token,
+    "archive",
+    Identifier.uuid(),
+    %{
+      "observation_id" => imported["data"]["observation_id"],
+      "title" => "Archive sensor",
+      "owner_confirmed" => true,
+      "expected_generation" => "2"
+    },
+    update.now
+  )
+
+thing = enrolled["data"]["thing_id"]
+operation = Identifier.uuid()
+request = %{"thing_id" => thing, "expected_generation" => "3"}
+{:ok, receipt} = Service.materialize(service, token, "archive", operation, request, update.now)
+{:ok, %{"value" => td}} = Service.get(service, token, "archive", "things", thing, update.now)
+{:ok, _} = Wotex.ThingDescription.from_map(td)
+^thing = td["id"]
+GenServer.stop(pid)
+{:ok, pid} = Store.start_link(directory: directory, credentials: credentials)
+store = Store.handle(pid)
+service = %{service | store: store}
+{:ok, ^receipt} = Service.materialize(service, token, "archive", operation, request, update.now)
+{:ok, %{"value" => ^td}} = Service.get(service, token, "archive", "things", thing, update.now)
+
 {:ok, revoke} =
   Update.new(%{
     Map.from_struct(update)
     | operation_id: "revoke",
-      expected_generation: "1",
+      expected_generation: "4",
       observation: nil,
       request: %{"operation" => "revoke"},
       records: [%{kind: "access", id: "archive-credential", value: %{"revoked" => true}}],
       events: [%{"type" => "access.revoked", "data" => %{}}]
   })
 
-{:ok, %{"generation" => "2"}} = Store.mutate(store, revoke)
+{:ok, %{"generation" => "5"}} = Store.mutate(store, revoke)
 {:error, :unauthorized} = Store.authorized(store, access, "read", update.now)
 {:error, :unauthorized} = Store.mutate(store, update)
 
@@ -145,5 +200,5 @@ retained = Process.list() |> MapSet.new() |> MapSet.difference(before_processes)
 0 = retained
 
 IO.puts(
-  "SERVICE_COHORT_PASS durable_restart=true native_types=true revoked_access_denied=true encrypted_cursor=true retained_new_processes=#{retained}"
+  "SERVICE_COHORT_PASS durable_restart=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true retained_new_processes=#{retained}"
 )

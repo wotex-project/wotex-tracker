@@ -1,7 +1,7 @@
 defmodule Wotex.Tracker.Service.Transaction do
   @moduledoc false
   alias Wotex.Tracker.Observation
-  alias Wotex.Tracker.Service.{Authority, Codec, SQL}
+  alias Wotex.Tracker.Service.{Authority, Codec, Operation, SQL}
 
   @retention 604_800_000
 
@@ -45,23 +45,22 @@ defmodule Wotex.Tracker.Service.Transaction do
 
   defp admission(db, update, options) do
     digest =
-      Codec.digest(%{
-        "request" => update.request,
-        "expected_generation" => update.expected_generation,
-        "observation_identity" => observation_identity(update.observation)
-      })
+      Operation.digest(
+        update.request,
+        update.expected_generation,
+        observation_identity(update.observation)
+      )
 
-    identity = [update.scope, update.principal, update.operation_id]
-
-    case SQL.rows!(
+    case Operation.lookup(
            db,
-           "SELECT digest, result, expires_at FROM operations WHERE scope=? AND principal=? AND id=?",
-           identity
+           update.scope,
+           update.principal,
+           update.operation_id,
+           digest,
+           update.now
          ) do
-      [[^digest, result, expires]] when update.now < expires -> Codec.decode!(result)
-      [[^digest, _, _]] -> throw({:storage, :operation_expired})
-      [[_, _, _]] -> throw({:storage, :idempotency_conflict})
-      [] -> prepare_new(db, update, options, digest)
+      {:ok, result} -> result
+      :new -> prepare_new(db, update, options, digest)
     end
   end
 
@@ -206,6 +205,9 @@ defmodule Wotex.Tracker.Service.Transaction do
       "disposition" => disposition,
       "publication" => publication
     }
+    |> then(fn result ->
+      if update.response, do: Map.put(result, "data", update.response), else: result
+    end)
   end
 
   defp capacity!(db, table, count, maximum) do

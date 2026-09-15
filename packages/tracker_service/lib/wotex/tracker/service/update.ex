@@ -15,7 +15,7 @@ defmodule Wotex.Tracker.Service.Update do
   @kinds ~w(enrollments things state policies saved_queries evidence resolutions access)
   @keys ~w(principal scope operation_id expected_generation request now observation records events publication)a
   @enforce_keys @keys
-  defstruct @keys ++ [authority: nil]
+  defstruct @keys ++ [authority: nil, response: nil]
 
   @type t :: %__MODULE__{
           principal: String.t(),
@@ -28,7 +28,8 @@ defmodule Wotex.Tracker.Service.Update do
           records: [map()],
           events: [map()],
           publication: map() | nil,
-          authority: Access.t() | nil
+          authority: Access.t() | nil,
+          response: map() | nil
         }
 
   @doc "Admits one bounded transaction; derived records must already be authorized."
@@ -36,9 +37,10 @@ defmodule Wotex.Tracker.Service.Update do
   def new(input) do
     with true <-
            is_map(input) and not is_struct(input) and
-             map_size(input) in length(@keys)..(length(@keys) + 1) and
-             Enum.sort(Map.keys(Map.delete(input, :authority))) == Enum.sort(@keys),
+             map_size(input) in length(@keys)..(length(@keys) + 2) and
+             Enum.sort(Map.keys(Map.drop(input, [:authority, :response]))) == Enum.sort(@keys),
          true <- Authority.valid?(Map.get(input, :authority)),
+         true <- response?(Map.get(input, :response)),
          true <- Enum.all?([input.principal, input.scope, input.operation_id], &Codec.id?/1),
          {:ok, _} <- Codec.generation(input.expected_generation),
          true <- Codec.time?(input.now),
@@ -66,6 +68,8 @@ defmodule Wotex.Tracker.Service.Update do
 
   defp observation(nil), do: {:ok, nil}
   defp observation(value), do: Observation.validate(value)
+  defp response?(nil), do: true
+  defp response?(value), do: is_map(value) and match?({:ok, _}, Codec.encode(value, 16_384))
   defp bounded?([], _), do: true
   defp bounded?([_ | rest], count) when count > 0, do: bounded?(rest, count - 1)
   defp bounded?(_, _), do: false

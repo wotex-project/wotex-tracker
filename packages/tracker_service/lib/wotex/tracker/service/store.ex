@@ -17,6 +17,7 @@ defmodule Wotex.Tracker.Service.Store do
     Authority,
     Codec,
     Credentials,
+    Operation,
     Publication,
     Read,
     Schema,
@@ -54,9 +55,37 @@ defmodule Wotex.Tracker.Service.Store do
       else: {:error, :invalid_query}
   end
 
+  @doc "Reads a caller-scoped receipt with current authority checked in the same read transaction."
+  @spec authorized_operation(t(), Access.t(), String.t(), integer()) ::
+          {:ok, map()} | {:error, atom()}
+  def authorized_operation(store, access, id, now) do
+    if Codec.id?(id) and Codec.time?(now),
+      do: StoreCall.run(store, {:authorized_operation, access, id, now}),
+      else: {:error, :invalid_query}
+  end
+
+  @doc "Checks a fully admitted intent before preparing new work; a new intent must still commit conditionally."
+  @spec replay(t(), Access.t(), String.t(), map(), integer()) ::
+          :new | {:ok, map()} | {:error, atom()}
+  def replay(store, access, permission, intent, now) do
+    if Operation.valid_intent?(intent),
+      do: StoreCall.run(store, {:replay, access, permission, intent, now}),
+      else: {:error, :invalid_request}
+  end
+
   @doc "Reads one bounded page at a single immutable scope generation."
   @spec snapshot(t(), map()) :: {:ok, map()} | {:error, atom()}
   def snapshot(store, query), do: StoreCall.run(store, {:snapshot, query})
+
+  @doc "Reads one exact record at a committed generation through the privileged host port."
+  @spec fetch(t(), map()) :: {:ok, map()} | {:error, atom()}
+  def fetch(store, query), do: StoreCall.run(store, {:fetch, query})
+
+  @doc "Checks current scope authority and reads one exact historical record atomically."
+  @spec authorized_fetch(t(), Access.t(), String.t(), map(), integer()) ::
+          {:ok, map()} | {:error, atom()}
+  def authorized_fetch(store, access, permission, query, now),
+    do: StoreCall.run(store, {:authorized_fetch, access, permission, query, now})
 
   @doc "Reads a bounded durable event batch, rejecting expired or foreign cursors."
   @spec events(t(), map()) :: {:ok, map()} | {:error, atom()}
@@ -196,7 +225,63 @@ defmodule Wotex.Tracker.Service.Store do
   defp dispatch({:operation, scope, principal, id, now}, state),
     do: Transaction.operation(state.db, scope, principal, id, now)
 
+  defp dispatch({:authorized_operation, access, id, now}, state) do
+    SQL.execute!(state.db, "BEGIN")
+
+    try do
+      Authority.check!(
+        state.db,
+        state.options.credentials,
+        access,
+        access_scope(access),
+        "read",
+        now
+      )
+
+      Transaction.operation(state.db, access.scope, access.principal, id, now)
+    after
+      SQL.rollback(state.db)
+    end
+  end
+
+  defp dispatch({:replay, access, permission, intent, now}, state) do
+    SQL.execute!(state.db, "BEGIN")
+
+    try do
+      Authority.check!(
+        state.db,
+        state.options.credentials,
+        access,
+        access_scope(access),
+        permission,
+        now
+      )
+
+      digest =
+        Operation.digest(intent.request, intent.expected_generation, intent.observation_identity)
+
+      Operation.lookup(state.db, access.scope, access.principal, intent.operation_id, digest, now)
+    after
+      SQL.rollback(state.db)
+    end
+  end
+
   defp dispatch({:snapshot, query}, state), do: Read.snapshot(state.db, query)
+  defp dispatch({:fetch, query}, state), do: Read.fetch(state.db, query)
+
+  defp dispatch({:authorized_fetch, access, permission, query, now}, state),
+    do:
+      Read.fetch(state.db, query, fn ->
+        Authority.check!(
+          state.db,
+          state.options.credentials,
+          access,
+          query.scope,
+          permission,
+          now
+        )
+      end)
+
   defp dispatch({:events, query}, state), do: Read.events(state.db, query)
 
   defp dispatch({:authorized, access, permission, now}, state),

@@ -70,6 +70,7 @@ defmodule Wotex.Tracker.Service.Authority do
         case record.kind do
           kind when kind in ~w(access policies saved_queries) -> "admin"
           kind when kind in ~w(enrollments things) -> "enroll"
+          kind when kind in ~w(state evidence) -> derivative_permission(update, record.id)
           _ -> "ingest"
         end
       end)
@@ -79,5 +80,11 @@ defmodule Wotex.Tracker.Service.Authority do
         if(update.publication, do: ["enroll"], else: []) ++ record_permissions
 
     if permissions == [], do: ["admin"], else: Enum.uniq(permissions)
+  end
+
+  defp derivative_permission(update, id) do
+    if Enum.any?(update.records, &(&1.kind == "things" and &1.id == id and not is_nil(&1.value))),
+      do: "enroll",
+      else: "ingest"
   end
 end

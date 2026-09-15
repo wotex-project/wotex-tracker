@@ -114,10 +114,10 @@ revocation records. Revoked credential IDs cannot be reused in that scope;
 rotation uses a new ID. Revocation records are retained with other evidence.
 Clock readings passed to these ports must come from the host, not request JSON.
 
-The low-level Store handle remains a privileged host port. The forthcoming public
-facade must authenticate every call, including local calls, use the guarded read
-ports, and reauthorize immediately before each stream delivery. The existence
-of these primitives is not HTTP/session or complete access-audit acceptance.
+The low-level Store handle remains a privileged host port. The public service
+facade authenticates every call, including local calls, and uses guarded read
+ports. A transport must also reauthorize immediately before each stream delivery.
+These primitives are not HTTP/session or complete access-audit acceptance.
 
 Cursor format `wtrc1` uses AES-256-GCM, fresh 96-bit nonces, an authenticated
 instance/principal/scope/purpose binding and explicit issue/expiry times. Internal
@@ -144,6 +144,61 @@ Thus `1` and `1.0`, false and null remain distinct to a browser. Raw evidence
 exports instead preserve the original WTR.01 native representation and bytes;
 the frontend must download those bytes without parse/re-encode. The concrete
 HTTP envelopes, OpenAPI and stream transport are the next implementation slice.
+
+## Authenticated domain operations
+
+`Wotex.Tracker.Service` implements import, public list/get, private raw exports,
+enrollment, materialisation, durable event reads, revocation and caller-scoped
+operation lookup. The host supplies the current authorization time. Mutation
+operation IDs are canonical lowercase UUIDv4 strings. Request objects have closed
+keys; generation strings are canonical nonnegative decimals.
+
+| Mutation | Required permission | Exact request fields |
+| --- | --- | --- |
+| `submit` | `ingest` | `observation` (WTR.01 envelope), `expected_generation` |
+| `enroll` | `enroll` | `observation_id` (public pseudonym), `title` (1–256 UTF-8 bytes), `owner_confirmed` (`true`), `expected_generation` |
+| `materialize` | `enroll` | `thing_id` (issued UUID URN), `expected_generation` |
+| `revoke` | `admin` | `credential_id`, `expected_generation` |
+
+Successful imports return `data.observation_id`; enrollment returns
+`data.thing_id`; materialisation returns that Thing ID and `materialisation_id`.
+Generated IDs are stored in the atomic operation receipt. After authentication
+and request admission, exact replay returns that receipt before consulting a
+new catalogue or model. A new request still checks its generation and authority
+inside the final write transaction. Known preparation failures are
+`not_committed`; only uncertainty after attempting a write yields `unknown`.
+
+Enrollment requires a resolved observation from the current exact catalogue
+identity. It records the confirming actor privately and issues a random UUIDv4
+pseudonym and association ID. The assertion means the operator confirmed this
+association; it does not authenticate RAWv2 hardware or authorize automatic
+association of future captures. Preparation uses the request's exact committed
+generation for every dependent read. Historical source data is retained.
+
+Materialisation consumes the enrolled observation with its pinned catalogue,
+adds explicit operator evidence, and uses the pure core plus upstream validation.
+It stores the TD, initial state, private provenance and full evidence together.
+`enroll` permits initial `state`/`evidence` records only alongside a non-null
+`things` record of the same ID. Other observation/state ingestion still requires
+`ingest`. The configured origin supplies reserved property URLs below
+`/api/v1/scopes/{scope}/things/{thing_id}/properties/{property}`; every segment
+is percent encoded. No request Host header or device addressing supplies a Form.
+No external publication intent is created without a configured destination.
+The current facade does not itself start a listener or prove endpoint reachability.
+
+Public resource names are `observations`, `resolutions`, `evidence`, `state`,
+`enrollments` and `things`. Lists accept only `limit` (default 25, maximum 100)
+and `cursor`. A page returns `items`, `generation`, nullable next-page `cursor`
+and a `stream_cursor` for its exact snapshot. Each item has `id`, `generation`
+and reviewed `value`. Observation/resolution pages cannot reuse each other's
+cursors even though they share a private storage index. Raw exports return
+native JSON bytes through `raw`, never the public tagged-scalar transformation.
+
+Event reads return `items` and a resume `cursor`. Each event has a stable decimal
+domain `id`, generation, versioned event schema and public event data. Its
+encrypted transport `cursor` can change on replay; clients deduplicate the
+domain ID. Cursor encryption, retained IDs and current authorization remain
+separate checks. An empty event batch preserves the supplied cursor.
 
 ## Source references
 

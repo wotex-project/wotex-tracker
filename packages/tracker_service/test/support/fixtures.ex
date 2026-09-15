@@ -2,7 +2,8 @@ defmodule Wotex.Tracker.Service.Fixtures do
   @moduledoc false
 
   alias Wotex.Tracker.Observation
-  alias Wotex.Tracker.Service.{Store, Update}
+  alias Wotex.Tracker.Service
+  alias Wotex.Tracker.Service.{Credentials, Store, Update}
 
   def directory do
     path = Path.expand("_build/test/stores/#{System.unique_integer([:positive])}")
@@ -77,4 +78,58 @@ defmodule Wotex.Tracker.Service.Fixtures do
 
   def replay(changes \\ %{}),
     do: Map.merge(%{scope: "workshop", after: "0", limit: 100, now: 1_700_000_000_000}, changes)
+
+  def service(options \\ []) do
+    {admin_grants, options} =
+      Keyword.pop(options, :admin_grants, ~w(read raw ingest enroll admin interact))
+
+    now = 1_700_000_000_000
+    admin = Credentials.generate_token()
+    reader = Credentials.generate_token()
+    {:ok, admin_digest} = Credentials.token_digest(admin)
+    {:ok, reader_digest} = Credentials.token_digest(reader)
+
+    {:ok, credentials} =
+      Credentials.new(%{
+        instance_id: "service-fixture",
+        secret_key: :crypto.strong_rand_bytes(32),
+        entries: [
+          %{
+            id: "admin",
+            principal: "owner",
+            token_sha256: admin_digest,
+            grants: %{"workshop" => admin_grants},
+            expires_at: now + 1_000_000_000
+          },
+          %{
+            id: "reader",
+            principal: "viewer",
+            token_sha256: reader_digest,
+            grants: %{"workshop" => ~w(read)},
+            expires_at: now + 1_000_000_000
+          }
+        ]
+      })
+
+    {store, directory} = store(Keyword.put(options, :credentials, credentials))
+
+    {:ok, service} =
+      Service.new(%{store: store, credentials: credentials, base_url: "http://127.0.0.1:45678"})
+
+    %{
+      service: service,
+      store: store,
+      directory: directory,
+      credentials: credentials,
+      admin: admin,
+      reader: reader,
+      now: now,
+      scope: "workshop"
+    }
+  end
+
+  def import_request(changes \\ %{}, generation \\ "0") do
+    {:ok, document} = Observation.to_map(observation(changes))
+    %{"observation" => document, "expected_generation" => generation}
+  end
 end
