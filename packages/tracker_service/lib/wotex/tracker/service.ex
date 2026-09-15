@@ -16,6 +16,7 @@ defmodule Wotex.Tracker.Service do
     Cursor,
     Enrollment,
     Events,
+    History,
     Identifier,
     Import,
     Interaction,
@@ -167,6 +168,18 @@ defmodule Wotex.Tracker.Service do
            "value" => public(resource, row["value"])
          }}
       end
+
+    Result.normalize(result)
+  end
+
+  @doc "Lists immutable public resource versions at a bound snapshot, including deletion tombstones."
+  @spec history(t(), String.t(), String.t(), String.t(), String.t(), map(), integer()) ::
+          {:ok, map()} | {:error, map()}
+  def history(service, token, scope, resource, id, params, now) do
+    result =
+      with {:ok, access} <- authorize(service, token, scope, "read", now),
+           :ok <- resource(resource),
+           do: History.page(service, access, resource, id, params, now)
 
     Result.normalize(result)
   end
@@ -338,9 +351,7 @@ defmodule Wotex.Tracker.Service do
 
   defp storage_kind("observations"), do: "resolutions"
   defp storage_kind(resource), do: resource
-  defp public("observations", value), do: value["public"]["observation"]
-  defp public("resolutions", value), do: value["public"]["resolution"]
-  defp public(_, value), do: value["public"]
+  defp public(resource, value), do: Projection.resource(resource, value)
 
   defp fetch(service, access, kind, id, generation, permission, now),
     do: Snapshot.fetch(service, access, kind, id, generation, permission, now)

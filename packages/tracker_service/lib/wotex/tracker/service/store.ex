@@ -102,6 +102,15 @@ defmodule Wotex.Tracker.Service.Store do
   def authorized_snapshot(store, access, permission, query, now),
     do: StoreCall.run(store, {:authorized_snapshot, access, permission, query, now})
 
+  @doc "Reads bounded ascending record versions, retaining explicit deletion tombstones."
+  @spec history(t(), map()) :: {:ok, map()} | {:error, atom()}
+  def history(store, query), do: StoreCall.run(store, {:history, query})
+
+  @doc "Reauthorizes record history inside the same immutable SQLite read snapshot."
+  @spec authorized_history(t(), Access.t(), map(), integer()) :: {:ok, map()} | {:error, atom()}
+  def authorized_history(store, access, query, now),
+    do: StoreCall.run(store, {:authorized_history, access, query, now})
+
   @doc "Reauthorizes resumed event reads inside their database snapshot."
   @spec authorized_events(t(), Access.t(), map()) :: {:ok, map()} | {:error, atom()}
   def authorized_events(store, access, query),
@@ -274,6 +283,20 @@ defmodule Wotex.Tracker.Service.Store do
 
   defp dispatch({:snapshot, query}, state), do: Read.snapshot(state.db, query)
   defp dispatch({:fetch, query}, state), do: Read.fetch(state.db, query)
+  defp dispatch({:history, query}, state), do: Read.history(state.db, query)
+
+  defp dispatch({:authorized_history, access, query, now}, state),
+    do:
+      Read.history(state.db, query, fn ->
+        Authority.check!(
+          state.db,
+          state.options.credentials,
+          access,
+          query.scope,
+          "read",
+          Authority.now(state.options, now)
+        )
+      end)
 
   defp dispatch({:authorized_fetch, access, permission, query, now}, state),
     do:

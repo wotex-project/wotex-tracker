@@ -490,6 +490,160 @@
         }
       }
     },
+    "/api/v1/scopes/{scope}/observations/{id}/history": {
+      "get": {
+        "operationId": "history_observations",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/ID"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 256,
+                                    "x-max-utf8-bytes": 256
+                                  },
+                                  "generation": {
+                                    "type": "string",
+                                    "pattern": "^(0|[1-9][0-9]{0,18})$",
+                                    "description": "Canonical decimal integer below 9223372036854775807."
+                                  },
+                                  "value": {
+                                    "$ref": "#/components/schemas/Observation"
+                                  },
+                                  "deleted": {
+                                    "const": false
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "generation",
+                                  "value",
+                                  "deleted"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 256,
+                                    "x-max-utf8-bytes": 256
+                                  },
+                                  "generation": {
+                                    "type": "string",
+                                    "pattern": "^(0|[1-9][0-9]{0,18})$",
+                                    "description": "Canonical decimal integer below 9223372036854775807."
+                                  },
+                                  "deleted": {
+                                    "const": true
+                                  },
+                                  "value": {
+                                    "type": "null"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "generation",
+                                  "deleted",
+                                  "value"
+                                ],
+                                "additionalProperties": false
+                              }
+                            ]
+                          },
+                          "maxItems": 100
+                        },
+                        "generation": {
+                          "type": "string",
+                          "pattern": "^(0|[1-9][0-9]{0,18})$",
+                          "description": "Canonical decimal integer below 9223372036854775807."
+                        },
+                        "cursor": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 4096,
+                              "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "stream_cursor": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 4096,
+                          "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "generation",
+                        "cursor",
+                        "stream_cursor"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 1."
+      }
+    },
     "/api/v1/scopes/{scope}/resolutions": {
       "get": {
         "operationId": "list_resolutions",
@@ -671,6 +825,160 @@
             }
           }
         }
+      }
+    },
+    "/api/v1/scopes/{scope}/resolutions/{id}/history": {
+      "get": {
+        "operationId": "history_resolutions",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/ID"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 256,
+                                    "x-max-utf8-bytes": 256
+                                  },
+                                  "generation": {
+                                    "type": "string",
+                                    "pattern": "^(0|[1-9][0-9]{0,18})$",
+                                    "description": "Canonical decimal integer below 9223372036854775807."
+                                  },
+                                  "value": {
+                                    "$ref": "#/components/schemas/Resolution"
+                                  },
+                                  "deleted": {
+                                    "const": false
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "generation",
+                                  "value",
+                                  "deleted"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 256,
+                                    "x-max-utf8-bytes": 256
+                                  },
+                                  "generation": {
+                                    "type": "string",
+                                    "pattern": "^(0|[1-9][0-9]{0,18})$",
+                                    "description": "Canonical decimal integer below 9223372036854775807."
+                                  },
+                                  "deleted": {
+                                    "const": true
+                                  },
+                                  "value": {
+                                    "type": "null"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "generation",
+                                  "deleted",
+                                  "value"
+                                ],
+                                "additionalProperties": false
+                              }
+                            ]
+                          },
+                          "maxItems": 100
+                        },
+                        "generation": {
+                          "type": "string",
+                          "pattern": "^(0|[1-9][0-9]{0,18})$",
+                          "description": "Canonical decimal integer below 9223372036854775807."
+                        },
+                        "cursor": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 4096,
+                              "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "stream_cursor": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 4096,
+                          "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "generation",
+                        "cursor",
+                        "stream_cursor"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 1."
       }
     },
     "/api/v1/scopes/{scope}/evidence": {
@@ -856,6 +1164,160 @@
         }
       }
     },
+    "/api/v1/scopes/{scope}/evidence/{id}/history": {
+      "get": {
+        "operationId": "history_evidence",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/ID"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 256,
+                                    "x-max-utf8-bytes": 256
+                                  },
+                                  "generation": {
+                                    "type": "string",
+                                    "pattern": "^(0|[1-9][0-9]{0,18})$",
+                                    "description": "Canonical decimal integer below 9223372036854775807."
+                                  },
+                                  "value": {
+                                    "$ref": "#/components/schemas/EvidenceSummary"
+                                  },
+                                  "deleted": {
+                                    "const": false
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "generation",
+                                  "value",
+                                  "deleted"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 256,
+                                    "x-max-utf8-bytes": 256
+                                  },
+                                  "generation": {
+                                    "type": "string",
+                                    "pattern": "^(0|[1-9][0-9]{0,18})$",
+                                    "description": "Canonical decimal integer below 9223372036854775807."
+                                  },
+                                  "deleted": {
+                                    "const": true
+                                  },
+                                  "value": {
+                                    "type": "null"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "generation",
+                                  "deleted",
+                                  "value"
+                                ],
+                                "additionalProperties": false
+                              }
+                            ]
+                          },
+                          "maxItems": 100
+                        },
+                        "generation": {
+                          "type": "string",
+                          "pattern": "^(0|[1-9][0-9]{0,18})$",
+                          "description": "Canonical decimal integer below 9223372036854775807."
+                        },
+                        "cursor": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 4096,
+                              "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "stream_cursor": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 4096,
+                          "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "generation",
+                        "cursor",
+                        "stream_cursor"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 1."
+      }
+    },
     "/api/v1/scopes/{scope}/state": {
       "get": {
         "operationId": "list_state",
@@ -1037,6 +1499,160 @@
             }
           }
         }
+      }
+    },
+    "/api/v1/scopes/{scope}/state/{id}/history": {
+      "get": {
+        "operationId": "history_state",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/ID"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 256,
+                                    "x-max-utf8-bytes": 256
+                                  },
+                                  "generation": {
+                                    "type": "string",
+                                    "pattern": "^(0|[1-9][0-9]{0,18})$",
+                                    "description": "Canonical decimal integer below 9223372036854775807."
+                                  },
+                                  "value": {
+                                    "$ref": "#/components/schemas/State"
+                                  },
+                                  "deleted": {
+                                    "const": false
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "generation",
+                                  "value",
+                                  "deleted"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 256,
+                                    "x-max-utf8-bytes": 256
+                                  },
+                                  "generation": {
+                                    "type": "string",
+                                    "pattern": "^(0|[1-9][0-9]{0,18})$",
+                                    "description": "Canonical decimal integer below 9223372036854775807."
+                                  },
+                                  "deleted": {
+                                    "const": true
+                                  },
+                                  "value": {
+                                    "type": "null"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "generation",
+                                  "deleted",
+                                  "value"
+                                ],
+                                "additionalProperties": false
+                              }
+                            ]
+                          },
+                          "maxItems": 100
+                        },
+                        "generation": {
+                          "type": "string",
+                          "pattern": "^(0|[1-9][0-9]{0,18})$",
+                          "description": "Canonical decimal integer below 9223372036854775807."
+                        },
+                        "cursor": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 4096,
+                              "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "stream_cursor": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 4096,
+                          "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "generation",
+                        "cursor",
+                        "stream_cursor"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 1."
       }
     },
     "/api/v1/scopes/{scope}/enrollments": {
@@ -1302,6 +1918,160 @@
         }
       }
     },
+    "/api/v1/scopes/{scope}/enrollments/{id}/history": {
+      "get": {
+        "operationId": "history_enrollments",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/ID"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 256,
+                                    "x-max-utf8-bytes": 256
+                                  },
+                                  "generation": {
+                                    "type": "string",
+                                    "pattern": "^(0|[1-9][0-9]{0,18})$",
+                                    "description": "Canonical decimal integer below 9223372036854775807."
+                                  },
+                                  "value": {
+                                    "$ref": "#/components/schemas/Enrollment"
+                                  },
+                                  "deleted": {
+                                    "const": false
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "generation",
+                                  "value",
+                                  "deleted"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 256,
+                                    "x-max-utf8-bytes": 256
+                                  },
+                                  "generation": {
+                                    "type": "string",
+                                    "pattern": "^(0|[1-9][0-9]{0,18})$",
+                                    "description": "Canonical decimal integer below 9223372036854775807."
+                                  },
+                                  "deleted": {
+                                    "const": true
+                                  },
+                                  "value": {
+                                    "type": "null"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "generation",
+                                  "deleted",
+                                  "value"
+                                ],
+                                "additionalProperties": false
+                              }
+                            ]
+                          },
+                          "maxItems": 100
+                        },
+                        "generation": {
+                          "type": "string",
+                          "pattern": "^(0|[1-9][0-9]{0,18})$",
+                          "description": "Canonical decimal integer below 9223372036854775807."
+                        },
+                        "cursor": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 4096,
+                              "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "stream_cursor": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 4096,
+                          "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "generation",
+                        "cursor",
+                        "stream_cursor"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 1."
+      }
+    },
     "/api/v1/scopes/{scope}/things": {
       "get": {
         "operationId": "list_things",
@@ -1483,6 +2253,160 @@
             }
           }
         }
+      }
+    },
+    "/api/v1/scopes/{scope}/things/{id}/history": {
+      "get": {
+        "operationId": "history_things",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/ID"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 256,
+                                    "x-max-utf8-bytes": 256
+                                  },
+                                  "generation": {
+                                    "type": "string",
+                                    "pattern": "^(0|[1-9][0-9]{0,18})$",
+                                    "description": "Canonical decimal integer below 9223372036854775807."
+                                  },
+                                  "value": {
+                                    "$ref": "#/components/schemas/Thing"
+                                  },
+                                  "deleted": {
+                                    "const": false
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "generation",
+                                  "value",
+                                  "deleted"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 256,
+                                    "x-max-utf8-bytes": 256
+                                  },
+                                  "generation": {
+                                    "type": "string",
+                                    "pattern": "^(0|[1-9][0-9]{0,18})$",
+                                    "description": "Canonical decimal integer below 9223372036854775807."
+                                  },
+                                  "deleted": {
+                                    "const": true
+                                  },
+                                  "value": {
+                                    "type": "null"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "generation",
+                                  "deleted",
+                                  "value"
+                                ],
+                                "additionalProperties": false
+                              }
+                            ]
+                          },
+                          "maxItems": 100
+                        },
+                        "generation": {
+                          "type": "string",
+                          "pattern": "^(0|[1-9][0-9]{0,18})$",
+                          "description": "Canonical decimal integer below 9223372036854775807."
+                        },
+                        "cursor": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 4096,
+                              "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "stream_cursor": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 4096,
+                          "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "generation",
+                        "cursor",
+                        "stream_cursor"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 1."
       }
     },
     "/api/v1/scopes/{scope}/things/{id}/properties/{property}": {

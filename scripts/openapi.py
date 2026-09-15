@@ -143,6 +143,16 @@ def document():
         page = obj({"items": array(item), "generation": generation, "cursor": nullable_cursor, "stream_cursor": cursor})
         paths[base + "/" + resource] = {"get": operation("list_" + resource, envelope(page), ("Scope", "Limit", "Cursor"))}
         paths[base + "/" + resource + "/{id}"] = {"get": operation("get_" + resource, envelope(item), ("Scope", "ID"))}
+        version = {"oneOf": [obj({**item["properties"], "deleted": {"const": False}}),
+                              obj({"id": identifier, "generation": generation, "deleted": {"const": True}, "value": {"type": "null"}})]}
+        history = obj({"items": array(version), "generation": generation, "cursor": nullable_cursor, "stream_cursor": cursor})
+        paths[base + "/" + resource + "/{id}/history"] = {"get": operation("history_" + resource,
+            envelope(history), ("Scope", "ID", "Limit", "Cursor"))}
+        paths[base + "/" + resource + "/{id}/history"]["get"]["description"] = (
+            "Ascending immutable committed resource versions, including explicit deletion tombstones. "
+            "Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. "
+            "Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. "
+            "Record storage has a fixed capacity and no automatic historical deletion in schema 1.")
     property_read = operation("read_property", {"type": ["number", "boolean"],
         "description": "Native JSON scalar constrained by the selected TD Property. Unavailable measurements return 503, never a numeric null. Requires read authority."},
         ("Scope", "ID", "Property"))

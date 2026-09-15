@@ -203,7 +203,30 @@ def main():
     assert projection["observed_at"] == {"type": "wide_integer", "value": "9007199254740993"}
     exported, raw_bytes = request("export_observation", prefix + "/observations/" + wide_id + "/raw")
     assert exported == wide_observation and b'"float":1.0' in raw_bytes
-    print("HTTP_CONSUMER_PASS openapi=true enrollment=true materialisation=true native_types=true replay=true revoked_stream_closed=true")
+    state_path = prefix + "/state/" + urllib.parse.quote(thing, safe="")
+    for generation in ("5", "6"):
+        data("materialize", prefix + "/materialisations", {"thing_id": thing, "expected_generation": generation})
+    history = data("history_state", state_path + "/history?limit=1")
+    assert history["generation"] == "7" and [item["generation"] for item in history["items"]] == ["3"]
+    data("materialize", prefix + "/materialisations", {"thing_id": thing, "expected_generation": "7"})
+    versions = list(history["items"])
+    cursor = history["cursor"]
+    while cursor:
+        page = data("history_state", state_path + "/history?" + urllib.parse.urlencode({"cursor": cursor}))
+        assert page["generation"] == "7"
+        versions += page["items"]
+        cursor = page["cursor"]
+    assert [item["generation"] for item in versions] == ["3", "6", "7"]
+    assert all(item["deleted"] is False and item["value"]["id"] == thing for item in versions)
+    pending = data("replay_events", prefix + "/events?" + urllib.parse.urlencode({"cursor": page["stream_cursor"]}))
+    assert [event["generation"] for event in pending["items"]] == ["8"]
+    request("history_state", state_path + "/history", who="reader", status=401)
+    request("history_things", thing_path + "/history?" + urllib.parse.urlencode({"cursor": history["cursor"]}), status=400)
+    request("history_state", state_path + "/history?limit=101", status=400)
+    request("history_state", prefix + "/state/missing/history", status=404)
+    wide_history = data("history_observations", prefix + "/observations/" + wide_id + "/history")
+    assert wide_history["items"][0]["value"]["observed_at"]["value"] == "9007199254740993"
+    print("HTTP_CONSUMER_PASS openapi=true enrollment=true materialisation=true native_types=true history=true replay=true revoked_stream_closed=true")
 
 
 if __name__ == "__main__":

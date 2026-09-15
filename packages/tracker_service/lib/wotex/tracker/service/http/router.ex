@@ -232,6 +232,16 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
     {conn, normalize(result)}
   end
 
+  defp scoped(%{method: "GET"} = conn, [resource, id, "history"], params, context) do
+    {service, token, scope, now} = context
+
+    result =
+      with {:ok, params} <- list_params(params),
+           do: Service.history(service, token, scope, resource, id, params, now)
+
+    {conn, result}
+  end
+
   defp scoped(%{method: "GET"} = conn, [resource, id], params, context)
        when map_size(params) == 0 do
     {service, token, scope, now} = context

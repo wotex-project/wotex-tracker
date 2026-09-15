@@ -305,3 +305,27 @@ stream and scoped resume contract. Generic tracker events are not numeric
 Property notifications. Public history, CLI, bundled release/image and its
 signal/restart proof also remain outstanding. Public sibling release availability
 is still unpassed; the local immutable artifact cohort is not a published release.
+
+## WTR.07 public resource history — 2026-09-15
+
+The service and OpenAPI now expose bounded public version history for the six
+inspection resources. History preserves ascending committed versions and
+deletion tombstones, with a sealed snapshot/ID/resource/page-size cursor and an
+event high-water cursor from the same SQLite snapshot. Current authorization is
+checked inside each read transaction; private evidence and observation payloads
+remain behind raw export authority. The endpoint neither executes arbitrary
+queries nor silently purges old records.
+
+Both required service lanes pass all configured checks with 2 properties and
+70 tests and at least 95% production line coverage. Tests cover writes between
+pages, exact history-to-event handoff, restart/resume, wrong resource/ID/principal/
+page-size/purpose, expiry, revocation, missing resources, malformed input,
+retained tombstones and the 4 MiB response ceiling. The independent Python
+client verifies history against served OpenAPI, including stable pagination
+while new versions arrive, replay continuity and wide integer projections.
+The six production archive consumers run that workflow against installed
+artifacts, followed by real Runtime Property reads and complete teardown.
+
+Property subscriptions, CLI, bundled release/image and its clean signal/restart
+consumer remain outstanding Phase 3 work. Typed analytics queries and automatic
+retention/deletion policy remain separately specified later work.

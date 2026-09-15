@@ -225,6 +225,7 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | `/api/v1/scopes/{scope}/capabilities` | GET explicit available/unsupported/unconfigured status |
 | `…/observations`, `…/resolutions`, `…/evidence`, `…/state`, `…/enrollments`, `…/things` | GET public snapshot pages |
 | `…/{resource}/{id}` | GET one public value |
+| `…/{resource}/{id}/history` | GET ascending committed public versions, including deletion records |
 | `…/things/{id}/properties/{property}` | GET authorized Runtime Property scalar |
 | `…/observations/{id}/raw`, `…/evidence/{id}/raw` | GET raw-permission native JSON downloads |
 | `…/observations`, `…/enrollments`, `…/materialisations`, `…/revocations` | POST corresponding domain mutation |
@@ -274,7 +275,7 @@ are disabled. Transport framing/header failures can close/reject before the
 versioned application envelope exists. There is no unbounded subscriber queue.
 
 This slice exposes imported data, durable events and Runtime Property reads.
-Property subscriptions, public history queries, service release/OCI and the CLI remain later Phase 3
+Property subscriptions, service release/OCI and the CLI remain later Phase 3
 work. Scanner/rule/analytics absence is explicit in capabilities. A listener
 being live does not qualify those integrations or a production deployment.
 
@@ -301,6 +302,31 @@ header count at 32, body at 1 MiB, each reduced by smaller binding limits.
 All completion/failure paths close the connection; caller death closes the owned
 socket. This is finite local peer evidence, not a remote client qualification or
 general JSON Schema instance validator.
+
+## Public resource history
+
+`GET …/{resource}/{id}/history` covers observations, resolutions, evidence
+summaries, enrollment, Things and canonical state. It requires current `read`
+authority and returns only the same reviewed public projections as inspection.
+It accepts `limit` (1–100, default 25) and an optional encrypted `cursor`; it
+accepts no arbitrary SQL, field expression or private evidence filter.
+
+Versions are sorted by ascending committed generation. Each item has `id`,
+`generation`, `deleted` and `value`. Deletion is explicit (`deleted: true`,
+`value: null`), while earlier versions remain readable. A resource with no
+retained versions returns `not_found`. This endpoint does not itself delete or
+alter resources. Schema 1 retains versions within the fixed database/table
+capacity; it does not silently purge historical records.
+
+The response has `items`, snapshot `generation`, optional next `cursor` and
+`stream_cursor`. The next cursor seals resource, ID, snapshot, position, page
+size and the existing instance/principal/scope binding for up to seven days.
+It cannot be reused for another resource, ID, page size or endpoint. Invalid or
+expired cursors fail explicitly. Every page rechecks current authorization
+inside its SQLite snapshot. Later commits cannot enter an in-progress page set.
+The stream cursor starts after the event high-water mark in that same snapshot;
+event retention/replay rules remain in force. History responses share the 4 MiB
+ceiling: reduce the requested page size on `response_too_large`.
 
 ## Source references
 

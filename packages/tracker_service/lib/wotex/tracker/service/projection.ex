@@ -2,6 +2,11 @@ defmodule Wotex.Tracker.Service.Projection do
   @moduledoc false
   alias Wotex.Tracker.Service.{Codec, Credentials}
 
+  def resource(_, nil), do: nil
+  def resource("observations", value), do: value["public"]["observation"]
+  def resource("resolutions", value), do: value["public"]["resolution"]
+  def resource(_, value), do: value["public"]
+
   def pseudonym(credentials, scope, kind, id) do
     key = Credentials.derive_key(credentials, :pseudonym)
 

@@ -29,8 +29,8 @@
     "wotex-0.1.0.tar": "390d8f0f4e6c163f9345f8182cca79263e72619a1e230d7003528a533b20b631",
     "wotex_binding_http-0.1.0.tar": "7e2600ca29d5daf65556568ef27dc982e7ed6cc9558916f9c726eea91dd8a592",
     "wotex_runtime-0.1.0.tar": "4f986b3da215481f415c4c0cbe1a8e42c1ff1f2ee36ff2d25874c691d0837aaf",
-    "wotex_tracker-0.1.0.tar": "476322bbce8e8d3e732985297e474d92514add2ecfaf675dee26478097fbb65d",
-    "wotex_tracker_service-0.1.0.tar": "f835dc0b45f04bcc8a7df22dcb884728eb608ccda3836992171f2ca3a002d56e"
+    "wotex_tracker-0.1.0.tar": "56d1b6befc2e0b649342351ea4cf29f545e2a7d6e3e6d7843e6c4e98b8977264",
+    "wotex_tracker_service-0.1.0.tar": "6b042954dfea99f58b13b5c36d8d506c41a25d37880558e2bdbbd4bc78a8e19a"
   },
   "consumers": [
     {
@@ -38,42 +38,42 @@
       "otp": "27.3.4.15",
       "mode": "fresh",
       "result": "pass",
-      "lock_sha256": "fc7b458939c84e4b64fda96715406a16443229ed735db501d3c3ca959b98ef13"
+      "lock_sha256": "bab14a1902f2d4be8ba59cfd8d0b4e4e88aa7f31a9dd33635bd667114429a5da"
     },
     {
       "elixir": "1.18.4-otp-27",
       "otp": "27.3.4.15",
       "mode": "locked",
       "result": "pass",
-      "lock_sha256": "fc7b458939c84e4b64fda96715406a16443229ed735db501d3c3ca959b98ef13"
+      "lock_sha256": "bab14a1902f2d4be8ba59cfd8d0b4e4e88aa7f31a9dd33635bd667114429a5da"
     },
     {
       "elixir": "1.18.4-otp-27",
       "otp": "27.3.4.15",
       "mode": "minimum",
       "result": "pass",
-      "lock_sha256": "d9e239a51910ff8b46fcc6b48edd2f0fdf442d9421574c664f181b45e7e62ff2"
+      "lock_sha256": "cb95bdeb24ac597c8e7739d247e358ae8e5bf996e0af063aed38c6db6e497e92"
     },
     {
       "elixir": "1.20.4-otp-29",
       "otp": "29.0.4",
       "mode": "fresh",
       "result": "pass",
-      "lock_sha256": "fc7b458939c84e4b64fda96715406a16443229ed735db501d3c3ca959b98ef13"
+      "lock_sha256": "bab14a1902f2d4be8ba59cfd8d0b4e4e88aa7f31a9dd33635bd667114429a5da"
     },
     {
       "elixir": "1.20.4-otp-29",
       "otp": "29.0.4",
       "mode": "locked",
       "result": "pass",
-      "lock_sha256": "fc7b458939c84e4b64fda96715406a16443229ed735db501d3c3ca959b98ef13"
+      "lock_sha256": "bab14a1902f2d4be8ba59cfd8d0b4e4e88aa7f31a9dd33635bd667114429a5da"
     },
     {
       "elixir": "1.20.4-otp-29",
       "otp": "29.0.4",
       "mode": "minimum",
       "result": "pass",
-      "lock_sha256": "d9e239a51910ff8b46fcc6b48edd2f0fdf442d9421574c664f181b45e7e62ff2"
+      "lock_sha256": "cb95bdeb24ac597c8e7739d247e358ae8e5bf996e0af063aed38c6db6e497e92"
     }
   ]
 }

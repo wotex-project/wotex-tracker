@@ -122,6 +122,92 @@ defmodule Wotex.Tracker.Service.Read do
 
   def events(_, _, _), do: {:error, :invalid_query}
 
+  def history(db, query, authorize \\ fn -> :ok end) do
+    with true <- history_query?(query),
+         {:ok, generation} <- requested_generation(db, query),
+         {:ok, after_generation} <- Codec.generation(query.after) do
+      SQL.execute!(db, "BEGIN")
+
+      try do
+        authorize.()
+        current = Transaction.generation(db, query.scope)
+        generation = generation || current
+
+        if generation > current or after_generation > generation,
+          do: throw({:storage, :invalid_cursor})
+
+        rows =
+          SQL.rows!(
+            db,
+            """
+            SELECT document,generation FROM records
+            WHERE scope=? AND kind=? AND id=? AND generation>? AND generation<=?
+            ORDER BY generation LIMIT ?
+            """,
+            [query.scope, query.kind, query.id, after_generation, generation, query.limit + 1]
+          )
+
+        if rows == [] and after_generation == 0 do
+          {:error, :not_found}
+        else
+          history_page(db, query, rows, generation)
+        end
+      after
+        SQL.rollback(db)
+      end
+    else
+      _ -> {:error, :invalid_query}
+    end
+  end
+
+  defp history_query?(
+         %{
+           scope: scope,
+           kind: kind,
+           id: id,
+           generation: generation,
+           after: position,
+           limit: limit
+         } = query
+       )
+       when map_size(query) == 6 do
+    Codec.id?(scope) and Codec.id?(id) and kind in Update.kinds() and
+      (is_nil(generation) or is_binary(generation)) and is_binary(position) and
+      is_integer(limit) and limit in 1..100
+  end
+
+  defp history_query?(_), do: false
+
+  defp history_page(db, query, rows, generation) do
+    items =
+      rows
+      |> Enum.take(query.limit)
+      |> Enum.map(fn [document, version] ->
+        %{
+          "id" => query.id,
+          "generation" => Integer.to_string(version),
+          "deleted" => document == "null",
+          "value" => Codec.decode!(document)
+        }
+      end)
+
+    [[cursor]] =
+      SQL.rows!(
+        db,
+        "SELECT coalesce(max(sequence),0) FROM events WHERE scope=? AND generation<=?",
+        [query.scope, generation]
+      )
+
+    next = if length(rows) > query.limit, do: List.last(items)["generation"], else: nil
+
+    bounded(%{
+      "items" => items,
+      "generation" => Integer.to_string(generation),
+      "event_cursor" => Integer.to_string(cursor),
+      "next" => next
+    })
+  end
+
   defp snapshot_generation(%{snapshot_generation: value}), do: Codec.generation(value)
   defp snapshot_generation(_), do: {:ok, nil}
 

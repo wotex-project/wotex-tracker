@@ -95,7 +95,9 @@ defmodule Wotex.Tracker.Service.Cursor do
          %{instance: instance, principal: principal, scope: scope, purpose: purpose} = binding
        )
        when map_size(binding) == 4,
-       do: Enum.all?([instance, principal, scope], &Codec.id?/1) and purpose in ["page", "events"]
+       do:
+         Enum.all?([instance, principal, scope], &Codec.id?/1) and
+           purpose in ["page", "events", "history"]
 
   defp binding?(_), do: false
 
@@ -124,8 +126,27 @@ defmodule Wotex.Tracker.Service.Cursor do
       limit in 1..100
   end
 
+  defp data?(
+         %{
+           "kind" => "history",
+           "resource" => resource,
+           "id" => id,
+           "generation" => generation,
+           "after" => position,
+           "limit" => limit
+         } = data
+       )
+       when map_size(data) == 6 do
+    resource in ~w(observations resolutions evidence enrollments things state) and Codec.id?(id) and
+      match?({:ok, _}, Codec.generation(generation)) and
+      match?({:ok, _}, Codec.generation(position)) and
+      is_integer(limit) and limit in 1..100
+  end
+
   defp data?(_), do: false
-  defp purpose?(binding, data), do: binding.purpose == "events" == (data["kind"] == "events")
+  defp purpose?(%{purpose: "events"}, data), do: data["kind"] == "events"
+  defp purpose?(%{purpose: "history"}, data), do: data["kind"] == "history"
+  defp purpose?(%{purpose: "page"}, data), do: data["kind"] not in ["events", "history"]
   defp key?(key), do: is_binary(key) and byte_size(key) == 32
   defp time?(now), do: Codec.time?(now) and now <= 9_007_199_254_740_991 - @retention
 

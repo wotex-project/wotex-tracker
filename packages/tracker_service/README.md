@@ -30,6 +30,13 @@ expected generation. The original committed receipt is replayed before new
 profile/model work, including its generated Thing ID. Unknown outcomes require
 receipt lookup; they do not authorize automatic physical Action retries.
 
+`GET …/{resource}/{id}/history` returns ascending public versions, including
+explicit deletion records, with `limit` and encrypted `cursor` pagination.
+Pages stay at one committed generation and provide an event cursor for the same
+snapshot. Current authorization applies to every page. Missing history is 404;
+expired cursors require a new snapshot. History uses the existing fixed storage
+capacity and 4 MiB response limit; smaller pages may be needed for large records.
+
 Enrollment issues a random UUID pseudonym for an explicitly confirmed observation.
 It does not authenticate the radio device or associate future packets implicitly.
 Materialisation persists a validated upstream TD, initial state and private
