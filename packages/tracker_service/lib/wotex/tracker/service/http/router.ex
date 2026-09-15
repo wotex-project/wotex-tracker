@@ -11,6 +11,7 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
   @mutations %{
     "observations" => {:submit, "ingest"},
     "enrollments" => {:enroll, "enroll"},
+    "associations" => {:associate, "enroll"},
     "materialisations" => {:materialize, "enroll"},
     "revocations" => {:revoke, "admin"}
   }

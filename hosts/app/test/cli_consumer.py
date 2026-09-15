@@ -58,9 +58,22 @@ def main():
     history = call("history", "things", thing, "--limit", "1")[0]["data"]
     assert history["items"][0]["generation"] == "3"
     assert call("history", "things", thing, "--cursor", history["cursor"])[0]["data"]["items"][0]["generation"] == "4"
-    assert call("revoke", "operator", "--generation", "4")[0]["data"]["outcome"] == "committed"
+    observation["id"] = "cli-later-observation"
+    payload = bytearray(base64.b64decode(observation["payload"]["data"]))
+    payload[1:3] = (6000).to_bytes(2, "big")
+    observation["payload"]["data"] = base64.b64encode(payload).decode("ascii")
+    path.write_text(json.dumps(observation))
+    later = call("import", str(path), "--generation", "4")[0]["data"]["data"]["observation_id"]
+    associated = call("associate", thing, later, "--confirm", "--generation", "5")[0]["data"]
+    assert associated["data"]["thing_id"] == thing
+    assert call("read", thing, "temperature")[0] == 24.3
+    call("materialize", thing, "--generation", "6")
+    assert call("read", thing, "temperature")[0] == 30.0
+    assert len(call("list", "things")[0]["data"]["items"]) == 1
+    assert [row["generation"] for row in call("history", "enrollments", thing)[0]["data"]["items"]] == ["2", "6"]
+    assert call("revoke", "operator", "--generation", "7")[0]["data"]["outcome"] == "committed"
     assert call("list", "things", code=1)[0]["error"]["code"] == "unauthorized"
-    print("CLI_CONSUMER_PASS workflow=true history=true sse=true native_types=true self_revocation=true")
+    print("CLI_CONSUMER_PASS workflow=true explicit_association=true history=true sse=true native_types=true self_revocation=true")
 
 
 if __name__ == "__main__":

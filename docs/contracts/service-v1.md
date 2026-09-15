@@ -158,6 +158,7 @@ keys; generation strings are canonical nonnegative decimals.
 | --- | --- | --- |
 | `submit` | `ingest` | `observation` (WTR.01 envelope), `expected_generation` |
 | `enroll` | `enroll` | `observation_id` (public pseudonym), `title` (1–256 UTF-8 bytes), `owner_confirmed` (`true`), `expected_generation` |
+| `associate` | `enroll` | `thing_id`, `observation_id`, `owner_confirmed` (`true`), `expected_generation` |
 | `materialize` | `enroll` | `thing_id` (issued UUID URN), `expected_generation` |
 | `revoke` | `admin` | `credential_id`, `expected_generation` |
 
@@ -175,6 +176,14 @@ pseudonym and association ID. The assertion means the operator confirmed this
 association; it does not authenticate RAWv2 hardware or authorize automatic
 association of future captures. Preparation uses the request's exact committed
 generation for every dependent read. Historical source data is retained.
+
+Association confirms a later admitted, resolved observation for an existing Thing.
+It retains the public Thing ID and title, creates a new private association and
+identity revision, and appends an enrollment version/event atomically. It requires
+`enroll` authority and explicit confirmation; it does not infer association from
+MAC/IMEI/payload similarity. Current TD/state remain at their prior committed
+version until a separate conditional `materialize` mutation. Both versions remain
+inspectable in history. Importing another packet alone never updates a Thing.
 
 Materialisation consumes the enrolled observation with its pinned catalogue,
 adds explicit operator evidence, and uses the pure core plus upstream validation.
@@ -201,7 +210,7 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
-## HTTP and stream contract 1.0.0
+## HTTP and stream contract 1.1.0
 
 The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
 2020-12. The independently maintained generator and validator check the packaged
@@ -228,7 +237,7 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | `…/{resource}/{id}/history` | GET ascending committed public versions, including deletion records |
 | `…/things/{id}/properties/{property}` | GET authorized Runtime Property scalar |
 | `…/observations/{id}/raw`, `…/evidence/{id}/raw` | GET raw-permission native JSON downloads |
-| `…/observations`, `…/enrollments`, `…/materialisations`, `…/revocations` | POST corresponding domain mutation |
+| `…/observations`, `…/enrollments`, `…/associations`, `…/materialisations`, `…/revocations` | POST corresponding domain mutation |
 | `…/operations/{operation}` | GET same-principal durable receipt |
 | `…/events` | GET bounded replay with a required cursor |
 | `…/events/stream` | GET resumable SSE |

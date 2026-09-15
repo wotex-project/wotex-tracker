@@ -71,6 +71,7 @@ With those global options before the command, the available commands are:
 | `import observation.json --generation 0` | Admit an observation envelope |
 | `list observations`, `inspect observations ID` | Public inspection |
 | `enroll ID --title "Sensor" --confirm --generation 1` | Confirm the operator association |
+| `associate THING OBSERVATION --confirm --generation N` | Confirm a later observation for the same Thing |
 | `materialize THING --generation 2` | Persist the evidence-backed TD and initial state |
 | `list things`, `read THING temperature` | Inspect TDs and read Properties |
 | `history state THING --limit 25` | Immutable history; resume with `--cursor` |

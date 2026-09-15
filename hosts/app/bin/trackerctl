@@ -148,13 +148,16 @@ def parser():
             item.add_argument("--cursor")
         if name == "raw":
             item.add_argument("--output", help="write original bytes to a new 0600 file")
-    for name in ("import", "enroll", "materialize", "revoke"):
+    for name in ("import", "enroll", "associate", "materialize", "revoke"):
         item = commands.add_parser(name)
         item.add_argument("value", help="observation JSON file or operation target ID")
         item.add_argument("--generation", type=generation, required=True)
         item.add_argument("--operation", type=operation_id)
         if name == "enroll":
             item.add_argument("--title", required=True, type=identifier)
+        if name == "associate":
+            item.add_argument("observation", type=identifier)
+        if name in ("enroll", "associate"):
             item.add_argument("--confirm", required=True, action="store_true", help="confirm ownership/authority for this association")
     commands.add_parser("operation").add_argument("id", type=operation_id)
     read = commands.add_parser("read")
@@ -232,6 +235,9 @@ def target(args):
     elif command == "enroll":
         body.update(observation_id=args.value, title=args.title, owner_confirmed=args.confirm)
         resource = "enrollments"
+    elif command == "associate":
+        body.update(thing_id=args.value, observation_id=args.observation, owner_confirmed=args.confirm)
+        resource = "associations"
     elif command == "materialize":
         body["thing_id"] = args.value
         resource = "materialisations"

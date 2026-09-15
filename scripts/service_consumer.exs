@@ -192,18 +192,72 @@ service = %{service | store: store}
 {:ok, ^receipt} = Service.materialize(service, token, "archive", operation, request, update.now)
 {:ok, %{"value" => ^td}} = Service.get(service, token, "archive", "things", thing, update.now)
 
+later_document = %{document | "id" => "later-ruuvi-fixture"}
+
+{:ok, later} =
+  Service.submit(
+    service,
+    token,
+    "archive",
+    Identifier.uuid(),
+    %{"observation" => later_document, "expected_generation" => "4"},
+    update.now
+  )
+
+association_operation = Identifier.uuid()
+
+association_request = %{
+  "thing_id" => thing,
+  "observation_id" => later["data"]["observation_id"],
+  "owner_confirmed" => true,
+  "expected_generation" => "5"
+}
+
+{:ok, associated} =
+  Service.associate(
+    service,
+    token,
+    "archive",
+    association_operation,
+    association_request,
+    update.now
+  )
+
+{:ok, ^associated} =
+  Service.associate(
+    service,
+    token,
+    "archive",
+    association_operation,
+    association_request,
+    update.now
+  )
+
+{:ok, %{"generation" => "7"}} =
+  Service.materialize(
+    service,
+    token,
+    "archive",
+    Identifier.uuid(),
+    %{"thing_id" => thing, "expected_generation" => "6"},
+    update.now
+  )
+
+{:ok, history} = Service.history(service, token, "archive", "enrollments", thing, %{}, update.now)
+["3", "6"] = Enum.map(history["items"], & &1["generation"])
+
 {:ok, revoke} =
   Update.new(%{
     Map.from_struct(update)
     | operation_id: "revoke",
-      expected_generation: "4",
+      expected_generation: "7",
       observation: nil,
       request: %{"operation" => "revoke"},
       records: [%{kind: "access", id: "archive-credential", value: %{"revoked" => true}}],
       events: [%{"type" => "access.revoked", "data" => %{}}]
   })
 
-{:ok, %{"generation" => "5"}} = Store.mutate(store, revoke)
+{:ok, %{"generation" => "8"}} = Store.mutate(store, revoke)
 {:error, :unauthorized} = Store.authorized(store, access, "read", update.now)
 {:error, :unauthorized} = Store.mutate(store, update)
 
@@ -314,5 +368,5 @@ retained = Process.list() |> MapSet.new() |> MapSet.difference(before_processes)
 0 = retained
 
 IO.puts(
-  "SERVICE_COHORT_PASS durable_restart=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true independent_http_sse=true actual_runtime_http_peer=true retained_new_processes=#{retained}"
+  "SERVICE_COHORT_PASS durable_restart=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true explicit_association=true independent_http_sse=true actual_runtime_http_peer=true retained_new_processes=#{retained}"
 )

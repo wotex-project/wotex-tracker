@@ -413,3 +413,27 @@ witnesses and incomplete/mismatched streaming Forms. The host artifact cohort
 also consumes this updated root archive. This establishes the pure declaration
 contract; the service does not advertise observation until its stream and actual
 Runtime client have passed their own checks.
+
+## WTR.07 explicit later-observation association — 2026-09-15
+
+The facade, HTTP contract 1.1.0 and CLI now support an explicit association of a
+resolved admitted observation with an existing Thing. The mutation requires
+current `enroll` authority, operator confirmation and a conditional generation.
+It retains the Thing ID/title while recording fresh association/identity revision,
+actor, observation and enrollment history. Materialisation is a separate atomic
+mutation; importing or associating alone does not alter canonical state.
+
+Both required service lanes pass the complete gate with 2 properties, 72 tests
+and at least 96.1% line coverage. Both host lanes pass 5 ExUnit tests at 98.3%
+coverage plus 5 Python CLI tests. The separate CLI process verifies the real HTTP
+flow from a 24.3 °C sample to a 30.0 °C sample, the unchanged Thing ID, retained
+history and the deliberate state boundary between association and materialisation.
+Tests reject missing confirmation, invalid/unknown/unresolved inputs, missing
+authority, another scope and stale conditional writes. Receipt replay is exact.
+The six clean production package consumers also execute reassociation and history;
+their archive identities are recorded in `verification/service-consumer.json`.
+
+The preceding bundled-host report remains the exact earlier artifact record;
+this source/API addition does not rewrite that report or claim a new published
+image. Automatic radio identity, physical-device authentication and autonomous
+association remain outside this operator-confirmed software workflow.

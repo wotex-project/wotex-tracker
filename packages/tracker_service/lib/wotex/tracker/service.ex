@@ -11,6 +11,7 @@ defmodule Wotex.Tracker.Service do
   alias Wotex.Tracker.Decoders.RuuviRawV2
 
   alias Wotex.Tracker.Service.{
+    Association,
     Codec,
     Credentials,
     Cursor,
@@ -106,6 +107,18 @@ defmodule Wotex.Tracker.Service do
           {:ok, map()} | {:error, map()}
   def enroll(service, token, scope, operation, request, now),
     do: resource_mutation(service, {token, scope, operation, request, now}, "enroll", Enrollment)
+
+  @doc "Explicitly associates a resolved observation with an existing Thing; materialisation remains a separate conditional mutation."
+  @spec associate(t(), String.t(), String.t(), String.t(), map(), integer()) ::
+          {:ok, map()} | {:error, map()}
+  def associate(service, token, scope, operation, request, now),
+    do:
+      resource_mutation(
+        service,
+        {token, scope, operation, request, now},
+        "associate",
+        Association
+      )
 
   @doc "Materialises an enrolled snapshot through the pure core and durably records its validated TD."
   @spec materialize(t(), String.t(), String.t(), String.t(), map(), integer()) ::

@@ -98,6 +98,8 @@ def document():
         "ImportRequest": obj({"observation": ref("ObservationEnvelope"), "expected_generation": generation}),
         "EnrollmentRequest": obj({"observation_id": identifier, "title": identifier,
                                    "owner_confirmed": {"const": True}, "expected_generation": generation}),
+        "AssociationRequest": obj({"thing_id": thing, "observation_id": identifier,
+                                    "owner_confirmed": {"const": True}, "expected_generation": generation}),
         "MaterialisationRequest": obj({"thing_id": thing, "expected_generation": generation}),
         "RevocationRequest": obj({"credential_id": identifier, "expected_generation": generation}),
     }
@@ -161,6 +163,7 @@ def document():
     paths[base + "/things/{id}/properties/{property}"] = {"get": property_read}
     for path, name, body in [("observations", "import_observation", "ImportRequest"),
                              ("enrollments", "enroll", "EnrollmentRequest"),
+                             ("associations", "associate", "AssociationRequest"),
                              ("materialisations", "materialize", "MaterialisationRequest"),
                              ("revocations", "revoke", "RevocationRequest")]:
         paths.setdefault(base + "/" + path, {})["post"] = operation(name, envelope(ref("Receipt")), ("Scope", "Idempotency"), body)
@@ -178,7 +181,7 @@ def document():
                        "Connection lifetime 300 s; idle reauthorization/poll 1 s; no unlimited queue."},
         ("Scope", "Cursor", "Resume"), media="text/event-stream")}
     paths["/api/v1/openapi.json"] = {"get": operation("openapi", {"type": "object"}, public=True)}
-    return {"openapi": "3.1.0", "info": {"title": "WoTEx Tracker service", "version": "1.0.0",
+    return {"openapi": "3.1.0", "info": {"title": "WoTEx Tracker service", "version": "1.1.0",
         "description": "Authenticated imported-observation foundation. No scanner, rules, analytics or physical interaction is implied."},
         "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema", "security": [{"bearer": []}],
         "paths": paths, "components": {"securitySchemes": {"bearer": {"type": "http", "scheme": "bearer"}},

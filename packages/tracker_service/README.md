@@ -24,7 +24,7 @@ Every facade operation authenticates an ephemeral bearer token and exact scope.
 
 The facade supports imported observations, public inspection and paginated
 snapshots, encrypted event cursors, privileged byte-preserving raw exports,
-operator-confirmed enrollment, materialisation, revocation and operation-status
+operator-confirmed enrollment and reassociation, materialisation, revocation and operation-status
 lookup. Mutations take a lowercase UUIDv4 operation ID and a decimal-string
 expected generation. The original committed receipt is replayed before new
 profile/model work, including its generated Thing ID. Unknown outcomes require
