@@ -233,8 +233,22 @@ true = exported["position"]["longitude"] === 0.0
 {:ok, %{"status" => "inside", "algorithm" => "wgs84-authalic-haversine-v1"}} =
   Wotex.Tracker.Geofence.evaluate(fence, position, positions)
 
+{:ok, sample} = Wotex.Tracker.PositionSample.new(position, positions)
+
+{:ok, order_policy} =
+  Wotex.Tracker.PositionOrder.new(%{
+    revision: "archive-order-v1",
+    event_time: :trusted_fix,
+    future_skew_ms: 0,
+    late_window_ms: 1_000,
+    sequence: :none
+  })
+
+{:ok, %{"status" => "accepted", "disposition" => "advance"}} =
+  Wotex.Tracker.PositionOrder.evaluate(sample, nil, order_policy, 1_000)
+
 true = MapSet.subset?(MapSet.new(Process.list()), before_processes)
 
 IO.puts(
-  "SOURCE_COHORT_PASS Elixir=#{System.version()} OTP=#{System.otp_release()} properties=10 position_freshness=true position_selection=true geofence=true no_new_processes=true optional_hosts_absent=true"
+  "SOURCE_COHORT_PASS Elixir=#{System.version()} OTP=#{System.otp_release()} properties=10 position_freshness=true position_selection=true position_order=true geofence=true no_new_processes=true optional_hosts_absent=true"
 )

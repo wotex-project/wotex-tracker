@@ -50,11 +50,11 @@ standalone CLI and bundled Darwin/Linux ARM64 service artifacts pass local probe
 See the [service contract](docs/contracts/service-v1.md). Live scanning and UI
 remain subsequent work.
 
-The first WTR.05 pure slice admits position evidence and evaluates explicit
-freshness policies. See the [position guide](docs/guides/positions.md); canonical
-selection and bounded geofence membership are also implemented. Stateful tracking
-transitions, trips and host rule persistence remain subsequent work. See the
-[geofence guide](docs/guides/geofences.md).
+The WTR.05 pure foundation admits position evidence, freshness, deterministic
+selection, event ordering with modular sequence evidence, and bounded geofence
+membership. See the [position guide](docs/guides/positions.md) and
+[geofence guide](docs/guides/geofences.md). Stateful tracking transitions, trips
+and host rule persistence remain subsequent work.
 [Implementation evidence](docs/evidence/implementation.md) records
 executed software checks and unpassed release, host and hardware gates.
 

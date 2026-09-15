@@ -567,3 +567,35 @@ geometry remains its own documented bounded approximation; this evidence does no
 claim ellipsoidal geodesic, survey or physical position accuracy. Initial state,
 entry/exit transitions, sparse crossing inference, persistence and Actions remain
 subsequent work.
+
+## WTR.05 deterministic event and sequence ordering — 2026-09-16
+
+`PositionSample` now binds a validated position to optional protocol-sequence
+evidence in the same immutable bundle. The closed sequence claim identifies its
+device/stream scope, reconnect session, modular value and exact receiver capture;
+it must be a declared parent of the position evidence. Matching counter values
+across different scopes or distinct reception provenance are not duplicates.
+
+The content-bound `PositionOrder` policy fixes trusted event-time fallback,
+future skew, a bounded late-arrival window and whether sequence evidence is
+disabled, optional or required. Its total key resolves repeated timestamps with
+receiver time and complete evidence identities. Modular comparison distinguishes
+advance, wrap, ambiguous half range, older values, reconnect reset and independent
+scope. Exact sample identity is the only duplicate result. Late samples request
+ordered historical recomputation or history-only retention and never silently
+rewind the accepted live head.
+
+Both required runtime lanes passed the complete root gate with 1 doctest,
+8 properties and 74 tests, no failures. Production line coverage was 96.9% on
+Elixir 1.18.4 / OTP 27 and 97.0% on Elixir 1.20.4 / OTP 29. Cases include missing
+and untrusted fix clocks, future receiver/fix time, repeated timestamp ties,
+within/beyond-window arrivals, exact duplicates, counter conflict, wrap, reset,
+scope change, modulus change and every generated modular increment below half
+range.
+
+Six fresh, locked and minimum production archive consumers execute the ordering
+policy on both runtime lanes; their exact identities are recorded in
+`verification/source-consumer.json`. This slice classifies order only. It does
+not buffer late samples, mutate a rule head, emit an event, define an Action or
+claim a protocol decoder supplied sequence evidence. Stateful rule event identity
+and live/replay effects remain explicit work in the consuming state machine.

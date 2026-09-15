@@ -185,8 +185,10 @@ network. Telemetry support does not establish a qualified physical Action.
 
 The pure tracking foundation admits normalized position evidence, versioned
 freshness policies with explicit clock qualification and deterministic
-multi-source selection. Bounded circle/polygon membership is implemented with
-explicit boundary, uncertainty and antimeridian rules. See the
+multi-source selection. Evidence-bound event ordering implements fixed timestamp
+ties, bounded late arrivals and modular sequence wrap/reset/reconnect semantics.
+Bounded circle/polygon membership is implemented with explicit boundary,
+uncertainty and antimeridian rules. See the
 [position guide](../guides/positions.md) and
 [geofence guide](../guides/geofences.md). Stateful membership transitions,
 crossing inference and atomic host integration remain subsequent work.
@@ -195,8 +197,8 @@ Implement explicit time/freshness, quality selection, motion/trips/stops,
 geofence membership/transitions, heartbeat, suspicious movement, low-battery,
 late-data handling, deduplication and transport-policy values under WTR.05/06.
 
-Fix rule/geometry revisions, units, uncertainty, thresholds, tie ordering and
-sequence reset/wrap before implementation. State transitions are pure; persistence
+Fix remaining rule revisions, thresholds and event idempotency before each state
+machine. State transitions are pure; persistence
 atomically records state, deduplication and event intent. Baseline needs no Nx/AI.
 
 Acceptance: independent replay/property expectations, jitter and threshold equality,

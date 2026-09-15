@@ -132,3 +132,47 @@ unlisted sources, missing accuracy and accuracy-limit failures appear as explici
 rejections. No qualified candidate produces a successful `unknown` result rather
 than choosing stale or unsupported data. The result records both policy identities,
 evaluation time, selected rank, qualified count and stable rejected identities.
+
+## Event ordering and protocol sequences
+
+`PositionSample` binds one admitted position/bundle to optional protocol-sequence
+evidence. Sequence evidence is a `transport` claim in the same closed bundle, is
+a parent of the position evidence, and names the same receiver observation:
+
+```elixir
+%{
+  "schema" => "wtr.sequence.v1",
+  "scope_id" => "device-or-stream-a",
+  "session_id" => "connection-a",
+  "value" => 65_535,
+  "modulus" => 65_536,
+  "receiver_observation_id" => "capture-a"
+}
+```
+
+The profile/decoder owns the meaning of those fields. `scope_id` prevents equal
+counters from different devices or streams being treated as duplicates.
+`session_id` is the explicit reconnect scope: a change permits a counter reset.
+Moduli are 3…4,294,967,296. The sample identity covers the complete bundle and
+the optional sequence claim; equal counter values alone never establish sample
+identity or deduplication.
+
+`PositionOrder` fixes event-time selection, permitted future skew, a bounded
+late-arrival window and whether sequence evidence is disabled, optional or
+required. A supplied fix time is usable only with a trusted clock. The optional
+receiver-time fallback applies only when fix time is missing; an untrusted
+supplied fix never falls back.
+
+The complete order key is event time, receiver time, position evidence ID,
+bundle identity and sample identity. Repeated timestamps therefore have a stable
+total order. An exact sample identity is a duplicate. A lower key within the
+late window returns `recompute_history`; one beyond it returns `history_only`.
+Neither silently rewinds a live head.
+
+Within one scope/session/modulus, modular deltas below half the range advance;
+wrap is explicit, an exact half-range delta is ambiguous, and a larger delta is
+older. Equal counter values with different evidence conflict. A changed session
+is an explicit reset and a changed scope is independent. The classifier records
+these decisions but does not buffer, mutate state, emit an event or dispatch an
+Action. Stateful rules must use this ordering decision and define their stable
+event identity before committing transitions.
