@@ -78,3 +78,21 @@ These are diagnostic timings, not an SLA, allocation measurement or peak RSS.
 Capabilities, profile-specific decoding, materialisation and hardware remain
 subsequent acceptance work. No new protocol integration or release compatibility
 is claimed by this batch.
+
+## WTR.03 RAWv2 and capability evidence — 2026-09-15
+
+Implemented pure RAWv2 profile/decoder, native Measurement and readable Capability
+values, and explicit version-bound Decoder callbacks. The
+[decoder guide](../guides/ruuvi.md) and
+[fixture provenance](../provenance/ruuvi-raw-v2-fixtures.md) record the exact source,
+transformations, units and limitations. Four independent published vectors and
+synthetic mixed/zero/malformed cases exercise all fields. Capabilities survive
+unavailable samples; no identity authentication, movement event or battery
+percentage is inferred. Callback shapes, limits, revision mismatch, unresolved
+selection and exception propagation are tested.
+
+Both required runtime lanes passed the complete local gate: 4 properties and
+32 tests, 0 failures, 99.1% production line coverage. Archive inspection includes
+the decoder, domain values and source provenance. The Ruuvi lane is fixture
+software evidence only; live BLE, physical hardware and the TD/Runtime path
+remain unpassed. No live scanner was added or sibling protocol owner modified.

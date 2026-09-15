@@ -1,0 +1,106 @@
+{
+  "schema": "wtr.fixture.ruuvi.v1",
+  "source": {
+    "url": "https://docs.ruuvi.com/communication/bluetooth-advertisements/data-format-5-rawv2.md",
+    "retrieved_at": "2026-09-15",
+    "sha256": "8e698f0d9a484c11106e3d540431a08b2450158f1f5b3c50002252d1bdf869fd",
+    "size_bytes": 12089
+  },
+  "classification": "source-derived-documentation-vectors",
+  "profile": [
+    "ruuvi.rawv2",
+    "1.0.0"
+  ],
+  "decoder": [
+    "ruuvi.rawv2",
+    "1.0.0"
+  ],
+  "units": {
+    "temperature": "Cel",
+    "humidity": "%",
+    "pressure": "Pa",
+    "accelerationX": "g",
+    "accelerationY": "g",
+    "accelerationZ": "g",
+    "batteryVoltage": "V",
+    "txPower": "dBm",
+    "movementCounter": "1",
+    "measurementSequence": "1"
+  },
+  "vectors": [
+    {
+      "id": "ordinary",
+      "hex": "0512FC5394C37C0004FFFC040CAC364200CDCBB8334C884F",
+      "expected": {
+        "temperature": 24.3,
+        "humidity": 53.49,
+        "pressure": 100044,
+        "accelerationX": 0.004,
+        "accelerationY": -0.004,
+        "accelerationZ": 1.036,
+        "batteryVoltage": 2.977,
+        "txPower": 4,
+        "movementCounter": 66,
+        "measurementSequence": 205
+      },
+      "expected_mac": "cbb8334c884f",
+      "suspect": []
+    },
+    {
+      "id": "maximum",
+      "hex": "057FFFFFFEFFFE7FFF7FFF7FFFFFDEFEFFFECBB8334C884F",
+      "expected": {
+        "temperature": 163.835,
+        "humidity": 163.835,
+        "pressure": 115534,
+        "accelerationX": 32.767,
+        "accelerationY": 32.767,
+        "accelerationZ": 32.767,
+        "batteryVoltage": 3.646,
+        "txPower": 20,
+        "movementCounter": 254,
+        "measurementSequence": 65534
+      },
+      "expected_mac": "cbb8334c884f",
+      "suspect": [
+        "humidity"
+      ]
+    },
+    {
+      "id": "minimum",
+      "hex": "058001000000008001800180010000000000CBB8334C884F",
+      "expected": {
+        "temperature": -163.835,
+        "humidity": 0.0,
+        "pressure": 50000,
+        "accelerationX": -32.767,
+        "accelerationY": -32.767,
+        "accelerationZ": -32.767,
+        "batteryVoltage": 1.6,
+        "txPower": -40,
+        "movementCounter": 0,
+        "measurementSequence": 0
+      },
+      "expected_mac": "cbb8334c884f",
+      "suspect": []
+    },
+    {
+      "id": "unavailable",
+      "hex": "058000FFFFFFFF800080008000FFFFFFFFFFFFFFFFFFFFFF",
+      "expected": {
+        "temperature": null,
+        "humidity": null,
+        "pressure": null,
+        "accelerationX": null,
+        "accelerationY": null,
+        "accelerationZ": null,
+        "batteryVoltage": null,
+        "txPower": null,
+        "movementCounter": null,
+        "measurementSequence": null
+      },
+      "expected_mac": null,
+      "suspect": []
+    }
+  ]
+}
