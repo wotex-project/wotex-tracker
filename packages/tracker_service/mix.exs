@@ -26,6 +26,8 @@ defmodule WotexTrackerService.MixProject do
   defp deps do
     [
       tracker(),
+      {:bandit, "== 1.12.5"},
+      {:plug, "== 1.20.3"},
       {:exqlite, "== 0.40.0"},
       {:stream_data, "~> 1.3", only: :test},
       {:excoveralls, "~> 0.18", only: :test},

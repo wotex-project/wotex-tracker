@@ -192,10 +192,11 @@ defmodule Wotex.Tracker.Service.Store do
       busy_timeout: 1000,
       timeout: 5000,
       fault: fn _ -> :ok end,
-      credentials: nil
+      credentials: nil,
+      clock: nil
     ]
 
-    if Keyword.keyword?(options) and length(options) <= 7 and
+    if Keyword.keyword?(options) and length(options) <= 8 and
          length(Keyword.keys(options)) == length(Enum.uniq(Keyword.keys(options))) and
          Enum.all?(Keyword.keys(options), &(&1 in [:directory | Keyword.keys(defaults)])) do
       validate_options(defaults |> Keyword.merge(options) |> Map.new(), defaults)
@@ -211,7 +212,8 @@ defmodule Wotex.Tracker.Service.Store do
       end)
 
     if Map.has_key?(merged, :directory) and limits_valid and is_function(merged.fault, 1) and
-         valid_credentials?(merged.credentials),
+         valid_credentials?(merged.credentials) and
+         (is_nil(merged.clock) or is_function(merged.clock, 0)),
        do: {:ok, merged},
        else: {:error, :invalid_options}
   end
@@ -223,12 +225,14 @@ defmodule Wotex.Tracker.Service.Store do
   defp dispatch({:mutate, update}, state), do: Transaction.mutate(state.db, update, state.options)
 
   defp dispatch({:operation, scope, principal, id, now}, state),
-    do: Transaction.operation(state.db, scope, principal, id, now)
+    do: Transaction.operation(state.db, scope, principal, id, Authority.now(state.options, now))
 
   defp dispatch({:authorized_operation, access, id, now}, state) do
     SQL.execute!(state.db, "BEGIN")
 
     try do
+      now = Authority.now(state.options, now)
+
       Authority.check!(
         state.db,
         state.options.credentials,
@@ -248,6 +252,8 @@ defmodule Wotex.Tracker.Service.Store do
     SQL.execute!(state.db, "BEGIN")
 
     try do
+      now = Authority.now(state.options, now)
+
       Authority.check!(
         state.db,
         state.options.credentials,
@@ -278,7 +284,7 @@ defmodule Wotex.Tracker.Service.Store do
           access,
           query.scope,
           permission,
-          now
+          Authority.now(state.options, now)
         )
       end)
 
@@ -292,7 +298,7 @@ defmodule Wotex.Tracker.Service.Store do
         access,
         access_scope(access),
         permission,
-        now
+        Authority.now(state.options, now)
       )
 
   defp dispatch({:authorized_snapshot, access, permission, query, now}, state),
@@ -304,7 +310,7 @@ defmodule Wotex.Tracker.Service.Store do
           access,
           query.scope,
           permission,
-          now
+          Authority.now(state.options, now)
         )
       end)
 
@@ -317,7 +323,7 @@ defmodule Wotex.Tracker.Service.Store do
           access,
           query.scope,
           "read",
-          query.now
+          Authority.now(state.options, query.now)
         )
       end)
 

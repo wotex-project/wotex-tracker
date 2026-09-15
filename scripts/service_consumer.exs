@@ -1,6 +1,7 @@
 # Production archive consumer: no repository source imports and no host packages.
 alias Wotex.Tracker.Service
-alias Wotex.Tracker.Service.{Credentials, Cursor, Identifier, Projection, Store, Update}
+alias Wotex.Tracker.Service.{Codec, Credentials, Cursor, Identifier, Projection, Store, Update}
+alias Wotex.Tracker.Service.HTTP.Server
 
 [] = Application.spec(:wotex_tracker_service, :mod)
 
@@ -195,10 +196,76 @@ service = %{service | store: store}
 {:error, :unauthorized} = Store.mutate(store, update)
 
 GenServer.stop(pid)
+http_directory = Path.join(directory, "http")
+File.mkdir!(http_directory)
+File.chmod!(http_directory, 0o700)
+reader = Credentials.generate_token()
+{:ok, reader_digest} = Credentials.token_digest(reader)
+now = update.now
+
+{:ok, http_credentials} =
+  Credentials.new(%{
+    instance_id: "archive-http",
+    secret_key: :crypto.strong_rand_bytes(32),
+    entries: [
+      %{
+        id: "admin",
+        principal: "operator",
+        token_sha256: digest,
+        grants: %{"workshop" => ~w(read raw ingest enroll admin interact)},
+        expires_at: now + 1000
+      },
+      %{
+        id: "reader",
+        principal: "reader",
+        token_sha256: reader_digest,
+        grants: %{"workshop" => ~w(read)},
+        expires_at: now + 1000
+      }
+    ]
+  })
+
+{:ok, server} =
+  Server.start_link(
+    directory: http_directory,
+    credentials: http_credentials,
+    ip: {127, 0, 0, 1},
+    port: 0,
+    exposure: :loopback,
+    public_origin: :listener,
+    clock: fn -> now end,
+    poll_interval: 25
+  )
+
+{:ok, {_, port}} = Server.listener_info(server)
+descriptor = Path.join(directory, "http-client.json")
+
+File.write!(
+  descriptor,
+  Codec.encode!(%{
+    "url" => "http://127.0.0.1:#{port}",
+    "token" => token,
+    "reader" => reader,
+    "scope" => "workshop",
+    "now" => now
+  })
+)
+
+File.chmod!(descriptor, 0o600)
+
+{output, 0} =
+  System.cmd(
+    System.fetch_env!("WTR_HTTP_PYTHON"),
+    [System.fetch_env!("WTR_HTTP_CONSUMER"), descriptor],
+    stderr_to_stdout: true
+  )
+
+true = String.contains?(output, "HTTP_CONSUMER_PASS")
+Supervisor.stop(server)
 File.rm_rf!(directory)
 retained = Process.list() |> MapSet.new() |> MapSet.difference(before_processes) |> MapSet.size()
 0 = retained
 
 IO.puts(
-  "SERVICE_COHORT_PASS durable_restart=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true retained_new_processes=#{retained}"
+  "SERVICE_COHORT_PASS durable_restart=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true independent_http_sse=true retained_new_processes=#{retained}"
 )

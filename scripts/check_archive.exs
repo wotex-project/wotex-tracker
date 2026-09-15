@@ -25,7 +25,7 @@ required_files =
       ~w(mix.exs README.md LICENSE NOTICE SECURITY.md CONTRIBUTING.md lib/wotex/tracker/error.ex docs/specs/catalogue.yaml priv/thing_models/environmental-sensor-1.0.0.tm.json)
 
     :wotex_tracker_service ->
-      ~w(mix.exs README.md LICENSE NOTICE lib/wotex/tracker/service/store.ex priv/schema/1.sql)
+      ~w(mix.exs README.md LICENSE NOTICE lib/wotex/tracker/service/store.ex lib/wotex/tracker/service/http/server.ex priv/schema/1.sql priv/openapi/v1.json)
   end
 
 for required <- required_files do

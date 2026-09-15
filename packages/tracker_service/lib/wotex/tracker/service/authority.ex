@@ -2,6 +2,29 @@ defmodule Wotex.Tracker.Service.Authority do
   @moduledoc false
   alias Wotex.Tracker.Service.{Access, Codec, Credentials, SQL}
 
+  # A real host supplies its clock at the storage boundary so queued requests
+  # cannot keep an expired authorization alive using their admission timestamp.
+  def now(%{clock: nil}, fallback), do: fallback
+
+  def now(%{clock: clock}, _fallback) do
+    value = clock.()
+    if Codec.time?(value), do: value, else: throw({:storage, :storage_unavailable})
+  end
+
+  def fresh!(nil, %{authority: nil}, _now), do: :ok
+
+  def fresh!(credentials, update, now) do
+    # BEGIN IMMEDIATE excludes another revocation writer. Recheck expiration,
+    # without mistaking this transaction's intentional self-revocation for a
+    # revocation that preceded admission.
+    Enum.each(permissions(update), fn permission ->
+      case Credentials.reauthorize(credentials, update.authority, permission, now) do
+        :ok -> :ok
+        {:error, reason} -> throw({:storage, reason})
+      end
+    end)
+  end
+
   def mutation!(_db, nil, %{authority: nil}), do: :ok
 
   def mutation!(db, credentials, update) do

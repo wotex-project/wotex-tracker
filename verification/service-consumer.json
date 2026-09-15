@@ -2,6 +2,7 @@
   "scope": "local-source-cohort-not-public-release",
   "upstream_revision": "eadc6c9f9c285faf9324b8a7396a001381098b6c",
   "archives": {
+    "bandit-1.12.5.tar": "c5684ca062fa407cac115aec3256383f3e2ec9fdced7904d59cf5a7bb7ed6181",
     "cc_precompiler-0.1.11.tar": "3427232caf0835f94680e5bcf082408a70b48ad68a5f5c0b02a3bea9f3a075b9",
     "db_connection-2.10.2.tar": "510b14482330f1af6490a2fa0efd8d4f1435d1529b165647df22ac0f2df0fa93",
     "decimal-2.0.0.tar": "34666e9c55dea81013e77d9d87370fe6cb6291d1ef32f46a1600230b1d44f577",
@@ -10,12 +11,18 @@
     "ex_json_schema-0.11.0.tar": "23ea702a36d46906d3fd723a8aeac0b80e5d76c6165fdcb37d83b2df94062f28",
     "ex_json_schema-0.11.5.tar": "61ed2a8f07bd115e7ab6d45c147642a8c73b962bc419fadbb248046b9d3d0f20",
     "exqlite-0.40.0.tar": "f83350f2d29a38be1fd38f39081dd36f41fc51bbacf0f4c2927d01308ae331d0",
+    "hpax-1.0.4.tar": "afc7cb142ebcc2d01ce7816190b98ce5dd49e799111b24249f3443d730f377ca",
     "jason-1.4.0.tar": "79a3791085b2a0f743ca04cec0f7be26443738779d09302e01318f97bdb82121",
     "jason-1.4.5.tar": "b0c823996102bcd0239b3c2444eb00409b72f6a140c1950bc8b457d836b30684",
+    "mime-2.0.7.tar": "6171188e399ee16023ffc5b76ce445eb6d9672e2e241d2df6050f3c771e80ccd",
+    "plug-1.20.3.tar": "be266aee1b8536ef6409d58cf39a3121319f0ec47cfa1b24024485aa0e76ad76",
+    "plug_crypto-2.2.0.tar": "83a95744ab1c75876542b6fab135fcc176280e0f301a111c1f757fddcec95d2c",
     "telemetry-1.4.2.tar": "928f6495066506077862c0d1646609eed891a4326bee3126ba54b60af61febb1",
+    "thousand_island-1.5.0.tar": "708923d40523e43cf99041ab37a0d4b0ec426ac6438fa3716ab23d919eaeb412",
+    "websock-0.5.3.tar": "6105453d7fac22c712ad66fab1d45abdf049868f253cf719b625151460b8b453",
     "wotex-0.1.0.tar": "390d8f0f4e6c163f9345f8182cca79263e72619a1e230d7003528a533b20b631",
-    "wotex_tracker-0.1.0.tar": "92bb91ee0cac8cf03323c4251136e4ffb1d322f0b175f6c073b58a1e966f9866",
-    "wotex_tracker_service-0.1.0.tar": "2f363c646bd3212a215b870ae29cad51f19e0ced32e30501f7477874767fd90c"
+    "wotex_tracker-0.1.0.tar": "5ddcf50b7d75955565a3b89ef60f76c6abc0d40c4a237ded10dd892cf0eb867a",
+    "wotex_tracker_service-0.1.0.tar": "3bb011546e9eae73fa5d0783809a0996fe933d41a6cfc82c75c2ba61bc4aa89f"
   },
   "consumers": [
     {
@@ -23,42 +30,42 @@
       "otp": "27.3.4.15",
       "mode": "fresh",
       "result": "pass",
-      "lock_sha256": "d340beea3512adc3eaf2779dcd31a765b9571e4304e9bae03393f9a87aee943f"
+      "lock_sha256": "b8c79705244b2d99b2513684a71339062df82a1debda27d9e40a1c60143b9054"
     },
     {
       "elixir": "1.18.4-otp-27",
       "otp": "27.3.4.15",
       "mode": "locked",
       "result": "pass",
-      "lock_sha256": "d340beea3512adc3eaf2779dcd31a765b9571e4304e9bae03393f9a87aee943f"
+      "lock_sha256": "b8c79705244b2d99b2513684a71339062df82a1debda27d9e40a1c60143b9054"
     },
     {
       "elixir": "1.18.4-otp-27",
       "otp": "27.3.4.15",
       "mode": "minimum",
       "result": "pass",
-      "lock_sha256": "6782f24515b6a1022b2da444470ad5d9760eba5786c664bddb4724c911dd6964"
+      "lock_sha256": "c12b6a8c8d3fc1ecb0468890644cac8e58d9c3044ff0a64b3b6a6c697d78131f"
     },
     {
       "elixir": "1.20.4-otp-29",
       "otp": "29.0.4",
       "mode": "fresh",
       "result": "pass",
-      "lock_sha256": "d340beea3512adc3eaf2779dcd31a765b9571e4304e9bae03393f9a87aee943f"
+      "lock_sha256": "b8c79705244b2d99b2513684a71339062df82a1debda27d9e40a1c60143b9054"
     },
     {
       "elixir": "1.20.4-otp-29",
       "otp": "29.0.4",
       "mode": "locked",
       "result": "pass",
-      "lock_sha256": "d340beea3512adc3eaf2779dcd31a765b9571e4304e9bae03393f9a87aee943f"
+      "lock_sha256": "b8c79705244b2d99b2513684a71339062df82a1debda27d9e40a1c60143b9054"
     },
     {
       "elixir": "1.20.4-otp-29",
       "otp": "29.0.4",
       "mode": "minimum",
       "result": "pass",
-      "lock_sha256": "6782f24515b6a1022b2da444470ad5d9760eba5786c664bddb4724c911dd6964"
+      "lock_sha256": "c12b6a8c8d3fc1ecb0468890644cac8e58d9c3044ff0a64b3b6a6c697d78131f"
     }
   ]
 }

@@ -9,9 +9,12 @@ defmodule Wotex.Tracker.Service.Transaction do
     SQL.execute!(db, "BEGIN IMMEDIATE")
 
     try do
+      update = %{update | now: Authority.now(options, update.now)}
       Authority.mutation!(db, options.credentials, update)
       result = admission(db, update, options)
       fault!(options, :before_commit)
+
+      Authority.fresh!(options.credentials, update, Authority.now(options, update.now))
 
       case SQL.boundary(fn -> SQL.execute!(db, "COMMIT") end) do
         :ok -> :ok

@@ -238,3 +238,34 @@ property Forms are structurally validated against an explicit configured origin;
 HTTP/OpenAPI/SSE transport, actual Runtime peers, CLI, bundled release/OCI and
 the independent non-Elixir consumer remain outstanding. Rules, analytics and
 hardware are separate later slices.
+
+## WTR.07 bounded HTTP/OpenAPI/SSE foundation — 2026-09-15
+
+An explicitly started per-instance Bandit/Plug server now exposes the imported
+data workflow and durable event replay. The exact request/result/error and raw
+export schemas are packaged as OpenAPI 3.1.0, contract 1.0.0. The independent
+Python client reads that document over HTTP and validates actual exchanges.
+It imports, inspects, enrolls, materialises, downloads raw bytes, resumes events,
+revokes access and checks that an existing stream closes. Native `1`/`1.0`,
+zero/false/null, byte payloads and wide integer projections are exercised across
+the network boundary. Missing device/runtime/rule/analytics capabilities remain
+explicit; no scanner or physical interaction is claimed.
+
+The service gate has 2 properties and 60 tests with at least 96% production line
+coverage on both required runtime lanes. Tests additionally cover verified TLS
+using a fixture CA and server certificate, two independent instances, monitored
+request/stream ceilings, hard expiry and deadline transfer, shutdown of an active
+stream and all owned processes, media admission, malformed/duplicate/oversized
+inputs, changed authorization before commit, self-revocation, unknown commit
+acknowledgement, and redacted programming failures. No configured check or
+threshold is disabled. The six isolated production archive consumers also run
+the separate HTTP/SSE client against the installed package and retain no newly
+owned processes after teardown.
+
+This is software-peer listener evidence, not the full Phase 3 release gate.
+Public history, Runtime ExposedThing/ConsumedThing binding interaction, CLI,
+bundled release/OCI, signal/restart testing of that release and UI-enabled
+composition remain outstanding. Header reads have a finite idle timeout and
+byte/count/connection limits; the hard request deadline begins at Plug admission.
+Production proxy/network policy and physical/hardware qualification remain
+operator/platform work. Public sibling release availability is still unpassed.

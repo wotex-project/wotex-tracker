@@ -143,7 +143,8 @@ raw decoder interpretation. Scalar values use a closed tagged representation:
 Thus `1` and `1.0`, false and null remain distinct to a browser. Raw evidence
 exports instead preserve the original WTR.01 native representation and bytes;
 the frontend must download those bytes without parse/re-encode. The concrete
-HTTP envelopes, OpenAPI and stream transport are the next implementation slice.
+HTTP envelope is `wtr.response.v1`; its packaged OpenAPI 3.1.0 document and
+stream rules are described below.
 
 ## Authenticated domain operations
 
@@ -200,6 +201,82 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
+## HTTP and stream contract 1.0.0
+
+The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
+2020-12. The independently maintained generator and validator check the packaged
+document; the non-Elixir client validates actual request/response bodies against
+it. Validator/client dependencies, including openapi-spec-validator 0.9.0 and
+jsonschema 4.26.0, are pinned in `scripts/requirements-openapi.txt`.
+
+The listener uses Bandit **1.12.5**, Plug **1.20.3** and Thousand Island **1.5.0**.
+Start `Wotex.Tracker.Service.HTTP.Server` explicitly with a private directory,
+credential value, bind IP/port, public origin and exposure mode. Plain HTTP is
+limited to explicit loopback mode, or an explicitly trusted proxy deployment
+with an HTTPS public origin and operator-protected internal network. Direct TLS
+requires explicit certificate/key paths. Forwarded/Host headers never determine
+Forms or authorization. Loading the service package starts no Tracker instance.
+
+| Path | Method / purpose |
+| --- | --- |
+| `/health/live` | GET public liveness |
+| `/api/v1/openapi.json` | GET public machine contract |
+| `/api/v1/scopes/{scope}/health/ready` | GET authenticated writable-store check |
+| `/api/v1/scopes/{scope}/capabilities` | GET explicit available/unsupported/unconfigured status |
+| `…/observations`, `…/resolutions`, `…/evidence`, `…/state`, `…/enrollments`, `…/things` | GET public snapshot pages |
+| `…/{resource}/{id}` | GET one public value |
+| `…/observations/{id}/raw`, `…/evidence/{id}/raw` | GET raw-permission native JSON downloads |
+| `…/observations`, `…/enrollments`, `…/materialisations`, `…/revocations` | POST corresponding domain mutation |
+| `…/operations/{operation}` | GET same-principal durable receipt |
+| `…/events` | GET bounded replay with a required cursor |
+| `…/events/stream` | GET resumable SSE |
+
+Scoped endpoints require a canonical bearer token in `Authorization`; POST
+mutations additionally require a UUIDv4 `Idempotency-Key`. No cookies or implicit
+loopback authority are accepted. Success envelopes have exactly `schema`
+(`wtr.response.v1`) and `data`; failures have `schema` and bounded `error` with
+stable `code`/`path`. Mutation failures identify `not_committed`; a lost
+acknowledgement returns HTTP 202 with an `unknown` receipt. Unexpected programming
+failures return a redacted 500 and conservatively report unknown mutation outcome.
+They are logged as a fixed failure message, never exception/request text.
+Self-revocation may commit its own receipt; subsequent requests are denied.
+
+API JSON replies use `application/json`. Raw downloads use
+`application/vnd.wotex.tracker.observation+json` or
+`application/vnd.wotex.tracker.evidence+json`, with an attachment filename.
+They preserve native JSON types and canonical Base64 payloads. All responses
+are `no-store` and `nosniff`. Media negotiation happens before mutations.
+Authentication uses current host time in the store after queueing; credential
+expiry is checked again immediately before commit. The optional clock on the
+low-level store is explicit; the HTTP composition always supplies its host clock.
+
+SSE accepts exactly one `cursor` query argument or `Last-Event-ID` header.
+Before headers, failures use the JSON error envelope. A ready frame has
+`event: ready` and `{"schema":"wtr.stream.v1","cursor":"…"}` data. Domain frames
+have `event: tracker`, encrypted cursor as the SSE `id`, and the complete
+`wtr.event.v1` JSON data. Deduplicate the stable domain `data.id`, not the
+encrypted transport token. Comment heartbeats carry no domain event. The stream
+retains an access proof instead of the bearer token, rechecks authorization on
+poll and before every event write, and closes on revocation, cursor expiry,
+storage/write failure, shutdown or lifetime expiry. A resumed expired/invalid
+cursor explicitly fails and requires resnapshot.
+
+Beyond the earlier body/transaction/page ceilings, HTTP/1 request lines and
+individual headers are limited to 8,192 bytes, with at most 32 headers. Four
+acceptors allow 16 connections each (64 total), with no accept retry queue.
+The 32 request and 16 stream reservations have monitored owners and hard
+deadlines; owner death releases capacity. Transfer to a stream cancels the old
+request deadline. The five-second request deadline begins after HTTP headers
+are admitted; header reads separately have a five-second idle timeout. Socket
+writes time out after five seconds. HTTP/2, WebSockets and response compression
+are disabled. Transport framing/header failures can close/reject before the
+versioned application envelope exists. There is no unbounded subscriber queue.
+
+This slice exposes imported data and durable events. Runtime Property handlers,
+public history queries, service release/OCI and the CLI remain later Phase 3
+work. Scanner/rule/analytics absence is explicit in capabilities. A listener
+being live does not qualify those integrations or a production deployment.
+
 ## Source references
 
 The selected driver and its direct API are described by the
@@ -208,3 +285,10 @@ The selected driver and its direct API are described by the
 Native source/version and executed platform evidence are recorded with each
 acceptance batch. Full-disk tests use SQLite's real page ceiling as well as
 injected commit boundaries; these are not physical power-cut tests.
+
+The listener options follow the pinned
+[Bandit source contract](https://hex.pm/packages/bandit/1.12.5/files/lib/bandit.ex),
+[Plug connection contract](https://hex.pm/packages/plug/1.20.3/files/lib/plug/conn.ex)
+and [Thousand Island connection limits](https://thousand-island.hexdocs.pm/1.5.0/ThousandIsland.html).
+The [OpenAPI validator](https://pypi.org/project/openapi-spec-validator/0.9.0/)
+is a development verification tool, not a service runtime dependency.

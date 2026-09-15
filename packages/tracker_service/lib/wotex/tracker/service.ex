@@ -15,6 +15,7 @@ defmodule Wotex.Tracker.Service do
     Credentials,
     Cursor,
     Enrollment,
+    Events,
     Identifier,
     Import,
     Materialize,
@@ -193,34 +194,7 @@ defmodule Wotex.Tracker.Service do
   def events(service, token, scope, cursor, now) do
     result =
       with {:ok, access} <- authorize(service, token, scope, "read", now),
-           {:ok, data} <-
-             Cursor.open(
-               Credentials.derive_key(service.credentials, :cursor),
-               binding(service, access, "events"),
-               cursor,
-               now
-             ),
-           {:ok, page} <-
-             Store.authorized_events(service.store, access, event_query(scope, data, now)) do
-        items =
-          Enum.map(page["items"], fn event ->
-            {:ok, next} =
-              issue_event_cursor(
-                service,
-                access,
-                event["generation"],
-                event["id"],
-                nil,
-                data["limit"],
-                now
-              )
-
-            Map.put(event, "cursor", next)
-          end)
-
-        next = if items == [], do: cursor, else: List.last(items)["cursor"]
-        {:ok, %{"items" => items, "cursor" => next}}
-      end
+           do: Events.batch(service, access, cursor, now)
 
     Result.normalize(result)
   end
@@ -456,29 +430,6 @@ defmodule Wotex.Tracker.Service do
       scope: access.scope,
       purpose: purpose
     }
-
-  defp event_query(scope, data, now) do
-    query = %{scope: scope, after: data["after"], limit: data["limit"], now: now}
-
-    if data["snapshot_generation"],
-      do: Map.put(query, :snapshot_generation, data["snapshot_generation"]),
-      else: query
-  end
-
-  defp issue_event_cursor(service, access, generation, sequence, snapshot, limit, now),
-    do:
-      Cursor.issue(
-        Credentials.derive_key(service.credentials, :cursor),
-        binding(service, access, "events"),
-        %{
-          "kind" => "events",
-          "generation" => generation,
-          "after" => sequence,
-          "snapshot_generation" => snapshot,
-          "limit" => limit
-        },
-        now
-      )
 
   defp stored_observation(document) do
     with {:ok, observation} <- Observation.from_map(document),

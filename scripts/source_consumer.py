@@ -67,6 +67,7 @@ def main():
         if service:
             run(["mix", "hex.build", "--output", str(tarballs / "wotex_tracker_service-0.1.0.tar")], ROOT / "packages/tracker_service", env)
             packages += ["exqlite-0.40.0", "db_connection-2.10.2", "telemetry-1.4.2", "elixir_make-0.10.0", "cc_precompiler-0.1.11"]
+            packages += ["bandit-1.12.5", "plug-1.20.3", "thousand_island-1.5.0", "hpax-1.0.4", "mime-2.0.7", "plug_crypto-2.2.0", "websock-0.5.3"]
         for package in packages:
             run(["mix", "hex.package", "fetch", package.rsplit("-", 1)[0], package.rsplit("-", 1)[1],
                  "--output", str(workspace / "downloads")], ROOT, env)
@@ -101,6 +102,8 @@ end
                             'deps: [{:wotex_tracker, "~> 0.1.0"}, {:jason, "1.4.0"}, {:ex_json_schema, "0.11.0"}, {:decimal, "2.0.0"}]')
                         (consumer / "mix.exs").write_text(project)
                     if service:
+                        consumer_env["WTR_HTTP_PYTHON"] = str(ROOT / "_build/openapi-venv/bin/python")
+                        consumer_env["WTR_HTTP_CONSUMER"] = str(ROOT / "scripts/http_consumer.py")
                         project = (consumer / "mix.exs").read_text().replace(
                             '{:wotex_tracker, "~> 0.1.0"}', '{:wotex_tracker_service, "~> 0.1.0"}')
                         (consumer / "mix.exs").write_text(project)
