@@ -56,8 +56,9 @@ membership. See the [position guide](docs/guides/positions.md) and
 [geofence guide](docs/guides/geofences.md). Ordered geofence baseline, entry/exit
 and edit recomputation plus bounded sparse-crossing inference are implemented;
 two-fix movement/uncertainty classification is also implemented. See the
-[motion guide](docs/guides/motion.md). Dwell-based trips and host rule persistence
-remain subsequent work.
+[motion guide](docs/guides/motion.md). Consecutive-segment dwell now establishes
+stationary/moving state and stable trip start, stop and interruption events. Host
+transactional rule persistence remains subsequent work.
 [Implementation evidence](docs/evidence/implementation.md) records
 executed software checks and unpassed release, host and hardware gates.
 

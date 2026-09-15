@@ -196,8 +196,10 @@ explicit live/replay effects. Sparse crossing inference identifies both endpoint
 enforces time/distance gaps and makes no route or crossing-time claim. Atomic host
 integration remains subsequent work. Two-fix motion classification implements
 bounded distance/speed uncertainty, hysteresis, impossible-speed rejection and
-gap handling; dwell-based trip/stop state remains subsequent work. See the
-[motion guide](../guides/motion.md).
+gap handling. Consecutive-segment dwell establishes stationary/moving state and
+stable trip start, stop and interruption events without treating one segment as
+a trip. Distance accumulation and atomic host persistence remain subsequent work.
+See the [motion guide](../guides/motion.md).
 
 Implement explicit time/freshness, quality selection, motion/trips/stops,
 geofence membership/transitions, heartbeat, suspicious movement, low-battery,

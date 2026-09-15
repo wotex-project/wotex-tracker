@@ -692,3 +692,34 @@ ordered segment on both runtime lanes. Exact archive and lock identities are in
 `verification/source-consumer.json`. This evidence establishes a stateless
 two-fix classification only. Dwell, trip/stop state, distance accumulation,
 persistence and any physical Action remain subsequent work.
+
+## WTR.05 dwell-based motion and trip transitions — 2026-09-16
+
+The pure `MotionTransition` policy composes the complete bounded movement policy
+with positive minimum movement and stop durations. Its immutable state keeps the
+ordering head, last-received sample, usable segment baseline, pending dwell,
+confirmed motion and active trip separate. The endpoint of a first classified
+segment only starts a candidate; another consecutive segment of the same class
+must confirm dwell, including at exact threshold equality.
+
+Confirmed movement emits a content-identified `trip.started` event and active
+trip. Confirmed stationarity emits `trip.stopped`; initial stationary dwell is a
+baseline without an invented stop. Indeterminate evidence clears pending dwell
+while retaining the last confirmed state. An excluded time gap, unavailable or
+suspect evidence, impossible speed or rule revision interrupts an active trip and
+resets motion to unknown. Rejected impossible positions cannot become a segment
+baseline, while a valid post-gap endpoint can establish a new one.
+
+Both required runtime lanes passed the complete root gate with 1 doctest,
+12 properties and 107 tests, no failures and 96.7% production line coverage.
+Cases include single spikes, class fluctuation, dwell equality, initial stationary
+state, trip start/stop, gap and impossible-speed interruption, indeterminate
+evidence, historical arrivals, rule revision, state mutation and generated
+live/replay equivalence. Strict analysis, documentation, dependency, license and
+archive checks passed.
+
+Six fresh, locked and minimum production archive consumers establish movement
+dwell and inspect the replay trip-start event on both runtime lanes. Exact archive
+and lock identities are in `verification/source-consumer.json`. This slice does
+not accumulate trip distance or persist state. Atomic state/event-intent storage
+and any separately governed physical Action remain host responsibilities.

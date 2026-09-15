@@ -354,8 +354,52 @@ crossing_to = crossing_sample.("to", 0.0001, 1_001)
     1_001
   )
 
+crossing_after = crossing_sample.("after", 0.0002, 1_002)
+
+{:ok, motion_policy} =
+  Wotex.Tracker.MotionTransition.new(%{
+    id: "archive-motion",
+    revision: "archive-motion-v1",
+    movement_policy: movement_policy,
+    minimum_movement_ms: 1,
+    minimum_stop_ms: 1
+  })
+
+{:ok, %{"status" => "baseline", "state" => motion_baseline}} =
+  Wotex.Tracker.MotionTransition.evaluate(
+    nil,
+    crossing_from,
+    motion_policy,
+    :replay,
+    1_000
+  )
+
+{:ok, %{"status" => "pending", "state" => motion_candidate}} =
+  Wotex.Tracker.MotionTransition.evaluate(
+    motion_baseline,
+    crossing_to,
+    motion_policy,
+    :replay,
+    1_001
+  )
+
+{:ok,
+ %{
+   "status" => "transition",
+   "motion_status" => "moving",
+   "event" => %{"kind" => "trip.started"},
+   "physical_action_dispatch" => "prohibited"
+ }} =
+  Wotex.Tracker.MotionTransition.evaluate(
+    motion_candidate,
+    crossing_after,
+    motion_policy,
+    :replay,
+    1_002
+  )
+
 true = MapSet.subset?(MapSet.new(Process.list()), before_processes)
 
 IO.puts(
-  "SOURCE_COHORT_PASS Elixir=#{System.version()} OTP=#{System.otp_release()} properties=10 position_freshness=true position_selection=true position_order=true movement=true geofence=true geofence_transition=true geofence_crossing=true no_new_processes=true optional_hosts_absent=true"
+  "SOURCE_COHORT_PASS Elixir=#{System.version()} OTP=#{System.otp_release()} properties=10 position_freshness=true position_selection=true position_order=true movement=true motion_transition=true geofence=true geofence_transition=true geofence_crossing=true no_new_processes=true optional_hosts_absent=true"
 )

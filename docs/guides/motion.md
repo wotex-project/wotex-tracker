@@ -48,6 +48,30 @@ gap, late ordering and sequence anomalies remain explicit. Every result binds bo
 sample/evidence identities, the ordering decision, all distance/speed bounds and
 the policy identity.
 
-This classifier is the evidence input for a later motion/trip state machine.
-One moving segment is not yet a trip, one spike cannot satisfy dwell, and an
-implausible segment cannot silently become canonical distance.
+## Dwell-based motion and trips
+
+`Wotex.Tracker.MotionTransition` consumes the classifier through a second
+content-bound policy that declares minimum movement and stop durations. Its state
+keeps the canonical ordering head, last-received sample, usable segment baseline,
+pending dwell evidence, confirmed motion and active trip distinct.
+
+The endpoint of the first moving or stationary segment starts a candidate. A
+later consecutive segment of the same class must confirm the declared dwell.
+This deliberately requires at least two classified segments even when the first
+segment spans longer than the minimum duration. A changed or indeterminate class
+clears the pending dwell. Initial stationary dwell establishes a baseline without
+inventing a stop event.
+
+Confirmed movement emits `trip.started` and stores a content-identified active
+trip. Confirmed stationary evidence emits `trip.stopped`. Event identities bind
+the rule, trip, onset and confirmation samples and exclude live/replay mode.
+Policy revisions and excluded gaps or impossible segments emit
+`trip.interrupted` for an active trip and reset motion to unknown. A valid
+endpoint after a long gap can become a new segment baseline; a rejected
+implausible endpoint cannot.
+
+Late samples can advance last-received status without rewinding the canonical
+motion head. Replay produces the same state, trip and event identities as live
+evaluation while marking physical Action dispatch prohibited. State transitions
+remain pure and caller-owned; transactional persistence and distance accumulation
+belong to later layers.
