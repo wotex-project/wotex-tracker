@@ -1,21 +1,24 @@
 defmodule Wotex.Tracker.Deployment do
   @moduledoc "Explicit endpoint and security declarations. No credentials, default security or invented Forms are supplied."
-  alias Wotex.Tracker.{Admission, Error, Limits}
+  alias Wotex.Tracker.{Admission, Error, Limits, PropertyDelivery}
 
   @fields ~w(revision title forms security_definitions security)a
   @type t :: %__MODULE__{}
   @enforce_keys @fields ++ [:identity]
-  defstruct @enforce_keys
+  defstruct @enforce_keys ++ [observation_evidence: %{}]
 
   @doc "Admits exact readable-Property Forms and explicit security using upstream WoT constructors."
   @spec new(term(), term()) :: {:ok, t()} | {:error, Error.t()}
   def new(input, options \\ []) do
     with {:ok, limits} <- Limits.new(options),
-         :ok <- Admission.fields(input, @fields),
+         :ok <- Admission.fields(input, @fields, [:observation_evidence]),
          :ok <- Admission.each([input.revision, input.title], &Admission.id(&1, limits)),
+         input = Map.put_new(input, :observation_evidence, %{}),
          :ok <- native(input, limits),
+         :ok <- PropertyDelivery.declaration(input.observation_evidence, input.forms, limits),
          :ok <- security(input, limits),
-         :ok <- forms(input.forms, input.security_definitions, limits),
+         :ok <-
+           forms(input.forms, input.security_definitions, input.observation_evidence, limits),
          {:ok, identity} <- Admission.digest(document(input), Limits.material(limits)) do
       {:ok, struct!(__MODULE__, Map.put(input, :identity, identity))}
     end
@@ -37,7 +40,13 @@ defmodule Wotex.Tracker.Deployment do
 
   def validate(_, _), do: Admission.fail(:invalid_input)
 
-  defp document(input), do: Map.new(@fields, &{Atom.to_string(&1), Map.fetch!(input, &1)})
+  defp document(input) do
+    document = Map.new(@fields, &{Atom.to_string(&1), Map.fetch!(input, &1)})
+
+    if input.observation_evidence == %{},
+      do: document,
+      else: Map.put(document, "observation_evidence", input.observation_evidence)
+  end
 
   defp native(input, limits) do
     case Wotex.JSON.validate(document(input), Limits.material(limits)) do
@@ -66,20 +75,21 @@ defmodule Wotex.Tracker.Deployment do
     end
   end
 
-  defp forms(forms, definitions, limits) when is_map(forms) do
+  defp forms(forms, definitions, delivery, limits) do
     if map_size(forms) <= limits.max_affordances do
-      Admission.each(Map.values(forms), &form_list(&1, definitions, limits))
+      Admission.each(Map.to_list(forms), fn {pointer, list} ->
+        form_list(list, definitions, Map.has_key?(delivery, pointer), limits)
+      end)
     else
       {:error, Error.new(:limit_exceeded, :materialisation)}
     end
   end
 
-  defp forms(_, _, _), do: {:error, Error.new(:missing_form, :materialisation)}
-
-  defp form_list(forms, definitions, limits) do
+  defp form_list(forms, definitions, observing?, limits) do
     with :ok <- Admission.bounded_list(forms, limits.max_forms),
          true <- forms != [],
-         :ok <- Admission.each(forms, &form(&1, definitions, limits)) do
+         :ok <- Admission.each(forms, &form(&1, definitions, observing?, limits)),
+         :ok <- PropertyDelivery.complete(forms, observing?) do
       :ok
     else
       false -> {:error, Error.new(:missing_form, :materialisation)}
@@ -87,10 +97,10 @@ defmodule Wotex.Tracker.Deployment do
     end
   end
 
-  defp form(map, definitions, limits) do
+  defp form(map, definitions, observing?, limits) do
     with {:ok, form} <-
            Wotex.Form.new(map, Keyword.put(Limits.material(limits), :for, :property)),
-         true <- Wotex.Form.operations(form) === ["readproperty"],
+         true <- PropertyDelivery.operations(form, observing?),
          {:ok, %URI{scheme: scheme, userinfo: nil}} when is_binary(scheme) <-
            URI.new(Wotex.Form.href(form)),
          false <- String.contains?(Wotex.Form.href(form), "{{"),

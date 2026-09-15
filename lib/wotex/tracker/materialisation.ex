@@ -16,6 +16,7 @@ defmodule Wotex.Tracker.Materialisation do
     Identity,
     Limits,
     Model,
+    PropertyDelivery,
     Resolution
   }
 
@@ -47,7 +48,7 @@ defmodule Wotex.Tracker.Materialisation do
          {:ok, capabilities} <- capabilities(input.capabilities, bundle, limits, options),
          :ok <- decoded_evidence(decoded, bundle, capabilities),
          {:ok, properties} <-
-           select(model, resolution.selected.mapping, capabilities, deployment, limits),
+           select(model, resolution.selected.mapping, capabilities, deployment, bundle, limits),
          candidate = candidate(model, identity, properties, deployment),
          {:ok, td} <- upstream(candidate, limits),
          {:ok, profile_identity} <- DeviceProfile.identity(resolution.selected, options),
@@ -114,7 +115,7 @@ defmodule Wotex.Tracker.Materialisation do
     end)
   end
 
-  defp select(model, mapping, capabilities, deployment, limits) do
+  defp select(model, mapping, capabilities, deployment, bundle, limits) do
     properties = Map.get(model.document, "properties", %{})
     destinations = Map.values(mapping)
 
@@ -130,16 +131,16 @@ defmodule Wotex.Tracker.Materialisation do
       inverse = Map.new(mapping, fn {capability, pointer} -> {pointer, capability} end)
       optional = Map.get(model.document, "tm:optional", [])
 
-      select_properties(known, inverse, capabilities, deployment, optional)
+      select_properties(known, inverse, capabilities, deployment, optional, bundle)
     else
       false -> error(:invalid_mapping)
       error -> error
     end
   end
 
-  defp select_properties(known, inverse, capabilities, deployment, optional) do
+  defp select_properties(known, inverse, capabilities, deployment, optional, bundle) do
     Enum.reduce_while(known, {:ok, %{}}, fn {pointer, {name, property}}, {:ok, acc} ->
-      case property(pointer, property, inverse, capabilities, deployment, optional) do
+      case property(pointer, property, inverse, capabilities, deployment, optional, bundle) do
         {:ok, selected} -> {:cont, {:ok, Map.put(acc, name, selected)}}
         :omit -> {:cont, {:ok, acc}}
         error -> {:halt, error}
@@ -147,17 +148,16 @@ defmodule Wotex.Tracker.Materialisation do
     end)
   end
 
-  defp property(pointer, property, inverse, capabilities, deployment, optional) do
+  defp property(pointer, property, inverse, capabilities, deployment, optional, bundle) do
     case Map.fetch(capabilities, inverse[pointer]) do
-      {:ok, capability} -> readable(pointer, property, capability, deployment)
+      {:ok, capability} -> readable(pointer, property, capability, deployment, bundle)
       :error -> if pointer in optional, do: :omit, else: error(:missing_capability)
     end
   end
 
-  defp readable(pointer, property, capability, deployment) do
+  defp readable(pointer, property, capability, deployment, bundle) do
     cond do
-      property["readOnly"] !== true or property["writeOnly"] === true or
-          property["observable"] === true ->
+      property["readOnly"] !== true or property["writeOnly"] === true ->
         error(:invalid_mapping)
 
       property["unit"] !== capability.unit ->
@@ -167,7 +167,9 @@ defmodule Wotex.Tracker.Materialisation do
         error(:missing_form)
 
       true ->
-        {:ok, Map.put(property, "forms", deployment.forms[pointer])}
+        with {:ok, property} <-
+               PropertyDelivery.project(property, pointer, capability, deployment, bundle),
+             do: {:ok, Map.put(property, "forms", deployment.forms[pointer])}
     end
   end
 

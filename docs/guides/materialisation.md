@@ -20,8 +20,9 @@ nonempty Action/Event sections return `unsupported_model_feature` in this slice.
 
 The model requires temperature and makes the other nine Properties optional.
 A missing current sample does not remove a supported affordance. All Properties
-are readable and have explicit units; this revision supports neither writable
-Properties nor observable/event subscription semantics.
+are readable and have explicit units. Writable Properties and physical device
+Events remain unsupported. Host delivery of committed Property values requires
+the separate declaration below.
 
 Create explicit association evidence for the same observation and profile/decoder
 revision, append it to the decoder's evidence through `EvidenceBundle.new/3`,
@@ -34,7 +35,7 @@ nor the payload MAC becomes a public Thing identifier.
 `Deployment.new/2` requires atom-keyed `revision`, `title`, `forms`,
 `security_definitions` and `security`. Forms are a native object keyed by exact
 escaped affordance pointers. Every selected Property needs one to eight explicit
-Forms. Each Form must declare `readproperty` (string or singleton list), an
+Forms. By default each Form declares `readproperty` (string or singleton list), an
 absolute URI without embedded credentials or placeholders, and any security
 references must resolve. Generic Form/security construction remains upstream.
 Host Runtime/binding validation subsequently determines supported transport,
@@ -46,6 +47,31 @@ The supplied deployment revision becomes TD `version.instance`; the model's
 version remains `version.model`. Hosts must issue and retain revision identities
 when structure or deployment changes. Content digests bind the entire declaration,
 including Forms for optional affordances that this invocation omits.
+
+## Explicit host Property observation
+
+A host implementing value delivery may supply optional `observation_evidence`,
+a map from selected Property pointers to transport-evidence IDs. The default is
+empty, preserving existing read-only output and deployment identities. For each
+observed Property, its Forms must together declare `readproperty`,
+`observeproperty` and `unobserveproperty`; streaming Forms use HTTP(S),
+`contentType: "application/json"` and `subprotocol: "sse"`. Closing is a local
+connection operation, not an invented device command.
+
+Each referenced `Evidence` has kind `:transport`, confidence `:exact`, reason
+`host_delivery_declaration`, the same source observations as the readable
+capability, and precisely that capability's evidence IDs as parents. Its closed
+claim object contains `schema: "wtr.delivery.v1"`, nonempty `provider` and
+`revision`, `semantics: "committed-values"`, the exact `property` pointer,
+`forms`, and `deployment_revision`. Profile/decoder revisions retain the same
+bundle rules. After adding claims, rebuild `Identity` against the new bundle.
+
+Materialisation checks this witness before setting `observable: true`. It rejects
+missing witnesses, altered Forms/revisions, unrelated capability parents and a
+model explicitly declaring `observable: false`. The decoder's readable capability
+stays unchanged. A host declaration records its delivery responsibility; it does
+not prove a physical-device subscription or a reachable endpoint. Real Runtime,
+stream framing, authorization, replay and teardown require separate host tests.
 
 ## Materialisation inputs and result
 
