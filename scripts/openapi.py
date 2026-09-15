@@ -88,7 +88,7 @@ def document():
                     obj({"thing_id": thing, "materialisation_id": identifier}), obj({"credential_id": identifier})]}})]},
         "Error": obj({"schema": {"const": "wtr.response.v1"}, "error": obj({
             "code": enum(*("unauthorized forbidden invalid_request invalid_observation invalid_cursor cursor_expired "
-                "operation_expired not_found conflict idempotency_conflict observation_conflict unsupported unresolved "
+                "operation_expired not_found conflict idempotency_conflict observation_conflict unsupported unresolved unavailable deadline_exceeded "
                 "revision_mismatch invalid_deployment invalid_materialisation storage_unavailable storage_full busy "
                 "capacity_exceeded response_too_large overloaded invalid_query invalid_update invalid_json "
                 "unsupported_media_type not_acceptable invalid_header unsupported_version method_not_allowed internal_error").split()),
@@ -104,6 +104,7 @@ def document():
     parameters = {
         "Scope": {"name": "scope", "in": "path", "required": True, "schema": identifier},
         "ID": {"name": "id", "in": "path", "required": True, "schema": identifier},
+        "Property": {"name": "property", "in": "path", "required": True, "schema": identifier},
         "Operation": {"name": "operation", "in": "path", "required": True, "schema": uuid},
         "Idempotency": {"name": "Idempotency-Key", "in": "header", "required": True, "schema": uuid},
         "Limit": {"name": "limit", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 100, "default": 25}},
@@ -131,7 +132,9 @@ def document():
         "schema": {"const": "1"}, "sqlite": identifier})), ("Scope",))}
     paths[base + "/capabilities"] = {"get": operation("capabilities", envelope(obj({
         "api_version": {"const": "v1"}, "import": {"const": "available"},
-        **{key: {"const": "unsupported"} for key in ("ble_scan", "cellular", "rules", "analytics", "runtime")},
+        **{key: {"const": "unsupported"} for key in ("ble_scan", "cellular", "rules", "analytics")},
+        "runtime": obj({"readproperty": {"const": "available"}, "observeproperty": {"const": "unsupported"},
+                        "invokeaction": {"const": "unsupported"}}),
         "directory": {"const": "unconfigured"}})), ("Scope",))}
     for resource, schema in [("observations", "Observation"), ("resolutions", "Resolution"),
                              ("evidence", "EvidenceSummary"), ("state", "State"),
@@ -140,6 +143,12 @@ def document():
         page = obj({"items": array(item), "generation": generation, "cursor": nullable_cursor, "stream_cursor": cursor})
         paths[base + "/" + resource] = {"get": operation("list_" + resource, envelope(page), ("Scope", "Limit", "Cursor"))}
         paths[base + "/" + resource + "/{id}"] = {"get": operation("get_" + resource, envelope(item), ("Scope", "ID"))}
+    property_read = operation("read_property", {"type": ["number", "boolean"],
+        "description": "Native JSON scalar constrained by the selected TD Property. Unavailable measurements return 503, never a numeric null. Requires read authority."},
+        ("Scope", "ID", "Property"))
+    property_read["responses"]["200"]["headers"] = {"X-Wotex-Generation": {
+        "description": "Committed snapshot generation shared by TD and state", "schema": generation}}
+    paths[base + "/things/{id}/properties/{property}"] = {"get": property_read}
     for path, name, body in [("observations", "import_observation", "ImportRequest"),
                              ("enrollments", "enroll", "EnrollmentRequest"),
                              ("materialisations", "materialize", "MaterialisationRequest"),

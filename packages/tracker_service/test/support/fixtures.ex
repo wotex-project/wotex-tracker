@@ -3,7 +3,7 @@ defmodule Wotex.Tracker.Service.Fixtures do
 
   alias Wotex.Tracker.Observation
   alias Wotex.Tracker.Service
-  alias Wotex.Tracker.Service.{Credentials, Store, Update}
+  alias Wotex.Tracker.Service.{Credentials, Identifier, Store, Update}
 
   def directory do
     path = Path.expand("_build/test/stores/#{System.unique_integer([:positive])}")
@@ -131,5 +131,52 @@ defmodule Wotex.Tracker.Service.Fixtures do
   def import_request(changes \\ %{}, generation \\ "0") do
     {:ok, document} = Observation.to_map(observation(changes))
     %{"observation" => document, "expected_generation" => generation}
+  end
+
+  def materialized(context, changes \\ %{}) do
+    c = context
+
+    {:ok, imported} =
+      Service.submit(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        import_request(changes),
+        c.now
+      )
+
+    {:ok, enrolled} =
+      Service.enroll(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{
+          "observation_id" => imported["data"]["observation_id"],
+          "title" => "Workshop sensor",
+          "owner_confirmed" => true,
+          "expected_generation" => "1"
+        },
+        c.now
+      )
+
+    thing = enrolled["data"]["thing_id"]
+
+    {:ok, _} =
+      Service.materialize(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{
+          "thing_id" => thing,
+          "expected_generation" => "2"
+        },
+        c.now
+      )
+
+    {:ok, %{"value" => td}} = Service.get(c.service, c.reader, c.scope, "things", thing, c.now)
+    {thing, td}
   end
 end

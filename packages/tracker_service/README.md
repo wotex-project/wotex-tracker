@@ -33,10 +33,11 @@ receipt lookup; they do not authorize automatic physical Action retries.
 Enrollment issues a random UUID pseudonym for an explicitly confirmed observation.
 It does not authenticate the radio device or associate future packets implicitly.
 Materialisation persists a validated upstream TD, initial state and private
-lineage together. Forms use the configured origin and the reserved service API
-path. Runtime Property handlers are the next integration slice; the current
-HTTP capability report marks Runtime interactions unsupported. No Directory
-destination or publication effect is implicit.
+lineage together. Forms use the configured origin and the service Property API.
+Runtime `ExposedThing` dispatches authorized reads against the TD and state from
+one committed generation. Unavailable measurements return HTTP 503. Property
+observation and Actions remain unsupported. No Directory destination or
+publication effect is implicit.
 
 An `enroll` grant can derive initial state/evidence for the same Thing in its
 materialisation transaction. It cannot import observations or export raw data.
@@ -70,7 +71,9 @@ OpenAPI **3.1.0**, contract revision **1.0.0**, is packaged at
 `priv/openapi/v1.json` and served at `/api/v1/openapi.json`. Liveness is
 `/health/live`; authenticated resources are under `/api/v1/scopes/{scope}`.
 Use `Authorization: Bearer …`, and a UUIDv4 `Idempotency-Key` for POST mutations.
-JSON responses have `schema: wtr.response.v1` and `data` or `error`. Unknown
+API responses have `schema: wtr.response.v1` and `data` or `error`. Successful
+TD Property reads return the native JSON scalar with `X-Wotex-Generation`.
+Unknown
 mutation outcomes use HTTP 202; query the same operation ID. Raw exports use
 their own media types and preserve bytes/native types.
 
@@ -85,3 +88,19 @@ Requests after header admission have a five-second hard deadline; header reads
 have a five-second idle timeout and finite byte/count limits. HTTP/2, WebSockets
 and compression are disabled in this qualified slice. The caller owns shutdown;
 active stream shutdown is tested below the ten-second budget.
+
+## Runtime software peer
+
+`HTTP.LoopbackClient.new(origin, scope)` admits one numeric HTTP loopback origin
+and scope for finite Property reads through `Wotex.Binding.HTTP`. Pass the
+result as the binding client configuration, and supply a caller-owned Runtime
+credential provider separately. That provider must retain only opaque custody
+references in the consumed Thing; resolve each bearer token immediately before
+execution. Tests use a private caller-owned ETS table for that purpose.
+
+The client uses Mint 1.10.0 with a five-second maximum deadline, one socket per
+call, at most 1 MiB of response data, 32 headers and 8 KiB of header/status-line
+data, or the binding's smaller limits. It does not resolve DNS, use a proxy,
+follow redirects or retry. Socket ownership follows the caller and every return
+path closes it. This adapter qualifies local reads; remote peers and Property
+subscriptions require their own explicit implementations.

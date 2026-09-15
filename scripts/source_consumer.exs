@@ -5,9 +5,14 @@ alias Wotex.Tracker.Decoders.RuuviRawV2
 
 [] = Application.spec(:wotex_tracker, :mod)
 
-for module <- [Phoenix, Wotex.Runtime, Wotex.Directory, Nx, Nerves] do
+for module <- [Phoenix, Wotex.Directory, Nx, Nerves] do
   false = Code.ensure_loaded?(module)
 end
+
+false = :wotex_runtime in Application.spec(:wotex_tracker, :applications)
+
+if is_nil(Application.spec(:wotex_tracker_service)),
+  do: false = Code.ensure_loaded?(Wotex.Runtime)
 
 {:ok, document} =
   Wotex.JSON.decode(

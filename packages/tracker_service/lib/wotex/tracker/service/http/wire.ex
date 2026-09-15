@@ -26,7 +26,9 @@ defmodule Wotex.Tracker.Service.HTTP.Wire do
     "storage_full" => 507,
     "busy" => 503,
     "capacity_exceeded" => 507,
-    "internal_error" => 500
+    "internal_error" => 500,
+    "unavailable" => 503,
+    "deadline_exceeded" => 504
   }
 
   def error(code), do: {:error, %{"code" => Atom.to_string(code), "path" => "/"}}

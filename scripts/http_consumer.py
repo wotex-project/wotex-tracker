@@ -132,6 +132,12 @@ def main():
     td = data("get_things", thing_path)["value"]
     assert td["id"] == thing and len(td["properties"]) == 10
     assert td["properties"]["temperature"]["forms"][0]["href"] == base + thing_path + "/properties/temperature"
+    value, _ = request("read_property", thing_path + "/properties/temperature", who="reader")
+    assert value == 24.3
+    value, _ = request("read_property", thing_path + "/properties/pressure", who="reader")
+    assert value == 100044
+    request("read_property", thing_path + "/properties/missing", who="reader", status=404)
+    request("read_property", thing_path + "/properties/temperature", who=None, status=401)
     evidence, _ = request("export_evidence", prefix + "/evidence/" + urllib.parse.quote(thing, safe="") + "/raw")
     assert any(e["claim"].get("strategy") == "operator-pseudonym-v1" for e in evidence)
 

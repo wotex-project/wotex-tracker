@@ -26,15 +26,18 @@ defmodule WotexTrackerService.MixProject do
   defp deps do
     [
       tracker(),
+      runtime(),
+      http_binding(),
       {:bandit, "== 1.12.5"},
       {:plug, "== 1.20.3"},
+      {:mint, "== 1.10.0"},
       {:exqlite, "== 0.40.0"},
       {:stream_data, "~> 1.3", only: :test},
       {:excoveralls, "~> 0.18", only: :test},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:ex_check, "~> 0.16", only: [:dev, :test], runtime: false},
-      {:ex_doc, "~> 0.38", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.38", only: [:dev, :test, :docs], runtime: false},
       {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false}
     ]
   end
@@ -44,6 +47,23 @@ defmodule WotexTrackerService.MixProject do
       {nil, _} -> {:wotex_tracker, "~> 0.1.0"}
       {"1", env} when env in [:dev, :test, :docs] -> {:wotex_tracker, path: "../..", env: env}
       _ -> raise "WOTEX_PATH_DEPS accepts only 1 in dev/test/docs; production requires artifacts"
+    end
+  end
+
+  defp runtime, do: sibling(:wotex_runtime, "../../../wotex-runtime")
+  defp http_binding, do: sibling(:wotex_binding_http, "../../../wotex-binding-http")
+
+  defp sibling(name, path) do
+    case {System.get_env("WOTEX_PATH_DEPS"), Mix.env()} do
+      {nil, _} ->
+        {name, "~> 0.1.0"}
+
+      {"1", env} when env in [:dev, :test, :docs] ->
+        dependency_env = if name == :wotex_runtime, do: :prod, else: env
+        {name, [path: Path.expand(path, __DIR__), env: dependency_env]}
+
+      _ ->
+        raise "WOTEX_PATH_DEPS accepts only 1 in dev/test/docs; production requires artifacts"
     end
   end
 end

@@ -114,8 +114,8 @@ Directory, databases, CLI/server/UI, cellular listeners, firmware, LoRaWAN and A
 
 The durable SQLite foundation is implemented in `packages/tracker_service/`;
 the authenticated import/enrollment/materialisation facade is implemented.
-The bounded HTTP/OpenAPI/SSE foundation is implemented. Host/CLI, public history,
-release/image and Runtime proof remain in progress. See
+The bounded HTTP/OpenAPI/SSE foundation and Runtime Property reads are implemented.
+Host/CLI, public history, release/image and Runtime subscription proof remain in progress. See
 [executed evidence](../evidence/implementation.md).
 
 Add the explicitly started shared service, server host and CLI using imported

@@ -3,8 +3,9 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
   @behaviour Plug
   import Plug.Conn
   require Logger
+  alias Wotex.Runtime.Context
   alias Wotex.Tracker.Service
-  alias Wotex.Tracker.Service.{Events, Result, Store}
+  alias Wotex.Tracker.Service.{Events, Identifier, Result, Store}
   alias Wotex.Tracker.Service.HTTP.{Capacity, Server, Stream, Wire}
 
   @mutations %{
@@ -145,6 +146,19 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
     end
   end
 
+  defp scoped(%{method: "GET"} = conn, ["things", thing, "properties", name], params, context)
+       when map_size(params) == 0 do
+    {service, token, scope, now} = context
+
+    {:ok, context} =
+      Context.new(
+        request_id: Identifier.uuid(),
+        deadline: System.monotonic_time(:millisecond) + 5000
+      )
+
+    {:property, conn, Service.read_property(service, token, scope, thing, name, context, now)}
+  end
+
   defp scoped(%{method: "GET"} = conn, ["events", "stream"], params, {service, token, scope, now}) do
     with {:ok, access} <- Service.authorize(service, token, scope, "read", now),
          {:ok, cursor} <- stream_cursor(conn, params),
@@ -206,7 +220,11 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
            "cellular" => "unsupported",
            "rules" => "unsupported",
            "analytics" => "unsupported",
-           "runtime" => "unsupported",
+           "runtime" => %{
+             "readproperty" => "available",
+             "observeproperty" => "unsupported",
+             "invokeaction" => "unsupported"
+           },
            "directory" => "unconfigured"
          }}
       end
@@ -291,6 +309,14 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
   defp normalize(result), do: Result.normalize(result)
 
   defp respond({conn, result}, _, _, _), do: Wire.send_result(conn, result)
+
+  defp respond({:property, conn, {:ok, result}}, _, _, _),
+    do:
+      conn
+      |> put_resp_header("x-wotex-generation", result["generation"])
+      |> Wire.json(200, result["value"])
+
+  defp respond({:property, conn, error}, _, _, _), do: Wire.send_result(conn, error)
   defp respond({:raw, conn, {:ok, bytes}, type}, _, _, _), do: Wire.bytes(conn, 200, bytes, type)
   defp respond({:raw, conn, error, _}, _, _, _), do: Wire.send_result(conn, error)
 

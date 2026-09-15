@@ -225,6 +225,7 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | `/api/v1/scopes/{scope}/capabilities` | GET explicit available/unsupported/unconfigured status |
 | `…/observations`, `…/resolutions`, `…/evidence`, `…/state`, `…/enrollments`, `…/things` | GET public snapshot pages |
 | `…/{resource}/{id}` | GET one public value |
+| `…/things/{id}/properties/{property}` | GET authorized Runtime Property scalar |
 | `…/observations/{id}/raw`, `…/evidence/{id}/raw` | GET raw-permission native JSON downloads |
 | `…/observations`, `…/enrollments`, `…/materialisations`, `…/revocations` | POST corresponding domain mutation |
 | `…/operations/{operation}` | GET same-principal durable receipt |
@@ -272,10 +273,34 @@ writes time out after five seconds. HTTP/2, WebSockets and response compression
 are disabled. Transport framing/header failures can close/reject before the
 versioned application envelope exists. There is no unbounded subscriber queue.
 
-This slice exposes imported data and durable events. Runtime Property handlers,
-public history queries, service release/OCI and the CLI remain later Phase 3
+This slice exposes imported data, durable events and Runtime Property reads.
+Property subscriptions, public history queries, service release/OCI and the CLI remain later Phase 3
 work. Scanner/rule/analytics absence is explicit in capabilities. A listener
 being live does not qualify those integrations or a production deployment.
+
+## Runtime Property read contract
+
+The service builds an upstream `ExposedThing` from the committed TD and handlers
+for its packaged scalar model. `readproperty` requires `read` authority; TD and
+canonical state are fetched at the same immutable snapshot generation. Each
+handler checks its deadline, availability, unit and declared scalar type.
+Success is native `application/json` data constrained by the TD, with the decimal
+`X-Wotex-Generation` header. Errors retain the API error envelope: unavailable
+measurements are HTTP 503, expired execution deadlines HTTP 504, and missing
+Properties HTTP 404. No numeric null, stale substitute or changed TD masks a
+missing measurement. Physical mutation and Property observation are unsupported.
+
+The supplied `HTTP.LoopbackClient` is an explicit local reader for Runtime
+`ConsumedThing` through the upstream HTTP binding. It admits only the configured
+numeric loopback HTTP origin, exact scope and Property GET path. The credential
+is a separate immediate callback argument; the immutable plan/configuration do
+not contain it. Mint **1.10.0** owns framing; the caller owns the socket, with no
+connection process, DNS, proxy, pooling, redirect following or retry. Reads have
+a maximum five-second deadline; header/status-line bytes are capped at 8 KiB,
+header count at 32, body at 1 MiB, each reduced by smaller binding limits.
+All completion/failure paths close the connection; caller death closes the owned
+socket. This is finite local peer evidence, not a remote client qualification or
+general JSON Schema instance validator.
 
 ## Source references
 

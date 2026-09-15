@@ -46,7 +46,7 @@ def main():
         registry = workspace / "registry"
         tarballs = registry / "tarballs"
         tarballs.mkdir(parents=True)
-        source = workspace / "core"
+        source = workspace / "wotex"
         source.mkdir()
         revision = subprocess.check_output(["git", "-C", str(CORE), "rev-parse", "HEAD"], text=True).strip()
         archive = subprocess.check_output(["git", "-C", str(CORE), "archive", revision])
@@ -62,12 +62,32 @@ def main():
         if core_lock != (source / "mix.lock").read_bytes():
             raise RuntimeError("Upstream lock changed during snapshot verification")
         run(["mix", "hex.build", "--output", str(tarballs / "wotex-0.1.0.tar")], source, env)
+        revisions = {"wotex": revision}
+        if service:
+            for repository, package in [("wotex-runtime", "wotex_runtime"), ("wotex-binding-http", "wotex_binding_http")]:
+                sibling = ROOT.parent / repository
+                target = workspace / repository
+                target.mkdir()
+                head = subprocess.check_output(["git", "-C", str(sibling), "rev-parse", "HEAD"], text=True).strip()
+                archive = subprocess.check_output(["git", "-C", str(sibling), "archive", head])
+                subprocess.run(["tar", "-xf", "-", "-C", str(target)], input=archive, check=True)
+                revisions[package] = head
+                lock = (target / "mix.lock").read_bytes()
+                snapshot_env = {**core_env, "WOTEX_PATH_DEPS": "1"}
+                for command in (["mix", "deps.get"], ["mix", "check", "--no-retry"],
+                                ["mix", "docs", "--warnings-as-errors"], ["elixir", "bin/check_boundary.exs"]):
+                    print(f"Upstream {package}@{head}:", " ".join(command), flush=True)
+                    run(command, target, snapshot_env)
+                if lock != (target / "mix.lock").read_bytes():
+                    raise RuntimeError(f"{package} lock changed during snapshot verification")
+                run(["mix", "hex.build", "--output", str(tarballs / f"{package}-0.1.0.tar")], target, env)
         run(["mix", "hex.build", "--output", str(tarballs / "wotex_tracker-0.1.0.tar")], ROOT, env)
         packages = ["jason-1.4.5", "ex_json_schema-0.11.5", "decimal-3.1.1", "jason-1.4.0", "ex_json_schema-0.11.0", "decimal-2.0.0"]
         if service:
             run(["mix", "hex.build", "--output", str(tarballs / "wotex_tracker_service-0.1.0.tar")], ROOT / "packages/tracker_service", env)
             packages += ["exqlite-0.40.0", "db_connection-2.10.2", "telemetry-1.4.2", "elixir_make-0.10.0", "cc_precompiler-0.1.11"]
             packages += ["bandit-1.12.5", "plug-1.20.3", "thousand_island-1.5.0", "hpax-1.0.4", "mime-2.0.7", "plug_crypto-2.2.0", "websock-0.5.3"]
+            packages += ["mint-1.10.0"]
         for package in packages:
             run(["mix", "hex.package", "fetch", package.rsplit("-", 1)[0], package.rsplit("-", 1)[1],
                  "--output", str(workspace / "downloads")], ROOT, env)
@@ -130,6 +150,7 @@ end
             server.server_close()
             thread.join(timeout=5)
         report = {"scope": "local-source-cohort-not-public-release", "upstream_revision": revision,
+                  "upstream_revisions": revisions,
                   "archives": {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(tarballs.glob("*.tar"))},
                   "consumers": results}
         destination = ROOT / "_build" / "verification"

@@ -169,7 +169,24 @@
                           "const": "unsupported"
                         },
                         "runtime": {
-                          "const": "unsupported"
+                          "type": "object",
+                          "properties": {
+                            "readproperty": {
+                              "const": "available"
+                            },
+                            "observeproperty": {
+                              "const": "unsupported"
+                            },
+                            "invokeaction": {
+                              "const": "unsupported"
+                            }
+                          },
+                          "required": [
+                            "readproperty",
+                            "observeproperty",
+                            "invokeaction"
+                          ],
+                          "additionalProperties": false
                         },
                         "directory": {
                           "const": "unconfigured"
@@ -1468,6 +1485,58 @@
         }
       }
     },
+    "/api/v1/scopes/{scope}/things/{id}/properties/{property}": {
+      "get": {
+        "operationId": "read_property",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/ID"
+          },
+          {
+            "$ref": "#/components/parameters/Property"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": [
+                    "number",
+                    "boolean"
+                  ],
+                  "description": "Native JSON scalar constrained by the selected TD Property. Unavailable measurements return 503, never a numeric null. Requires read authority."
+                }
+              }
+            },
+            "headers": {
+              "X-Wotex-Generation": {
+                "description": "Committed snapshot generation shared by TD and state",
+                "schema": {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]{0,18})$",
+                  "description": "Canonical decimal integer below 9223372036854775807."
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/scopes/{scope}/materialisations": {
       "post": {
         "operationId": "materialize",
@@ -1912,6 +1981,17 @@
       },
       "ID": {
         "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "x-max-utf8-bytes": 256
+        }
+      },
+      "Property": {
+        "name": "property",
         "in": "path",
         "required": true,
         "schema": {
@@ -2789,6 +2869,8 @@
                   "observation_conflict",
                   "unsupported",
                   "unresolved",
+                  "unavailable",
+                  "deadline_exceeded",
                   "revision_mismatch",
                   "invalid_deployment",
                   "invalid_materialisation",

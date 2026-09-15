@@ -269,3 +269,39 @@ composition remain outstanding. Header reads have a finite idle timeout and
 byte/count/connection limits; the hard request deadline begins at Plug admission.
 Production proxy/network policy and physical/hardware qualification remain
 operator/platform work. Public sibling release availability is still unpassed.
+
+## WTR.07 Runtime Property reads and actual HTTP peer — 2026-09-15
+
+Committed TDs now drive upstream Runtime `ExposedThing` Property handlers. The
+handlers read TD and state at one committed generation, enforce deadlines and
+the packaged model's scalar type/unit/availability, and return native JSON.
+Unavailable values return 503 without changing the TD. Runtime capability status
+separates available reads from unsupported Property observation and Actions.
+
+The explicit processless `HTTP.LoopbackClient` uses Mint 1.10.0 and the upstream
+HTTP client port. It admits a configured numeric loopback origin and scope,
+bounds header/status-line/body data and time, follows no redirects and retries
+nothing. Credential custody remains caller-owned; only an opaque private-table
+reference is retained in the tested `ConsumedThing`. Actual HTTP tests cover two
+instances, temperature/pressure, unavailable state, revoked access, unsupported
+Forms, response bounds, malformed framing, deadlines, caller death and socket
+closure. The independent Python/OpenAPI client also reads actual TD Properties.
+
+The service's complete gates pass on both required runtime lanes with 2 properties
+and 65 tests and at least 95% production line coverage. No check or threshold is
+disabled. The production artifact harness verifies immutable source snapshots of
+Runtime `65d0b521ccb6b7838fe37bf26bf9dac65b40cc68` and HTTP binding
+`c150da67867933eb3fb040cc5049d11eb75d3f6a`, including their configured checks,
+warning-free documentation and boundary audits. Normal package requirements are
+retained in the six clean signed-registry consumers; each performs the real
+Runtime → HTTP binding → Mint → Tracker HTTP → ExposedThing read and independent
+HTTP/SSE workflow, then checks that no owned processes remain. The sibling working
+trees are unchanged. Archive identities are in `verification/service-consumer.json`.
+
+This qualifies the finite read integration only. The HTTP binding supports SSE,
+so the Phase 3 Property subscription acceptance remains required: a service
+observation capability must be declared with host evidence, a value-specific
+stream and scoped resume contract. Generic tracker events are not numeric
+Property notifications. Public history, CLI, bundled release/image and its
+signal/restart proof also remain outstanding. Public sibling release availability
+is still unpassed; the local immutable artifact cohort is not a published release.

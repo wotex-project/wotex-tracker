@@ -1,11 +1,23 @@
 # Production archive consumer: no repository source imports and no host packages.
 alias Wotex.Tracker.Service
 alias Wotex.Tracker.Service.{Codec, Credentials, Cursor, Identifier, Projection, Store, Update}
-alias Wotex.Tracker.Service.HTTP.Server
+alias Wotex.Binding.HTTP
+alias Wotex.Runtime.{ConsumedThing, Context, Result}
+alias Wotex.Tracker.Service.HTTP.{LoopbackClient, Server}
+
+defmodule ArchivePeerCredentials do
+  @moduledoc false
+  @behaviour Wotex.Runtime.Credentials
+  @impl true
+  def resolve(%{names: ["bearer"]}, _, _, table) do
+    [{:token, token}] = :ets.lookup(table, :token)
+    {:ok, token}
+  end
+end
 
 [] = Application.spec(:wotex_tracker_service, :mod)
 
-for module <- [Phoenix, Nerves, Nx, Wotex.Runtime, Wotex.Directory] do
+for module <- [Phoenix, Nerves, Nx, Wotex.Directory] do
   false = Code.ensure_loaded?(module)
 end
 
@@ -261,11 +273,46 @@ File.chmod!(descriptor, 0o600)
   )
 
 true = String.contains?(output, "HTTP_CONSUMER_PASS")
+{:ok, store_pid} = Server.child(server, :store)
+origin = "http://127.0.0.1:#{port}"
+
+{:ok, service} =
+  Service.new(%{store: Store.handle(store_pid), credentials: http_credentials, base_url: origin})
+
+{:ok, %{"items" => [%{"value" => document}]}} =
+  Service.list(service, token, "workshop", "things", %{}, now)
+
+{:ok, td} = Wotex.ThingDescription.from_map(document)
+{:ok, client} = LoopbackClient.new(origin, "workshop")
+{:ok, binding} = HTTP.config(client: {LoopbackClient, client})
+{:ok, profile} = HTTP.profile()
+table = :ets.new(:archive_peer_credentials, [:private])
+:ets.insert(table, {:token, token})
+
+{:ok, consumed} =
+  ConsumedThing.new(td,
+    profiles: [profile],
+    transports: %{http: HTTP.transport(binding)},
+    credentials: {ArchivePeerCredentials, table}
+  )
+
+false = :erlang.term_to_binary(consumed) =~ token
+
+context =
+  Context.new!(request_id: "archive-peer", deadline: System.monotonic_time(:millisecond) + 3000)
+
+{:ok, %Result{status: :ok, operation: :readproperty, payload: 24.3}} =
+  ConsumedThing.read_property(consumed, "temperature", context)
+
+{:ok, %Result{status: :ok, operation: :readproperty, payload: 100_044}} =
+  ConsumedThing.read_property(consumed, "pressure", context)
+
+:ets.delete(table)
 Supervisor.stop(server)
 File.rm_rf!(directory)
 retained = Process.list() |> MapSet.new() |> MapSet.difference(before_processes) |> MapSet.size()
 0 = retained
 
 IO.puts(
-  "SERVICE_COHORT_PASS durable_restart=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true independent_http_sse=true retained_new_processes=#{retained}"
+  "SERVICE_COHORT_PASS durable_restart=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true independent_http_sse=true actual_runtime_http_peer=true retained_new_processes=#{retained}"
 )

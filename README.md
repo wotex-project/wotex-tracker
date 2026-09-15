@@ -42,10 +42,11 @@ identity evidence, a packaged environmental model, and upstream-validated Thing
 Descriptions. The library has a complete local verification gate and explicit
 archive packaging. Start with the [pipeline guide](docs/guides/materialisation.md).
 
-The separate service package now implements a bounded SQLite store with atomic
+The separate service package implements a bounded SQLite store with atomic
 admission, historical snapshots, durable event/publication intents and recovery
-tests. See its [storage contract](docs/contracts/service-v1.md). HTTP/SSE, a running
-service host, live scanning, UI and Runtime interaction remain subsequent work.
+tests, authenticated HTTP/OpenAPI/SSE workflows, and Runtime Property reads through
+an actual local HTTP binding peer. See its [service contract](docs/contracts/service-v1.md).
+A bundled service host, live scanning, UI and Runtime subscriptions remain subsequent work.
 [Implementation evidence](docs/evidence/implementation.md) records
 executed software checks and unpassed release, host and hardware gates.
 

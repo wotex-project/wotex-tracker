@@ -18,6 +18,7 @@ defmodule Wotex.Tracker.Service do
     Events,
     Identifier,
     Import,
+    Interaction,
     Materialize,
     Projection,
     Result,
@@ -116,6 +117,25 @@ defmodule Wotex.Tracker.Service do
         "materialize",
         Materialize
       )
+
+  @doc "Reads one declared scalar Property through Runtime using an authenticated immutable state snapshot."
+  @spec read_property(
+          t(),
+          String.t(),
+          String.t(),
+          String.t(),
+          String.t(),
+          Wotex.Runtime.Context.t(),
+          integer()
+        ) ::
+          {:ok, map()} | {:error, map()}
+  def read_property(service, token, scope, thing, name, context, now) do
+    result =
+      with {:ok, access} <- authorize(service, token, scope, "read", now),
+           do: Interaction.read(service, access, thing, name, context, now)
+
+    Result.normalize(result)
+  end
 
   @doc "Lists reviewed public projections at one snapshot with encrypted page and event cursors."
   @spec list(t(), String.t(), String.t(), String.t(), map(), integer()) ::
