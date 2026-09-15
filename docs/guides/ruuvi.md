@@ -29,8 +29,9 @@ identity facts, or a validated Tracker error. Bad return shapes become
 `invalid_decoder_result`; programming exceptions propagate. This pure seam
 is not a sandbox or an asynchronous adapter lifecycle.
 
-Measurements retain kind, native value, unit, availability, quality, raw field
-and reason. Source sentinels become unavailable/nil, never zero or NaN. Humidity
+Measurements retain kind, numeric/boolean value, unit, availability, quality, raw field
+and reason. Text or structured measurements are outside this scalar slice; numeric
+strings are rejected rather than coerced. Source sentinels become unavailable/nil, never zero or NaN. Humidity
 above 100% retains its numeric reading with suspect quality. Battery voltage,
 TX power and both counters are independent fields. Acceleration unit `g` means
 standard gravity in this profile, not mass. The

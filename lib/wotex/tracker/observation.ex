@@ -95,9 +95,9 @@ defmodule Wotex.Tracker.Observation do
   end
 
   @doc "Checks idempotence using full type-strict admitted content."
-  @spec same?(term(), term()) :: boolean()
-  def same?(left, right) do
-    case {validate(left), validate(right)} do
+  @spec same?(term(), term(), term()) :: boolean()
+  def same?(left, right, options \\ []) do
+    case {validate(left, options), validate(right, options)} do
       {{:ok, a}, {:ok, b}} -> a === b
       _ -> false
     end

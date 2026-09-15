@@ -69,6 +69,80 @@ defmodule Wotex.Tracker.Fixtures do
     profile
   end
 
+  def materialisation_input do
+    alias Wotex.Tracker.{Catalogue, Decoder, Deployment, Identity, Model, Resolution}
+    alias Wotex.Tracker.Decoders.RuuviRawV2
+
+    observation =
+      observation(%{
+        payload: {:bytes, Base.decode16!("0512FC5394C37C0004FFFC040CAC364200CDCBB8334C884F")},
+        transport: %{"manufacturer_id" => 1177}
+      })
+
+    {:ok, profile} = RuuviRawV2.profile()
+    {:ok, catalogue} = Catalogue.new([profile])
+    {:ok, resolution} = Resolution.resolve(observation, catalogue)
+
+    {:ok, decoded} =
+      Decoder.run(
+        observation,
+        resolution,
+        catalogue,
+        {RuuviRawV2.revision(), &RuuviRawV2.decode/1}
+      )
+
+    association = %{
+      identity_evidence()
+      | profile: {profile.id, profile.version},
+        decoder: profile.decoder
+    }
+
+    {:ok, bundle} =
+      EvidenceBundle.new([observation], [association | Map.values(decoded.bundle.evidence)])
+
+    {:ok, identity} = Identity.new(identity_input(), bundle)
+
+    {:ok, document} =
+      Wotex.JSON.decode(File.read!("priv/thing_models/environmental-sensor-1.0.0.tm.json"))
+
+    {:ok, model} = Model.new(document, profile.model)
+
+    forms =
+      Map.new(decoded.capabilities, fn capability ->
+        {"/properties/" <> capability.id,
+         [
+           %{
+             "href" =>
+               "https://tracker.example.invalid/things/sensor/properties/" <> capability.id,
+             "op" => "readproperty",
+             "contentType" => "application/json"
+           }
+         ]}
+      end)
+
+    {:ok, deployment} =
+      Deployment.new(%{
+        revision: "deployment-1",
+        title: "Workshop sensor",
+        forms: forms,
+        security_definitions: %{"bearer" => %{"scheme" => "bearer"}},
+        security: ["bearer"]
+      })
+
+    %{
+      observation: observation,
+      catalogue: catalogue,
+      resolution: resolution,
+      decoded: decoded,
+      bundle: bundle,
+      identity: identity,
+      capabilities: decoded.capabilities,
+      model: model,
+      mapping_revision: profile.mapping_revision,
+      deployment: deployment
+    }
+  end
+
   def thing_id, do: "urn:uuid:aca49b80-1e09-40cf-929e-b193047f6ca9"
 
   def identity_input do

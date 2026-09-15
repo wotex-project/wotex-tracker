@@ -17,7 +17,7 @@ contents =
 names = Enum.map(files, fn {name, _} -> List.to_string(name) end)
 
 for required <-
-      ~w(mix.exs README.md LICENSE NOTICE SECURITY.md CONTRIBUTING.md lib/wotex/tracker/error.ex docs/specs/catalogue.yaml) do
+      ~w(mix.exs README.md LICENSE NOTICE SECURITY.md CONTRIBUTING.md lib/wotex/tracker/error.ex docs/specs/catalogue.yaml priv/thing_models/environmental-sensor-1.0.0.tm.json) do
   if required not in names, do: Mix.raise("Archive missing #{required}")
 end
 

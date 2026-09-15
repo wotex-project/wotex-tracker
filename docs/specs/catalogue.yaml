@@ -99,7 +99,7 @@ delivery_targets:
     required_for_product: true
     contracts: [WTR.00, WTR.01, WTR.02, WTR.03, WTR.04, WTR.13]
     requires: []
-    implementation_status: in-progress
+    implementation_status: implemented
     evidence_refs: [docs/evidence/implementation.md]
     acceptance: pure fixture-to-TD, complete gate, clean optional-absent archive consumers
   - id: headless_service
@@ -162,7 +162,7 @@ delivery_targets:
 initial_profiles:
   ruuvi_ruuvitag:
     role: passive_ble_environmental_sensor
-    implementation_status: in-progress
+    implementation_status: implemented
     current_evidence: fixture
     evidence_refs: [docs/evidence/implementation.md]
     target_evidence: hardware-qualified

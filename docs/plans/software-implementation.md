@@ -1,6 +1,7 @@
 # Software implementation sequence
 
-This plan orders accepted work by executable dependency. Implementation has started with Phase 0. The current executed scope and unpassed
+This plan orders accepted work by executable dependency. The Phase 0–2 pure software implementation is present; the public-release consumer
+gate remains unpassed. Implementation continues with Phase 3. The current executed scope and unpassed
 gates are recorded in [implementation evidence](../evidence/implementation.md).
 The milestones below remain target acceptance criteria; their presence does not
 claim implementation or hardware qualification. [WTR.13](../specs/WTR.13-elixir-otp-and-verification.md)

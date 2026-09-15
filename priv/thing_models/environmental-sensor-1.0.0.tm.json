@@ -1,0 +1,72 @@
+{
+  "@context": "https://www.w3.org/2022/wot/td/v1.1",
+  "@type": "tm:ThingModel",
+  "id": "urn:wotex:tm:tracker:environmental-sensor",
+  "title": "Environmental sensor",
+  "version": {
+    "model": "1.0.0"
+  },
+  "properties": {
+    "temperature": {
+      "type": "number",
+      "unit": "Cel",
+      "readOnly": true
+    },
+    "humidity": {
+      "type": "number",
+      "unit": "%",
+      "readOnly": true
+    },
+    "pressure": {
+      "type": "integer",
+      "unit": "Pa",
+      "readOnly": true
+    },
+    "accelerationX": {
+      "type": "number",
+      "unit": "g",
+      "readOnly": true
+    },
+    "accelerationY": {
+      "type": "number",
+      "unit": "g",
+      "readOnly": true
+    },
+    "accelerationZ": {
+      "type": "number",
+      "unit": "g",
+      "readOnly": true
+    },
+    "batteryVoltage": {
+      "type": "number",
+      "unit": "V",
+      "readOnly": true
+    },
+    "txPower": {
+      "type": "integer",
+      "unit": "dBm",
+      "readOnly": true
+    },
+    "movementCounter": {
+      "type": "integer",
+      "unit": "1",
+      "readOnly": true
+    },
+    "measurementSequence": {
+      "type": "integer",
+      "unit": "1",
+      "readOnly": true
+    }
+  },
+  "tm:optional": [
+    "/properties/humidity",
+    "/properties/pressure",
+    "/properties/accelerationX",
+    "/properties/accelerationY",
+    "/properties/accelerationZ",
+    "/properties/batteryVoltage",
+    "/properties/txPower",
+    "/properties/movementCounter",
+    "/properties/measurementSequence"
+  ]
+}

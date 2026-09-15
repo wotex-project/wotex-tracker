@@ -183,6 +183,15 @@ defmodule Wotex.Tracker.ObservationTest do
     assert {:error, _} = Observation.from_json(source, max_bytes: 0)
   end
 
+  test "idempotence uses the caller's explicit admission budgets" do
+    options = [max_string_bytes: 4097]
+    input = Fixtures.observation_input(%{payload: {:json, String.duplicate("x", 4097)}})
+    {:ok, observation} = Observation.new(input, options)
+    assert Observation.same?(observation, observation, options)
+    refute Observation.same?(observation, observation)
+    refute Observation.same?(observation, observation, invalid: 1)
+  end
+
   property "native integers and floats are never interchangeable identities" do
     check all(n <- integer(-1_000_000..1_000_000)) do
       a = Fixtures.observation(%{payload: {:json, n}})

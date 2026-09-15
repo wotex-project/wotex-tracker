@@ -2,7 +2,8 @@ defmodule Wotex.Tracker.Decoder do
   @moduledoc """
   An explicit trusted decoder seam. A caller supplies `{revision, function}`;
   the wire never selects executable code. Unknown/ambiguous resolution prevents
-  callback execution. Programming errors in trusted callbacks are not swallowed.
+  callback execution. Caller-supplied callbacks must be pure and deterministic.
+  Programming errors in trusted callbacks are not swallowed.
 
   The callback returns `{:ok, %{measurements: [Measurement.t()], identity: map()}}`
   or a typed error. The wrapper validates the entire return, generates complete
@@ -35,8 +36,48 @@ defmodule Wotex.Tracker.Decoder do
          {:ok, resolution} <- Resolution.validate(resolution, observation, catalogue, options),
          :ok <- eligible(resolution),
          {:ok, callback} <- callback(configured, resolution.selected.decoder),
-         {:ok, output} <- result(callback.(observation), limits, options),
-         {:ok, evidence, descriptors} <- evidence(output, observation, resolution, options),
+         {:ok, output} <- result(callback.(observation), limits, options) do
+      build(output, observation, resolution, options)
+    end
+  end
+
+  @doc "Revalidates decoded evidence against its exact observation and catalogue without rerunning code."
+  @spec validate(term(), term(), term(), term()) :: {:ok, t()} | {:error, Error.t()}
+  def validate(value, observation, catalogue, options \\ [])
+
+  def validate(
+        %__MODULE__{resolution: resolution, measurements: measurements, bundle: bundle} = value,
+        observation,
+        catalogue,
+        options
+      ) do
+    with {:ok, limits} <- Limits.new(options),
+         {:ok, resolution} <- Resolution.validate(resolution, observation, catalogue, options),
+         :ok <- eligible(resolution),
+         {:ok, bundle} <- EvidenceBundle.validate(bundle, options),
+         {:ok, identity} <- identity_output(bundle),
+         {:ok, output} <-
+           result({:ok, %{measurements: measurements, identity: identity}}, limits, options),
+         {:ok, admitted} <- build(output, observation, resolution, options),
+         true <- admitted === value do
+      {:ok, admitted}
+    else
+      false -> {:error, Error.new(:invalid_decoder_result, :decode)}
+      error -> error
+    end
+  end
+
+  def validate(_, _, _, _), do: {:error, Error.new(:invalid_decoder_result, :decode)}
+
+  defp identity_output(bundle) do
+    case Enum.filter(Map.values(bundle.evidence), &(&1.kind == :identity)) do
+      [identity] -> {:ok, identity.claim}
+      _ -> {:error, Error.new(:invalid_decoder_result, :decode)}
+    end
+  end
+
+  defp build(output, observation, resolution, options) do
+    with {:ok, evidence, descriptors} <- evidence(output, observation, resolution, options),
          {:ok, bundle} <- EvidenceBundle.new([observation], evidence, options),
          {:ok, capabilities} <- capabilities(descriptors, bundle, options) do
       {:ok,

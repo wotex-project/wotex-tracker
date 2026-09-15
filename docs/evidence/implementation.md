@@ -96,3 +96,44 @@ Both required runtime lanes passed the complete local gate: 4 properties and
 the decoder, domain values and source provenance. The Ruuvi lane is fixture
 software evidence only; live BLE, physical hardware and the TD/Runtime path
 remain unpassed. No live scanner was added or sibling protocol owner modified.
+
+## WTR.04 materialisation and public facade — 2026-09-15
+
+The first pure imported-fixture-to-TD software milestone is implemented. The
+[materialisation guide](../guides/materialisation.md) describes explicit model,
+identity, decoder, evidence and deployment inputs. The archive includes the
+self-contained environmental Thing Model. Candidates enter upstream TM and TD
+constructors with validation enabled. A fixed independently assembled TD fixture
+checks exact canonical output. Missing samples preserve the TD while changing
+private evidence identity. Optional omission, mandatory absence, escaped pointers,
+unsupported model instructions, revision substitution, mapping conflicts,
+security/Form failures, native extensions and resource limits are exercised.
+
+Both required runtime lanes passed the complete local gate: 1 doctest,
+4 properties and 45 tests, 0 failures, 97.9% production line coverage. No check,
+coverage threshold or dependency constraint was weakened. Core source remains
+`eadc6c9f9c285faf9324b8a7396a001381098b6c`.
+
+`python3 scripts/source_consumer.py` additionally passed six isolated production
+archive consumers: fresh resolution, locked resolution and selected compatible
+minimum dependencies on both runtime lanes. The minimum set is Jason 1.4.0,
+ex_json_schema 0.11.0 and Decimal 2.0.0, with unchanged Tracker/Wotex requirements
+and no dependency overrides. The current set is Jason 1.4.5, ex_json_schema 0.11.5
+and Decimal 3.1.1. Each consumer executed the full fixture-to-TD path from installed
+archives, verified the packaged model, unknown resolution, no application callback,
+no newly retained processes and absence of Runtime/UI/Nerves/Nx packages.
+
+The upstream archive was prepared from an immutable clean source snapshot with
+its unchanged lock after formatting, warnings-as-errors compilation, tests, docs
+and archive build, following its own release-readiness instructions. Registry
+signatures used temporary keys on an isolated loopback registry and a fresh
+`HEX_HOME`; those resources were removed after execution. Public dependency
+requirements were retained; `WOTEX_PATH_DEPS` was absent in every production
+consumer. Archive SHA-256 identities and consumer lock digests are retained in
+`verification/source-consumer.json`, outside the package to avoid self-reference.
+
+These are local source-cohort artifacts, not publicly published releases. The
+public `wotex` package remains unavailable and public-release compatibility is
+unpassed. Synthetic Forms are not reachable-endpoint evidence. Phase 3 must still
+prove actual host/Runtime/binding interaction and durability; physical BLE/cellular,
+Pi, iPhone and integrated product gates remain unpassed.

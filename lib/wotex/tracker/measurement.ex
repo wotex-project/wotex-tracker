@@ -1,5 +1,5 @@
 defmodule Wotex.Tracker.Measurement do
-  @moduledoc "A decoder value with explicit unit, raw interpretation and independent availability/quality."
+  @moduledoc "A numeric or boolean decoder value with explicit unit, raw interpretation and availability/quality."
   alias Wotex.Tracker.{Admission, Error, Limits}
 
   @fields ~w(kind value unit availability quality raw reason)a
@@ -43,7 +43,7 @@ defmodule Wotex.Tracker.Measurement do
   defp availability?(%{availability: :unavailable, quality: :unavailable, value: nil}), do: true
 
   defp availability?(%{availability: :available, quality: quality, value: value}),
-    do: quality in [:valid, :suspect] and not is_nil(value)
+    do: quality in [:valid, :suspect] and (is_number(value) or is_boolean(value))
 
   defp availability?(_), do: false
 end

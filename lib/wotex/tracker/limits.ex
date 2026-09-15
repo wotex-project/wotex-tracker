@@ -15,7 +15,12 @@ defmodule Wotex.Tracker.Limits do
     max_lineage_depth: 16,
     max_profiles: 256,
     max_predicates: 32,
-    max_candidates: 256
+    max_candidates: 256,
+    max_affordances: 64,
+    max_forms: 8,
+    max_material_bytes: 262_144,
+    max_material_depth: 32,
+    max_material_nodes: 16_384
   ]
   @json_keys ~w(max_bytes max_depth max_nodes max_string_bytes max_collection_size)a
   @type t :: %__MODULE__{}
@@ -28,6 +33,18 @@ defmodule Wotex.Tracker.Limits do
   @doc "Projects admitted JSON budgets to upstream options."
   @spec json(t()) :: keyword(pos_integer())
   def json(%__MODULE__{} = limits), do: Enum.map(@json_keys, &{&1, Map.fetch!(limits, &1)})
+
+  @doc "Projects the separate materialisation budgets to upstream JSON options."
+  @spec material(t()) :: keyword(pos_integer())
+  def material(%__MODULE__{} = limits) do
+    [
+      max_bytes: limits.max_material_bytes,
+      max_depth: limits.max_material_depth,
+      max_nodes: limits.max_material_nodes,
+      max_string_bytes: limits.max_material_bytes,
+      max_collection_size: max(256, limits.max_affordances)
+    ]
+  end
 
   defp admit([], limits, _seen), do: {:ok, limits}
 

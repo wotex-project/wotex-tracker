@@ -265,6 +265,8 @@ defmodule Wotex.Tracker.RuuviTest do
           availability: :unavailable,
           quality: :unavailable,
           value: nil,
+          value: "24.3",
+          value: %{"pretend" => "measurement"},
           raw: {:bytes, <<0>>},
           kind: ""
         ] do

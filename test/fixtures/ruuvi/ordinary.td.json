@@ -1,0 +1,139 @@
+{
+  "@context": "https://www.w3.org/2022/wot/td/v1.1",
+  "id": "urn:uuid:aca49b80-1e09-40cf-929e-b193047f6ca9",
+  "title": "Workshop sensor",
+  "version": {
+    "model": "1.0.0",
+    "instance": "deployment-1"
+  },
+  "securityDefinitions": {
+    "bearer": {
+      "scheme": "bearer"
+    }
+  },
+  "security": [
+    "bearer"
+  ],
+  "properties": {
+    "temperature": {
+      "type": "number",
+      "unit": "Cel",
+      "readOnly": true,
+      "forms": [
+        {
+          "href": "https://tracker.example.invalid/things/sensor/properties/temperature",
+          "op": "readproperty",
+          "contentType": "application/json"
+        }
+      ]
+    },
+    "humidity": {
+      "type": "number",
+      "unit": "%",
+      "readOnly": true,
+      "forms": [
+        {
+          "href": "https://tracker.example.invalid/things/sensor/properties/humidity",
+          "op": "readproperty",
+          "contentType": "application/json"
+        }
+      ]
+    },
+    "pressure": {
+      "type": "integer",
+      "unit": "Pa",
+      "readOnly": true,
+      "forms": [
+        {
+          "href": "https://tracker.example.invalid/things/sensor/properties/pressure",
+          "op": "readproperty",
+          "contentType": "application/json"
+        }
+      ]
+    },
+    "accelerationX": {
+      "type": "number",
+      "unit": "g",
+      "readOnly": true,
+      "forms": [
+        {
+          "href": "https://tracker.example.invalid/things/sensor/properties/accelerationX",
+          "op": "readproperty",
+          "contentType": "application/json"
+        }
+      ]
+    },
+    "accelerationY": {
+      "type": "number",
+      "unit": "g",
+      "readOnly": true,
+      "forms": [
+        {
+          "href": "https://tracker.example.invalid/things/sensor/properties/accelerationY",
+          "op": "readproperty",
+          "contentType": "application/json"
+        }
+      ]
+    },
+    "accelerationZ": {
+      "type": "number",
+      "unit": "g",
+      "readOnly": true,
+      "forms": [
+        {
+          "href": "https://tracker.example.invalid/things/sensor/properties/accelerationZ",
+          "op": "readproperty",
+          "contentType": "application/json"
+        }
+      ]
+    },
+    "batteryVoltage": {
+      "type": "number",
+      "unit": "V",
+      "readOnly": true,
+      "forms": [
+        {
+          "href": "https://tracker.example.invalid/things/sensor/properties/batteryVoltage",
+          "op": "readproperty",
+          "contentType": "application/json"
+        }
+      ]
+    },
+    "txPower": {
+      "type": "integer",
+      "unit": "dBm",
+      "readOnly": true,
+      "forms": [
+        {
+          "href": "https://tracker.example.invalid/things/sensor/properties/txPower",
+          "op": "readproperty",
+          "contentType": "application/json"
+        }
+      ]
+    },
+    "movementCounter": {
+      "type": "integer",
+      "unit": "1",
+      "readOnly": true,
+      "forms": [
+        {
+          "href": "https://tracker.example.invalid/things/sensor/properties/movementCounter",
+          "op": "readproperty",
+          "contentType": "application/json"
+        }
+      ]
+    },
+    "measurementSequence": {
+      "type": "integer",
+      "unit": "1",
+      "readOnly": true,
+      "forms": [
+        {
+          "href": "https://tracker.example.invalid/things/sensor/properties/measurementSequence",
+          "op": "readproperty",
+          "contentType": "application/json"
+        }
+      ]
+    }
+  }
+}

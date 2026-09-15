@@ -36,11 +36,15 @@ fingerprint -> device profile -> decoder -> capability evidence
 
 This repository starts from **accepted target specifications**. Specification presence, fixtures, examples, or catalogue entries do not imply implementation, hardware qualification, interoperability, or W3C conformance. Executed evidence is tracked separately from target contracts.
 
-The Mix library foundation now includes bounded error values, catalogue/link validation,
-a complete local verification gate and explicit archive packaging. The first domain
-milestone remains the pure imported-fixture-to-TD path. No live scanner, host, storage
-or Runtime integration has been implemented. See the [implementation evidence](docs/evidence/implementation.md)
-for executed checks and unpassed release/host/hardware gates.
+The pure imported-fixture-to-TD pipeline is implemented: bounded observations,
+immutable profiles, deterministic resolution, Ruuvi RAWv2 decoding, capability and
+identity evidence, a packaged environmental model, and upstream-validated Thing
+Descriptions. The library has a complete local verification gate and explicit
+archive packaging. Start with the [pipeline guide](docs/guides/materialisation.md).
+
+No live scanner, service host, durable store, UI or Runtime interaction has been
+implemented yet. [Implementation evidence](docs/evidence/implementation.md) records
+executed software checks and unpassed release, host and hardware gates.
 
 Start with the [WTR specification index](docs/specs/WTR-index.md) and the [software implementation sequence](docs/plans/software-implementation.md).
 
