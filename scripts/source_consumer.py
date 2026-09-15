@@ -9,6 +9,7 @@ import http.server
 import json
 import os
 import argparse
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -36,7 +37,9 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--service", action="store_true", help="also qualify the durable service archive")
-    service = parser.parse_args().service
+    parser.add_argument("--host", action="store_true", help="also build and qualify bundled host releases and a local Linux ARM64 image")
+    args = parser.parse_args()
+    service = args.service or args.host
     with tempfile.TemporaryDirectory(prefix="wtr-source-cohort-") as temporary:
         workspace = Path(temporary)
         env = os.environ.copy()
@@ -88,6 +91,16 @@ def main():
             packages += ["exqlite-0.40.0", "db_connection-2.10.2", "telemetry-1.4.2", "elixir_make-0.10.0", "cc_precompiler-0.1.11"]
             packages += ["bandit-1.12.5", "plug-1.20.3", "thousand_island-1.5.0", "hpax-1.0.4", "mime-2.0.7", "plug_crypto-2.2.0", "websock-0.5.3"]
             packages += ["mint-1.10.0"]
+        if args.host:
+            # Hex validates every retained lock record, even when fetching only
+            # production dependencies. Keep the source lock intact and make its
+            # exact public tool records available in this isolated registry.
+            locked = re.findall(r'"([a-z0-9_]+)": \{:hex, :[a-z0-9_]+, "([^"]+)"',
+                                (ROOT / "hosts/app/mix.lock").read_text())
+            if not locked:
+                raise RuntimeError("Host lock has no recognized Hex records")
+            packages += [f"{name}-{version}" for name, version in locked]
+        packages = list(dict.fromkeys(packages))
         for package in packages:
             run(["mix", "hex.package", "fetch", package.rsplit("-", 1)[0], package.rsplit("-", 1)[1],
                  "--output", str(workspace / "downloads")], ROOT, env)
@@ -101,6 +114,7 @@ def main():
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         results = []
+        host_result = None
         try:
             for lane in LANES:
                 for mode in ("fresh", "locked", "minimum"):
@@ -145,6 +159,9 @@ end
                             raise RuntimeError("Service consumer contract failed")
                         print(output.strip(), flush=True)
                     results.append({"elixir": lane[0], "otp": lane[1], "mode": mode, "result": "pass", "lock_sha256": hashlib.sha256(lock_before).hexdigest()})
+            if args.host:
+                from release_consumer import verify_host
+                host_result = verify_host(workspace, registry, f"http://127.0.0.1:{server.server_port}", env, run)
         finally:
             server.shutdown()
             server.server_close()
@@ -153,9 +170,11 @@ end
                   "upstream_revisions": revisions,
                   "archives": {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(tarballs.glob("*.tar"))},
                   "consumers": results}
+        if host_result:
+            report["host"] = host_result
         destination = ROOT / "_build" / "verification"
         destination.mkdir(parents=True, exist_ok=True)
-        report_name = "service-consumer.json" if service else "source-consumer.json"
+        report_name = "host-consumer.json" if args.host else "service-consumer.json" if service else "source-consumer.json"
         (destination / report_name).write_text(json.dumps(report, indent=2) + "\n")
         print(f"Recorded _build/verification/{report_name}; temporary registry and keys removed on exit", flush=True)
 

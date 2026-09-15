@@ -116,8 +116,9 @@ The durable SQLite foundation is implemented in `packages/tracker_service/`;
 the authenticated import/enrollment/materialisation facade is implemented.
 The bounded HTTP/OpenAPI/SSE foundation, public resource history and Runtime
 Property reads are implemented. The standalone host startup and HTTP CLI are
-implemented and tested from source. Bundled release/image and Runtime subscription
-proof remain in progress. See
+implemented and tested from source and bundled artifacts. Darwin ARM64 releases
+and Linux ARM64 OCI pass their local lifecycle probes. Runtime subscription
+proof remains in progress. See
 [executed evidence](../evidence/implementation.md).
 
 Add the explicitly started shared service, server host and CLI using imported

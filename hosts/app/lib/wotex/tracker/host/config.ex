@@ -13,6 +13,12 @@ defmodule Wotex.Tracker.Host.Config do
   alias Wotex.Tracker.Service.HTTP.Config, as: ServerConfig
 
   @fields ~w(schema instance_id secret_key data_directory listen exposure public_origin credentials)
+  @storage_limits %{
+    "max_rows" => {:max_rows, 100_000},
+    "max_pages" => {:max_pages, 262_144},
+    "busy_timeout" => {:busy_timeout, 1000},
+    "timeout" => {:timeout, 5000}
+  }
 
   @doc "Loads at most 64 KiB and returns explicit validated HTTP server options."
   @spec load(term()) :: {:ok, keyword()} | {:error, :invalid_configuration}
@@ -63,7 +69,8 @@ defmodule Wotex.Tracker.Host.Config do
 
   defp options(document) when is_map(document) do
     with true <-
-           Enum.sort(Map.keys(document)) in [Enum.sort(@fields), Enum.sort(["tls" | @fields])],
+           Enum.all?(@fields, &Map.has_key?(document, &1)) and
+             Enum.all?(Map.keys(document), &(&1 in (@fields ++ ["tls", "storage_limits"]))),
          "wtr.host.v1" <- document["schema"],
          {:ok, secret} <- key(document["secret_key"]),
          {:ok, entries} <- entries(document["credentials"]),
@@ -75,7 +82,8 @@ defmodule Wotex.Tracker.Host.Config do
            }),
          {:ok, ip, port} <- listen(document["listen"]),
          {:ok, exposure} <- exposure(document["exposure"]),
-         {:ok, tls} <- tls(document["tls"]) do
+         {:ok, tls} <- tls(document["tls"]),
+         {:ok, storage_limits} <- storage_limits(Map.get(document, "storage_limits", %{})) do
       origin =
         if document["public_origin"] == "listener", do: :listener, else: document["public_origin"]
 
@@ -87,7 +95,8 @@ defmodule Wotex.Tracker.Host.Config do
          port: port,
          exposure: exposure,
          public_origin: origin,
-         tls: tls
+         tls: tls,
+         store_options: storage_limits
        ]}
     else
       _ -> {:error, :invalid_configuration}
@@ -157,4 +166,18 @@ defmodule Wotex.Tracker.Host.Config do
     do: {:ok, %{certfile: cert, keyfile: key}}
 
   defp tls(_), do: {:error, :invalid_configuration}
+
+  defp storage_limits(limits) when is_map(limits) and map_size(limits) <= 4 do
+    Enum.reduce_while(limits, {:ok, []}, fn {name, value}, {:ok, options} ->
+      case @storage_limits[name] do
+        {key, maximum} when is_integer(value) and value > 0 and value <= maximum ->
+          {:cont, {:ok, [{key, value} | options]}}
+
+        _ ->
+          {:halt, {:error, :invalid_configuration}}
+      end
+    end)
+  end
+
+  defp storage_limits(_), do: {:error, :invalid_configuration}
 end

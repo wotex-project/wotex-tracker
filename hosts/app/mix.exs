@@ -15,7 +15,7 @@ defmodule WotexTrackerHost.MixProject do
         wotex_tracker: [
           include_erts: true,
           include_executables_for: [:unix],
-          steps: [:assemble, &copy_cli/1, :tar]
+          steps: [:assemble, &copy_assets/1, :tar]
         ]
       ]
     ]
@@ -51,10 +51,53 @@ defmodule WotexTrackerHost.MixProject do
     end
   end
 
-  defp copy_cli(release) do
+  defp copy_assets(release) do
     destination = Path.join([release.path, "bin", "trackerctl"])
     File.cp!("bin/trackerctl", destination)
     File.chmod!(destination, 0o755)
+    licenses = Path.join(release.path, "licenses")
+    File.cp_r!("priv/licenses", licenses)
+    copy_notices(File.cwd!(), Path.join(licenses, "wotex_tracker_host"))
+
+    elixir =
+      :elixir
+      |> :code.lib_dir()
+      |> to_string()
+      |> Path.expand()
+      |> Path.dirname()
+      |> Path.dirname()
+
+    elixir_source =
+      if Path.wildcard(Path.join(elixir, "LICENSE*")) == [],
+        do: Path.join("priv/licenses", "elixir-" <> System.version()),
+        else: elixir
+
+    copy_notices(elixir_source, Path.join(licenses, "elixir"))
+
+    for {app, path} <- Mix.Project.deps_paths(), Map.has_key?(release.applications, app) do
+      destination = Path.join(licenses, Atom.to_string(app))
+
+      if app == :db_connection do
+        # This dependency ships its copyright/Apache notice inside README.md.
+        File.mkdir_p!(destination)
+        File.cp!(Path.join(path, "README.md"), Path.join(destination, "README.md"))
+        File.cp!("LICENSE", Path.join(destination, "LICENSE"))
+      else
+        copy_notices(path, destination)
+      end
+    end
+
     release
+  end
+
+  defp copy_notices(source, destination) do
+    files =
+      ["LICENSE*", "NOTICE*", "COPYING*"]
+      |> Enum.flat_map(&Path.wildcard(Path.join(source, &1)))
+      |> Enum.filter(&File.regular?/1)
+
+    if files == [], do: Mix.raise("Missing release license files for #{Path.basename(source)}")
+    File.mkdir_p!(destination)
+    Enum.each(files, &File.cp!(&1, Path.join(destination, Path.basename(&1))))
   end
 end

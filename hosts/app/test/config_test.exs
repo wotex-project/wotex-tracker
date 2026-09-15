@@ -54,6 +54,26 @@ defmodule Wotex.Tracker.Host.ConfigTest do
     assert options[:ip] == {127, 0, 0, 1}
     assert options[:exposure] == :loopback
     assert options[:directory] == c.document["data_directory"]
+
+    write(
+      c.path,
+      Map.put(c.document, "storage_limits", %{
+        "max_pages" => 32,
+        "max_rows" => 100,
+        "busy_timeout" => 100,
+        "timeout" => 1000
+      })
+    )
+
+    assert {:ok, limited} = Config.load(c.path)
+
+    assert limited[:store_options] |> Map.new() == %{
+             max_pages: 32,
+             max_rows: 100,
+             busy_timeout: 100,
+             timeout: 1000
+           }
+
     refute inspect(options) =~ c.token
     refute inspect(options) =~ c.document["secret_key"]
 
@@ -139,6 +159,13 @@ defmodule Wotex.Tracker.Host.ConfigTest do
       %{"tls" => %{}},
       %{"tls" => %{"certfile" => "relative", "keyfile" => "/key.pem"}}
     ]
+
+    changes =
+      changes ++
+        Enum.map(
+          [nil, [], %{"unknown" => 1}, %{"max_pages" => 262_145}, %{"max_rows" => 0}],
+          &%{"storage_limits" => &1}
+        )
 
     for document <- invalid ++ Enum.map(changes, &Map.merge(c.document, &1)) do
       write(c.path, document)

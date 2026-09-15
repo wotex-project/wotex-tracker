@@ -359,3 +359,57 @@ This is source-host evidence. Bundled ERTS release, OCI, clean artifact startup,
 signal/restart/full-storage qualification and Runtime Property subscriptions
 remain outstanding. No image or release is published, and no user instance is
 configured by these tests.
+
+## WTR.07 bundled releases and local Linux image — 2026-09-15
+
+The immutable production cohort now assembles the standalone host with bundled
+ERTS for Darwin ARM64 and Linux ARM64. Both retain normal package requirements
+and the source lock; a temporary signed loopback registry supplies unpublished
+sibling artifacts. The Linux builder pins Elixir 1.18.4 / OTP 27.3.4.15 and Hex
+2.5.1 on a digest-pinned Debian Bookworm base. A separate runtime image includes
+runtime libraries and Python, runs as UID/GID 10001, and contains no external
+Elixir, Erlang, Mix or compiler. Release distribution is disabled. Runtime
+license/notice files accompany the assembled release.
+
+The independent Python/OpenAPI workflow runs against the actual bundled service.
+It exercises enrollment, native Property reads, raw fidelity, immutable history,
+snapshot/replay continuity, idempotency and revocation. The artifact lifecycle
+probe closes an active SSE stream on SIGTERM, restarts from the same private
+SQLite directory, confirms exact receipt replay and retained revoked access,
+and verifies committed history after SIGKILL/restart. A real SQLite page ceiling
+returns a definite storage-full rollback with no generation advance. Invalid
+storage permissions fail startup; the Linux probe additionally runs with no
+network, a read-only root filesystem and a private persistent volume, and rejects
+an unwritable data destination. Logs are checked for fixture credential/key
+leaks. Only fixture-owned containers and volumes are removed.
+
+The two complete host verification lanes pass with 5 ExUnit tests, 98.3% Elixir
+line coverage and 5 Python CLI tests. The six clean production service consumers
+also pass on the floor/current runtime lanes. Exact package, host source, archive,
+base-image and built-image identities are recorded in
+`verification/host-consumer.json`; artifacts remain under `_build/releases` and
+the image remains local. Darwin was tested on the recorded development OS with
+external BEAM tools removed from PATH; Linux provides the compiler-free runtime
+qualification. Only Linux ARM64 is qualified here, not AMD64 or other platforms.
+
+No image or release is published. Public sibling package availability, Runtime
+Property subscriptions and the UI-enabled composition remain unpassed Phase 3
+work. These software process-crash probes do not establish physical power-loss,
+Pi/mobile or radio qualification. The exact artifact source hashes remain the
+record of the executed build even as later implementation/documentation changes.
+
+## WTR.04 explicit host Property delivery evidence — 2026-09-15
+
+Pure materialisation accepts an optional pointer-to-transport-evidence declaration.
+Before adding `observable: true`, it checks exact Forms/deployment identity,
+complete read/observe/close operations, committed-value semantics and the same
+readable capability parent/source lineage. A model explicitly disabling observation
+is not overridden. Existing read-only TDs and default deployment digests remain
+unchanged, and decoder capabilities still describe physical readable support.
+
+Both root runtime lanes pass the complete gate with 1 doctest, 4 properties,
+48 tests and at least 97.8% line coverage. Cases reject missing/altered/unsupported
+witnesses and incomplete/mismatched streaming Forms. The host artifact cohort
+also consumes this updated root archive. This establishes the pure declaration
+contract; the service does not advertise observation until its stream and actual
+Runtime client have passed their own checks.
