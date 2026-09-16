@@ -9,6 +9,9 @@ defmodule Wotex.Tracker.GeofenceTransition do
   alias Wotex.Tracker.{Admission, Error, Geofence, Limits, PositionOrder, PositionSample}
 
   @fields ~w(id revision order_policy max_transition_gap_ms)a
+  @serialized_policy_fields ~w(schema algorithm id revision order_policy order_policy_identity max_transition_gap_ms initial_membership uncertain_membership edit_semantics event_idempotency identity)
+  @state_fields ~w(schema algorithm fence policy samples order_sample_identity last_received_sample_identity last_received_outcome last_valid_sample_identity last_valid_membership last_valid_event_at identity)
+  @event_fields ~w(schema id algorithm rule_id previous_rule_identity rule_identity previous_fence_identity fence_identity kind reason from_status from_sample_identity to_status to_sample_identity event_at fence_id fence_revision rule_revision from_position_evidence_id from_position_bundle_identity to_position_evidence_id to_position_bundle_identity)
   @type t :: %__MODULE__{}
   @enforce_keys @fields ++ [:identity]
   defstruct @enforce_keys
@@ -68,6 +71,50 @@ defmodule Wotex.Tracker.GeofenceTransition do
 
   def validate(_, _), do: Admission.fail(:invalid_input)
 
+  @doc "Projects a validated geofence transition policy and ordering policy to closed native JSON."
+  @spec to_map(term(), term()) :: {:ok, map()} | {:error, Error.t()}
+  def to_map(policy, options \\ []) do
+    with {:ok, policy} <- validate(policy, options),
+         {:ok, order_policy} <- PositionOrder.to_map(policy.order_policy, options) do
+      {:ok,
+       policy
+       |> policy_map(policy.order_policy)
+       |> Map.put("order_policy", order_policy)
+       |> Map.put("identity", policy.identity)}
+    end
+  end
+
+  @doc "Restores and revalidates a geofence transition policy from closed native JSON."
+  @spec from_map(term(), term()) :: {:ok, t()} | {:error, Error.t()}
+  def from_map(document, options \\ []) do
+    with true <- exact_fields?(document, @serialized_policy_fields),
+         true <-
+           document["schema"] == "wtr.geofence-transition-policy.v1" and
+             document["algorithm"] == "ordered-geofence-state-v1" and
+             document["initial_membership"] == "baseline" and
+             document["uncertain_membership"] == "retain_last_valid" and
+             document["edit_semantics"] == "recompute_without_entry_or_exit" and
+             document["event_idempotency"] == "geofence-transition-idempotency-v1",
+         {:ok, order_policy} <- PositionOrder.from_map(document["order_policy"], options),
+         true <- order_policy.identity == document["order_policy_identity"],
+         {:ok, policy} <-
+           new(
+             %{
+               id: document["id"],
+               revision: document["revision"],
+               order_policy: order_policy,
+               max_transition_gap_ms: document["max_transition_gap_ms"]
+             },
+             options
+           ),
+         true <- policy.identity == document["identity"] do
+      {:ok, policy}
+    else
+      false -> Admission.fail(:conflict)
+      error -> error
+    end
+  end
+
   @doc "Revalidates all state inputs, derived membership and its content identity."
   @spec validate_state(term(), term()) :: {:ok, State.t()} | {:error, Error.t()}
   def validate_state(value, options \\ [])
@@ -110,6 +157,116 @@ defmodule Wotex.Tracker.GeofenceTransition do
   end
 
   def validate_state(_, _), do: Admission.fail(:invalid_input)
+
+  @doc "Projects validated geofence state with a deduplicated complete sample registry."
+  @spec state_to_map(term(), term()) :: {:ok, map()} | {:error, Error.t()}
+  def state_to_map(state, options \\ []) do
+    with {:ok, state} <- validate_state(state, options),
+         {:ok, fence} <- Geofence.to_map(state.fence, options),
+         {:ok, policy} <- to_map(state.policy, options),
+         {:ok, samples} <- sample_documents(state, options) do
+      {:ok,
+       %{
+         "schema" => "wtr.geofence-state.v1",
+         "algorithm" => "ordered-geofence-state-v1",
+         "fence" => fence,
+         "policy" => policy,
+         "samples" => samples,
+         "order_sample_identity" => state.order_sample.identity,
+         "last_received_sample_identity" => state.last_received_sample.identity,
+         "last_received_outcome" => state.last_received_outcome,
+         "last_valid_sample_identity" => sample_identity(state.last_valid_sample),
+         "last_valid_membership" => state.last_valid_membership,
+         "last_valid_event_at" => state.last_valid_event_at,
+         "identity" => state.identity
+       }}
+    end
+  end
+
+  @doc "Restores and revalidates geofence state from closed native JSON."
+  @spec state_from_map(term(), term()) :: {:ok, State.t()} | {:error, Error.t()}
+  def state_from_map(document, options \\ []) do
+    with true <- exact_fields?(document, @state_fields),
+         true <-
+           document["schema"] == "wtr.geofence-state.v1" and
+             document["algorithm"] == "ordered-geofence-state-v1",
+         {:ok, fence} <- Geofence.from_map(document["fence"], options),
+         {:ok, policy} <- from_map(document["policy"], options),
+         {:ok, samples} <- restore_samples(document["samples"], options),
+         {:ok, order_sample} <- fetch_sample(samples, document["order_sample_identity"]),
+         {:ok, received_sample} <-
+           fetch_sample(samples, document["last_received_sample_identity"]),
+         {:ok, valid_sample} <-
+           optional_restored_sample(samples, document["last_valid_sample_identity"]),
+         {:ok, state} <-
+           state(
+             state_values(
+               fence,
+               policy,
+               order_sample,
+               received_sample,
+               document["last_received_outcome"],
+               valid_sample,
+               document["last_valid_membership"],
+               document["last_valid_event_at"]
+             ),
+             options
+           ),
+         true <- state.identity == document["identity"],
+         {:ok, state} <- validate_state(state, options),
+         {:ok, admitted} <- state_to_map(state, options),
+         true <- admitted === document do
+      {:ok, state}
+    else
+      false -> Admission.fail(:conflict)
+      error -> error
+    end
+  end
+
+  @doc "Re-evaluates a changed transition and rejects altered state, event or effect fields."
+  @spec validate_transition(term(), term(), term()) :: {:ok, map()} | {:error, Error.t()}
+  def validate_transition(previous, result, options \\ []) do
+    with {:ok, previous} <- previous(previous, options),
+         true <- is_map(result) and not is_struct(result),
+         true <- result["schema"] == "wtr.geofence-transition.v1" and result["state_changed"],
+         %State{} = next_state <- result["state"],
+         {:ok, next_state} <- validate_state(next_state, options),
+         {:ok, mode} <- mode_atom(result["mode"]),
+         true <- is_integer(result["evaluated_at"]),
+         {:ok, expected} <-
+           evaluate(
+             previous,
+             next_state.fence,
+             next_state.last_received_sample,
+             next_state.policy,
+             mode,
+             result["evaluated_at"],
+             options
+           ),
+         true <- expected === result,
+         :ok <- validate_optional_event(result["event"], options) do
+      {:ok, result}
+    else
+      false -> Admission.fail(:conflict)
+      error -> error
+    end
+  end
+
+  @doc "Revalidates a stable geofence event and its content identity."
+  @spec validate_event(term(), term()) :: :ok | {:error, Error.t()}
+  def validate_event(event, options \\ []) do
+    with {:ok, limits} <- Limits.new(options),
+         true <- exact_fields?(event, @event_fields),
+         :ok <- Admission.object(event, limits),
+         true <- event_shape?(event, limits),
+         {:ok, identity} <- Admission.digest(event_key(event), Limits.json(limits)),
+         true <- identity == event["id"] do
+      :ok
+    else
+      false -> Admission.fail(:conflict)
+      error -> error
+    end
+  end
 
   @doc "Evaluates one admitted sample in explicit `:live` or `:replay` mode."
   @spec evaluate(term(), term(), term(), term(), term(), term(), term()) ::
@@ -195,6 +352,7 @@ defmodule Wotex.Tracker.GeofenceTransition do
       sample: sample,
       policy: policy,
       mode: mode,
+      now: now,
       order: order,
       membership: membership,
       options: options
@@ -215,7 +373,7 @@ defmodule Wotex.Tracker.GeofenceTransition do
                ),
                options
              ) do
-        edited_result(previous, next_state, order, membership, mode, options)
+        edited_result(previous, next_state, order, membership, mode, now, options)
       end
     else
       with {:ok, next_state} <-
@@ -230,6 +388,7 @@ defmodule Wotex.Tracker.GeofenceTransition do
           membership,
           nil,
           mode,
+          now,
           {membership["status"], "edit_recomputed_without_certain_membership", false}
         )
       end
@@ -243,6 +402,7 @@ defmodule Wotex.Tracker.GeofenceTransition do
       sample: sample,
       policy: policy,
       mode: mode,
+      now: now,
       order: order,
       membership: membership,
       options: options
@@ -271,6 +431,7 @@ defmodule Wotex.Tracker.GeofenceTransition do
             membership,
             nil,
             mode,
+            now,
             {membership["status"], membership["reason"], false}
           )
         end
@@ -285,6 +446,7 @@ defmodule Wotex.Tracker.GeofenceTransition do
             membership,
             nil,
             mode,
+            now,
             {"baseline", "initial_membership", false}
           )
         end
@@ -299,6 +461,7 @@ defmodule Wotex.Tracker.GeofenceTransition do
             membership,
             nil,
             mode,
+            now,
             {"baseline", "transition_gap_exceeded", false}
           )
         end
@@ -313,6 +476,7 @@ defmodule Wotex.Tracker.GeofenceTransition do
             membership,
             nil,
             mode,
+            now,
             {"stable", "membership_unchanged", false}
           )
         end
@@ -335,6 +499,7 @@ defmodule Wotex.Tracker.GeofenceTransition do
             membership,
             event,
             mode,
+            now,
             {"transition", "observed_membership_change", true}
           )
         end
@@ -384,11 +549,12 @@ defmodule Wotex.Tracker.GeofenceTransition do
       nil,
       nil,
       mode,
+      now,
       {order["status"], order["reason"], false}
     )
   end
 
-  defp edited_result(previous, next_state, order, membership, mode, options) do
+  defp edited_result(previous, next_state, order, membership, mode, now, options) do
     if previous && previous.last_valid_sample do
       reason = edit_reason(previous, next_state)
 
@@ -400,6 +566,7 @@ defmodule Wotex.Tracker.GeofenceTransition do
           membership,
           event,
           mode,
+          now,
           {
             "recomputed",
             reason,
@@ -415,6 +582,7 @@ defmodule Wotex.Tracker.GeofenceTransition do
         membership,
         nil,
         mode,
+        now,
         {"baseline", "initial_membership_after_edit", false}
       )
     end
@@ -551,6 +719,7 @@ defmodule Wotex.Tracker.GeofenceTransition do
          membership,
          event,
          mode,
+         now,
          {status, reason, membership_changed}
        ) do
     %{
@@ -564,7 +733,8 @@ defmodule Wotex.Tracker.GeofenceTransition do
       "order" => order,
       "membership" => membership,
       "event" => event,
-      "physical_action_dispatch" => action_effect(mode, event)
+      "physical_action_dispatch" => action_effect(mode, event),
+      "evaluated_at" => now
     }
   end
 
@@ -619,6 +789,104 @@ defmodule Wotex.Tracker.GeofenceTransition do
     end
   end
 
+  defp sample_documents(state, options) do
+    [state.order_sample, state.last_received_sample, state.last_valid_sample]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.reduce_while({:ok, %{}}, &serialize_sample(&1, &2, options))
+    |> then(fn
+      {:ok, documents} ->
+        {:ok, documents |> Map.values() |> Enum.sort_by(& &1["identity"])}
+
+      error ->
+        error
+    end)
+  end
+
+  defp serialize_sample(sample, {:ok, documents}, options) do
+    case PositionSample.to_map(sample, options) do
+      {:ok, document} -> insert_sample_document(documents, sample.identity, document)
+      error -> {:halt, error}
+    end
+  end
+
+  defp insert_sample_document(documents, identity, document) do
+    case Map.fetch(documents, identity) do
+      :error -> {:cont, {:ok, Map.put(documents, identity, document)}}
+      {:ok, ^document} -> {:cont, {:ok, documents}}
+      {:ok, _other} -> {:halt, Admission.fail(:conflict)}
+    end
+  end
+
+  defp restore_samples(documents, options) when is_list(documents) and length(documents) <= 3 do
+    Enum.reduce_while(documents, {:ok, %{}}, &restore_sample(&1, &2, options))
+  end
+
+  defp restore_samples(_, _), do: Admission.fail(:invalid_input)
+
+  defp restore_sample(document, {:ok, samples}, options) do
+    case PositionSample.from_map(document, options) do
+      {:ok, sample} -> restore_unique_sample(samples, sample)
+      error -> {:halt, error}
+    end
+  end
+
+  defp restore_unique_sample(samples, sample) do
+    if Map.has_key?(samples, sample.identity),
+      do: {:halt, Admission.fail(:conflict)},
+      else: {:cont, {:ok, Map.put(samples, sample.identity, sample)}}
+  end
+
+  defp fetch_sample(samples, identity) when is_binary(identity) do
+    case Map.fetch(samples, identity) do
+      {:ok, sample} -> {:ok, sample}
+      :error -> Admission.fail(:dangling_reference)
+    end
+  end
+
+  defp fetch_sample(_, _), do: Admission.fail(:invalid_input)
+  defp optional_restored_sample(_samples, nil), do: {:ok, nil}
+  defp optional_restored_sample(samples, identity), do: fetch_sample(samples, identity)
+
+  defp sample_identity(nil), do: nil
+  defp sample_identity(sample), do: sample.identity
+
+  defp validate_optional_event(nil, _options), do: :ok
+  defp validate_optional_event(event, options), do: validate_event(event, options)
+
+  defp event_shape?(event, limits) do
+    ids =
+      ~w(id rule_id previous_rule_identity rule_identity previous_fence_identity fence_identity reason from_sample_identity to_sample_identity fence_id fence_revision rule_revision from_position_evidence_id from_position_bundle_identity to_position_evidence_id to_position_bundle_identity)
+
+    event["schema"] == "wtr.geofence-event.v1" and
+      event["algorithm"] == "geofence-transition-idempotency-v1" and
+      Admission.each(Enum.map(ids, &event[&1]), &Admission.id(&1, limits)) == :ok and
+      event["kind"] in ~w(geofence.entered geofence.exited geofence.recomputed) and
+      event["from_status"] in ~w(inside outside) and event["to_status"] in ~w(inside outside) and
+      is_integer(event["event_at"])
+  end
+
+  defp event_key(event),
+    do: %{
+      "schema" => "wtr.geofence-event-key.v1",
+      "algorithm" => event["algorithm"],
+      "rule_id" => event["rule_id"],
+      "previous_rule_identity" => event["previous_rule_identity"],
+      "rule_identity" => event["rule_identity"],
+      "previous_fence_identity" => event["previous_fence_identity"],
+      "fence_identity" => event["fence_identity"],
+      "kind" => event["kind"],
+      "reason" => event["reason"],
+      "from_status" => event["from_status"],
+      "from_sample_identity" => event["from_sample_identity"],
+      "to_status" => event["to_status"],
+      "to_sample_identity" => event["to_sample_identity"],
+      "event_at" => event["event_at"]
+    }
+
+  defp mode_atom("live"), do: {:ok, :live}
+  defp mode_atom("replay"), do: {:ok, :replay}
+  defp mode_atom(_), do: Admission.fail(:invalid_input)
+
   defp policy_map(input, order_policy),
     do: %{
       "schema" => "wtr.geofence-transition-policy.v1",
@@ -632,4 +900,9 @@ defmodule Wotex.Tracker.GeofenceTransition do
       "edit_semantics" => "recompute_without_entry_or_exit",
       "event_idempotency" => "geofence-transition-idempotency-v1"
     }
+
+  defp exact_fields?(value, fields),
+    do:
+      is_map(value) and not is_struct(value) and
+        Enum.sort(Map.keys(value)) == Enum.sort(fields)
 end

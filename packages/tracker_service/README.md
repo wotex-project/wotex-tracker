@@ -42,11 +42,12 @@ idempotent, and terminal cleanup is explicit. This privileged API is not exposed
 as an unauthenticated HTTP queue.
 
 The privileged `Store` port can also atomically persist validated
-`TransportDegradation`, `HeartbeatTransition`, `BatteryTransition` and
-`MotionTransition` results. `RuleTransition` rechecks the pure result; the SQLite
+`TransportDegradation`, `HeartbeatTransition`, `BatteryTransition`,
+`MotionTransition` and `GeofenceTransition` results. `RuleTransition` rechecks the pure result; the SQLite
 commit compares the prior state identity and records canonical state, state
 history, a stable event intent and its event at one scope generation. Motion
-state retains a deduplicated registry of its complete evidence-bound samples.
+and geofence state retain deduplicated registries of their complete
+evidence-bound samples.
 Exact retries are idempotent, stale writers conflict, and restart recovery reads
 the native JSON state back through the pure constructor. Replay event intents
 retain prohibited dispatch, while live event intents retain the need for separate

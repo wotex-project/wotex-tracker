@@ -48,8 +48,8 @@ tests, bounded durable store-and-forward, authenticated HTTP/OpenAPI/SSE
 workflows, and Runtime Property reads and
 committed-value subscriptions through actual local HTTP binding peers. Its
 privileged host port also atomically persists transport-health state and stable
-event intents plus heartbeat, low-battery and motion/trip state and intents, with
-restart recovery and retry deduplication. The
+event intents plus heartbeat, low-battery, motion/trip and geofence state and
+intents, with restart recovery and retry deduplication. The
 standalone CLI and bundled Darwin/Linux ARM64 service artifacts pass local probes.
 See the [service contract](docs/contracts/service-v1.md). Live scanning and UI
 remain subsequent work.
@@ -58,7 +58,9 @@ The WTR.05 pure foundation admits position evidence, freshness, deterministic
 selection, event ordering with modular sequence evidence, and bounded geofence
 membership. See the [position guide](docs/guides/positions.md) and
 [geofence guide](docs/guides/geofences.md). Ordered geofence baseline, entry/exit
-and edit recomputation plus bounded sparse-crossing inference are implemented;
+and edit recomputation plus bounded sparse-crossing inference are implemented.
+Changed geofence state and stable event intent can be committed atomically and
+restored after restart;
 two-fix movement/uncertainty classification is also implemented. See the
 [motion guide](docs/guides/motion.md). Consecutive-segment dwell now establishes
 stationary/moving state and stable trip start, stop and interruption events. Host

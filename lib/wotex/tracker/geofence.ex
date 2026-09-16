@@ -9,6 +9,7 @@ defmodule Wotex.Tracker.Geofence do
   alias Wotex.Tracker.{Admission, Error, EvidenceBundle, Limits, Position}
 
   @fields ~w(id revision shape boundary uncertainty)a
+  @serialized_fields ~w(schema algorithm id revision shape boundary uncertainty identity)
   @authalic_radius_m 6_371_007.180918475
   @max_extent_m 1_000_000
   @epsilon_m 1.0e-6
@@ -53,6 +54,43 @@ defmodule Wotex.Tracker.Geofence do
   end
 
   def validate(_, _), do: Admission.fail(:invalid_input)
+
+  @doc "Projects a validated fence to closed native JSON."
+  @spec to_map(term(), term()) :: {:ok, map()} | {:error, Error.t()}
+  def to_map(fence, options \\ []) do
+    with {:ok, fence} <- validate(fence, options) do
+      {:ok, Map.put(policy_map(fence, fence.shape), "identity", fence.identity)}
+    end
+  end
+
+  @doc "Restores and revalidates a fence from closed native JSON."
+  @spec from_map(term(), term()) :: {:ok, t()} | {:error, Error.t()}
+  def from_map(document, options \\ []) do
+    with true <- exact_fields?(document, @serialized_fields),
+         true <- document["schema"] == "wtr.geofence.v1",
+         {:ok, shape, algorithm} <- shape_from_map(document["shape"]),
+         true <- document["algorithm"] == algorithm,
+         {:ok, boundary} <- boundary(document["boundary"]),
+         {:ok, uncertainty} <- uncertainty(document["uncertainty"]),
+         {:ok, fence} <-
+           new(
+             %{
+               id: document["id"],
+               revision: document["revision"],
+               shape: shape,
+               boundary: boundary,
+               uncertainty: uncertainty
+             },
+             options
+           ),
+         {:ok, admitted} <- to_map(fence, options),
+         true <- admitted === document do
+      {:ok, fence}
+    else
+      false -> Admission.fail(:conflict)
+      error -> error
+    end
+  end
 
   @doc "Evaluates one position without selecting a source, reading a clock or changing rule state."
   @spec evaluate(term(), term(), term(), term()) :: {:ok, map()} | {:error, Error.t()}
@@ -121,6 +159,46 @@ defmodule Wotex.Tracker.Geofence do
   end
 
   defp shape(_), do: Admission.fail(:invalid_input)
+
+  defp shape_from_map(
+         %{
+           "kind" => "circle",
+           "latitude" => latitude,
+           "longitude" => longitude,
+           "radius_m" => radius_m
+         } = value
+       )
+       when map_size(value) == 4,
+       do:
+         {:ok, %{kind: :circle, latitude: latitude, longitude: longitude, radius_m: radius_m},
+          "wgs84-authalic-haversine-v1"}
+
+  defp shape_from_map(%{"kind" => "polygon", "vertices" => vertices} = value)
+       when map_size(value) == 2 and is_list(vertices) do
+    vertices_from_map(vertices, [])
+  end
+
+  defp shape_from_map(_), do: Admission.fail(:invalid_input)
+
+  defp vertices_from_map([], acc),
+    do: {:ok, %{kind: :polygon, vertices: Enum.reverse(acc)}, "wgs84-authalic-local-polygon-v1"}
+
+  defp vertices_from_map(
+         [%{"latitude" => latitude, "longitude" => longitude} = value | rest],
+         acc
+       )
+       when map_size(value) == 2,
+       do: vertices_from_map(rest, [%{latitude: latitude, longitude: longitude} | acc])
+
+  defp vertices_from_map(_, _), do: Admission.fail(:invalid_input)
+
+  defp boundary("inside"), do: {:ok, :inside}
+  defp boundary("outside"), do: {:ok, :outside}
+  defp boundary(_), do: Admission.fail(:invalid_input)
+
+  defp uncertainty("require_bound"), do: {:ok, :require_bound}
+  defp uncertainty("coordinate_only"), do: {:ok, :coordinate_only}
+  defp uncertainty(_), do: Admission.fail(:invalid_input)
 
   defp vertices(values) do
     Enum.reduce_while(values, {:ok, []}, fn value, {:ok, acc} ->
@@ -662,4 +740,9 @@ defmodule Wotex.Tracker.Geofence do
       "boundary" => Atom.to_string(input.boundary),
       "uncertainty" => Atom.to_string(input.uncertainty)
     }
+
+  defp exact_fields?(value, fields),
+    do:
+      is_map(value) and not is_struct(value) and
+        Enum.sort(Map.keys(value)) == Enum.sort(fields)
 end

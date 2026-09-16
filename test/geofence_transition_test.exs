@@ -110,6 +110,109 @@ defmodule Wotex.Tracker.GeofenceTransitionTest do
     refute exit["event"]["id"] == live["event"]["id"]
   end
 
+  test "closed policy, state and event documents restore exact geofence content" do
+    fence = fence()
+    policy = policy()
+    outside = sample("serialized-outside", 0, 0.002, 1_000)
+    inside = sample("serialized-inside", 0, 0, 1_001)
+
+    {:ok, baseline} =
+      GeofenceTransition.evaluate(nil, fence, outside, policy, :live, 1_000)
+
+    {:ok, entered} =
+      GeofenceTransition.evaluate(
+        baseline["state"],
+        fence,
+        inside,
+        policy,
+        :live,
+        1_001
+      )
+
+    {:ok, replay_entered} =
+      GeofenceTransition.evaluate(
+        baseline["state"],
+        fence,
+        inside,
+        policy,
+        :replay,
+        1_001
+      )
+
+    assert {:ok, ^baseline} = GeofenceTransition.validate_transition(nil, baseline)
+
+    assert {:ok, ^entered} =
+             GeofenceTransition.validate_transition(baseline["state"], entered)
+
+    assert {:ok, ^replay_entered} =
+             GeofenceTransition.validate_transition(baseline["state"], replay_entered)
+
+    assert :ok = GeofenceTransition.validate_event(entered["event"])
+    assert {:ok, fence_document} = Geofence.to_map(fence)
+    assert Geofence.from_map(fence_document) == {:ok, fence}
+    assert {:ok, policy_document} = GeofenceTransition.to_map(policy)
+    assert GeofenceTransition.from_map(policy_document) == {:ok, policy}
+    assert {:ok, state_document} = GeofenceTransition.state_to_map(entered["state"])
+    assert length(state_document["samples"]) == 1
+    assert GeofenceTransition.state_from_map(state_document) == {:ok, entered["state"]}
+
+    sample_document = hd(state_document["samples"])
+
+    for changed <- [
+          Map.put(state_document, "identity", "forged"),
+          put_in(state_document, ["fence", "identity"], "forged"),
+          put_in(state_document, ["policy", "identity"], "forged"),
+          put_in(state_document, ["samples", Access.at(0), "identity"], "forged"),
+          Map.put(state_document, "order_sample_identity", "missing"),
+          Map.put(state_document, "order_sample_identity", nil),
+          Map.update!(state_document, "samples", &(&1 ++ &1)),
+          Map.put(state_document, "samples", List.duplicate(sample_document, 4)),
+          Map.put(state_document, "schema", "wtr.geofence-state.v2"),
+          Map.put(state_document, "extra", true)
+        ] do
+      assert {:error, _} = GeofenceTransition.state_from_map(changed)
+    end
+
+    for changed <- [
+          Map.put(policy_document, "schema", "wtr.geofence-transition-policy.v2"),
+          put_in(policy_document, ["order_policy", "identity"], "forged"),
+          Map.put(policy_document, "order_policy_identity", "forged"),
+          Map.put(policy_document, "identity", "forged"),
+          Map.put(policy_document, "extra", true)
+        ] do
+      assert {:error, _} = GeofenceTransition.from_map(changed)
+    end
+
+    assert {:error, _} =
+             GeofenceTransition.validate_transition(
+               baseline["state"],
+               put_in(entered, ["event", "reason"], "changed")
+             )
+
+    assert {:error, _} =
+             GeofenceTransition.validate_transition(
+               baseline["state"],
+               Map.put(entered, "evaluated_at", 999)
+             )
+
+    for changed <- [
+          Map.put(entered["event"], "schema", "wtr.geofence-event.v2"),
+          Map.put(entered["event"], "kind", "geofence.guessed"),
+          Map.put(entered["event"], "from_status", "uncertain"),
+          Map.put(entered["event"], "event_at", nil),
+          Map.put(entered["event"], "id", "forged"),
+          Map.put(entered["event"], "extra", true)
+        ] do
+      assert {:error, _} = GeofenceTransition.validate_event(changed)
+    end
+
+    assert {:error, _} = GeofenceTransition.to_map(:invalid)
+    assert {:error, _} = GeofenceTransition.from_map(nil)
+    assert {:error, _} = GeofenceTransition.state_to_map(:invalid)
+    assert {:error, _} = GeofenceTransition.state_from_map(nil)
+    assert {:error, _} = GeofenceTransition.validate_transition(nil, nil)
+  end
+
   test "uncertain samples advance ordering while the last valid membership is retained" do
     fence = fence(:require_bound)
     policy = policy()

@@ -115,6 +115,16 @@ Replay always returns `physical_action_dispatch: "prohibited"`; a live event say
 that separate authorization is required. This pure module never dispatches an
 Action or persists state.
 
+`Geofence.to_map/2` and `GeofenceTransition.to_map/2` export closed policy
+documents. Geofence state exports the complete fence and rule plus a sorted,
+deduplicated registry of the position samples still referenced by ordering,
+last-received and last-valid state. Restoration reconstructs those references
+through the public evidence constructors and rejects added, missing, duplicated,
+dangling or altered documents. The service `RuleTransition` port re-evaluates a
+changed result, compares the prior state identity inside SQLite, and commits the
+state, history and stable event intent at one generation. Restart restoration and
+exact retry deduplication preserve replay's prohibited dispatch metadata.
+
 ## Sparse inferred crossings
 
 `Geofence.trace/6` evaluates the straight centreline between two separately

@@ -7,22 +7,25 @@ defmodule Wotex.Tracker.Service.RuleTransition do
   """
   alias Wotex.Tracker.{
     BatteryTransition,
+    GeofenceTransition,
     HeartbeatTransition,
     MotionTransition,
     TransportDegradation
   }
 
   alias Wotex.Tracker.BatteryTransition.State, as: BatteryState
+  alias Wotex.Tracker.GeofenceTransition.State, as: GeofenceState
   alias Wotex.Tracker.HeartbeatTransition.State, as: HeartbeatState
   alias Wotex.Tracker.MotionTransition.State, as: MotionState
   alias Wotex.Tracker.Service.Codec
   alias Wotex.Tracker.TransportDegradation.State, as: TransportState
 
   @battery_kind "battery"
+  @geofence_kind "geofence"
   @heartbeat_kind "heartbeat"
   @motion_kind "motion"
   @transport_kind "transport_degradation"
-  @kinds [@battery_kind, @heartbeat_kind, @motion_kind, @transport_kind]
+  @kinds [@battery_kind, @geofence_kind, @heartbeat_kind, @motion_kind, @transport_kind]
   @fields [
     :scope,
     :kind,
@@ -44,7 +47,12 @@ defmodule Wotex.Tracker.Service.RuleTransition do
   @doc "Revalidates and projects one pure transition for atomic host storage."
   @spec new(
           String.t(),
-          BatteryState.t() | HeartbeatState.t() | MotionState.t() | TransportState.t() | nil,
+          BatteryState.t()
+          | GeofenceState.t()
+          | HeartbeatState.t()
+          | MotionState.t()
+          | TransportState.t()
+          | nil,
           map()
         ) ::
           {:ok, t()} | {:error, atom()}
@@ -58,6 +66,31 @@ defmodule Wotex.Tracker.Service.RuleTransition do
          record_id = @battery_kind <> ":" <> state.policy.id,
          true <- Codec.id?(record_id) do
       transition(scope, @battery_kind, previous, state, document, result, record_id)
+    else
+      _ -> {:error, :invalid_rule_transition}
+    end
+  end
+
+  def new(scope, previous, %{"schema" => "wtr.geofence-transition.v1"} = result) do
+    with true <- Codec.id?(scope),
+         {:ok, result} <- GeofenceTransition.validate_transition(previous, result),
+         true <- result["state_changed"],
+         %GeofenceState{} = state <- result["state"],
+         {:ok, document} <- GeofenceTransition.state_to_map(state),
+         :ok <- optional_event(@geofence_kind, result["event"]),
+         true <- is_integer(result["evaluated_at"]),
+         record_id = @geofence_kind <> ":" <> state.policy.id,
+         true <- Codec.id?(record_id) do
+      transition(
+        scope,
+        @geofence_kind,
+        previous,
+        state,
+        document,
+        result,
+        record_id,
+        result["evaluated_at"]
+      )
     else
       _ -> {:error, :invalid_rule_transition}
     end
@@ -189,6 +222,9 @@ defmodule Wotex.Tracker.Service.RuleTransition do
   defp restore_state(@heartbeat_kind, document),
     do: HeartbeatTransition.state_from_map(document)
 
+  defp restore_state(@geofence_kind, document),
+    do: GeofenceTransition.state_from_map(document)
+
   defp restore_state(@battery_kind, document),
     do: BatteryTransition.state_from_map(document)
 
@@ -205,6 +241,9 @@ defmodule Wotex.Tracker.Service.RuleTransition do
 
   defp optional_event(@heartbeat_kind, event),
     do: HeartbeatTransition.validate_event(event)
+
+  defp optional_event(@geofence_kind, event),
+    do: GeofenceTransition.validate_event(event)
 
   defp optional_event(@motion_kind, event),
     do: MotionTransition.validate_event(event)
@@ -250,6 +289,11 @@ defmodule Wotex.Tracker.Service.RuleTransition do
       event["to_position_bundle_identity"] == state.order_sample.position.bundle_identity
   end
 
+  defp event_matches?(@geofence_kind, event, state, mode, action) when is_map(event) do
+    action_matches?(mode, action) and geofence_scope_matches?(event, state) and
+      geofence_target_matches?(event, state)
+  end
+
   defp event_matches?(@heartbeat_kind, event, state, mode, action) when is_map(event) do
     expected_action =
       if(mode == "live", do: "separate_authorization_required", else: "prohibited")
@@ -264,8 +308,29 @@ defmodule Wotex.Tracker.Service.RuleTransition do
 
   defp event_matches?(_, _, _, _, _), do: false
 
-  defp evaluated_at_matches?(@motion_kind, _state, evaluated_at),
-    do: is_integer(evaluated_at)
+  defp action_matches?(mode, action),
+    do: action == if(mode == "live", do: "separate_authorization_required", else: "prohibited")
+
+  defp geofence_scope_matches?(event, state) do
+    event["rule_id"] == state.policy.id and
+      event["rule_identity"] == state.policy.identity and
+      event["rule_revision"] == state.policy.revision and
+      event["fence_id"] == state.fence.id and
+      event["fence_identity"] == state.fence.identity and
+      event["fence_revision"] == state.fence.revision
+  end
+
+  defp geofence_target_matches?(event, state) do
+    event["to_status"] == state.last_valid_membership["status"] and
+      event["to_sample_identity"] == state.last_valid_sample.identity and
+      event["to_position_evidence_id"] == state.last_valid_sample.position.evidence_id and
+      event["to_position_bundle_identity"] == state.last_valid_sample.position.bundle_identity and
+      event["event_at"] == state.last_valid_event_at
+  end
+
+  defp evaluated_at_matches?(kind, _state, evaluated_at)
+       when kind in [@geofence_kind, @motion_kind],
+       do: is_integer(evaluated_at)
 
   defp evaluated_at_matches?(_kind, state, evaluated_at),
     do: state.evaluated_at == evaluated_at

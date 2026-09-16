@@ -91,7 +91,7 @@ declared layer. A lower/different layer does not satisfy it. Terminal receipts
 remain until explicit scoped cleanup; cleanup never removes pending items.
 
 The same privileged store accepts a revalidated transport-health, heartbeat,
-low-battery or motion/trip transition. It compares the expected prior state identity inside
+low-battery, motion/trip or geofence transition. It compares the expected prior state identity inside
 `BEGIN IMMEDIATE`, then
 writes the canonical rule state, immutable state history, deduplicated event
 intent and public event at one scope generation. An exact retry returns the

@@ -1107,3 +1107,39 @@ the trip in replay, and proves atomic `trip.started` intent plus retry
 deduplication. Exact archive and lock identities are recorded in
 `verification/service-consumer.json`. Position ingestion, trip-summary
 materialization and notification delivery remain host work.
+
+## WTR.05/06 atomic geofence persistence — 2026-09-16
+
+Fences, geofence-transition policies and canonical geofence state now have
+closed native-JSON forms that restore through public constructors without atom
+creation. Durable state stores the complete fence and ordering policy plus a
+sorted, deduplicated registry containing only the position samples referenced by
+the ordering head, last reception and last certain membership. Restoration
+rejects duplicate or unused documents, dangling identities and changed nested
+evidence.
+
+Changed transition admission re-evaluates the pure result at its explicit
+evaluation time and validates stable entry, exit and recomputation event
+identities. The schema-3 generic transaction now admits `geofence`, compares the
+expected prior identity and atomically advances canonical state, immutable
+history and any stable event intent. Exact retry returns the committed
+generation, changed results conflict, and replay intent retains prohibited
+physical dispatch. The existing generic tables require no migration.
+
+Both required root runtime lanes passed the complete gate with 1 doctest,
+18 properties and 150 tests, no failures and 95.0% floor / 95.1% current
+production line coverage. Both service runtime lanes passed with 2 properties
+and 111 tests, no failures and 95.6% floor / 95.7% current production line
+coverage. Cases cover circle and polygon fence restoration, nested policy and
+state round trips, malformed registries and references, live/replay transition
+validation, restart restoration, entry intent commit, exact retry and
+stable-result rejection. Compiler, formatter, strict Credo, Dialyzer, ExDoc,
+dependency audit, licences, OpenAPI validation, documentation contracts and
+archive inspection passed.
+
+The production service consumer commits an installed-archive outside baseline,
+restarts SQLite, reconstructs its complete state, evaluates an entry in replay,
+and proves atomic `geofence.entered` intent plus retry deduplication. Exact
+archive and lock identities are recorded in `verification/service-consumer.json`.
+Position ingestion, notification delivery and public rule management remain host
+work.

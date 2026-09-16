@@ -114,6 +114,9 @@ Directory, databases, CLI/server/UI, cellular listeners, firmware, LoRaWAN and A
 
 The durable SQLite foundation is implemented in `packages/tracker_service/`;
 the authenticated import/enrollment/materialisation facade is implemented.
+The privileged transaction port atomically persists transport-health, heartbeat,
+low-battery, motion/trip and geofence state with stable event intents and restart
+restoration.
 The bounded HTTP/OpenAPI/SSE foundation, public resource history and Runtime
 Property reads and committed-value subscriptions are implemented. The standalone host startup and HTTP CLI are
 implemented and tested from source and bundled artifacts. Darwin ARM64 releases

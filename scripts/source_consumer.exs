@@ -337,6 +337,19 @@ true = exported["position"]["longitude"] === 0.0
 {:ok, ^transition_state} =
   Wotex.Tracker.GeofenceTransition.validate_state(transition_state)
 
+{:ok, fence_document} = Wotex.Tracker.Geofence.to_map(fence)
+{:ok, ^fence} = Wotex.Tracker.Geofence.from_map(fence_document)
+{:ok, transition_policy_document} = Wotex.Tracker.GeofenceTransition.to_map(transition_policy)
+
+{:ok, ^transition_policy} =
+  Wotex.Tracker.GeofenceTransition.from_map(transition_policy_document)
+
+{:ok, transition_state_document} =
+  Wotex.Tracker.GeofenceTransition.state_to_map(transition_state)
+
+{:ok, ^transition_state} =
+  Wotex.Tracker.GeofenceTransition.state_from_map(transition_state_document)
+
 crossing_sample = fn id, longitude, event_at ->
   {:ok, crossing_capture} =
     Tracker.observation(%{

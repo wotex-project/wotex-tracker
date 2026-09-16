@@ -5,6 +5,8 @@ alias Wotex.Tracker.{
   BatteryTransition,
   Evidence,
   EvidenceBundle,
+  Geofence,
+  GeofenceTransition,
   HeartbeatTransition,
   Measurement,
   MeasurementSample,
@@ -439,6 +441,48 @@ end
 {:ok, %{"generation" => "2", "event_disposition" => "none"}} =
   Store.commit_rule(store, motion_candidate_transition)
 
+{:ok, geofence} =
+  Geofence.new(%{
+    id: "archive-yard",
+    revision: "archive-yard-v1",
+    shape: %{kind: :circle, latitude: 0, longitude: 0, radius_m: 100},
+    boundary: :inside,
+    uncertainty: :coordinate_only
+  })
+
+{:ok, geofence_order_policy} =
+  PositionOrder.new(%{
+    revision: "archive-geofence-order-v1",
+    event_time: :trusted_fix,
+    future_skew_ms: 0,
+    late_window_ms: 10_000,
+    sequence: :none
+  })
+
+{:ok, geofence_policy} =
+  GeofenceTransition.new(%{
+    id: "archive-yard-membership",
+    revision: "archive-yard-membership-v1",
+    order_policy: geofence_order_policy,
+    max_transition_gap_ms: 10_000
+  })
+
+{:ok, geofence_baseline_result} =
+  GeofenceTransition.evaluate(
+    nil,
+    geofence,
+    motion_sample.("geofence-outside", 0.002, update.now),
+    geofence_policy,
+    :live,
+    update.now
+  )
+
+{:ok, geofence_baseline_transition} =
+  RuleTransition.new("archive-geofence", nil, geofence_baseline_result)
+
+{:ok, %{"generation" => "1", "event_disposition" => "none"}} =
+  Store.commit_rule(store, geofence_baseline_transition)
+
 {:ok, forward_item} =
   ForwardItem.new(%{
     scope: "archive",
@@ -596,6 +640,38 @@ true = restored_motion === motion_candidate_result["state"]
    "mode" => "replay",
    "physical_action_dispatch" => "prohibited"
  }} = Store.rule_event(store, "archive-motion", motion_receipt["event_id"])
+
+{:ok, durable_geofence} =
+  Store.rule_state(store, "archive-geofence", "geofence", geofence_policy.id)
+
+{:ok, restored_geofence} = GeofenceTransition.state_from_map(durable_geofence["state"])
+true = restored_geofence === geofence_baseline_result["state"]
+
+{:ok, entered_geofence_result} =
+  GeofenceTransition.evaluate(
+    restored_geofence,
+    geofence,
+    motion_sample.("geofence-inside", 0, update.now + 1_000),
+    geofence_policy,
+    :replay,
+    update.now + 1_000
+  )
+
+{:ok, entered_geofence_transition} =
+  RuleTransition.new("archive-geofence", restored_geofence, entered_geofence_result)
+
+{:ok, %{"generation" => "2", "event_disposition" => "recorded"} = geofence_receipt} =
+  Store.commit_rule(store, entered_geofence_transition)
+
+{:ok, %{"disposition" => "duplicate", "generation" => "2"}} =
+  Store.commit_rule(store, entered_geofence_transition)
+
+{:ok,
+ %{
+   "event" => %{"kind" => "geofence.entered"},
+   "mode" => "replay",
+   "physical_action_dispatch" => "prohibited"
+ }} = Store.rule_event(store, "archive-geofence", geofence_receipt["event_id"])
 
 {:ok, %{"status" => "pending"}} =
   Store.forward_status(store, "archive", forward_item.id)
@@ -928,5 +1004,5 @@ retained = Process.list() |> MapSet.new() |> MapSet.difference(before_processes)
 0 = retained
 
 IO.puts(
-  "SERVICE_COHORT_PASS durable_restart=true durable_store_forward=true atomic_transport_health=true atomic_heartbeat=true atomic_battery=true atomic_motion=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true explicit_association=true independent_http_sse=true actual_runtime_http_peer=true actual_runtime_sse=true retained_new_processes=#{retained}"
+  "SERVICE_COHORT_PASS durable_restart=true durable_store_forward=true atomic_transport_health=true atomic_heartbeat=true atomic_battery=true atomic_motion=true atomic_geofence=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true explicit_association=true independent_http_sse=true actual_runtime_http_peer=true actual_runtime_sse=true retained_new_processes=#{retained}"
 )

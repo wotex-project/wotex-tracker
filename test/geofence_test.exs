@@ -85,6 +85,44 @@ defmodule Wotex.Tracker.GeofenceTest do
              Geofence.evaluate(outside_fence, edge, bundle)
   end
 
+  test "closed circle and polygon documents restore exact fence content" do
+    circle = circle(100, :inside, :require_bound)
+
+    vertices = [vertex(0, 0), vertex(0, 1), vertex(1, 1), vertex(1, 0)]
+    polygon = polygon(vertices, :outside, :coordinate_only)
+
+    for fence <- [circle, polygon] do
+      assert {:ok, document} = Geofence.to_map(fence)
+      assert Geofence.from_map(document) == {:ok, fence}
+
+      for changed <- [
+            Map.put(document, "identity", "forged"),
+            Map.put(document, "boundary", "maybe"),
+            Map.put(document, "uncertainty", "maybe"),
+            Map.put(document, "algorithm", "invented"),
+            Map.put(document, "extra", true)
+          ] do
+        assert {:error, _} = Geofence.from_map(changed)
+      end
+    end
+
+    {:ok, circle_document} = Geofence.to_map(circle)
+    {:ok, polygon_document} = Geofence.to_map(polygon)
+
+    assert {:error, _} =
+             circle_document
+             |> put_in(["shape", "kind"], "invented")
+             |> Geofence.from_map()
+
+    assert {:error, _} =
+             polygon_document
+             |> put_in(["shape", "vertices", Access.at(0), "extra"], true)
+             |> Geofence.from_map()
+
+    assert {:error, _} = Geofence.to_map(:invalid)
+    assert {:error, _} = Geofence.from_map(nil)
+  end
+
   test "polygon bound equality follows boundary inclusion and never invents certainty" do
     vertices = [vertex(0, 0), vertex(0, 1), vertex(1, 1), vertex(1, 0)]
     inside_fence = polygon(vertices, :inside, :require_bound)
