@@ -61,6 +61,37 @@ defmodule Wotex.Tracker.Host.BrowserTest do
     }
   end
 
+  test "operational history rejects malformed requests and failed service providers before collector access" do
+    no_collector = fn -> flunk("a denied request reached the collector") end
+    now = System.system_time(:millisecond)
+
+    assert {:error, %{"code" => "invalid_request"}} =
+             Client.request(
+               {no_collector, no_collector},
+               "private-token",
+               "workshop",
+               :operational_history,
+               %{},
+               now
+             )
+
+    for provider <- [
+          fn -> {:error, :storage_unavailable} end,
+          fn -> raise "private provider detail" end,
+          fn -> exit(:private_provider_detail) end
+        ] do
+      assert {:error, %{"code" => "storage_unavailable"}} =
+               Client.request(
+                 {provider, no_collector},
+                 "private-token",
+                 "workshop",
+                 :operational_history,
+                 %{"event" => nil, "cursor" => nil},
+                 now
+               )
+    end
+  end
+
   test "optional browser composition serves local assets, authenticates over HTTP and rejects foreign WebSocket origins",
        c do
     port = port()
