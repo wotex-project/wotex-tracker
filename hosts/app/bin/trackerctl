@@ -5,7 +5,11 @@ root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 source_script="$root/scripts/trackerctl.exs"
 
 if [ -f "$source_script" ]; then
-  build_path=${MIX_BUILD_PATH:-"$root/_build/${MIX_ENV:-dev}"}
+  if [ "${WOTEX_TRACKER_UI:-}" = "1" ]; then
+    build_path=${MIX_BUILD_PATH:-"$root/_build/ui/${MIX_ENV:-dev}"}
+  else
+    build_path=${MIX_BUILD_PATH:-"$root/_build/${MIX_ENV:-dev}"}
+  fi
   set -- "$source_script" "$@"
 
   for ebin in "$build_path"/lib/*/ebin; do
