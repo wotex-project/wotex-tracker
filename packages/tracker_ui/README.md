@@ -91,3 +91,5 @@ new multi-series query with an exact table. Its stable operation reference
 supports recovery after a lost reply; a reader can run but cannot create it.
 Editing that definition to a line, area or points view plots its series on one
 scale. Each series retains an exact table, and absent buckets remain gaps.
+Any reader can also switch the displayed saved result among table, line, area
+and points without changing its definition or rerunning the query.

@@ -37,6 +37,8 @@ series into one generation-checked multi-series exact-table dashboard. The
 stable operation reference permits receipt recovery without a duplicate write.
 Saved multi-series definitions can also render line, area and point graphs on
 one common scale, with per-series gaps and exact tables.
+Readers can switch a currently displayed saved result among those views and a
+table without changing its admitted query, snapshot or stored definition.
 The browser can export the currently displayed closed query result as JSON with
 its source snapshot, result identity, bounds, units, exclusions and gap policy.
 Model execution is explicitly configured and can be disabled; deterministic

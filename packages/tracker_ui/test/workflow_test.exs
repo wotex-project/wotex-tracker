@@ -652,6 +652,22 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert get_in(dashboard_export, ["series", Access.at(0), "points", Access.at(0), "value"]) ==
              24.3
 
+    detail |> element("button[phx-value-view='area']") |> render_click()
+    assert has_element?(detail, "path.chart-area")
+    assert has_element?(detail, "button[phx-value-view='area'][aria-pressed='true']")
+    detail |> element("button[phx-value-view='table']") |> render_click()
+    refute has_element?(detail, "svg[role=img]")
+    assert has_element?(detail, "td", "24.3 °C")
+    detail |> element("button[phx-value-view='points']") |> render_click()
+    assert has_element?(detail, "circle.chart-point")
+    refute has_element?(detail, "path.chart-line")
+    assert render(detail) =~ dashboard_export["identity"]
+    render_click(detail, "change-view", %{"view" => "raw"})
+    assert has_element?(detail, "[role=alert]")
+    assert has_element?(detail, "circle.chart-point")
+    {:ok, unchanged} = Service.get(c.service, c.admin, c.scope, "saved_queries", dashboard, c.now)
+    assert unchanged["value"]["visualization"]["type"] == "line"
+
     {:ok, history} =
       Service.history(c.service, c.admin, c.scope, "saved_queries", dashboard, %{}, c.now)
 

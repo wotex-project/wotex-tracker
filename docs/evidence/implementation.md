@@ -1794,3 +1794,12 @@ physical device. Unknown names are rejected before the service call. A failed
 read clears the previous value and can be retried; a LiveView test covers reader
 authority, successful temperature/pressure reads, tampering and temporary
 unavailability. Write/Action controls remain contingent on qualified affordances.
+
+### Temporary saved-result views — 2026-09-16
+
+After running a saved query, a reader can switch its current result among table,
+line, area and points views. The projection uses the same returned `QueryResult`
+and does not rerun the service query or edit the saved definition. The selected
+control exposes its state through `aria-pressed`. A LiveView test switches each
+view, checks that the result identity remains visible, rejects an unrecognized
+view and confirms that the stored visualization is unchanged.

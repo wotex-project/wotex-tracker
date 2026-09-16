@@ -68,6 +68,9 @@ definition resolves a new window on every run. One-series definitions use the
 shared graph/table component. Multi-series definitions can show line, area or
 point traces on one common scale, with separate paths for each observed run;
 each series also keeps an exact table, including empty-series disclosure.
+After running a saved definition, any reader can switch that displayed result
+between table, line, area and points. The switch uses the result already on the
+page, preserves its snapshot and identity, and does not edit the saved view.
 An administrator can choose **Prepare save** after running a one-asset query,
 then name a fixed incident or rolling dashboard. The page address gains a
 stable operation reference before the save form appears. Submission captures

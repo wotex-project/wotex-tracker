@@ -14,6 +14,7 @@ defmodule Wotex.Tracker.UI.DashboardLive do
        definition: nil,
        result: nil,
        chart: nil,
+       display_view: nil,
        error: nil,
        manage_operation: nil,
        manage_intent: nil,
@@ -66,6 +67,14 @@ defmodule Wotex.Tracker.UI.DashboardLive do
       do: {:noreply, QueryExport.push(socket, result)}
 
   def handle_event("export-result", _, socket),
+    do: {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
+
+  def handle_event("change-view", %{"view" => view}, %{assigns: %{result: result}} = socket)
+      when view in ~w(line area points table) and is_map(result),
+      do:
+        {:noreply, assign(socket, display_view: view, chart: chart_for(result, view), error: nil)}
+
+  def handle_event("change-view", _, socket),
     do: {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
 
   def handle_event("prepare-manage", %{"intent" => intent}, socket)
@@ -273,8 +282,19 @@ defmodule Wotex.Tracker.UI.DashboardLive do
         :if={@result && length(@result["series"]) == 1}
         result={@result}
         chart={@chart}
-        view={@definition["visualization"]["type"]}
+        view={@display_view}
       />
+      <div :if={@result} class="chart-controls" role="group" aria-label="Display current result">
+        <span>Display current result:</span>
+        <button
+          :for={view <- ~w(table line area points)}
+          class="secondary"
+          phx-click="change-view"
+          phx-value-view={view}
+          aria-pressed={to_string(@display_view == view)}
+        >{view}</button>
+        <span class="muted">This choice does not edit the saved dashboard.</span>
+      </div>
       <button :if={@result} class="secondary" phx-click="export-result">
         Export result JSON
       </button>
@@ -294,7 +314,7 @@ defmodule Wotex.Tracker.UI.DashboardLive do
           <svg
             viewBox="0 0 1000 300"
             role="img"
-            aria-label={"#{@definition["visualization"]["type"]} graph comparing #{length(@chart.series)} series of qualified #{@result["spec"]["measurement"]} buckets; exact values follow in separate tables"}
+            aria-label={"#{@display_view} graph comparing #{length(@chart.series)} series of qualified #{@result["spec"]["measurement"]} buckets; exact values follow in separate tables"}
           >
             <line x1="56" y1="260" x2="944" y2="260" class="chart-axis" />
             <g
@@ -304,13 +324,13 @@ defmodule Wotex.Tracker.UI.DashboardLive do
               <title>{series.id}</title>
               <path
                 :for={segment <- series.segments}
-                :if={@definition["visualization"]["type"] == "area"}
+                :if={@display_view == "area"}
                 d={segment.area}
                 class="chart-area"
               />
               <path
                 :for={segment <- series.segments}
-                :if={@definition["visualization"]["type"] in ~w(line area)}
+                :if={@display_view in ~w(line area)}
                 d={segment.line}
                 class="chart-line"
               />
@@ -318,7 +338,7 @@ defmodule Wotex.Tracker.UI.DashboardLive do
                 :for={point <- series.points}
                 :if={
                   @definition["visualization"]["show_points"] ||
-                    @definition["visualization"]["type"] == "points"
+                    @display_view == "points"
                 }
                 cx={point.x}
                 cy={point.y}
@@ -377,10 +397,16 @@ defmodule Wotex.Tracker.UI.DashboardLive do
   defp load(socket) do
     case Auth.request(socket, :get, %{"resource" => "saved_queries", "id" => socket.assigns.id}) do
       {:ok, %{"value" => definition}} ->
-        assign(socket, definition: definition, result: nil, chart: nil, error: nil)
+        assign(socket,
+          definition: definition,
+          result: nil,
+          chart: nil,
+          display_view: definition["visualization"]["type"],
+          error: nil
+        )
 
       {:error, error} ->
-        assign(socket, definition: nil, result: nil, chart: nil, error: error)
+        assign(socket, definition: nil, result: nil, chart: nil, display_view: nil, error: error)
     end
   end
 
@@ -389,7 +415,7 @@ defmodule Wotex.Tracker.UI.DashboardLive do
   defp execute(socket) do
     case Auth.request(socket, :execute_saved_query, %{"id" => socket.assigns.id}) do
       {:ok, result} ->
-        view = socket.assigns.definition["visualization"]["type"]
+        view = socket.assigns.display_view
         chart = chart_for(result, view)
         assign(socket, result: result, chart: chart, error: nil)
 
@@ -411,7 +437,7 @@ defmodule Wotex.Tracker.UI.DashboardLive do
   defp execute_follow(socket, definition) do
     case Auth.request(socket, :execute_saved_query, %{"id" => socket.assigns.id}) do
       {:ok, result} ->
-        view = definition["visualization"]["type"]
+        view = socket.assigns.display_view || definition["visualization"]["type"]
         chart = chart_for(result, view)
 
         assign(socket,
