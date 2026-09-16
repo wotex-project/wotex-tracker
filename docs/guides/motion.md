@@ -73,5 +73,22 @@ implausible endpoint cannot.
 Late samples can advance last-received status without rewinding the canonical
 motion head. Replay produces the same state, trip and event identities as live
 evaluation while marking physical Action dispatch prohibited. State transitions
-remain pure and caller-owned; transactional persistence and distance accumulation
-belong to later layers.
+remain pure and caller-owned; transactional persistence belongs to a later layer.
+
+## Bounded trip distance
+
+`Wotex.Tracker.TripDistance` reconstructs a distance summary from an identified
+active trip and a bounded, canonically ordered sample list. The first sample must
+be the trip's candidate-onset sample and the list must contain its confirmation
+sample. Duplicate or unordered lists fail instead of being silently sorted.
+
+Every adjacent pair is reclassified through the trip's complete movement policy.
+Only `moving` segments contribute centre, lower and upper distance totals.
+Stationary, indeterminate, unknown and implausible segments remain in the returned
+segment ledger with their reason and evidence identities. The algorithm never
+joins the endpoints around an excluded segment, so a time gap or rejected fix
+cannot silently add route distance.
+
+The summary and policy carry content identities and an explicit sample limit.
+This is deterministic bounded reconstruction over supplied evidence. Long-lived
+storage, final closed-trip records and atomic event persistence remain host work.

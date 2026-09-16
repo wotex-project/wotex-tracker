@@ -387,6 +387,7 @@ crossing_after = crossing_sample.("after", 0.0002, 1_002)
  %{
    "status" => "transition",
    "motion_status" => "moving",
+   "active_trip" => archive_trip,
    "event" => %{"kind" => "trip.started"},
    "physical_action_dispatch" => "prohibited"
  }} =
@@ -398,8 +399,31 @@ crossing_after = crossing_sample.("after", 0.0002, 1_002)
     1_002
   )
 
+{:ok, distance_policy} =
+  Wotex.Tracker.TripDistance.new(%{
+    id: "archive-trip-distance",
+    revision: "archive-trip-distance-v1",
+    motion_policy: motion_policy,
+    max_samples: 16
+  })
+
+{:ok,
+ %{
+   "status" => "complete",
+   "included_segment_count" => 1,
+   "excluded_segment_count" => 0
+ } = archive_distance} =
+  Wotex.Tracker.TripDistance.evaluate(
+    archive_trip,
+    [crossing_to, crossing_after],
+    distance_policy,
+    1_002
+  )
+
+true = archive_distance["center_distance_m"] > 0
+
 true = MapSet.subset?(MapSet.new(Process.list()), before_processes)
 
 IO.puts(
-  "SOURCE_COHORT_PASS Elixir=#{System.version()} OTP=#{System.otp_release()} properties=10 position_freshness=true position_selection=true position_order=true movement=true motion_transition=true geofence=true geofence_transition=true geofence_crossing=true no_new_processes=true optional_hosts_absent=true"
+  "SOURCE_COHORT_PASS Elixir=#{System.version()} OTP=#{System.otp_release()} properties=10 position_freshness=true position_selection=true position_order=true movement=true motion_transition=true trip_distance=true geofence=true geofence_transition=true geofence_crossing=true no_new_processes=true optional_hosts_absent=true"
 )

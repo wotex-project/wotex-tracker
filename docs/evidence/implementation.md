@@ -723,3 +723,31 @@ dwell and inspect the replay trip-start event on both runtime lanes. Exact archi
 and lock identities are in `verification/source-consumer.json`. This slice does
 not accumulate trip distance or persist state. Atomic state/event-intent storage
 and any separately governed physical Action remain host responsibilities.
+
+## WTR.05 bounded trip-distance reconstruction — 2026-09-16
+
+`TripDistance` revalidates a content-identified active trip and a bounded sample
+cohort against the complete motion policy. The cohort must begin at the trip's
+candidate-onset sample, contain its confirmation sample, contain no duplicate
+identities and already be in canonical order. The evaluator never silently sorts
+or infers missing samples.
+
+Every adjacent sample pair is reclassified. Only segments proved `moving` add to
+the centre, lower and upper totals. Stationary, indeterminate, unknown and
+implausible pairs remain explicit ledger entries with both evidence identities
+and their exclusion reason. Later pairs still use their actual adjacent endpoint;
+the algorithm never joins positions around an excluded pair. Accuracy bounds and
+gap rules therefore remain visible in the reconstructed total.
+
+Both required runtime lanes passed the complete root gate with 1 doctest,
+13 properties and 112 tests, no failures and 96.6% production line coverage.
+Cases include exact moving totals, separate accumulated uncertainty bounds,
+stationary and over-gap exclusions, no bridging, duplicate/unordered/unscoped
+cohorts, sample-limit exhaustion, policy/trip mutation and generated monotonically
+ordered segment ledgers. Strict analysis, documentation, dependency, license and
+archive checks passed.
+
+The final source archive consumer reconstructs the identified synthetic trip on
+both runtime lanes. Six fresh, locked and minimum consumer identities are recorded
+in `verification/source-consumer.json`. The result is bounded reconstruction,
+not persistent trip storage; host transaction integration remains separate.

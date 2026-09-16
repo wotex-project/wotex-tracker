@@ -133,6 +133,14 @@ defmodule Wotex.Tracker.MotionTransition do
 
   def validate_state(_, _), do: Admission.fail(:invalid_input)
 
+  @doc "Revalidates an active trip against its complete motion policy."
+  @spec validate_trip(term(), term(), term()) :: {:ok, Trip.t()} | {:error, Error.t()}
+  def validate_trip(value, policy, options \\ []) do
+    with {:ok, policy} <- validate(policy, options) do
+      active_trip(value, policy, options)
+    end
+  end
+
   @doc "Evaluates one sample in explicit `:live` or `:replay` mode."
   @spec evaluate(term(), term(), term(), term(), term(), term()) ::
           {:ok, map()} | {:error, Error.t()}
