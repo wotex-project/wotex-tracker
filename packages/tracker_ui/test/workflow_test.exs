@@ -1207,6 +1207,9 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert render(detail) =~ "Auto-refresh active"
     assert render(detail) =~ "24.3"
     assert has_element?(detail, "path.chart-line")
+    detail |> element("button[phx-value-view='points']") |> render_click()
+    assert has_element?(detail, "circle.chart-point")
+    refute has_element?(detail, "path.chart-line")
 
     Agent.update(c.faults, &Map.put(&1, :execute_saved_query, :unavailable))
     send(detail.pid, {:auto_refresh, 1})
@@ -1216,11 +1219,12 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     Agent.update(c.faults, &Map.put(&1, :get, :unavailable))
     send(detail.pid, {:auto_refresh, 1})
     assert render(detail) =~ "displayed result is stale"
-    assert has_element?(detail, "path.chart-line")
+    assert has_element?(detail, "circle.chart-point")
 
     send(detail.pid, {:auto_refresh, 1})
     assert render(detail) =~ "Auto-refresh active"
     refute render(detail) =~ "displayed result is stale"
+    assert has_element?(detail, "button[phx-value-view='points'][aria-pressed='true']")
 
     detail |> element("button", "Stop auto-refresh") |> render_click()
     assert has_element?(detail, "button", "Start auto-refresh")
@@ -1249,7 +1253,7 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
 
     send(detail.pid, {:auto_refresh, 1})
     assert has_element?(detail, "h1", "Updated while following")
-    assert render(detail) =~ "area"
+    assert has_element?(detail, "button[phx-value-view='area'][aria-pressed='true']")
     {:ok, current} = Service.list(c.service, c.admin, c.scope, "saved_queries", %{}, c.now)
 
     {:ok, _} =

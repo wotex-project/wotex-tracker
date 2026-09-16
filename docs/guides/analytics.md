@@ -87,6 +87,9 @@ Any reader can start automatic refresh on an open saved dashboard. The page
 rechecks the definition and reruns its query every 30 seconds while it stays
 open. A temporary failure keeps the last successful result marked **stale** and
 retries; deletion or lost read authority clears that result and stops refresh.
+An edited saved view appears on the next successful refresh unless the reader
+has chosen a temporary view for this page; that choice stays in place while
+refresh continues.
 Manual runs, definition refreshes and navigation stop the timer.
 After a query runs, **Export result JSON** downloads that exact closed result
 from the current page state without rerunning it. The file includes the result

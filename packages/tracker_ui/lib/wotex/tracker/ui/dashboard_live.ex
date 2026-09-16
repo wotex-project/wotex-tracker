@@ -15,6 +15,7 @@ defmodule Wotex.Tracker.UI.DashboardLive do
        result: nil,
        chart: nil,
        display_view: nil,
+       display_override: false,
        error: nil,
        manage_operation: nil,
        manage_intent: nil,
@@ -72,7 +73,13 @@ defmodule Wotex.Tracker.UI.DashboardLive do
   def handle_event("change-view", %{"view" => view}, %{assigns: %{result: result}} = socket)
       when view in ~w(line area points table) and is_map(result),
       do:
-        {:noreply, assign(socket, display_view: view, chart: chart_for(result, view), error: nil)}
+        {:noreply,
+         assign(socket,
+           display_view: view,
+           display_override: true,
+           chart: chart_for(result, view),
+           error: nil
+         )}
 
   def handle_event("change-view", _, socket),
     do: {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
@@ -402,11 +409,19 @@ defmodule Wotex.Tracker.UI.DashboardLive do
           result: nil,
           chart: nil,
           display_view: definition["visualization"]["type"],
+          display_override: false,
           error: nil
         )
 
       {:error, error} ->
-        assign(socket, definition: nil, result: nil, chart: nil, display_view: nil, error: error)
+        assign(socket,
+          definition: nil,
+          result: nil,
+          chart: nil,
+          display_view: nil,
+          display_override: false,
+          error: error
+        )
     end
   end
 
@@ -437,13 +452,18 @@ defmodule Wotex.Tracker.UI.DashboardLive do
   defp execute_follow(socket, definition) do
     case Auth.request(socket, :execute_saved_query, %{"id" => socket.assigns.id}) do
       {:ok, result} ->
-        view = socket.assigns.display_view || definition["visualization"]["type"]
+        view =
+          if socket.assigns.display_override,
+            do: socket.assigns.display_view,
+            else: definition["visualization"]["type"]
+
         chart = chart_for(result, view)
 
         assign(socket,
           definition: definition,
           result: result,
           chart: chart,
+          display_view: view,
           error: nil,
           refresh_status: :current,
           refresh_error: nil

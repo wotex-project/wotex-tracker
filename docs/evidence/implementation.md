@@ -1740,6 +1740,12 @@ cover failure and recovery, changed definitions, deletion, revocation and a
 late tick after stopping. Subscription-driven updates and physical UI
 acceptance remain open.
 
+The reader's displayed graph or table now follows an externally edited saved
+view on the next successful automatic refresh. If the reader explicitly
+switches views on the open page, that temporary choice survives refresh and a
+stale-result retry. A manual run or definition refresh restores the saved
+default. LiveView tests cover both paths.
+
 ### Browser query-result export — 2026-09-16
 
 Both the per-asset analytics screen and saved dashboard now offer a JSON export
