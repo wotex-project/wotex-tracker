@@ -13,8 +13,9 @@ fresh resolved absolute bounds. Closed telemetry now covers requests,
 queries, import admission/decoding, transactional commits, forward-queue depth
 and overflow, publication reconciliation and store checks through an explicitly
 supervised bounded volatile collector. The explicit HTTP host also samples
-global BEAM memory, process and port counts into that collector. Reconnect,
-rendering and OS-native resource events remain with their owning adapters.
+global BEAM memory, process and port counts into that collector. The optional
+browser host records sanitized LiveView render durations there. Reconnect and
+OS-native resource events remain with their owning adapters.
 Host-only operational pages pin a collector epoch and sequence high-water mark;
 continuations reject restart, altered filters and expired samples.
 Encrypted analytics continuations now bind the exact query and first committed

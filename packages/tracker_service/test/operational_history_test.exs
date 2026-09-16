@@ -15,7 +15,7 @@ defmodule Wotex.Tracker.Service.OperationalHistoryTest do
   }
 
   test "the event vocabulary documents units and closed low-cardinality metadata" do
-    assert [request, query, ingest, store, queue, publication, resource, runtime] =
+    assert [request, query, ingest, store, queue, publication, resource, runtime, render] =
              OperationalTelemetry.contracts()
 
     assert request.event == [:wotex, :tracker, :service, :request, :stop]
@@ -55,6 +55,39 @@ defmodule Wotex.Tracker.Service.OperationalHistoryTest do
            }
 
     assert runtime.metadata == %{runtime: [:beam]}
+    assert render.event == [:wotex, :tracker, :browser, :render, :stop]
+    assert render.measurements == %{duration_us: :microsecond}
+    assert render.metadata == %{surface: [:browser], outcome: [:ok, :unavailable]}
+  end
+
+  test "browser render samples keep only closed duration and status" do
+    collector = start_supervised!({OperationalHistory, []})
+    duration = System.convert_time_unit(2_500, :microsecond, :native)
+    :ok = OperationalTelemetry.browser_render(:ok, duration)
+
+    eventually(fn ->
+      match?(
+        {:ok, %{"samples" => [_]}},
+        OperationalHistory.snapshot(collector, event: "render.stop")
+      )
+    end)
+
+    assert {:ok, %{"samples" => [sample]}} =
+             OperationalHistory.snapshot(collector, event: "render.stop")
+
+    assert sample["measurements"] == %{"duration_us" => 2_500}
+    assert sample["metadata"] == %{"surface" => "browser", "outcome" => "ok"}
+
+    :telemetry.execute(
+      [:wotex, :tracker, :browser, :render, :stop],
+      %{duration_us: 1},
+      %{surface: :browser, outcome: :ok, asset_id: "private"}
+    )
+
+    Process.sleep(10)
+
+    assert {:ok, %{"samples" => [_]}} =
+             OperationalHistory.snapshot(collector, event: "render.stop")
   end
 
   test "bounded volatile samples expire and malformed external events are ignored" do

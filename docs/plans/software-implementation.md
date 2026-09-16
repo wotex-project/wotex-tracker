@@ -376,7 +376,9 @@ The shared browser now executes a bounded per-asset structured query and shows
 its committed snapshot, bucket values and exclusions in line/area/point graphs
 and an accessible table. Gap-separated paths and time-window controls support
 historical exploration. A valid/suspect quality selector feeds the same closed
-query and persists with a saved definition. Reconnect/render/OS-native resource events,
+query and persists with a saved definition. The optional browser host records
+closed LiveView render durations in the same volatile collector. Reconnect and
+OS-native resource events,
 subscription-driven refresh, general dashboard composition and sharing, prompting and the physical UI
 acceptance gates remain.
 The shared browser can also list saved query definitions and rerun one under

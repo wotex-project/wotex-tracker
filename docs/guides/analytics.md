@@ -159,6 +159,7 @@ An explicitly started `OperationalHistory` collector retains volatile ETS
 samples under a unique restart epoch. The default HTTP host supervises that
 collector and host code reads it through `Server.operational_history/2`.
 Package loading remains inert, and collector failure cannot affect a committed
-observation or rule decision. Reconnect, rendering and native host-resource
-events belong to the adapters and UIs that perform those operations and remain
-required for the complete product instrumentation contract.
+observation or rule decision. An explicitly enabled browser host records
+sanitized root LiveView render durations in the same collector. Reconnect and
+native host-resource instrumentation remain required for the complete product
+contract.

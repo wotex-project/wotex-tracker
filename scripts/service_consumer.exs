@@ -73,7 +73,8 @@ end
   "queue.stop",
   "publication.stop",
   "resource.stop",
-  "runtime.sample"
+  "runtime.sample",
+  "render.stop"
 ] =
   Enum.map(OperationalTelemetry.contracts(), & &1.name)
 

@@ -1521,6 +1521,17 @@ package remains inert. Each production-archive service consumer also checks a
 retained resource sample from its explicitly started HTTP host.
 Reconnect, rendering and OS-native resource instrumentation remain open work.
 
+### Browser render telemetry — 2026-09-16
+
+The optional browser host now attaches to Phoenix LiveView render spans and
+records root Tracker view duration and completion outcome in the existing
+bounded volatile collector. The handler is explicitly supervised with the
+browser, ignores other views and component spans, and forwards only a fixed
+surface/outcome pair. It never forwards socket, asset, route or exception data.
+Headless artifacts do not install this handler. Service and browser-host tests
+cover the closed event contract, sample retention and metadata exclusion.
+Reconnect and OS-native resource events remain open.
+
 ### Pinned operational history pages — 2026-09-16
 
 The collector now exposes a host-only bounded page read. A continuation carries

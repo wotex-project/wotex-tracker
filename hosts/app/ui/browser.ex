@@ -2,6 +2,7 @@ defmodule Wotex.Tracker.Host.Browser do
   @moduledoc "Optional browser composition; only a UI-enabled artifact compiles this host."
   use Supervisor
   alias Wotex.Tracker.Host.Browser.Endpoint
+  alias Wotex.Tracker.Host.Browser.RenderTelemetry
   alias Wotex.Tracker.UI.{Local, Sessions}
 
   @doc false
@@ -52,6 +53,7 @@ defmodule Wotex.Tracker.Host.Browser do
       [
         {Phoenix.PubSub, name: Wotex.Tracker.Host.Browser.PubSub},
         {Sessions, name: Wotex.Tracker.Host.Browser.Sessions, client: {Local, provider}},
+        {RenderTelemetry, []},
         {Endpoint, endpoint}
       ],
       strategy: :rest_for_one

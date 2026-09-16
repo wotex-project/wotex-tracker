@@ -1,6 +1,6 @@
 defmodule Wotex.Tracker.Service.OperationalTelemetry do
   @moduledoc """
-  Closed operational `:telemetry` events emitted by the service.
+  Closed operational `:telemetry` events emitted by the service and host adapters.
 
   Measurements use integer microseconds and row counts. Metadata is deliberately
   low cardinality: it never contains a scope, principal, record ID, position,
@@ -16,6 +16,7 @@ defmodule Wotex.Tracker.Service.OperationalTelemetry do
   @publication [:wotex, :tracker, :service, :publication, :stop]
   @resource [:wotex, :tracker, :service, :resource, :stop]
   @runtime [:wotex, :tracker, :service, :runtime, :sample]
+  @browser_render [:wotex, :tracker, :browser, :render, :stop]
   @outcomes ~w(ok dropped rejected conflict overloaded deadline unavailable unknown)a
   @request_operations ~w(health contract capabilities mutation resource events stream property analytics saved_query unknown)a
   @aggregations ~w(count min max mean last)a
@@ -25,6 +26,7 @@ defmodule Wotex.Tracker.Service.OperationalTelemetry do
   @publication_operations ~w(lookup latest confirm)a
   @resources ~w(store)a
   @resource_operations ~w(readiness checkpoint backup)a
+  @render_outcomes ~w(ok unavailable)a
 
   @doc "Returns the complete event vocabulary and its measurement units."
   def contracts do
@@ -82,6 +84,12 @@ defmodule Wotex.Tracker.Service.OperationalTelemetry do
         name: "runtime.sample",
         measurements: %{beam_memory_bytes: :byte, process_count: :count, port_count: :count},
         metadata: %{runtime: [:beam]}
+      },
+      %{
+        event: @browser_render,
+        name: "render.stop",
+        measurements: %{duration_us: :microsecond},
+        metadata: %{surface: [:browser], outcome: @render_outcomes}
       }
     ]
   end
@@ -148,9 +156,29 @@ defmodule Wotex.Tracker.Service.OperationalTelemetry do
     )
   end
 
+  @doc "Records one completed browser render without forwarding LiveView metadata."
+  def browser_render(outcome, duration)
+      when outcome in @render_outcomes and is_integer(duration) and duration >= 0 do
+    execute(
+      @browser_render,
+      %{duration_us: System.convert_time_unit(duration, :native, :microsecond)},
+      %{surface: :browser, outcome: outcome}
+    )
+  end
+
   @doc false
   def event_names,
-    do: [@request, @query, @ingest, @store, @queue, @publication, @resource, @runtime]
+    do: [
+      @request,
+      @query,
+      @ingest,
+      @store,
+      @queue,
+      @publication,
+      @resource,
+      @runtime,
+      @browser_render
+    ]
 
   @doc false
   def sample(@request, measurements, metadata),
@@ -204,6 +232,9 @@ defmodule Wotex.Tracker.Service.OperationalTelemetry do
         [:beam_memory_bytes, :process_count, :port_count],
         [:runtime]
       )
+
+  def sample(@browser_render, measurements, metadata),
+    do: sample("render.stop", measurements, metadata, [:duration_us], [:surface, :outcome])
 
   def sample(_, _, _), do: {:error, :invalid_sample}
 
@@ -266,6 +297,9 @@ defmodule Wotex.Tracker.Service.OperationalTelemetry do
         metadata.outcome in @outcomes
 
   defp valid_metadata?("runtime.sample", metadata), do: metadata.runtime == :beam
+
+  defp valid_metadata?("render.stop", metadata),
+    do: metadata.surface == :browser and metadata.outcome in @render_outcomes
 
   defp exact?(value, keys),
     do: is_map(value) and not is_struct(value) and Enum.sort(Map.keys(value)) == Enum.sort(keys)

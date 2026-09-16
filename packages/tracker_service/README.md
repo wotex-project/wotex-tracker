@@ -149,8 +149,9 @@ clears everything on restart. Invalid external events are ignored. Collector
 loss cannot change durable tracking or alarm decisions. The explicit HTTP
 `Server` supervises one collector by default and exposes it to host code through
 `Server.operational_history/2`; no metrics server or exporter is required.
-Reconnect, render and native host-resource coverage remains to be added by the
-adapters and UI that own those operations.
+The optional browser host contributes sanitized root LiveView `render.stop`
+durations to this collector. Reconnect and native host-resource coverage remain
+with the adapters that own those operations.
 
 ## Explicit HTTP instance
 

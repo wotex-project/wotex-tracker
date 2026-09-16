@@ -419,8 +419,9 @@ private database read-only.
 
 This revision does not page query input, translate prompts or render graphs.
 Saved absolute and rolling queries are part of this contract.
-Reconnect/render/OS-native host-resource event families remain visible product
-work rather than implied endpoint behavior.
+Reconnect and OS-native host-resource event families remain visible product
+work rather than implied endpoint behavior. An explicitly enabled browser host
+also bridges its LiveView render spans into the closed `render.stop` event.
 
 The HTTP host supervises one volatile `OperationalHistory` collector by default.
 It records the closed request, query, import-stage, store, forward-queue,
@@ -436,6 +437,13 @@ bytes, process count and port count on startup and every 30 seconds. The closed
 `runtime.sample` event has only the `beam` runtime label. These values cover the
 whole VM, including other host instances; they are not OS RSS or per-tenant
 measurements. The same volatile collector bounds and retains these samples.
+
+The optional browser host installs a render-span handler before starting its
+endpoint. It records root Tracker LiveView render duration in integer
+microseconds with only `browser` surface and `ok` or `unavailable` outcome.
+Component renders and other LiveViews are excluded. Socket, route, asset and
+exception metadata never enter the collector. A headless artifact installs no
+browser render handler.
 
 Host code can page retained operational history with `OperationalHistory.page/2`.
 The first page pins the collector epoch and current sequence high-water mark;
