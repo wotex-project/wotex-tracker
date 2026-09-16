@@ -1,9 +1,4 @@
 {
-  "scope": "local-source-cohort-not-public-release",
-  "upstream_revision": "eadc6c9f9c285faf9324b8a7396a001381098b6c",
-  "upstream_revisions": {
-    "wotex": "eadc6c9f9c285faf9324b8a7396a001381098b6c"
-  },
   "archives": {
     "decimal-2.0.0.tar": "34666e9c55dea81013e77d9d87370fe6cb6291d1ef32f46a1600230b1d44f577",
     "decimal-3.1.1.tar": "c5f25f2ced74a0587d03e6023f595db8e924c9d3922c8c8ffd9edfc4498cf1f6",
@@ -12,50 +7,55 @@
     "jason-1.4.0.tar": "79a3791085b2a0f743ca04cec0f7be26443738779d09302e01318f97bdb82121",
     "jason-1.4.5.tar": "b0c823996102bcd0239b3c2444eb00409b72f6a140c1950bc8b457d836b30684",
     "wotex-0.1.0.tar": "390d8f0f4e6c163f9345f8182cca79263e72619a1e230d7003528a533b20b631",
-    "wotex_tracker-0.1.0.tar": "f94cf2bf634cc656e4ad10c4ce173e41215600b8d632df3f1f0f2a9988b0f2ec"
+    "wotex_tracker-0.1.0.tar": "61bdb03f9f244d4ede32bce145de2d98af562828ef0885df5e61e11e2bacc2a5"
   },
   "consumers": [
     {
       "elixir": "1.18.4-otp-27",
-      "otp": "27.3.4.15",
+      "lock_sha256": "1a4fef2b4aa608d5e2e3bbc2bb30544d26f49ac1a6977f7ab9142929ec3805c5",
       "mode": "fresh",
-      "result": "pass",
-      "lock_sha256": "0ecaff02ba1555bdd6c3719f751739853e3b4378e81fbcbf7cad69ebc3154fdf"
+      "otp": "27.3.4.15",
+      "result": "pass"
     },
     {
       "elixir": "1.18.4-otp-27",
-      "otp": "27.3.4.15",
+      "lock_sha256": "1a4fef2b4aa608d5e2e3bbc2bb30544d26f49ac1a6977f7ab9142929ec3805c5",
       "mode": "locked",
-      "result": "pass",
-      "lock_sha256": "0ecaff02ba1555bdd6c3719f751739853e3b4378e81fbcbf7cad69ebc3154fdf"
+      "otp": "27.3.4.15",
+      "result": "pass"
     },
     {
       "elixir": "1.18.4-otp-27",
+      "lock_sha256": "530de6f9d718aae67d10170f27e797d77cf3668ced1898eab456bc2e39485dd9",
+      "mode": "minimum",
       "otp": "27.3.4.15",
-      "mode": "minimum",
-      "result": "pass",
-      "lock_sha256": "e98117285853097ad93454ded474241016d1854d3787c4154ec57a811303e432"
+      "result": "pass"
     },
     {
       "elixir": "1.20.4-otp-29",
-      "otp": "29.0.4",
+      "lock_sha256": "1a4fef2b4aa608d5e2e3bbc2bb30544d26f49ac1a6977f7ab9142929ec3805c5",
       "mode": "fresh",
-      "result": "pass",
-      "lock_sha256": "0ecaff02ba1555bdd6c3719f751739853e3b4378e81fbcbf7cad69ebc3154fdf"
+      "otp": "29.0.4",
+      "result": "pass"
     },
     {
       "elixir": "1.20.4-otp-29",
-      "otp": "29.0.4",
+      "lock_sha256": "1a4fef2b4aa608d5e2e3bbc2bb30544d26f49ac1a6977f7ab9142929ec3805c5",
       "mode": "locked",
-      "result": "pass",
-      "lock_sha256": "0ecaff02ba1555bdd6c3719f751739853e3b4378e81fbcbf7cad69ebc3154fdf"
+      "otp": "29.0.4",
+      "result": "pass"
     },
     {
       "elixir": "1.20.4-otp-29",
-      "otp": "29.0.4",
+      "lock_sha256": "530de6f9d718aae67d10170f27e797d77cf3668ced1898eab456bc2e39485dd9",
       "mode": "minimum",
-      "result": "pass",
-      "lock_sha256": "e98117285853097ad93454ded474241016d1854d3787c4154ec57a811303e432"
+      "otp": "29.0.4",
+      "result": "pass"
     }
-  ]
+  ],
+  "scope": "local-source-cohort-not-public-release",
+  "upstream_revision": "eadc6c9f9c285faf9324b8a7396a001381098b6c",
+  "upstream_revisions": {
+    "wotex": "eadc6c9f9c285faf9324b8a7396a001381098b6c"
+  }
 }

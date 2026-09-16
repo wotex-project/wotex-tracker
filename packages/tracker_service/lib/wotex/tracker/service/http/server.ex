@@ -11,7 +11,7 @@ defmodule Wotex.Tracker.Service.HTTP.Server do
   use Supervisor
   alias Wotex.Tracker.Service
   alias Wotex.Tracker.Service.HTTP.{Capacity, Config, Router}
-  alias Wotex.Tracker.Service.{OperationalHistory, RuleScheduler, Store}
+  alias Wotex.Tracker.Service.{OperationalHistory, ResourceSampler, RuleScheduler, Store}
 
   @doc "Starts a fully explicit isolated service instance; invalid configuration starts nothing."
   @spec start_link(keyword()) :: Supervisor.on_start()
@@ -90,7 +90,8 @@ defmodule Wotex.Tracker.Service.HTTP.Server do
          )},
         id: :rule_scheduler
       ),
-      Supervisor.child_spec({Bandit, listener(config, self())}, id: :listener)
+      Supervisor.child_spec({Bandit, listener(config, self())}, id: :listener),
+      Supervisor.child_spec({ResourceSampler, []}, id: :resource_sampler)
     ]
 
     Supervisor.init(children, strategy: :rest_for_one)

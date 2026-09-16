@@ -1506,3 +1506,17 @@ This establishes the implemented non-Elixir workflow slice. Complete product
 acceptance still requires policy operations and authorized
 interactions across this boundary when their owning features are available, plus
 the UI, mobile, Pi and physical gates. No image or release was published.
+
+### Host-owned BEAM resource samples — 2026-09-16
+
+The explicit HTTP server supervises a sampler after its bounded operational
+collector. It reports total BEAM-managed bytes, process count and port count
+on startup and every 30 seconds through one closed `runtime.sample` event.
+The collector applies its existing capacity, retention and restart epoch. These
+are VM-wide values, not process RSS, per-instance or per-tenant measurements.
+An explicit host test reads the resulting sample and checks its exact units,
+positive values and bounded metadata. Killing the sampler restarts only that
+child; the store PID and collector epoch remain stable. Loading the service
+package remains inert. Each production-archive service consumer also checks a
+retained resource sample from its explicitly started HTTP host.
+Reconnect, rendering and OS-native resource instrumentation remain open work.

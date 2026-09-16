@@ -352,8 +352,9 @@ commits, forward-queue depth and overflow, publication reconciliation and store
 resource checks. The explicitly supervised bounded ETS collector gives the
 default host restart-identified local operational history. Snapshot-pinned
 bucket pagination now excludes concurrent commits and reauthorizes every page.
-Reconnect/render/native-resource events, dashboard composition/sharing,
-prompting and every UI acceptance gate remain.
+The explicit HTTP host now adds global BEAM memory/process/port samples to that
+collector. Reconnect/render/OS-native resource events, dashboard composition
+and sharing, prompting and every UI acceptance gate remain.
 
 Add an explicitly configured public model adapter for question-to-query translation:
 synthetic boundary tests plus a separately recorded real-provider execution.

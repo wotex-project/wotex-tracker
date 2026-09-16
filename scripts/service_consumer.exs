@@ -71,7 +71,8 @@ end
   "store.stop",
   "queue.stop",
   "publication.stop",
-  "resource.stop"
+  "resource.stop",
+  "runtime.sample"
 ] =
   Enum.map(OperationalTelemetry.contracts(), & &1.name)
 
@@ -1278,6 +1279,34 @@ await_history = fn await_history, attempts ->
 end
 
 :ok = await_history.(await_history, 100)
+
+runtime_ready? = fn ->
+  case Server.operational_history(server, event: "runtime.sample") do
+    {:ok, %{"samples" => [%{"measurements" => counts, "metadata" => %{"runtime" => "beam"}} | _]}} ->
+      Enum.all?(~w(beam_memory_bytes process_count port_count), fn key ->
+        is_integer(counts[key]) and counts[key] > 0
+      end)
+
+    _ ->
+      false
+  end
+end
+
+await_runtime = fn await_runtime, attempts ->
+  cond do
+    runtime_ready?.() ->
+      :ok
+
+    attempts > 0 ->
+      Process.sleep(10)
+      await_runtime.(await_runtime, attempts - 1)
+
+    true ->
+      raise "archive operational history did not retain a BEAM resource sample"
+  end
+end
+
+:ok = await_runtime.(await_runtime, 100)
 {:ok, store_pid} = Server.child(server, :store)
 origin = "http://127.0.0.1:#{port}"
 
@@ -1374,5 +1403,5 @@ retained = Process.list() |> MapSet.new() |> MapSet.difference(before_processes)
 0 = retained
 
 IO.puts(
-  "SERVICE_COHORT_PASS durable_restart=true durable_store_forward=true atomic_transport_health=true atomic_heartbeat=true scheduled_rules=true scheduled_transport_health=true atomic_battery=true atomic_motion=true atomic_geofence=true atomic_geofence_crossing=true atomic_suspicious_movement=true analytics=true analytics_pagination=true saved_queries=true rolling_saved_queries=true operational_telemetry=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true explicit_association=true independent_http_sse=true actual_runtime_http_peer=true actual_runtime_sse=true retained_new_processes=#{retained}"
+  "SERVICE_COHORT_PASS durable_restart=true durable_store_forward=true atomic_transport_health=true atomic_heartbeat=true scheduled_rules=true scheduled_transport_health=true atomic_battery=true atomic_motion=true atomic_geofence=true atomic_geofence_crossing=true atomic_suspicious_movement=true analytics=true analytics_pagination=true saved_queries=true rolling_saved_queries=true operational_telemetry=true runtime_resource=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true explicit_association=true independent_http_sse=true actual_runtime_http_peer=true actual_runtime_sse=true retained_new_processes=#{retained}"
 )

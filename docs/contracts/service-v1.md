@@ -414,7 +414,7 @@ private database read-only.
 
 This revision does not page query input, translate prompts or render graphs.
 Saved absolute and rolling queries are part of this contract.
-Reconnect/render/native host-resource event families remain visible product
+Reconnect/render/OS-native host-resource event families remain visible product
 work rather than implied endpoint behavior.
 
 The HTTP host supervises one volatile `OperationalHistory` collector by default.
@@ -425,6 +425,12 @@ durations, query row counts, current pending queue depth/bytes and per-operation
 processed/drop counts. Metadata is restricted to bounded stage, operation,
 outcome, aggregation and resource atoms. No raw scope, principal, record,
 position, prompt or payload becomes a metric label.
+
+An explicitly started HTTP host samples its BEAM VM's total reported memory
+bytes, process count and port count on startup and every 30 seconds. The closed
+`runtime.sample` event has only the `beam` runtime label. These values cover the
+whole VM, including other host instances; they are not OS RSS or per-tenant
+measurements. The same volatile collector bounds and retains these samples.
 
 Host code can read a coherent retained snapshot through
 `Server.operational_history/2`; the snapshot carries a restart epoch, expires

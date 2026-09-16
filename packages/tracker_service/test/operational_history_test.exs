@@ -15,7 +15,7 @@ defmodule Wotex.Tracker.Service.OperationalHistoryTest do
   }
 
   test "the event vocabulary documents units and closed low-cardinality metadata" do
-    assert [request, query, ingest, store, queue, publication, resource] =
+    assert [request, query, ingest, store, queue, publication, resource, runtime] =
              OperationalTelemetry.contracts()
 
     assert request.event == [:wotex, :tracker, :service, :request, :stop]
@@ -45,6 +45,16 @@ defmodule Wotex.Tracker.Service.OperationalHistoryTest do
              operation: [:readiness, :checkpoint, :backup],
              outcome: request.metadata.outcome
            }
+
+    assert runtime.event == [:wotex, :tracker, :service, :runtime, :sample]
+
+    assert runtime.measurements == %{
+             beam_memory_bytes: :byte,
+             process_count: :count,
+             port_count: :count
+           }
+
+    assert runtime.metadata == %{runtime: [:beam]}
   end
 
   test "bounded volatile samples expire and malformed external events are ignored" do
@@ -92,7 +102,7 @@ defmodule Wotex.Tracker.Service.OperationalHistoryTest do
       )
     end)
 
-    [query_event | _] = Enum.reverse(OperationalTelemetry.event_names())
+    query_event = [:wotex, :tracker, :service, :query, :stop]
     :telemetry.execute(query_event, %{duration_us: -1}, %{private: "payload"})
     Process.sleep(10)
 
@@ -212,6 +222,34 @@ defmodule Wotex.Tracker.Service.OperationalHistoryTest do
           false
       end
     end)
+
+    eventually(fn ->
+      case Server.operational_history(server, event: "runtime.sample") do
+        {:ok, %{"samples" => [%{"measurements" => measurements, "metadata" => metadata} | _]}} ->
+          metadata == %{"runtime" => "beam"} and
+            Enum.all?(~w(beam_memory_bytes process_count port_count), fn key ->
+              is_integer(measurements[key]) and measurements[key] > 0
+            end)
+
+        _ ->
+          false
+      end
+    end)
+
+    {:ok, store} = Server.child(server, :store)
+    {:ok, sampler} = Server.child(server, :resource_sampler)
+    {:ok, %{"epoch" => epoch}} = Server.operational_history(server)
+    Process.exit(sampler, :kill)
+
+    eventually(fn ->
+      match?(
+        {:ok, replacement} when replacement != sampler,
+        Server.child(server, :resource_sampler)
+      )
+    end)
+
+    assert {:ok, ^store} = Server.child(server, :store)
+    assert {:ok, %{"epoch" => ^epoch}} = Server.operational_history(server)
   end
 
   defp server_options(context),

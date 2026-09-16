@@ -15,6 +15,7 @@ defmodule Wotex.Tracker.Service.OperationalTelemetry do
   @queue [:wotex, :tracker, :service, :queue, :stop]
   @publication [:wotex, :tracker, :service, :publication, :stop]
   @resource [:wotex, :tracker, :service, :resource, :stop]
+  @runtime [:wotex, :tracker, :service, :runtime, :sample]
   @outcomes ~w(ok dropped rejected conflict overloaded deadline unavailable unknown)a
   @request_operations ~w(health contract capabilities mutation resource events stream property analytics saved_query unknown)a
   @aggregations ~w(count min max mean last)a
@@ -75,6 +76,12 @@ defmodule Wotex.Tracker.Service.OperationalTelemetry do
         name: "resource.stop",
         measurements: %{duration_us: :microsecond},
         metadata: %{resource: @resources, operation: @resource_operations, outcome: @outcomes}
+      },
+      %{
+        event: @runtime,
+        name: "runtime.sample",
+        measurements: %{beam_memory_bytes: :byte, process_count: :count, port_count: :count},
+        metadata: %{runtime: [:beam]}
       }
     ]
   end
@@ -129,7 +136,21 @@ defmodule Wotex.Tracker.Service.OperationalTelemetry do
       do: stop(@resource, %{resource: resource, operation: operation}, result, started)
 
   @doc false
-  def event_names, do: [@request, @query, @ingest, @store, @queue, @publication, @resource]
+  def runtime_sample do
+    execute(
+      @runtime,
+      %{
+        beam_memory_bytes: :erlang.memory(:total),
+        process_count: :erlang.system_info(:process_count),
+        port_count: :erlang.system_info(:port_count)
+      },
+      %{runtime: :beam}
+    )
+  end
+
+  @doc false
+  def event_names,
+    do: [@request, @query, @ingest, @store, @queue, @publication, @resource, @runtime]
 
   @doc false
   def sample(@request, measurements, metadata),
@@ -172,6 +193,16 @@ defmodule Wotex.Tracker.Service.OperationalTelemetry do
         metadata,
         [:duration_us],
         [:resource, :operation, :outcome]
+      )
+
+  def sample(@runtime, measurements, metadata),
+    do:
+      sample(
+        "runtime.sample",
+        measurements,
+        metadata,
+        [:beam_memory_bytes, :process_count, :port_count],
+        [:runtime]
       )
 
   def sample(_, _, _), do: {:error, :invalid_sample}
@@ -233,6 +264,8 @@ defmodule Wotex.Tracker.Service.OperationalTelemetry do
     do:
       metadata.resource in @resources and metadata.operation in @resource_operations and
         metadata.outcome in @outcomes
+
+  defp valid_metadata?("runtime.sample", metadata), do: metadata.runtime == :beam
 
   defp exact?(value, keys),
     do: is_map(value) and not is_struct(value) and Enum.sort(Map.keys(value)) == Enum.sort(keys)
