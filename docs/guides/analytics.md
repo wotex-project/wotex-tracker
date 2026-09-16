@@ -53,7 +53,10 @@ ending just after that state's observation time. The operator can change the
 absolute UTC bounds, bucket width and aggregation. The resulting table shows
 only qualified buckets, with the committed snapshot and excluded-row counts;
 it does not infer values between buckets or claim live connectivity. The
-browser route requires the same `read` grant as the service query.
+browser route requires the same `read` grant as the service query. Line, area and
+point views project the returned points to SVG without introducing new values;
+each run of adjacent observed buckets has its own path. The table gives exact
+values and event times, and buttons shift or zoom the absolute UTC window.
 
 `Service.analytics_page/5` and `POST …/analytics/pages` partition the admitted
 bucket window into pages of 1 to 1,000 buckets. The first request supplies the

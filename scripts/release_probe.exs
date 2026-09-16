@@ -441,6 +441,7 @@ defmodule Wotex.Tracker.ReleaseProbe do
       )
 
     true = String.contains?(analytics, "Run query")
+    true = String.contains?(analytics, "Graph view")
     false = String.contains?(analytics, instance.token)
 
     for path <-

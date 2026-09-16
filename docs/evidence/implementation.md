@@ -1663,3 +1663,20 @@ The LiveView cohort checks a known value, an empty later interval, injected
 measurement rejection and revocation; the host HTTP and bundled browser probes
 check the actual query form through the composed route. Live graphs, gestures,
 saved-dashboard controls, provider translation and hardware UI acceptance remain.
+
+### Gap-preserving browser graphs — 2026-09-16
+
+The browser now projects the same authorized result into line, area and point
+SVG views. A pure Elixir geometry adapter scales even constant and large values
+without inventing zero and splits paths whenever adjacent returned buckets do
+not touch. Every point has a title with its value, sample count and bucket time;
+the exact accessible table remains below the graph. Buttons shift and zoom the
+absolute UTC window, then submit a newly validated service query. Changing a
+visualization does not add a second data authority.
+
+The pure chart tests assert separate paths across an unobserved interval, exact
+zero preservation, empty output and constant extreme values. LiveView tests
+exercise all three views and time-window controls. Host HTTP tests and packaged
+Darwin/Linux browser probes check the graph selector in the actual application.
+This is historical exploration; scheduled refresh, direct pointer gestures,
+saved dashboards, model translation and physical surface acceptance remain open.

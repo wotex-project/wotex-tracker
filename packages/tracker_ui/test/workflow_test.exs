@@ -100,6 +100,24 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert render(view) =~ "1 qualified of"
     assert has_element?(view, "tbody tr")
     assert render(view) =~ "no line or value is inferred across a gap"
+    assert has_element?(view, "svg[role=img]")
+    assert has_element?(view, "path.chart-line")
+    assert has_element?(view, "[role=group][aria-label='Explore time window']")
+
+    view |> element("button", "Later") |> render_click()
+    shifted_from = DateTime.from_unix!(c.now - 43_199_999, :millisecond) |> DateTime.to_iso8601()
+    assert has_element?(view, "#query-from[value='#{shifted_from}']")
+    assert has_element?(view, "path.chart-line")
+
+    view |> element("button", "Zoom out") |> render_click()
+    assert has_element?(view, "path.chart-line")
+
+    view |> form("#analytics-query", query: %{view: "area"}) |> render_submit()
+    assert has_element?(view, "path.chart-area")
+
+    view |> form("#analytics-query", query: %{view: "points"}) |> render_submit()
+    assert has_element?(view, "circle.chart-point")
+    refute has_element?(view, "path.chart-line")
 
     from_at = DateTime.from_unix!(c.now + 1, :millisecond) |> DateTime.to_iso8601()
     to_at = DateTime.from_unix!(c.now + 86_400_001, :millisecond) |> DateTime.to_iso8601()
@@ -110,6 +128,7 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
 
     assert render(view) =~ "No qualified readings in this window"
     refute has_element?(view, "tbody tr")
+    refute has_element?(view, "svg[role=img]")
   end
 
   test "analytics rejects tampered filters and reader sessions can query but not mutate", c do
@@ -137,7 +156,8 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
         "aggregation" => "mean",
         "from" => "2023-11-14T00:00:00Z",
         "to" => "2023-11-15T00:00:00Z",
-        "bucket" => "hour"
+        "bucket" => "hour",
+        "view" => "line"
       }
     })
 
@@ -202,7 +222,8 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
         "aggregation" => "mean",
         "from" => from_at,
         "to" => to_at,
-        "bucket" => "hour"
+        "bucket" => "hour",
+        "view" => "line"
       }
     })
 
@@ -214,6 +235,41 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     view |> form("#analytics-query") |> render_submit()
     assert has_element?(view, "[role=alert]")
     refute has_element?(view, "h2", "Query result")
+  end
+
+  test "analytics time controls rerun bounded windows and keep gaps explicit", c do
+    {thing, _} = enrolled(c)
+
+    {:ok, _} =
+      Service.materialize(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"thing_id" => thing, "expected_generation" => "2"},
+        c.now
+      )
+
+    {:ok, view, _} = live(c.conn, Presenter.path(:asset, thing) <> "/analytics")
+    view |> form("#analytics-query") |> render_submit()
+    assert has_element?(view, "circle.chart-point")
+
+    view |> element("button", "Earlier") |> render_click()
+    assert render(view) =~ "No qualified readings in this window"
+    refute has_element?(view, "circle.chart-point")
+
+    view |> element("button", "Later") |> render_click()
+    assert has_element?(view, "circle.chart-point")
+
+    view |> element("button", "Zoom in") |> render_click()
+    assert render(view) =~ "No qualified readings in this window"
+
+    view |> element("button", "Zoom out") |> render_click()
+    assert has_element?(view, "circle.chart-point")
+
+    render_click(view, "navigate", %{"direction" => "unknown"})
+    assert has_element?(view, "[role=alert]")
+    assert has_element?(view, "circle.chart-point")
   end
 
   test "associate a later observation and update the same Thing", c do

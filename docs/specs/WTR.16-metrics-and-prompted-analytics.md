@@ -21,8 +21,9 @@ Encrypted analytics continuations now bind the exact query and first committed
 generation while reauthorizing every bucket page. Dashboard composition and
 sharing, prompt integration and graphs remain required product deliverables.
 The shared browser now submits a bounded structured numeric query for one asset
-and renders a snapshot-bound table with explicit gaps and exclusion counts; it
-does not yet implement live charts or saved dashboards.
+and renders snapshot-bound line, area and point graphs with separate paths at
+gaps, time-window controls and an exact table with exclusion counts. Scheduled
+live refresh, saved dashboards and cross-surface graph acceptance remain.
 Model execution is explicitly configured and can be disabled; deterministic
 tracking and structured analytics MUST remain useful without AI or any external
 observability service.

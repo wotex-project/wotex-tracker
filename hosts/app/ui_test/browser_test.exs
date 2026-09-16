@@ -177,6 +177,7 @@ defmodule Wotex.Tracker.Host.BrowserTest do
 
     assert analytics =~ "Workshop sensor analytics"
     assert analytics =~ "Run query"
+    assert analytics =~ "Graph view"
     refute analytics =~ c.token
 
     for path <- [

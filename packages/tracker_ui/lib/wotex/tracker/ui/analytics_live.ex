@@ -3,7 +3,7 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
   use Phoenix.LiveView, log: false
   import Wotex.Tracker.UI.Components
   alias Wotex.Tracker.QuerySpec
-  alias Wotex.Tracker.UI.{Auth, Presenter}
+  alias Wotex.Tracker.UI.{Auth, Chart, Presenter}
 
   @buckets %{"hour" => 3_600_000, "six_hours" => 21_600_000, "day" => 86_400_000}
   @aggregations %{
@@ -14,6 +14,7 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
     "last" => :last
   }
   @counter_kinds ~w(movementCounter measurementSequence)
+  @max_browser_time 253_402_300_799_999
 
   @impl true
   def mount(_, _, socket) do
@@ -25,26 +26,35 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
        measurements: [],
        query: %{},
        result: nil,
+       chart: nil,
        error: nil
      )}
   end
 
   @impl true
   def handle_params(%{"id" => id}, _, socket),
-    do: {:noreply, socket |> assign(id: id, result: nil, error: nil) |> load()}
+    do: {:noreply, socket |> assign(id: id, result: nil, chart: nil, error: nil) |> load()}
 
   @impl true
   def handle_event("refresh", _, socket),
-    do: {:noreply, socket |> assign(result: nil, error: nil) |> load()}
+    do: {:noreply, socket |> assign(result: nil, chart: nil, error: nil) |> load()}
 
-  def handle_event("run", %{"query" => input}, %{assigns: %{state: %{}, asset: %{}}} = socket) do
-    socket = assign(socket, query: input, result: nil, error: nil)
+  def handle_event("run", %{"query" => input}, %{assigns: %{state: %{}, asset: %{}}} = socket)
+      when is_map(input) do
+    {:noreply, run_query(socket, input)}
+  end
 
-    with {:ok, document} <- document(socket, input),
-         {:ok, result} <- Auth.request(socket, :analytics, %{"query" => document}) do
-      {:noreply, assign(socket, result: result)}
+  def handle_event("navigate", %{"direction" => direction}, %{assigns: %{result: %{}}} = socket) do
+    with {:ok, from_at} <- utc_milliseconds(socket.assigns.query["from"]),
+         {:ok, to_at} <- utc_milliseconds(socket.assigns.query["to"]),
+         {:ok, {new_from, new_to}} <- move_window(direction, from_at, to_at) do
+      input =
+        socket.assigns.query
+        |> Map.put("from", iso8601(new_from))
+        |> Map.put("to", iso8601(new_to))
+
+      {:noreply, run_query(socket, input)}
     else
-      {:error, %{"code" => _} = error} -> {:noreply, assign(socket, error: error)}
       _ -> {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
     end
   end
@@ -110,6 +120,12 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
             <option value="six_hours" selected={@query["bucket"] == "six_hours"}>6 hours</option>
             <option value="day" selected={@query["bucket"] == "day"}>1 day</option>
           </select>
+          <label for="query-view">Graph view</label>
+          <select id="query-view" name="query[view]">
+            <option value="line" selected={@query["view"] == "line"}>Line</option>
+            <option value="area" selected={@query["view"] == "area"}>Area</option>
+            <option value="points" selected={@query["view"] == "points"}>Points</option>
+          </select>
           <button type="submit" phx-disable-with="Querying…">Run query</button>
         </.form>
         <p class="muted">
@@ -129,6 +145,49 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
           Aggregation is at the requested bucket width.
         </p>
         <p class="identifier">Snapshot {@result["snapshot"]}</p>
+        <div class="chart-controls" role="group" aria-label="Explore time window">
+          <button class="secondary" phx-click="navigate" phx-value-direction="earlier">Earlier</button>
+          <button class="secondary" phx-click="navigate" phx-value-direction="later">Later</button>
+          <button class="secondary" phx-click="navigate" phx-value-direction="zoom_in">Zoom in</button>
+          <button class="secondary" phx-click="navigate" phx-value-direction="zoom_out">Zoom out</button>
+        </div>
+        <figure :if={@chart} class="history-chart">
+          <svg
+            viewBox="0 0 1000 300"
+            role="img"
+            aria-label={"#{@query["view"]} graph of qualified #{@result["spec"]["measurement"]} buckets; exact values follow in the table"}
+          >
+            <line x1="56" y1="260" x2="944" y2="260" class="chart-axis" />
+            <path
+              :for={segment <- @chart.segments}
+              :if={@query["view"] == "area"}
+              d={segment.area}
+              class="chart-area"
+            />
+            <path
+              :for={segment <- @chart.segments}
+              :if={@query["view"] in ~w(line area)}
+              d={segment.line}
+              class="chart-line"
+            />
+            <circle
+              :for={point <- @chart.points}
+              cx={point.x}
+              cy={point.y}
+              r="5"
+              class="chart-point"
+            >
+              <title>
+                {timestamp(point.start_at)} · {point.value} {Presenter.unit(@result["spec"]["unit"])} · {point.sample_count} samples
+              </title>
+            </circle>
+          </svg>
+          <figcaption>
+            {@query["view"]} view · range {@chart.minimum} to {@chart.maximum}
+            {Presenter.unit(@result["spec"]["unit"])}. Area fill extends to the chart floor.
+            Separate marks show gaps; use the table for exact values and times.
+          </figcaption>
+        </figure>
         <div class="table-scroll" tabindex="0" role="region" aria-labelledby="analytics-result-title">
           <table>
             <caption>Qualified bucket values at the recorded snapshot</caption>
@@ -200,7 +259,8 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
       "aggregation" => if(first["kind"] in @counter_kinds, do: "last", else: "mean"),
       "from" => iso8601(max(0, end_at - 86_400_000)),
       "to" => iso8601(end_at),
-      "bucket" => "hour"
+      "bucket" => "hour",
+      "view" => "line"
     }
   end
 
@@ -236,6 +296,49 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
       _ -> {:error, %{"code" => "invalid_request"}}
     end
   end
+
+  defp run_query(socket, input) do
+    socket = assign(socket, query: input, result: nil, chart: nil, error: nil)
+
+    with view when view in ~w(line area points) <- input["view"],
+         {:ok, document} <- document(socket, input),
+         {:ok, result} <- Auth.request(socket, :analytics, %{"query" => document}) do
+      assign(socket, result: result, chart: Chart.project(result))
+    else
+      {:error, %{"code" => _} = error} -> assign(socket, error: error)
+      _ -> assign(socket, error: %{"code" => "invalid_request"})
+    end
+  end
+
+  defp move_window(direction, from_at, to_at) when to_at > from_at do
+    width = to_at - from_at
+    bounds = window_bounds(direction, from_at, to_at, width)
+
+    case bounds do
+      {start_at, end_at}
+      when start_at >= 0 and end_at > start_at and end_at <= @max_browser_time ->
+        {:ok, bounds}
+
+      _ ->
+        :error
+    end
+  end
+
+  defp move_window(_, _, _), do: :error
+
+  defp window_bounds("earlier", from_at, to_at, width),
+    do: {from_at - div(width, 2), to_at - div(width, 2)}
+
+  defp window_bounds("later", from_at, to_at, width),
+    do: {from_at + div(width, 2), to_at + div(width, 2)}
+
+  defp window_bounds("zoom_in", from_at, to_at, width),
+    do: {from_at + div(width, 4), to_at - div(width, 4)}
+
+  defp window_bounds("zoom_out", from_at, to_at, width),
+    do: {from_at - div(width, 2), to_at + div(width, 2)}
+
+  defp window_bounds(_, _, _, _), do: :invalid
 
   defp aggregation("mean", kind) when kind in @counter_kinds, do: :error
   defp aggregation(value, _), do: Map.fetch(@aggregations, value)

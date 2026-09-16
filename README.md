@@ -102,7 +102,9 @@ execute them later under current read authority. See the
 [analytics guide](docs/guides/analytics.md).
 The shared browser can submit an absolute UTC numeric query for one provisioned
 asset and inspect qualified buckets, source gaps, counts and snapshot identity.
-Charts, saved dashboards and prompted queries remain to be built.
+It offers line, area and point graphs with separate paths across gaps, an exact
+table and time-window navigation. Scheduled live refresh, saved dashboards and
+prompted queries remain to be built.
 
 The service package also defines closed `:telemetry` events for requests,
 queries, import stages, commits, forward queues, publication reconciliation and
