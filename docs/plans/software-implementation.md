@@ -205,8 +205,9 @@ work. See the [motion guide](../guides/motion.md).
 Receiver-observation heartbeat state is implemented as a pure caller-ticked rule
 with exact overdue equality, newer/historical ordering, recovery, revision
 recomputation and stable live/replay events. See the
-[heartbeat guide](../guides/heartbeat.md). Host deadline scheduling and atomic
-persistence remain subsequent work.
+[heartbeat guide](../guides/heartbeat.md). The service atomically persists its
+canonical state, history and stable event intent with restart recovery. Host
+monotonic deadline scheduling remains subsequent work.
 
 Low-battery state is implemented over content-bound measurement samples with
 explicit kind/unit scope, freshness, future skew, suspect-quality policy and

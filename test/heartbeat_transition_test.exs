@@ -27,6 +27,16 @@ defmodule Wotex.Tracker.HeartbeatTransitionTest do
     assert overdue["event"]["from_observation_id"] == "heartbeat"
     assert overdue["physical_action_dispatch"] == "separate_authorization_required"
 
+    assert {:ok, ^overdue} =
+             HeartbeatTransition.validate_transition(baseline["state"], overdue)
+
+    assert :ok = HeartbeatTransition.validate_event(overdue["event"])
+    assert {:ok, document} = HeartbeatTransition.state_to_map(overdue["state"])
+    assert {:ok, restored} = HeartbeatTransition.state_from_map(document)
+    assert restored === overdue["state"]
+    assert {:ok, policy_document} = HeartbeatTransition.to_map(policy)
+    assert HeartbeatTransition.from_map(policy_document) == {:ok, policy}
+
     assert {:ok, repeated} =
              HeartbeatTransition.evaluate(overdue["state"], nil, policy, :live, 1_012)
 
@@ -237,6 +247,32 @@ defmodule Wotex.Tracker.HeartbeatTransitionTest do
 
     assert {:error, %{code: :conflict}} =
              HeartbeatTransition.validate_state(%{baseline["state"] | identity: "forged"})
+
+    assert {:ok, document} = HeartbeatTransition.state_to_map(baseline["state"])
+
+    for changed <- [
+          Map.put(document, "status", "overdue"),
+          Map.put(document, "due_at", 0),
+          Map.put(document, "evaluated_at", "1000"),
+          Map.put(document, "identity", "forged"),
+          put_in(document, ["policy", "identity"], "forged"),
+          put_in(document, ["observation", "radio"], %{"rssi" => -99}),
+          Map.put(document, "extra", true)
+        ] do
+      assert {:error, _} = HeartbeatTransition.state_from_map(changed)
+    end
+
+    {:ok, overdue} =
+      HeartbeatTransition.evaluate(baseline["state"], nil, original, :live, 2_001)
+
+    assert {:error, _} =
+             HeartbeatTransition.validate_transition(
+               baseline["state"],
+               put_in(overdue, ["event", "reason"], "changed")
+             )
+
+    assert {:error, _} =
+             HeartbeatTransition.validate_event(Map.put(overdue["event"], "extra", true))
 
     assert {:error, _} = HeartbeatTransition.validate_state(:invalid)
     assert {:error, _} = HeartbeatTransition.new(nil)

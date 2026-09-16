@@ -90,8 +90,9 @@ claim. Completion requires a prior claim, the exact item digest and either
 declared layer. A lower/different layer does not satisfy it. Terminal receipts
 remain until explicit scoped cleanup; cleanup never removes pending items.
 
-The same privileged store accepts a revalidated transport-health transition.
-It compares the expected prior state identity inside `BEGIN IMMEDIATE`, then
+The same privileged store accepts a revalidated transport-health or heartbeat
+transition. It compares the expected prior state identity inside
+`BEGIN IMMEDIATE`, then
 writes the canonical rule state, immutable state history, deduplicated event
 intent and public event at one scope generation. An exact retry returns the
 original generation. A stale prior identity or a reused event ID with different

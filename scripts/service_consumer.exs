@@ -4,6 +4,7 @@ alias Wotex.Tracker.Service
 alias Wotex.Tracker.{
   Evidence,
   EvidenceBundle,
+  HeartbeatTransition,
   PolicyFact,
   TransportCandidate,
   TransportDegradation,
@@ -237,6 +238,23 @@ transport_request = %{
 {:ok, %{"generation" => "1", "event_disposition" => "none"}} =
   Store.commit_rule(store, healthy_transition)
 
+{:ok, heartbeat_policy} =
+  HeartbeatTransition.new(%{
+    id: "archive-heartbeat",
+    revision: "archive-heartbeat-v1",
+    maximum_silence_ms: 10,
+    future_skew_ms: 0
+  })
+
+{:ok, heartbeat_result} =
+  HeartbeatTransition.evaluate(nil, observation, heartbeat_policy, :live, update.now)
+
+{:ok, heartbeat_transition} =
+  RuleTransition.new("archive-heartbeat", nil, heartbeat_result)
+
+{:ok, %{"generation" => "1", "event_disposition" => "none"}} =
+  Store.commit_rule(store, heartbeat_transition)
+
 {:ok, forward_item} =
   ForwardItem.new(%{
     scope: "archive",
@@ -299,6 +317,39 @@ true = restored_health === healthy_result["state"]
    "mode" => "replay",
    "physical_action_dispatch" => "prohibited"
  }} = Store.rule_event(store, "archive-rules", degraded_receipt["event_id"])
+
+{:ok, durable_heartbeat} =
+  Store.rule_state(store, "archive-heartbeat", "heartbeat", heartbeat_policy.id)
+
+{:ok, restored_heartbeat} =
+  HeartbeatTransition.state_from_map(durable_heartbeat["state"])
+
+true = restored_heartbeat === heartbeat_result["state"]
+
+{:ok, overdue_result} =
+  HeartbeatTransition.evaluate(
+    restored_heartbeat,
+    nil,
+    heartbeat_policy,
+    :replay,
+    restored_heartbeat.due_at
+  )
+
+{:ok, overdue_transition} =
+  RuleTransition.new("archive-heartbeat", restored_heartbeat, overdue_result)
+
+{:ok, %{"generation" => "2", "event_disposition" => "recorded"} = overdue_receipt} =
+  Store.commit_rule(store, overdue_transition)
+
+{:ok, %{"disposition" => "duplicate", "generation" => "2"}} =
+  Store.commit_rule(store, overdue_transition)
+
+{:ok,
+ %{
+   "event" => %{"kind" => "heartbeat.overdue"},
+   "mode" => "replay",
+   "physical_action_dispatch" => "prohibited"
+ }} = Store.rule_event(store, "archive-heartbeat", overdue_receipt["event_id"])
 
 {:ok, %{"status" => "pending"}} =
   Store.forward_status(store, "archive", forward_item.id)
@@ -631,5 +682,5 @@ retained = Process.list() |> MapSet.new() |> MapSet.difference(before_processes)
 0 = retained
 
 IO.puts(
-  "SERVICE_COHORT_PASS durable_restart=true durable_store_forward=true atomic_transport_health=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true explicit_association=true independent_http_sse=true actual_runtime_http_peer=true actual_runtime_sse=true retained_new_processes=#{retained}"
+  "SERVICE_COHORT_PASS durable_restart=true durable_store_forward=true atomic_transport_health=true atomic_heartbeat=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true explicit_association=true independent_http_sse=true actual_runtime_http_peer=true actual_runtime_sse=true retained_new_processes=#{retained}"
 )

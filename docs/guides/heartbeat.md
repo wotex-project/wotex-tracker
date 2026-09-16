@@ -27,5 +27,13 @@ bind both observation and policy identities and exclude live/replay mode.
 Caller-clock regression and observations beyond permitted future skew return
 unknown without changing canonical state. Replay returns the same state and event
 identity as live evaluation while prohibiting physical Action dispatch. A host
-must schedule monotonic deadlines separately and persist state/event intent in its
-own transaction.
+must schedule monotonic deadlines separately.
+
+The service package persists a changed heartbeat result through the same generic
+rule transaction used for transport health. Closed policy/state JSON restores
+through the pure constructors. `RuleTransition` re-evaluates the result and binds
+its expected prior identity; `Store.commit_rule/2` writes canonical state,
+immutable history and any stable event intent at one scope generation. Restart,
+exact retry, stale-writer and replay-prohibition semantics are shared across the
+supported rule kinds. The host still owns monotonic timer scheduling and
+notification delivery.

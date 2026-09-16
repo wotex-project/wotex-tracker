@@ -1003,3 +1003,35 @@ prohibited physical dispatch. Exact archive and lock identities are recorded in
 `verification/service-consumer.json`. Evaluation scheduling, notification
 delivery, public rule management and equivalent persistence for other rule types
 remain separate work.
+
+## WTR.05/06 atomic heartbeat persistence — 2026-09-16
+
+Heartbeat policies and state now have closed native-JSON forms that restore the
+complete admitted receiver observation and recheck the derived status, deadline
+and every content identity. Stable overdue, recovery and recomputation events
+have a closed validator that recomputes their idempotency key. Transition
+admission re-evaluates the pure result before it reaches host storage.
+
+The schema-3 rule transaction now admits `heartbeat` alongside
+`transport_degradation`. It compares the expected prior state identity, advances
+canonical state and immutable state history, and records any stable event intent
+plus public domain event in one SQLite commit. Restart recovery reconstructs the
+pure state. Exact retry returns the committed generation, stale or changed
+transitions conflict, and replay intent permanently records prohibited physical
+dispatch. This uses the existing generic tables and requires no migration.
+
+Both required root runtime lanes passed the complete gate with 1 doctest,
+18 properties and 147 tests, no failures and 95.6% production line coverage.
+Both service runtime lanes passed with 2 properties and 105 tests, no failures
+and 95.5% floor / 95.6% current production line coverage. Cases cover policy and
+state round trips, changed nested observations, deadline/status/identity
+mutation, event mutation, stable-result rejection, restart restoration, overdue
+intent commit, exact retry and replay effect metadata. Compiler, formatter,
+strict Credo, Dialyzer, ExDoc, dependency audit, licences, OpenAPI validation,
+documentation contracts and archive inspection passed.
+
+The production service consumer commits an installed-archive heartbeat baseline,
+restarts SQLite, reconstructs the state, evaluates the exact overdue deadline in
+replay, and proves atomic event intent plus retry deduplication. Exact archive
+and lock identities are recorded in `verification/service-consumer.json`. The
+host still needs a monotonic deadline scheduler and notification delivery.
