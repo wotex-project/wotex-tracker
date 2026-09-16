@@ -3,6 +3,7 @@ defmodule Wotex.Tracker.Host.BrowserTest do
   use ExUnit.Case, async: false
   alias Wotex.Tracker.QuerySpec
   alias Wotex.Tracker.Host.BrowserConfig
+  alias Wotex.Tracker.Host.PromptConfig
   alias Wotex.Tracker.Host.Supervisor, as: HostSupervisor
   alias Wotex.Tracker.Host.Browser.Endpoint
   alias Wotex.Tracker.Service
@@ -57,7 +58,21 @@ defmodule Wotex.Tracker.Host.BrowserTest do
       public_origin: origin,
       exposure: :loopback,
       tls: nil,
-      secret_key_base: Base.encode64(:crypto.strong_rand_bytes(64))
+      secret_key_base: Base.encode64(:crypto.strong_rand_bytes(64)),
+      prompt: %PromptConfig{
+        endpoint: "https://api.openai.com/v1/responses",
+        model: "gpt-5-mini",
+        api_key: "sk-test-private-placeholder",
+        timeout_ms: 5_000,
+        max_request_bytes: 8_192,
+        max_response_bytes: 16_384,
+        max_output_tokens: 512,
+        max_concurrent: 2,
+        max_requests_per_minute: 12,
+        max_cost_micro_usd: 10_000,
+        input_price_micro_usd_per_million: 250_000,
+        output_price_micro_usd_per_million: 2_000_000
+      }
     }
 
     host = start_supervised!({HostSupervisor, service: c.service_options, browser: browser})
@@ -179,7 +194,9 @@ defmodule Wotex.Tracker.Host.BrowserTest do
     assert analytics =~ "Workshop sensor analytics"
     assert analytics =~ "Run query"
     assert analytics =~ "Graph view"
+    assert analytics =~ "Ask for a graph"
     refute analytics =~ c.token
+    refute analytics =~ browser.prompt.api_key
 
     {:ok, %{"value" => state}} =
       Service.get(service, c.token, "workshop", "state", thing, System.system_time(:millisecond))

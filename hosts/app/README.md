@@ -125,7 +125,8 @@ WOTEX_PATH_DEPS=1 WOTEX_TRACKER_UI=1 MIX_ENV=test mise exec -- mix check --no-re
 
 The browser listener needs a second private configuration file, selected at
 runtime by `WOTEX_TRACKER_UI_CONFIG`. Its closed `wtr.browser.v1` document has
-`listen`, `exposure`, `public_origin`, `secret_key_base` and optional `tls`.
+`listen`, `exposure`, `public_origin`, `secret_key_base`, optional `tls` and an
+optional `model`.
 The file has the same 0600/0700, regular-file, no-symlink and 64 KiB requirements
 as the service configuration. Supply a fresh random secret of 64–128 bytes,
 distinct from the service instance key. The origin is explicit; loopback mode
@@ -133,6 +134,24 @@ requires the listener's port and its numeric address or `localhost`. Proxy/TLS
 mode requires an HTTPS public origin and sets Secure cookies. Direct TLS uses
 the same certificate/key fields as the service. An artifact without UI support
 rejects browser configuration at startup.
+
+Omitting `model` disables prompted graphs. To enable the public OpenAI Responses
+adapter, add one `model` object to that private browser file. It requires
+`provider: "openai_responses"`, an HTTPS `endpoint` ending in `/v1/responses`,
+an explicit `model` ID and `api_key`, and
+`disclosure: "question_schema_utc"`. The adapter sends only the typed question,
+permitted measurement names/units, closed choices and current UTC time; it never
+sends readings, asset identity or a service bearer. Set finite budgets:
+`timeout_ms` (1000–10000), `max_request_bytes` (1024–8192),
+`max_response_bytes` (1024–32768), `max_output_tokens` (128–2048),
+`max_concurrent` (1–4), `max_requests_per_minute` (1–60),
+`max_cost_micro_usd` (1–100000), and the provider/model's current
+`input_price_micro_usd_per_million` and
+`output_price_micro_usd_per_million` (each 1–100000000). The byte and token
+limits provide a conservative cost preflight; returned usage is checked again.
+The host makes one request with no provider tools, retries or stored response.
+Failure leaves the structured form and existing result usable. Keep the key in
+the 0600 file and refresh the price inputs when provider pricing changes.
 
 After creating `_build/local` with the CLI above, create a loopback browser
 configuration without printing its secret or replacing an existing file:

@@ -20,7 +20,7 @@ Host-only operational pages pin a collector epoch and sequence high-water mark;
 continuations reject restart, altered filters and expired samples.
 Encrypted analytics continuations now bind the exact query and first committed
 generation while reauthorizing every bucket page. General dashboard composition
-and sharing, prompt integration and cross-surface graph acceptance remain
+and sharing, a live public-provider prompt run and cross-surface graph acceptance remain
 required product deliverables.
 The shared browser now submits a bounded structured numeric query for one asset
 and renders snapshot-bound line, area and point graphs with separate paths at
@@ -52,8 +52,12 @@ dashboard export also verifies its definition is still accessible and unchanged.
 The shared browser has an optional bounded question-to-form boundary. It sends
 only the question, permitted measurement names and units, closed choices and
 UTC time to a configured host adapter; it rejects invented fields and reruns
-the normal authorized service query. Host provider wiring, bounded transport
-and a real public-provider acceptance run remain open.
+the normal authorized service query. The optional browser host now has a
+private-file configured OpenAI Responses adapter with an HTTPS endpoint, schema
+output, no tools or retries, bounded request/response bytes, deadline, rate,
+concurrency and cost preflight, cancellation on caller loss, and redacted state.
+Synthetic provider and transport tests pass. A separately recorded real
+public-provider run and cross-surface acceptance remain open.
 Model execution is explicitly configured and can be disabled; deterministic
 tracking and structured analytics MUST remain useful without AI or any external
 observability service.

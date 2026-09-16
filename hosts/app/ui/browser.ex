@@ -2,6 +2,7 @@ defmodule Wotex.Tracker.Host.Browser do
   @moduledoc "Optional browser composition; only a UI-enabled artifact compiles this host."
   use Supervisor
   alias Wotex.Tracker.Host.Browser.Endpoint
+  alias Wotex.Tracker.Host.Browser.PromptProvider
   alias Wotex.Tracker.Host.Browser.RenderTelemetry
   alias Wotex.Tracker.UI.{Local, Sessions}
 
@@ -43,19 +44,42 @@ defmodule Wotex.Tracker.Host.Browser do
         pubsub_server: Wotex.Tracker.Host.Browser.PubSub,
         live_view: [signing_salt: "tracker-live-v1"],
         render_errors: [formats: [html: Wotex.Tracker.UI.ErrorHTML], layout: false],
-        tracker_ui: [sessions: Wotex.Tracker.Host.Browser.Sessions],
+        tracker_ui: [
+          sessions: Wotex.Tracker.Host.Browser.Sessions,
+          prompt:
+            if(config.prompt,
+              do: {PromptProvider, Wotex.Tracker.Host.Browser.PromptProvider},
+              else: nil
+            )
+        ],
         debug_errors: false,
         code_reloader: false
       ]
       |> Keyword.put(transport, listener)
 
+    prompt =
+      if config.prompt do
+        [
+          {Task.Supervisor, name: Wotex.Tracker.Host.Browser.PromptTasks},
+          {PromptProvider,
+           name: Wotex.Tracker.Host.Browser.PromptProvider,
+           task_supervisor: Wotex.Tracker.Host.Browser.PromptTasks,
+           config: config.prompt}
+        ]
+      else
+        []
+      end
+
     Supervisor.init(
       [
         {Phoenix.PubSub, name: Wotex.Tracker.Host.Browser.PubSub},
-        {Sessions, name: Wotex.Tracker.Host.Browser.Sessions, client: {Local, provider}},
-        {RenderTelemetry, []},
-        {Endpoint, endpoint}
-      ],
+        {Sessions, name: Wotex.Tracker.Host.Browser.Sessions, client: {Local, provider}}
+      ] ++
+        prompt ++
+        [
+          {RenderTelemetry, []},
+          {Endpoint, endpoint}
+        ],
       strategy: :rest_for_one
     )
   end

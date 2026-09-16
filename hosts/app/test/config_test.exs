@@ -213,6 +213,46 @@ defmodule Wotex.Tracker.Host.ConfigTest do
     assert config.port == 4040 and config.exposure == :loopback
     refute inspect(config) =~ browser["secret_key_base"]
 
+    model = %{
+      "provider" => "openai_responses",
+      "endpoint" => "https://api.openai.com/v1/responses",
+      "model" => "gpt-5-mini",
+      "api_key" => "sk-test-private-placeholder",
+      "disclosure" => "question_schema_utc",
+      "timeout_ms" => 5_000,
+      "max_request_bytes" => 8_192,
+      "max_response_bytes" => 16_384,
+      "max_output_tokens" => 512,
+      "max_concurrent" => 2,
+      "max_requests_per_minute" => 12,
+      "max_cost_micro_usd" => 10_000,
+      "input_price_micro_usd_per_million" => 250_000,
+      "output_price_micro_usd_per_million" => 2_000_000
+    }
+
+    write(path, Map.put(browser, "model", model))
+    assert {:ok, configured} = Config.load_browser(path, service_options)
+    assert configured.prompt.model == "gpt-5-mini"
+    refute inspect(configured) =~ model["api_key"]
+    refute inspect(configured.prompt) =~ model["api_key"]
+
+    for bad_model <- [
+          Map.put(model, "endpoint", nil),
+          Map.put(model, "endpoint", "http://api.openai.com/v1/responses"),
+          Map.put(model, "endpoint", "https://api.openai.com/v1/responses?key=bad"),
+          Map.put(model, "model", nil),
+          Map.put(model, "api_key", "bad\r\nheader"),
+          Map.put(model, "disclosure", "all_history"),
+          Map.put(model, "timeout_ms", 0),
+          Map.put(model, "max_concurrent", 0),
+          Map.put(model, "extra", true)
+        ] do
+      write(path, Map.put(browser, "model", bad_model))
+      assert {:error, :invalid_configuration} = Config.load_browser(path, service_options)
+    end
+
+    write(path, browser)
+
     unless Code.ensure_loaded?(Wotex.Tracker.Host.Browser) do
       System.put_env("WOTEX_TRACKER_CONFIG", c.path)
       System.put_env("WOTEX_TRACKER_UI_CONFIG", path)

@@ -38,7 +38,7 @@
     "exqlite-0.40.0.tar": "f83350f2d29a38be1fd38f39081dd36f41fc51bbacf0f4c2927d01308ae331d0",
     "telemetry-1.4.2.tar": "928f6495066506077862c0d1646609eed891a4326bee3126ba54b60af61febb1",
     "jason-1.4.5.tar": "b0c823996102bcd0239b3c2444eb00409b72f6a140c1950bc8b457d836b30684",
-    "wotex_tracker-0.1.0.tar": "31442192ae46b57656fd0435bbe6f7b949ef6c38f27980aee3f08213d99ccee2",
+    "wotex_tracker-0.1.0.tar": "a976d508075d5e4593fe634dc8b8e9218782460ae54efded7fe459ee8c025070",
     "credo-1.7.19.tar": "2d8bc95d5a7bb99dd2613621d4f08c6a3575c3fd4b62e6a2b48a100352a557b8",
     "bandit-1.12.5.tar": "c5684ca062fa407cac115aec3256383f3e2ec9fdced7904d59cf5a7bb7ed6181",
     "bunt-1.0.0.tar": "dc5f86aa08a5f6fa6b8096f0735c4e76d54ae5c9fa2c143e5a1fc7c1cd9bb6b5",
@@ -47,42 +47,42 @@
   "consumers": [
     {
       "elixir": "1.18.4-otp-27",
-      "lock_sha256": "80e13576fec5169b4903fab705e53e5f5e44fb15e914db2267745a01ed3318f5",
+      "lock_sha256": "d1ff33892017a3408d410b3c86bb7cd56ae0ebe5e63af6e54f5f2c352ee4b7a8",
       "mode": "fresh",
       "otp": "27.3.4.15",
       "result": "pass"
     },
     {
       "elixir": "1.18.4-otp-27",
-      "lock_sha256": "80e13576fec5169b4903fab705e53e5f5e44fb15e914db2267745a01ed3318f5",
+      "lock_sha256": "d1ff33892017a3408d410b3c86bb7cd56ae0ebe5e63af6e54f5f2c352ee4b7a8",
       "mode": "locked",
       "otp": "27.3.4.15",
       "result": "pass"
     },
     {
       "elixir": "1.18.4-otp-27",
-      "lock_sha256": "93d86c56dda8078c2d74f34c1898c2f142ebe3a282b05950735eac99d44a5382",
+      "lock_sha256": "32429e9c2e64d2b2a747a192450111c9a35de7f8971e92976503ff3fdd6d95d4",
       "mode": "minimum",
       "otp": "27.3.4.15",
       "result": "pass"
     },
     {
       "elixir": "1.20.4-otp-29",
-      "lock_sha256": "80e13576fec5169b4903fab705e53e5f5e44fb15e914db2267745a01ed3318f5",
+      "lock_sha256": "d1ff33892017a3408d410b3c86bb7cd56ae0ebe5e63af6e54f5f2c352ee4b7a8",
       "mode": "fresh",
       "otp": "29.0.4",
       "result": "pass"
     },
     {
       "elixir": "1.20.4-otp-29",
-      "lock_sha256": "80e13576fec5169b4903fab705e53e5f5e44fb15e914db2267745a01ed3318f5",
+      "lock_sha256": "d1ff33892017a3408d410b3c86bb7cd56ae0ebe5e63af6e54f5f2c352ee4b7a8",
       "mode": "locked",
       "otp": "29.0.4",
       "result": "pass"
     },
     {
       "elixir": "1.20.4-otp-29",
-      "lock_sha256": "93d86c56dda8078c2d74f34c1898c2f142ebe3a282b05950735eac99d44a5382",
+      "lock_sha256": "32429e9c2e64d2b2a747a192450111c9a35de7f8971e92976503ff3fdd6d95d4",
       "mode": "minimum",
       "otp": "29.0.4",
       "result": "pass"
@@ -90,7 +90,7 @@
   ],
   "host": {
     "darwin-arm64": {
-      "archive_sha256": "d93d2f2df7c18294b6df6a99d5d84ab2b595474019568c13e3229d15249f59c3",
+      "archive_sha256": "a6b3c31ef60e85db3ef1c033440bf80be40df5a1e9385672ffd86ce3165d4a40",
       "native_client_sha256": "1717e17a2b4649eff4728376ec5bd5e62a456848ea16ff9cafce252d52789193",
       "native_compiler": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
       "platform": "aarch64-apple-darwin",
@@ -108,18 +108,18 @@
         "restart_and_idempotency": "pass",
         "retained_revocation": "pass",
         "runtime_licenses": "pass",
-        "shutdown_seconds": 1.083,
+        "shutdown_seconds": 1.077,
         "sigkill_recovery": "pass",
         "sigterm_active_stream": "pass",
         "sqlite_full_rollback": "pass"
       },
-      "source_sha256": "c5335ea0e2366f22106e7c5eb72f9ae5c95d1a9206f3a6dcfb80938aa7457905"
+      "source_sha256": "b61f021efebe428f0765083a2984898ddb52eff89bd53fef7985be09d148e99c"
     },
     "linux-arm64": {
-      "archive_sha256": "1c892a3e708f58ee14df086fe8129697efcc68a1dc9940426f25e82169520773",
+      "archive_sha256": "ed04d459519f67fa3539120156adc36fb0e8c7fa2f6146fe977b9455d1d383d1",
       "base_builder": "hexpm/elixir@sha256:473f77ee88977dc8cc5d05fb91080a308be86be3fc27d50aef9a837d07c8268b",
       "base_runtime": "debian@sha256:88200866dfff7ea7f5cbcb6ec7c8a701889efe6fe859fe64d6990e4b07ea4171",
-      "builder_image_id": "sha256:b66acf6e3e88f3ba44e407119e061249920980a6ab97355501580824d3072313",
+      "builder_image_id": "sha256:2e714e9288a38bde4ed771abeadaca706cd9974e01608b2f4275cea0dc7d2025",
       "builder_packages": [
         "gcc\t4:12.2.0-3",
         "libc6:arm64\t2.36-9+deb12u14",
@@ -127,7 +127,7 @@
         "make\t4.3-4.1"
       ],
       "compiler": "gcc (Debian 12.2.0-14+deb12u1) 12.2.0",
-      "image_id": "sha256:102e5f11a1ea5f6169feb470d11aa0ec8216d00be9599fb8df7102c29eb3dbc3",
+      "image_id": "sha256:fb229f9718a276d9c77a70bfed0bb6384c0341573a4af93271048b526cb1bfd9",
       "image_tag": "wotex-tracker:0.1.0-linux-arm64-local",
       "native_builder": "rust@sha256:2775a09d208ff0d7c1f50490c45b62db929e87ba1dcbc3f2132ac71a704bcdd3",
       "native_client_sha256": "ec8ba1d52467c6fae8f7d24ce72f1bd3d0292647dd2ce7948c11d65595480319",
@@ -146,12 +146,12 @@
         "restart_and_idempotency": "pass",
         "retained_revocation": "pass",
         "runtime_licenses": "pass",
-        "shutdown_seconds": 1.096,
+        "shutdown_seconds": 1.09,
         "sigkill_recovery": "pass",
         "sigterm_active_stream": "pass",
         "sqlite_full_rollback": "pass"
       },
-      "source_sha256": "c5335ea0e2366f22106e7c5eb72f9ae5c95d1a9206f3a6dcfb80938aa7457905"
+      "source_sha256": "b61f021efebe428f0765083a2984898ddb52eff89bd53fef7985be09d148e99c"
     },
     "published": false
   },

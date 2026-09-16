@@ -1896,3 +1896,23 @@ and marks the page as an exploration. A saved run restores the configured
 window. Temporary query failure retains the last result; terminal denial clears
 it. The browser test checks the returned bounds, snapshot, export, reset,
 failure and denial.
+
+### Optional prompted graph path — 2026-09-16
+
+The analytics page accepts a natural-language question only when its host
+installs a prompt adapter. It gives that adapter the question, permitted
+measurement names/units, closed choices and UTC time, but no asset identifier,
+retained value or service credential. A clarification does not run a query.
+Closed proposed fields are checked against the currently displayed measurement
+schema and reconstructed as `QuerySpec`; the authorized service still decides
+access and returns all graph points. Provider absence, malformed output and
+transport failure leave structured analytics usable. Synthetic workflow tests
+cover disclosure, clarification, invented fields and service denial.
+
+The browser host has an optional OpenAI Responses adapter behind a private
+configuration. It uses strict JSON-schema output, `store: false`, no tools, a
+bounded HTTPS response, no retry, an absolute deadline and cancellation of
+abandoned requests. The host checks explicit rate, concurrency, byte, token and
+operator-supplied price budgets. Unit tests exercise the request shape, response
+parser, bounded pool and synthetic transport failures. No live paid-provider run
+has been recorded; product acceptance of the public path remains open.
