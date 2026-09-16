@@ -1,33 +1,37 @@
 {
+  "boot_log_sha256": {
+    "first": "e58df14a1f711aa8bf2600bdc9c7b30a595d5e9d949863afafb395e56fb6b2ab",
+    "reboot": "d03d3db09a3ba3edb2fc4088f6e6e6df8db021a717c82aec575896d2276c28ac"
+  },
   "checks": {
-    "myelin_web_extension_aarch64": true,
+    "first_boot_formatted_fresh_partition": true,
+    "first_boot_private_store_and_loopback_http": true,
     "no_active_iex_or_distribution": true,
     "no_credentials_in_runtime_config": true,
-    "no_ssh_applications": true,
-    "profile_application_set": true,
-    "required_service_network_time_storage": true,
+    "no_ui_or_ssh_applications": true,
+    "reboot_kept_existing_partition": true,
+    "reboot_private_store_and_loopback_http": true,
     "sqlite_nif_aarch64": true
   },
   "firmware": {
-    "bytes": 171829170,
+    "bytes": 57350426,
     "metadata": {
-      "meta-architecture": "aarch64",
+      "meta-architecture": "arm",
       "meta-author": "The Nerves Team",
-      "meta-creation-date": "2026-09-16T22:16:35Z",
-      "meta-nickname": "trigger-run",
-      "meta-platform": "rpi5",
+      "meta-creation-date": "2026-09-16T22:16:22Z",
+      "meta-nickname": "illness-arm",
+      "meta-platform": "qemu_aarch64",
       "meta-product": "wotex_tracker_nerves",
-      "meta-uuid": "eac84dea-afdc-5c9a-ea71-7a7aa0444dd8",
+      "meta-uuid": "77145fc6-6f34-5779-339c-fc0419b8023c",
       "meta-version": "0.1.0"
     },
-    "myelin_web_extension": "ELF 64-bit LSB shared object, ARM aarch64, version 1 (SYSV), dynamically linked, BuildID[sha1]=18e52db95084d0f4aa91bc027116b55545819727, with debug_info, not stripped",
-    "sha256": "71cfe8d36eacc227c3b958b09b4c7a9ce438407458b70cfaabd236b223bf9424",
+    "sha256": "68cacb7c2c8ddd5e1fce87cf6986b918b884d8c9d7ff799432da171ba13e2c03",
     "sqlite_nif": "ELF 64-bit LSB shared object, ARM aarch64, version 1 (SYSV), dynamically linked, BuildID[sha1]=a3dc0ce06a84ffe46914bb4a81e11c04c5f811c6, not stripped",
     "target_elixir": "1.20.4",
     "target_erts": "17.0.6"
   },
   "hardware_acceptance": "not_executed",
-  "kind": "development_cross_build",
+  "kind": "virtual_firmware_boot",
   "physical_boot": "not_executed",
   "release_applications": [
     "asn1",
@@ -51,16 +55,10 @@
     "mime",
     "mint",
     "muontrap",
-    "myelin",
     "nerves_logging",
     "nerves_runtime",
     "nerves_time",
     "nerves_uevent",
-    "phoenix",
-    "phoenix_html",
-    "phoenix_live_view",
-    "phoenix_pubsub",
-    "phoenix_template",
     "plug",
     "plug_crypto",
     "property_table",
@@ -76,29 +74,14 @@
     "vintage_net",
     "vintage_net_ethernet",
     "websock",
-    "websock_adapter",
     "wotex",
     "wotex_binding_http",
     "wotex_runtime",
     "wotex_tracker",
     "wotex_tracker_nerves",
-    "wotex_tracker_service",
-    "wotex_tracker_ui"
+    "wotex_tracker_service"
   ],
-  "resolved": {
-    "kiosk_system_rpi5": "2.1.2",
-    "muontrap": "1.8.0",
-    "myelin": "0.1.1",
-    "nerves": "1.15.0",
-    "nerves_runtime": "0.13.13",
-    "nerves_time": "0.4.12",
-    "nerves_toolchain_aarch64_nerves_linux_gnu": "15.3.1",
-    "phoenix": "1.8.14",
-    "phoenix_live_view": "1.2.11",
-    "vintage_net": "0.13.12",
-    "vintage_net_ethernet": "0.11.2"
-  },
-  "schema": "wtr.nerves-kiosk-build.v1",
+  "schema": "wtr.nerves-qemu-boot.v1",
   "sources": {
     "wotex": {
       "commit": "eadc6c9f9c285faf9324b8a7396a001381098b6c",
@@ -116,5 +99,11 @@
       "commit": "f65643545f3263fb7eab35713a601b4b9261d275",
       "tracked_changes": false
     }
+  },
+  "virtual_system": {
+    "kernel_version": "6.18.34",
+    "nerves_system_qemu_aarch64": "0.4.2",
+    "nerves_toolchain_aarch64_nerves_linux_gnu": "15.3.1",
+    "qemu_version": "11.1.1"
   }
 }
