@@ -1,7 +1,7 @@
 {
   "boot_log_sha256": {
-    "first": "e58df14a1f711aa8bf2600bdc9c7b30a595d5e9d949863afafb395e56fb6b2ab",
-    "reboot": "d03d3db09a3ba3edb2fc4088f6e6e6df8db021a717c82aec575896d2276c28ac"
+    "first": "36507f3ad875c6ca09545b11593de0df2f1b1779bd69f8638de08f0ec0397afa",
+    "reboot": "032ad1e8e984ac09e12f8827487774c96421873d0e38a7be014d916979cb68d4"
   },
   "checks": {
     "first_boot_formatted_fresh_partition": true,
@@ -14,18 +14,18 @@
     "sqlite_nif_aarch64": true
   },
   "firmware": {
-    "bytes": 57350426,
+    "bytes": 57350288,
     "metadata": {
       "meta-architecture": "arm",
       "meta-author": "The Nerves Team",
-      "meta-creation-date": "2026-09-16T22:16:22Z",
-      "meta-nickname": "illness-arm",
+      "meta-creation-date": "2026-09-16T22:49:16Z",
+      "meta-nickname": "grunt-craft",
       "meta-platform": "qemu_aarch64",
       "meta-product": "wotex_tracker_nerves",
-      "meta-uuid": "77145fc6-6f34-5779-339c-fc0419b8023c",
+      "meta-uuid": "6b391a6f-9f33-599b-e58d-5d166a3cdde0",
       "meta-version": "0.1.0"
     },
-    "sha256": "68cacb7c2c8ddd5e1fce87cf6986b918b884d8c9d7ff799432da171ba13e2c03",
+    "sha256": "bc10a2f8895f867fdeac4b04b7ccf0fb4a9ccb61fe99db149fdeb53bff3e9f38",
     "sqlite_nif": "ELF 64-bit LSB shared object, ARM aarch64, version 1 (SYSV), dynamically linked, BuildID[sha1]=a3dc0ce06a84ffe46914bb4a81e11c04c5f811c6, not stripped",
     "target_elixir": "1.20.4",
     "target_erts": "17.0.6"
@@ -88,15 +88,15 @@
       "tracked_changes": false
     },
     "wotex_binding_http": {
-      "commit": "c150da67867933eb3fb040cc5049d11eb75d3f6a",
-      "tracked_changes": true
+      "commit": "4c0d9104e81079bfdef610c003a9c700549bdbd9",
+      "tracked_changes": false
     },
     "wotex_runtime": {
       "commit": "65d0b521ccb6b7838fe37bf26bf9dac65b40cc68",
       "tracked_changes": false
     },
     "wotex_tracker": {
-      "commit": "f65643545f3263fb7eab35713a601b4b9261d275",
+      "commit": "d06cf5f4d9a4bb14b05e0b58cd2c5d8fc321afca",
       "tracked_changes": false
     }
   },
