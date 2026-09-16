@@ -27,7 +27,7 @@ does not write an SD card or validate a physical Pi. Do not use `mix burn` or
 
 ## Private configuration
 
-The appliance expects `/data/tracker/config.json` in a private 0700 directory,
+The appliance expects `/root/tracker/config.json` in a private 0700 directory,
 with a separate private storage directory below it. The file is the shared
 `wtr.host.v1` JSON format documented by [the standalone host](../app/README.md).
 It must be a singly linked 0600 regular file, with no symlinked ancestors.
@@ -38,7 +38,7 @@ silently claim an empty history.
 
 Only loopback and direct TLS exposure are admitted. The image has no reverse
 proxy, so proxy mode is rejected. A TLS certificate and private key must each
-be a singly linked 0600 regular file under `/data/tracker`. Select an explicit
+be a singly linked 0600 regular file under `/root/tracker`. Select an explicit
 HTTPS public origin and provision certificates and operator tokens outside the
 firmware. The local host test exercises this configuration policy and the
 service/store supervision, but there is not yet a device provisioning workflow.
@@ -82,7 +82,7 @@ WOTEX_PATH_DEPS=1 WOTEX_TRACKER_UI=1 MIX_TARGET=rpi5 MIX_ENV=dev \
 The firmware is `_build/ui/rpi5_dev/nerves/images/wotex_tracker_nerves.fw`.
 Its dependency lock is `mix.ui.lock`, separate from the headless `mix.lock`.
 
-The kiosk also needs `/data/tracker/browser.json`, a private 0600 file under
+The kiosk also needs `/root/tracker/browser.json`, a private 0600 file under
 the same private directory as the service configuration:
 
 ```json
