@@ -256,7 +256,7 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
-## HTTP and stream contract 1.4.0
+## HTTP and stream contract 1.5.0
 
 The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
 2020-12. The independently maintained generator and validator check the packaged
@@ -278,6 +278,7 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | `/api/v1/openapi.json` | GET public machine contract |
 | `/api/v1/scopes/{scope}/health/ready` | GET authenticated writable-store check |
 | `/api/v1/scopes/{scope}/capabilities` | GET explicit available/unsupported/unconfigured status |
+| `…/analytics/query` | POST one read-only structured measurement query against a committed snapshot |
 | `…/observations`, `…/resolutions`, `…/evidence`, `…/state`, `…/enrollments`, `…/things` | GET public snapshot pages |
 | `…/{resource}/{id}` | GET one public value |
 | `…/{resource}/{id}/history` | GET ascending committed public versions, including deletion records |
@@ -290,7 +291,8 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | `…/events/stream` | GET resumable SSE |
 
 Scoped endpoints require a canonical bearer token in `Authorization`; POST
-mutations additionally require a UUIDv4 `Idempotency-Key`. No cookies or implicit
+mutations additionally require a UUIDv4 `Idempotency-Key`. The analytics query
+is a read-only POST and does not use an idempotency key. No cookies or implicit
 loopback authority are accepted. Success envelopes have exactly `schema`
 (`wtr.response.v1`) and `data`; failures have `schema` and bounded `error` with
 stable `code`/`path`. Mutation failures identify `not_committed`; a lost
@@ -330,10 +332,45 @@ writes time out after five seconds. HTTP/2, WebSockets and response compression
 are disabled. Transport framing/header failures can close/reject before the
 versioned application envelope exists. There is no unbounded subscriber queue.
 
-This slice exposes imported data, durable events, Runtime Property reads and
-committed-value subscriptions, with a standalone CLI and local bundled releases.
-Scanner/rule/analytics absence is explicit in capabilities. A listener
-being live does not qualify those integrations or a production deployment.
+This slice exposes imported data, durable events, Runtime Property reads,
+committed-value subscriptions and structured measurement queries, with a
+standalone CLI and local bundled releases. Scanner and public rule-management
+absence is explicit in capabilities. A listener being live does not qualify
+those integrations or a production deployment.
+
+## Structured measurement query contract
+
+`POST …/analytics/query` requires `read` authority and the exact closed
+`wtr.query-spec.v1` document. The query identifies one measurement and unit, one
+to eight state series, an absolute from-inclusive/to-exclusive Unix-millisecond
+window, accepted quality values, UTC bucket size, order and one of count,
+minimum, maximum, mean or last aggregation. Windows are limited to 31 days and
+1,000 points per series. Unknown fields, changed content identities, named
+timezones and rolling windows fail before storage access.
+
+The store opens a read transaction, rechecks current authority inside that
+transaction and pins the current scope generation. Each requested series uses
+the indexed state-history prefix and extracts matching committed
+`public.measurements` rows whose integer `observed_at` lies in the window. At
+most 100,000 matching measurement rows are admitted across all series. A state
+version containing the same requested measurement more than once, malformed
+stored scalar metadata or an invented quality fails closed as unavailable
+storage. `scanned_rows` counts extracted matching measurement rows supplied to
+the evaluator; it is not a SQLite query-planner statistic.
+
+Available rows must carry a native finite integer or number. Unavailable rows
+must carry the tagged null scalar. Unit conflicts fail the query; unavailable
+and rejected-quality rows are excluded and disclosed separately. The returned
+`wtr.query-result.v1` binds the exact query, committed snapshot identity,
+ordered series, bucket geometry, stable last-row ties and disclosure counts.
+Empty buckets stay absent, which requires clients to render gaps. The core
+result material is limited to 256 KiB and HTTP keeps its existing 4 MiB response
+ceiling.
+
+The caller waits at most the configured five-second store timeout. This revision
+does not interrupt SQLite after an expired wait, page query input, save a query,
+translate prompts, emit operational analytics telemetry or render graphs. Those
+limits remain visible product work rather than implied endpoint behavior.
 
 ## Runtime Property read contract
 

@@ -61,6 +61,14 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
     :exit, _ -> internal_error(conn)
   end
 
+  defp uncommitted(
+         {%{
+            method: "POST",
+            path_info: ["api", "v1", "scopes", _scope, "analytics", "query"]
+          } = conn, result}
+       ),
+       do: {conn, result}
+
   defp uncommitted({%{method: "POST"} = conn, {:error, code}}) when is_atom(code),
     do: {conn, Wire.mutation_error(code, operation_id(conn))}
 
@@ -95,13 +103,22 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
     {:error, error} = Wire.error(:internal_error)
 
     error =
-      if conn.method == "POST",
-        do:
+      case conn do
+        %{
+          method: "POST",
+          path_info: ["api", "v1", "scopes", _scope, "analytics", "query"]
+        } ->
+          error
+
+        %{method: "POST"} ->
           Map.merge(error, %{
             "outcome" => "unknown",
             "operation_id" => operation_id(conn)
-          }),
-        else: error
+          })
+
+        _ ->
+          error
+      end
 
     {conn, {:error, error}}
   end
@@ -132,6 +149,22 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
     do: {conn, Wire.error(:unsupported_version)}
 
   defp route(conn, _, _, _, _), do: {conn, Wire.error(:not_found)}
+
+  defp scoped(
+         %{method: "POST"} = conn,
+         ["analytics", "query"],
+         params,
+         {service, token, scope, now}
+       )
+       when map_size(params) == 0 do
+    with {:ok, _} <- Service.authorize(service, token, scope, "read", now),
+         {:ok, body, conn} <- Wire.body(conn) do
+      {conn, Service.analytics(service, token, scope, body, now)}
+    else
+      {:error, code, conn} -> {conn, Wire.error(code)}
+      error -> {conn, normalize(error)}
+    end
+  end
 
   defp scoped(%{method: "POST"} = conn, [resource], params, context)
        when is_map_key(@mutations, resource) do
@@ -238,7 +271,7 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
            "ble_scan" => "unsupported",
            "cellular" => "unsupported",
            "rules" => "unsupported",
-           "analytics" => "unsupported",
+           "analytics" => "structured_queries",
            "runtime" => %{
              "readproperty" => "available",
              "observeproperty" => "available",

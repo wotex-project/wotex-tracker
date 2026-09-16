@@ -17,6 +17,7 @@ alias Wotex.Tracker.{
   PositionMovement,
   PositionOrder,
   PositionSample,
+  QuerySpec,
   SuspiciousMovement,
   TransportCandidate,
   TransportDegradation,
@@ -963,6 +964,34 @@ association_request = %{
     update.now
   )
 
+{:ok, query_spec} =
+  QuerySpec.new(%{
+    id: "archive-temperature-history",
+    revision: "archive-query-v1",
+    dataset: :measurements,
+    measurement: "temperature",
+    unit: "Cel",
+    series: [thing],
+    qualities: [:valid],
+    from_at: update.now,
+    to_at: update.now + 1,
+    timezone: "Etc/UTC",
+    bucket_ms: 1,
+    aggregation: :last,
+    order: :ascending,
+    max_points: 1
+  })
+
+{:ok, query_document} = QuerySpec.to_map(query_spec)
+
+{:ok,
+ %{
+   "schema" => "wtr.query-result.v1",
+   "scanned_rows" => 2,
+   "qualified_rows" => 2,
+   "series" => [%{"points" => [%{"value" => 24.3}]}]
+ }} = Service.analytics(service, token, "archive", query_document, update.now)
+
 {:ok, history} = Service.history(service, token, "archive", "enrollments", thing, %{}, update.now)
 ["3", "6"] = Enum.map(history["items"], & &1["generation"])
 
@@ -1143,5 +1172,5 @@ retained = Process.list() |> MapSet.new() |> MapSet.difference(before_processes)
 0 = retained
 
 IO.puts(
-  "SERVICE_COHORT_PASS durable_restart=true durable_store_forward=true atomic_transport_health=true atomic_heartbeat=true atomic_battery=true atomic_motion=true atomic_geofence=true atomic_geofence_crossing=true atomic_suspicious_movement=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true explicit_association=true independent_http_sse=true actual_runtime_http_peer=true actual_runtime_sse=true retained_new_processes=#{retained}"
+  "SERVICE_COHORT_PASS durable_restart=true durable_store_forward=true atomic_transport_health=true atomic_heartbeat=true atomic_battery=true atomic_motion=true atomic_geofence=true atomic_geofence_crossing=true atomic_suspicious_movement=true analytics=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true explicit_association=true independent_http_sse=true actual_runtime_http_peer=true actual_runtime_sse=true retained_new_processes=#{retained}"
 )

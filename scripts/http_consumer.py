@@ -4,6 +4,7 @@
 Uses only the versioned wire contract; never imports Elixir/repository domain code.
 """
 import base64
+import hashlib
 import json
 import sys
 import urllib.error
@@ -42,7 +43,9 @@ def main():
             data = json.dumps(body, separators=(",", ":")).encode()
         if data is not None:
             fields["Content-Type"] = "application/json"
-            fields["Idempotency-Key"] = operation or str(uuid.uuid4())
+            if any(parameter.get("$ref") == "#/components/parameters/Idempotency"
+                   for parameter in contract.get("parameters", [])):
+                fields["Idempotency-Key"] = operation or str(uuid.uuid4())
         fields.update(extra_headers or {})
         req = urllib.request.Request(base + path, data=data, headers=fields, method=method)
         try:
@@ -125,6 +128,27 @@ def main():
     thing = enrolled["data"]["thing_id"]
     materialized = data("materialize", prefix + "/materialisations", {"thing_id": thing, "expected_generation": "2"})
     assert materialized["generation"] == "3"
+    query = {
+        "schema": "wtr.query-spec.v1", "algorithm": "absolute-utc-buckets-v1",
+        "id": "independent-temperature-history", "revision": "http-query-v1",
+        "dataset": "measurements", "measurement": "temperature", "unit": "Cel",
+        "series": [thing], "qualities": ["valid"], "from_at": descriptor["now"],
+        "to_at": descriptor["now"] + 1, "timezone": "Etc/UTC", "bucket_ms": 1,
+        "aggregation": "last", "order": "ascending", "max_points": 1,
+        "window_semantics": "from_inclusive_to_exclusive",
+        "missing_values": "excluded_and_disclosed"
+    }
+    query["identity"] = "wtr-json-v1:sha256:" + hashlib.sha256(json.dumps(
+        query, separators=(",", ":"), sort_keys=True).encode()).hexdigest()
+    analytics = data("query_analytics", prefix + "/analytics/query", query, who="reader")
+    assert analytics["spec"] == query and analytics["scanned_rows"] == 1
+    assert analytics["qualified_rows"] == 1 and analytics["excluded_unavailable"] == 0
+    assert analytics["series"][0]["points"][0]["value"] == 24.3
+    assert data("capabilities", prefix + "/capabilities")["analytics"] == "structured_queries"
+    forged = {**query, "identity": "wtr-json-v1:sha256:" + "0" * 64}
+    failed, _ = request("query_analytics", prefix + "/analytics/query", forged,
+                        who="reader", status=400)
+    assert "outcome" not in failed["error"] and "operation_id" not in failed["error"]
     replay = data("replay_events", prefix + "/events?" + urllib.parse.urlencode({"cursor": snapshot["stream_cursor"]}), who="reader")
     assert [event["id"] for event in replay["items"]] == ["1", "2", "3"]
     request("replay_events", prefix + "/events?cursor=wtrc1.invalid", status=400)

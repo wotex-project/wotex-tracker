@@ -11,9 +11,11 @@ defmodule Wotex.Tracker.Service.Store do
   use GenServer
 
   alias Exqlite.Sqlite3
+  alias Wotex.Tracker.QuerySpec
 
   alias Wotex.Tracker.Service.{
     Access,
+    Analytics,
     Authority,
     Codec,
     Credentials,
@@ -106,6 +108,14 @@ defmodule Wotex.Tracker.Service.Store do
           {:ok, map()} | {:error, atom()}
   def authorized_snapshot(store, access, permission, query, now),
     do: StoreCall.run(store, {:authorized_snapshot, access, permission, query, now})
+
+  @doc "Runs one bounded analytics query inside a reauthorized immutable SQLite snapshot."
+  @spec authorized_analytics(t(), Access.t(), QuerySpec.t(), integer()) ::
+          {:ok, map()} | {:error, atom()}
+  def authorized_analytics(store, access, spec, now) do
+    with {:ok, admitted} <- QuerySpec.validate(spec),
+         do: StoreCall.run(store, {:authorized_analytics, access, admitted, now})
+  end
 
   @doc "Reads bounded ascending record versions, retaining explicit deletion tombstones."
   @spec history(t(), map()) :: {:ok, map()} | {:error, atom()}
@@ -429,6 +439,19 @@ defmodule Wotex.Tracker.Service.Store do
           access,
           query.scope,
           permission,
+          Authority.now(state.options, now)
+        )
+      end)
+
+  defp dispatch({:authorized_analytics, access, spec, now}, state),
+    do:
+      Analytics.query(state.db, access_scope(access), spec, fn ->
+        Authority.check!(
+          state.db,
+          state.options.credentials,
+          access,
+          access_scope(access),
+          "read",
           Authority.now(state.options, now)
         )
       end)

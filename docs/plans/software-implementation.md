@@ -333,11 +333,13 @@ queries over durable tracking data. Add shared live graphs, pan/zoom, filtering,
 accessible tables, saved rolling dashboards and fixed incident snapshots.
 UI and non-Elixir clients use one closed query/result schema.
 
-The first pure query foundation is present: closed content-identified rows,
-absolute UTC query/result values, bounded numeric bucket aggregation, stable
-last-observed ties, explicit missing/quality exclusions and preserved gaps.
-Store-backed snapshots, authorization, service endpoints, telemetry, rolling
-windows, saved dashboards, prompting and every UI acceptance gate remain.
+The query foundation and first service adapter are present: closed
+content-identified rows, absolute UTC query/result values, bounded numeric bucket
+aggregation, stable last-observed ties, explicit missing/quality exclusions and
+preserved gaps. The service reauthorizes against a pinned SQLite snapshot and
+exposes the same closed documents to independent HTTP clients. Cancellation,
+query pagination, telemetry, rolling windows, saved dashboards, prompting and
+every UI acceptance gate remain.
 
 Add an explicitly configured public model adapter for question-to-query translation:
 synthetic boundary tests plus a separately recorded real-provider execution.

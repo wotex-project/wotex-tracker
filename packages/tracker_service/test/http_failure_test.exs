@@ -3,6 +3,7 @@ defmodule Wotex.Tracker.HTTPFailureTest do
   use ExUnit.Case, async: true
   import ExUnit.CaptureLog
   import Wotex.Tracker.Service.Fixtures
+  alias Wotex.Tracker.QuerySpec
   alias Wotex.Tracker.Service
   alias Wotex.Tracker.Service.{Codec, Identifier, Store}
   alias Wotex.Tracker.Service.HTTP.{Server, Wire}
@@ -121,6 +122,51 @@ defmodule Wotex.Tracker.HTTPFailureTest do
 
     assert {401, %{"error" => %{"code" => "unauthorized"}}} =
              request(server, context, :get, "/state")
+  end
+
+  test "structured analytics uses the read boundary without mutation metadata", context do
+    {thing, _td} = materialized(context)
+    server = start_supervised!({Server, options(context)})
+
+    {:ok, spec} =
+      QuerySpec.new(%{
+        id: "http-temperature-history",
+        revision: "http-query-v1",
+        dataset: :measurements,
+        measurement: "temperature",
+        unit: "Cel",
+        series: [thing],
+        qualities: [:valid],
+        from_at: context.now,
+        to_at: context.now + 1,
+        timezone: "Etc/UTC",
+        bucket_ms: 1,
+        aggregation: :last,
+        order: :ascending,
+        max_points: 1
+      })
+
+    {:ok, document} = QuerySpec.to_map(spec)
+
+    assert {200,
+            %{
+              "data" => %{
+                "schema" => "wtr.query-result.v1",
+                "selected_rows" => 1,
+                "series" => [%{"points" => [%{"value" => 24.3}]}]
+              }
+            }} = request(server, context, :post, "/analytics/query", Codec.encode!(document))
+
+    assert {200, %{"data" => %{"analytics" => "structured_queries"}}} =
+             request(server, context, :get, "/capabilities")
+
+    forged = Map.put(document, "identity", "forged")
+
+    assert {400, %{"error" => %{"code" => "invalid_request"} = error}} =
+             request(server, context, :post, "/analytics/query", Codec.encode!(forged))
+
+    refute Map.has_key?(error, "outcome")
+    refute Map.has_key?(error, "operation_id")
   end
 
   test "wire bounds and duplicate headers fail without reflecting their contents" do

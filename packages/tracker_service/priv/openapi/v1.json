@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "WoTEx Tracker service",
-    "version": "1.4.0",
-    "description": "Authenticated imported-observation foundation. No scanner, rules, analytics or physical interaction is implied."
+    "version": "1.5.0",
+    "description": "Authenticated imported-observation service with deterministic structured measurement queries. No scanner, rules or physical interaction is implied."
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "security": [
@@ -166,7 +166,7 @@
                           "const": "unsupported"
                         },
                         "analytics": {
-                          "const": "unsupported"
+                          "const": "structured_queries"
                         },
                         "runtime": {
                           "type": "object",
@@ -224,6 +224,63 @@
               }
             }
           }
+        }
+      }
+    },
+    "/api/v1/scopes/{scope}/analytics/query": {
+      "post": {
+        "operationId": "query_analytics",
+        "description": "Evaluate a closed numeric measurement query against one authorized committed SQLite snapshot. This read-only POST does not use an Idempotency-Key. The caller waits at most the configured service timeout; SQLite cancellation after an expired wait, pagination, saved queries and prompt translation are not provided by this operation.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/QueryResult"
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuerySpec"
+              }
+            }
+          },
+          "description": "At most 1 MiB, UTF-8 JSON; duplicate keys and unknown fields are rejected."
         }
       }
     },
@@ -3973,6 +4030,294 @@
         "required": [
           "schema",
           "error"
+        ],
+        "additionalProperties": false
+      },
+      "QuerySpec": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "wtr.query-spec.v1"
+          },
+          "algorithm": {
+            "const": "absolute-utc-buckets-v1"
+          },
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          },
+          "revision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          },
+          "dataset": {
+            "const": "measurements"
+          },
+          "measurement": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          },
+          "unit": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256,
+              "x-max-utf8-bytes": 256
+            },
+            "minItems": 1,
+            "maxItems": 8,
+            "uniqueItems": true
+          },
+          "qualities": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "valid",
+                "suspect"
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 2,
+            "uniqueItems": true
+          },
+          "from_at": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "to_at": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "timezone": {
+            "const": "Etc/UTC"
+          },
+          "bucket_ms": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2678400000
+          },
+          "aggregation": {
+            "enum": [
+              "count",
+              "min",
+              "max",
+              "mean",
+              "last"
+            ]
+          },
+          "order": {
+            "enum": [
+              "ascending",
+              "descending"
+            ]
+          },
+          "max_points": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "window_semantics": {
+            "const": "from_inclusive_to_exclusive"
+          },
+          "missing_values": {
+            "const": "excluded_and_disclosed"
+          },
+          "identity": {
+            "type": "string",
+            "pattern": "^wtr-json-v1:sha256:[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "schema",
+          "algorithm",
+          "id",
+          "revision",
+          "dataset",
+          "measurement",
+          "unit",
+          "series",
+          "qualities",
+          "from_at",
+          "to_at",
+          "timezone",
+          "bucket_ms",
+          "aggregation",
+          "order",
+          "max_points",
+          "window_semantics",
+          "missing_values",
+          "identity"
+        ],
+        "additionalProperties": false
+      },
+      "QueryPoint": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "wtr.query-point.v1"
+          },
+          "start_at": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "end_at": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "value": {
+            "type": "number"
+          },
+          "sample_count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100000
+          },
+          "last_event_at": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "last_row_identity": {
+            "type": "string",
+            "pattern": "^wtr-json-v1:sha256:[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "schema",
+          "start_at",
+          "end_at",
+          "value",
+          "sample_count",
+          "last_event_at",
+          "last_row_identity"
+        ],
+        "additionalProperties": false
+      },
+      "QuerySeries": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "wtr.query-series.v1"
+          },
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          },
+          "unit": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QueryPoint"
+            },
+            "maxItems": 1000
+          }
+        },
+        "required": [
+          "schema",
+          "id",
+          "unit",
+          "points"
+        ],
+        "additionalProperties": false
+      },
+      "QueryResult": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "wtr.query-result.v1"
+          },
+          "algorithm": {
+            "const": "absolute-utc-buckets-v1"
+          },
+          "spec": {
+            "$ref": "#/components/schemas/QuerySpec"
+          },
+          "snapshot": {
+            "type": "string",
+            "pattern": "^wtr-service-snapshot-v1:sha256:[0-9a-f]{64}$"
+          },
+          "series": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuerySeries"
+            },
+            "minItems": 1,
+            "maxItems": 8
+          },
+          "scanned_rows": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "selected_rows": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "qualified_rows": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "excluded_unavailable": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "excluded_quality": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "downsampling": {
+            "const": "requested_bucket_aggregation"
+          },
+          "continuity": {
+            "const": "gaps_preserved"
+          },
+          "identity": {
+            "type": "string",
+            "pattern": "^wtr-json-v1:sha256:[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "schema",
+          "algorithm",
+          "spec",
+          "snapshot",
+          "series",
+          "scanned_rows",
+          "selected_rows",
+          "qualified_rows",
+          "excluded_unavailable",
+          "excluded_quality",
+          "downsampling",
+          "continuity",
+          "identity"
         ],
         "additionalProperties": false
       },

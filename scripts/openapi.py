@@ -43,6 +43,8 @@ def document():
               "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"}
     nullable_cursor = {"anyOf": [cursor, {"type": "null"}]}
     native_object = {"type": "object", "additionalProperties": ref("NativeJSON")}
+    safe_time = {"type": "integer", "minimum": 0, "maximum": 9007199254740991}
+    content_identity = {"type": "string", "pattern": "^wtr-json-v1:sha256:[0-9a-f]{64}$"}
     schemas = {
         "NativeJSON": {"anyOf": [{"type": ["null", "boolean", "number", "string"]},
                                  {"type": "array", "items": ref("NativeJSON")}, native_object]},
@@ -95,6 +97,47 @@ def document():
             "path": {"const": "/"}, "outcome": enum("not_committed", "unknown"),
             "operation_id": {"anyOf": [uuid, {"type": "null"}]}
         }, optional=("outcome", "operation_id"))}),
+        "QuerySpec": obj({
+            "schema": {"const": "wtr.query-spec.v1"},
+            "algorithm": {"const": "absolute-utc-buckets-v1"},
+            "id": identifier, "revision": identifier,
+            "dataset": {"const": "measurements"},
+            "measurement": identifier, "unit": identifier,
+            "series": {"type": "array", "items": identifier, "minItems": 1,
+                       "maxItems": 8, "uniqueItems": True},
+            "qualities": {"type": "array", "items": enum("valid", "suspect"),
+                          "minItems": 1, "maxItems": 2, "uniqueItems": True},
+            "from_at": safe_time, "to_at": safe_time,
+            "timezone": {"const": "Etc/UTC"},
+            "bucket_ms": {"type": "integer", "minimum": 1, "maximum": 2678400000},
+            "aggregation": enum("count", "min", "max", "mean", "last"),
+            "order": enum("ascending", "descending"),
+            "max_points": {"type": "integer", "minimum": 1, "maximum": 1000},
+            "window_semantics": {"const": "from_inclusive_to_exclusive"},
+            "missing_values": {"const": "excluded_and_disclosed"},
+            "identity": content_identity}),
+        "QueryPoint": obj({
+            "schema": {"const": "wtr.query-point.v1"},
+            "start_at": safe_time, "end_at": safe_time, "value": {"type": "number"},
+            "sample_count": {"type": "integer", "minimum": 1, "maximum": 100000},
+            "last_event_at": safe_time, "last_row_identity": content_identity}),
+        "QuerySeries": obj({
+            "schema": {"const": "wtr.query-series.v1"}, "id": identifier,
+            "unit": identifier, "points": array(ref("QueryPoint"), 1000)}),
+        "QueryResult": obj({
+            "schema": {"const": "wtr.query-result.v1"},
+            "algorithm": {"const": "absolute-utc-buckets-v1"},
+            "spec": ref("QuerySpec"),
+            "snapshot": {"type": "string",
+                         "pattern": "^wtr-service-snapshot-v1:sha256:[0-9a-f]{64}$"},
+            "series": {"type": "array", "items": ref("QuerySeries"),
+                       "minItems": 1, "maxItems": 8},
+            **{name: {"type": "integer", "minimum": 0, "maximum": 100000} for name in (
+                "scanned_rows", "selected_rows", "qualified_rows",
+                "excluded_unavailable", "excluded_quality")},
+            "downsampling": {"const": "requested_bucket_aggregation"},
+            "continuity": {"const": "gaps_preserved"},
+            "identity": content_identity}),
         "ImportRequest": obj({"observation": ref("ObservationEnvelope"), "expected_generation": generation}),
         "EnrollmentRequest": obj({"observation_id": identifier, "title": identifier,
                                    "owner_confirmed": {"const": True}, "expected_generation": generation}),
@@ -134,10 +177,23 @@ def document():
         "schema": {"const": "3"}, "sqlite": identifier})), ("Scope",))}
     paths[base + "/capabilities"] = {"get": operation("capabilities", envelope(obj({
         "api_version": {"const": "v1"}, "import": {"const": "available"},
-        **{key: {"const": "unsupported"} for key in ("ble_scan", "cellular", "rules", "analytics")},
+        **{key: {"const": "unsupported"} for key in ("ble_scan", "cellular", "rules")},
+        "analytics": {"const": "structured_queries"},
         "runtime": obj({"readproperty": {"const": "available"}, "observeproperty": {"const": "available"},
                         "invokeaction": {"const": "unsupported"}}),
         "directory": {"const": "unconfigured"}})), ("Scope",))}
+    paths[base + "/analytics/query"] = {"post": {
+        "operationId": "query_analytics",
+        "description": "Evaluate a closed numeric measurement query against one authorized committed SQLite snapshot. "
+                       "This read-only POST does not use an Idempotency-Key. The caller waits at most the configured "
+                       "service timeout; SQLite cancellation after an expired wait, pagination, saved queries and "
+                       "prompt translation are not provided by this operation.",
+        "parameters": [{"$ref": "#/components/parameters/Scope"}],
+        "responses": {"200": response(envelope(ref("QueryResult"))),
+                      "default": response(ref("Error"))},
+        "requestBody": {"required": True,
+                        "content": {"application/json": {"schema": ref("QuerySpec")}},
+                        "description": "At most 1 MiB, UTF-8 JSON; duplicate keys and unknown fields are rejected."}}}
     for resource, schema in [("observations", "Observation"), ("resolutions", "Resolution"),
                              ("evidence", "EvidenceSummary"), ("state", "State"),
                              ("enrollments", "Enrollment"), ("things", "Thing")]:
@@ -196,8 +252,9 @@ def document():
                        "Connection lifetime 300 s; idle reauthorization/poll 1 s; no unlimited queue."},
         ("Scope", "Cursor", "Resume"), media="text/event-stream")}
     paths["/api/v1/openapi.json"] = {"get": operation("openapi", {"type": "object"}, public=True)}
-    return {"openapi": "3.1.0", "info": {"title": "WoTEx Tracker service", "version": "1.4.0",
-        "description": "Authenticated imported-observation foundation. No scanner, rules, analytics or physical interaction is implied."},
+    return {"openapi": "3.1.0", "info": {"title": "WoTEx Tracker service", "version": "1.5.0",
+        "description": "Authenticated imported-observation service with deterministic structured measurement queries. "
+                       "No scanner, rules or physical interaction is implied."},
         "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema", "security": [{"bearer": []}],
         "paths": paths, "components": {"securitySchemes": {"bearer": {"type": "http", "scheme": "bearer"}},
                                        "parameters": parameters, "schemas": schemas}}

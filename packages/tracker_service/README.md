@@ -24,8 +24,9 @@ Every facade operation authenticates an ephemeral bearer token and exact scope.
 
 The facade supports imported observations, public inspection and paginated
 snapshots, encrypted event cursors, privileged byte-preserving raw exports,
-operator-confirmed enrollment and reassociation, materialisation, revocation and operation-status
-lookup. Mutations take a lowercase UUIDv4 operation ID and a decimal-string
+operator-confirmed enrollment and reassociation, materialisation, structured
+measurement analytics, revocation and operation-status lookup. Mutations take a
+lowercase UUIDv4 operation ID and a decimal-string
 expected generation. The original committed receipt is replayed before new
 profile/model work, including its generated Thing ID. Unknown outcomes require
 receipt lookup; they do not authorize automatic physical Action retries.
@@ -82,7 +83,20 @@ publication effect is implicit.
 An `enroll` grant can derive initial state/evidence for the same Thing in its
 materialisation transaction. It cannot import observations or export raw data.
 Resource reads need `read`; raw exports need `raw`; revocation needs `admin`.
-Missing scanner/rule/analytics implementations remain explicitly unsupported.
+Scanner and public rule management remain explicitly unsupported. Analytics is
+reported as `structured_queries`.
+
+`Service.analytics/5` and `POST …/analytics/query` accept the closed
+`wtr.query-spec.v1` document. The service rechecks `read` authority inside a
+SQLite read transaction, pins the current scope generation and extracts numeric
+measurement rows from committed state history. It scans at most 100,000 matching
+rows across one to eight explicit series and returns a content-identified
+`wtr.query-result.v1` with disclosure counts and preserved gaps. The operation is
+read-only, so it does not use mutation receipts or `Idempotency-Key`. Callers wait
+at most the configured five-second store timeout, but an expired wait does not
+cancel SQLite work in this revision. Pagination, saved queries, named display
+timezones, prompting, operational telemetry and graph rendering remain later
+contracts.
 
 ## Explicit HTTP instance
 
@@ -107,10 +121,11 @@ and key paths. Explicit `:proxy` mode requires an HTTPS public origin and a
 protected proxy-to-listener network; forwarded headers never supply authority or
 Forms. No remote exposure is inferred.
 
-OpenAPI **3.1.0**, contract revision **1.4.0**, is packaged at
+OpenAPI **3.1.0**, contract revision **1.5.0**, is packaged at
 `priv/openapi/v1.json` and served at `/api/v1/openapi.json`. Liveness is
 `/health/live`; authenticated resources are under `/api/v1/scopes/{scope}`.
 Use `Authorization: Bearer …`, and a UUIDv4 `Idempotency-Key` for POST mutations.
+The read-only analytics POST uses authorization without an idempotency key.
 API responses have `schema: wtr.response.v1` and `data` or `error`. Successful
 TD Property reads return the native JSON scalar with `X-Wotex-Generation`.
 Unknown

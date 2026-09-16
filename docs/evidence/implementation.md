@@ -1178,6 +1178,38 @@ and result codecs plus a known-answer aggregation on both runtime lanes in fresh
 locked and minimum dependency modes, while retaining zero new Tracker processes.
 Exact archive and lock identities are recorded in
 `verification/source-consumer.json` and `verification/service-consumer.json`.
-Authorization, indexed SQLite snapshots, deadlines/cancellation, pagination,
-operational telemetry, named display timezones, saved dashboards, prompting and
-dynamic graphs remain required host and product work.
+SQL cancellation after a timed-out wait, query pagination, operational telemetry,
+named display timezones, saved dashboards, prompting and dynamic graphs remain
+required host and product work.
+
+### Service-backed structured queries — 2026-09-16
+
+The service now accepts the closed query document through `Service.analytics/5`
+and the read-only `POST …/analytics/query` operation in OpenAPI contract 1.5.0.
+It rechecks scope-level `read` authority inside one SQLite read transaction,
+pins the current scope generation and extracts matching numeric measurements
+from committed state history. The adapter retains native zero/integer/float
+semantics, rejects duplicate requested measurements and malformed stored scalar
+or quality metadata, and binds a deterministic service snapshot identity into
+the core result. The endpoint has no mutation receipt or idempotency key.
+
+The independent Python HTTP client constructs the content identity without
+Elixir code, validates the query and result against JSON Schema, executes a
+known-answer query and verifies that forged input fails without mutation
+metadata. Restart tests prove an identical committed snapshot result; scope
+isolation, unavailable rows, quality exclusion, unit conflicts and storage
+failure paths are covered.
+
+Both required root runtime lanes passed the complete gate with 1 doctest,
+19 properties and 158 tests, no failures and 95.4% production line coverage.
+Both service runtime lanes passed with 2 properties and 123 tests, no failures
+and 95.7% floor / 95.8% current production line coverage. Compiler, formatter,
+strict Credo, Dialyzer, ExDoc, dependency audit, licences, documentation
+contracts, generated/packaged OpenAPI equality and archive inspection passed.
+
+The production service archive consumer executes the installed facade query;
+its independent HTTP client validates and executes the same public operation.
+The root archive consumer continues to exercise the pure known-answer query on
+both runtime lanes in fresh, locked and minimum dependency modes. Exact archive
+and lock identities are recorded in `verification/source-consumer.json` and
+`verification/service-consumer.json`.

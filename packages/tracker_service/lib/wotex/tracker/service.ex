@@ -7,7 +7,7 @@ defmodule Wotex.Tracker.Service do
   authorization clock. Store, credential and model snapshots remain explicit.
   This facade starts no process, listener or physical ingress.
   """
-  alias Wotex.Tracker.{Catalogue, Model, Observation}
+  alias Wotex.Tracker.{Catalogue, Model, Observation, QuerySpec}
   alias Wotex.Tracker.Decoders.RuuviRawV2
 
   alias Wotex.Tracker.Service.{
@@ -193,6 +193,18 @@ defmodule Wotex.Tracker.Service do
       with {:ok, access} <- authorize(service, token, scope, "read", now),
            :ok <- resource(resource),
            do: History.page(service, access, resource, id, params, now)
+
+    Result.normalize(result)
+  end
+
+  @doc "Executes one closed numeric history query against an authorized committed snapshot."
+  @spec analytics(t(), String.t(), String.t(), map(), integer()) ::
+          {:ok, map()} | {:error, map()}
+  def analytics(service, token, scope, document, now) do
+    result =
+      with {:ok, access} <- authorize(service, token, scope, "read", now),
+           {:ok, spec} <- query_spec(document),
+           do: Store.authorized_analytics(service.store, access, spec, now)
 
     Result.normalize(result)
   end
@@ -481,6 +493,13 @@ defmodule Wotex.Tracker.Service do
       {:ok, document}
     else
       _ -> {:error, :storage_unavailable}
+    end
+  end
+
+  defp query_spec(document) do
+    case QuerySpec.from_map(document) do
+      {:ok, spec} -> {:ok, spec}
+      {:error, _} -> {:error, :invalid_request}
     end
   end
 
