@@ -57,6 +57,23 @@ defmodule Wotex.Tracker.UI.Local do
     end
   end
 
+  defp dispatch(service, token, scope, :revocation_context, _, now) do
+    with {:ok, access} <- Service.authorize(service, token, scope, "admin", now),
+         {:ok, %{"generation" => generation}} <-
+           Service.list(service, token, scope, "enrollments", %{"limit" => 1}, now) do
+      {:ok, %{"credential_id" => access.credential_id, "expected_generation" => generation}}
+    else
+      {:error, reason} when is_atom(reason) ->
+        {:error, %{"code" => Atom.to_string(reason)}}
+
+      {:error, %{"code" => _} = error} ->
+        {:error, error}
+
+      _ ->
+        {:error, %{"code" => "storage_unavailable"}}
+    end
+  end
+
   defp dispatch(service, token, scope, :list, args, now),
     do: Service.list(service, token, scope, args["resource"], args["params"] || %{}, now)
 
@@ -111,6 +128,9 @@ defmodule Wotex.Tracker.UI.Local do
 
   defp dispatch(service, token, scope, :materialize, args, now),
     do: Service.materialize(service, token, scope, args["operation"], args["request"], now)
+
+  defp dispatch(service, token, scope, :revoke, args, now),
+    do: Service.revoke(service, token, scope, args["operation"], args["request"], now)
 
   defp dispatch(service, token, scope, :operation, args, now),
     do: Service.operation(service, token, scope, args["id"], now)

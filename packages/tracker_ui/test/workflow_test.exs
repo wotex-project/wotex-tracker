@@ -426,6 +426,124 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     refute render(reader_view) =~ c.reader
   end
 
+  test "an administrator can revoke the current credential after explicit confirmation", c do
+    {:ok, view, _} = live(c.conn, "/access")
+    assert has_element?(view, "button", "Prepare revocation")
+
+    view |> element("button", "Prepare revocation") |> render_click()
+    assert has_element?(view, "#revoke-current")
+    refute render(view) =~ c.admin
+
+    render_submit(view, "confirm-revoke", %{"revoke" => %{}})
+    assert has_element?(view, "[role=alert]", "Check the required fields")
+    assert {:ok, _} = Service.authorize(c.service, c.admin, c.scope, "read", c.now)
+
+    result = view |> form("#revoke-current", revoke: %{confirmed: "yes"}) |> render_submit()
+    assert_redirect(view, "/sign-in")
+    assert {:ok, sign_in} = follow_redirect(result, c.conn, "/sign-in")
+    assert html_response(sign_in, 200) =~ "Credential revoked"
+
+    assert {:error, %{"code" => "unauthorized"}} =
+             Sessions.request(c.sessions, c.session, :access)
+
+    assert {:error, :unauthorized} = Service.authorize(c.service, c.admin, c.scope, "read", c.now)
+  end
+
+  test "a stale revocation refuses to remove access", c do
+    {:ok, view, _} = live(c.conn, "/access")
+    view |> element("button", "Prepare revocation") |> render_click()
+
+    assert {:ok, _} =
+             Service.submit(
+               c.service,
+               c.admin,
+               c.scope,
+               Identifier.uuid(),
+               import_request(),
+               c.now
+             )
+
+    view |> form("#revoke-current", revoke: %{confirmed: "yes"}) |> render_submit()
+    assert has_element?(view, "[role=alert]", "service changed")
+    refute has_element?(view, "#revoke-current")
+    assert {:ok, _} = Service.authorize(c.service, c.admin, c.scope, "read", c.now)
+  end
+
+  test "revocation preparation and submission failures leave the credential valid", c do
+    {:ok, view, _} = live(c.conn, "/access")
+
+    render_submit(view, "confirm-revoke", %{"revoke" => %{"confirmed" => "yes"}})
+    assert has_element?(view, "[role=alert]", "Check the required fields")
+
+    Agent.update(c.faults, &Map.put(&1, :revocation_context, :unavailable))
+    view |> element("button", "Prepare revocation") |> render_click()
+    assert has_element?(view, "[role=alert]")
+    refute has_element?(view, "#revoke-current")
+
+    view |> element("button", "Prepare revocation") |> render_click()
+    assert has_element?(view, "#revoke-current")
+    view |> element("button", "Cancel") |> render_click()
+    refute has_element?(view, "#revoke-current")
+
+    view |> element("button", "Prepare revocation") |> render_click()
+    Agent.update(c.faults, &Map.put(&1, :revoke, :unavailable))
+    view |> form("#revoke-current", revoke: %{confirmed: "yes"}) |> render_submit()
+    assert has_element?(view, "[role=alert]")
+    refute has_element?(view, "#revoke-current")
+    assert {:ok, _} = Service.authorize(c.service, c.admin, c.scope, "read", c.now)
+  end
+
+  test "malformed revocation replies never authorize an unconfirmed mutation", c do
+    {:ok, view, _} = live(c.conn, "/access")
+
+    Agent.update(c.faults, &Map.put(&1, :revocation_context, {:reply, {:ok, %{}}}))
+    view |> element("button", "Prepare revocation") |> render_click()
+    assert has_element?(view, "[role=alert]")
+    refute has_element?(view, "#revoke-current")
+
+    view |> element("button", "Prepare revocation") |> render_click()
+    Agent.update(c.faults, &Map.put(&1, :revoke, {:reply, {:ok, %{}}}))
+    view |> form("#revoke-current", revoke: %{confirmed: "yes"}) |> render_submit()
+    assert has_element?(view, "[role=alert]")
+    assert has_element?(view, "#revoke-current")
+    assert {:ok, _} = Service.authorize(c.service, c.admin, c.scope, "read", c.now)
+
+    view |> element("button", "Refresh access") |> render_click()
+    refute has_element?(view, "#revoke-current")
+  end
+
+  test "a reader cannot prepare or forge a self-revocation", c do
+    {:ok, %{"id" => reader}} = Sessions.login(c.sessions, c.reader, c.scope)
+    conn = build_conn() |> init_test_session(%{"browser_session" => reader})
+    {:ok, view, _} = live(conn, "/access")
+    refute has_element?(view, "button", "Prepare revocation")
+
+    render_click(view, "prepare-revoke", %{})
+    assert has_element?(view, "[role=alert]", "does not permit")
+
+    assert {:error, %{"code" => "forbidden"}} =
+             Sessions.request(c.sessions, reader, :revocation_context)
+  end
+
+  test "an uncertain self-revocation retains its operation reference", c do
+    {:ok, view, _} = live(c.conn, "/access")
+    view |> element("button", "Prepare revocation") |> render_click()
+
+    operation =
+      view
+      |> render()
+      |> then(&Regex.run(~r/Operation reference <code>([^<]+)/, &1))
+      |> Enum.at(1)
+
+    Agent.update(c.faults, &Map.put(&1, :revoke, :lost_reply))
+    result = view |> form("#revoke-current", revoke: %{confirmed: "yes"}) |> render_submit()
+    assert {:ok, sign_in} = follow_redirect(result, c.conn, "/sign-in")
+    assert html_response(sign_in, 200) =~ operation
+    assert html_response(sign_in, 200) =~ "outcome unknown"
+    refute html_response(sign_in, 200) =~ c.admin
+    assert {:error, :unauthorized} = Service.authorize(c.service, c.admin, c.scope, "read", c.now)
+  end
+
   test "history pages can be revisited without losing the current page on failure", c do
     {thing, _} = enrolled(c)
 

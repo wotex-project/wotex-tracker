@@ -26,7 +26,10 @@ that facade.
 `Wotex.Tracker.UI.Sessions` keeps bearer credentials in bounded server memory;
 browser cookies and LiveView session payloads carry an opaque session identifier.
 Every service request rechecks authority. Logout destroys the presentation
-session; service credential revocation also rejects existing views.
+session; service credential revocation also rejects existing views. The Access
+page lets an administrator revoke their current service credential with a
+generation check and explicit confirmation. An uncertain commit redirects to
+sign-in with the operation reference so it survives the revoked session.
 
 The host supplies a `Wotex.Tracker.UI.Client` implementation and explicitly
 starts the session store. The local adapter resolves the current service for

@@ -4,7 +4,13 @@ defmodule Wotex.Tracker.UI.SessionController do
   import Plug.Conn
   alias Wotex.Tracker.UI.Sessions
 
-  def new(conn, _), do: render(conn, :new, message: nil)
+  def new(conn, _) do
+    flash = conn.assigns[:flash] || %{}
+
+    render(conn, :new,
+      message: Phoenix.Flash.get(flash, :error) || Phoenix.Flash.get(flash, :info)
+    )
+  end
 
   def create(conn, params) do
     sessions = Phoenix.Controller.endpoint_module(conn).config(:tracker_ui)[:sessions]

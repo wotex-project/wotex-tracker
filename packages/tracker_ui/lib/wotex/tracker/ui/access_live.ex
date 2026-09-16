@@ -1,17 +1,101 @@
 defmodule Wotex.Tracker.UI.AccessLive do
-  @moduledoc "Read-only inspection of the current authorized browser access."
+  @moduledoc "Current access inspection and confirmed administrator self-revocation."
   use Phoenix.LiveView, log: false
   import Wotex.Tracker.UI.Components
+  alias Wotex.Tracker.Service.Identifier
   alias Wotex.Tracker.UI.{Auth, Presenter}
+  alias Wotex.Tracker.UI.Sessions
 
   @impl true
-  def mount(_, _, socket), do: {:ok, assign(socket, access: nil, error: nil)}
+  def mount(_, _, socket),
+    do:
+      {:ok,
+       assign(socket,
+         access: nil,
+         error: nil,
+         revoke_context: nil,
+         revoke_operation: nil,
+         revoke_error: nil
+       )}
 
   @impl true
   def handle_params(_, _, socket), do: {:noreply, load(socket)}
 
   @impl true
-  def handle_event("refresh", _, socket), do: {:noreply, load(socket)}
+  def handle_event("refresh", _, socket),
+    do: {:noreply, socket |> clear_revoke() |> load()}
+
+  def handle_event("prepare-revoke", _, socket) do
+    if socket.assigns.identity["can_manage_queries"] do
+      case Auth.request(socket, :revocation_context) do
+        {:ok, %{"credential_id" => id, "expected_generation" => generation} = context}
+        when is_binary(id) and is_binary(generation) ->
+          {:noreply,
+           assign(socket,
+             revoke_context: context,
+             revoke_operation: Identifier.uuid(),
+             revoke_error: nil
+           )}
+
+        {:error, error} ->
+          {:noreply, assign(clear_revoke(socket), revoke_error: error)}
+
+        _ ->
+          {:noreply,
+           assign(clear_revoke(socket), revoke_error: %{"code" => "storage_unavailable"})}
+      end
+    else
+      {:noreply, assign(clear_revoke(socket), revoke_error: %{"code" => "forbidden"})}
+    end
+  end
+
+  def handle_event("cancel-revoke", _, socket), do: {:noreply, clear_revoke(socket)}
+
+  def handle_event("confirm-revoke", %{"revoke" => %{"confirmed" => "yes"}}, socket) do
+    case {socket.assigns.revoke_context, socket.assigns.revoke_operation} do
+      {%{"credential_id" => id, "expected_generation" => generation}, operation}
+      when is_binary(operation) ->
+        result =
+          Auth.request(socket, :revoke, %{
+            "operation" => operation,
+            "request" => %{"credential_id" => id, "expected_generation" => generation}
+          })
+
+        case result do
+          {:ok, %{"outcome" => "committed"}} ->
+            Sessions.logout(socket.assigns.sessions, socket.assigns.session_id)
+
+            {:noreply,
+             socket
+             |> put_flash(:info, "Credential revoked. Sign in with a different credential.")
+             |> redirect(to: "/sign-in")}
+
+          {:ok, %{"outcome" => "unknown"}} ->
+            Sessions.logout(socket.assigns.sessions, socket.assigns.session_id)
+
+            {:noreply,
+             socket
+             |> put_flash(
+               :info,
+               "Revocation outcome unknown. Keep operation #{operation} for service lookup before retrying."
+             )
+             |> redirect(to: "/sign-in")}
+
+          {:error, error} ->
+            {:noreply, assign(clear_revoke(socket), revoke_error: error)}
+
+          _ ->
+            {:noreply, assign(socket, revoke_error: %{"code" => "storage_unavailable"})}
+        end
+
+      _ ->
+        {:noreply, assign(socket, revoke_error: %{"code" => "invalid_request"})}
+    end
+  end
+
+  def handle_event("confirm-revoke", _, socket),
+    do: {:noreply, assign(socket, revoke_error: %{"code" => "invalid_request"})}
+
   def handle_event(_, _, socket), do: {:noreply, socket}
 
   @impl true
@@ -28,6 +112,7 @@ defmodule Wotex.Tracker.UI.AccessLive do
         <button class="secondary" phx-click="refresh">Refresh access</button>
       </div>
       <.notice error={@error} />
+      <.notice error={@revoke_error} />
       <section :if={@access} class="panel">
         <h2>Current credential</h2>
         <dl>
@@ -65,6 +150,29 @@ defmodule Wotex.Tracker.UI.AccessLive do
           or an administrator revokes it. The service checks authority again on each operation.
         </p>
       </section>
+      <section :if={@access && @identity["can_manage_queries"]} class="panel">
+        <h2>Revoke this credential</h2>
+        <p>
+          Revocation immediately ends every browser and API session using this credential. It cannot
+          be undone. Other credentials remain valid.
+        </p>
+        <button :if={is_nil(@revoke_context)} class="secondary" phx-click="prepare-revoke">
+          Prepare revocation
+        </button>
+        <div :if={@revoke_context}>
+          <p>
+            Operation reference <code>{@revoke_operation}</code>. Keep it if the result is uncertain.
+          </p>
+          <.form for={%{}} id="revoke-current" phx-submit="confirm-revoke">
+            <label>
+              <input type="checkbox" name="revoke[confirmed]" value="yes" />
+              I understand this credential will stop working everywhere.
+            </label>
+            <button type="submit">Confirm revocation</button>
+            <button type="button" class="secondary" phx-click="cancel-revoke">Cancel</button>
+          </.form>
+        </div>
+      </section>
     </main>
     """
   end
@@ -88,4 +196,12 @@ defmodule Wotex.Tracker.UI.AccessLive do
 
   defp status(true), do: "Allowed"
   defp status(_), do: "Not allowed"
+
+  defp clear_revoke(socket),
+    do:
+      assign(socket,
+        revoke_context: nil,
+        revoke_operation: nil,
+        revoke_error: nil
+      )
 end
