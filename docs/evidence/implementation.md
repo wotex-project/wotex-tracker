@@ -1762,4 +1762,15 @@ The page retains a stable operation reference and verifies a committed receipt
 against the new saved definition. Workflow tests cover normal execution, a lost
 reply, failed verification read, stale generation, incompatible or duplicate
 series, reader denial and unrelated operation references. General composition,
-sharing, multi-series graphs and physical surface acceptance remain open.
+sharing and physical surface acceptance remain open.
+
+### Shared-scale saved graphs — 2026-09-16
+
+Saved multi-series definitions can now render line, area and point views on a
+shared value scale. Each trace keeps separate paths across missing buckets;
+empty series have no invented mark and remain explicit in the table. Series
+labels and exact tables make the graph readable without relying on color alone.
+Unit tests check common scaling, zero, gaps and an empty series. A LiveView test
+executes a two-series saved definition with one qualified series, checks the
+graph and tables, then edits the view to area and reruns it. Physical Pi/mobile
+and browser gesture acceptance remain open.

@@ -139,6 +139,20 @@ td ul { margin: 0; padding-left: 1rem; }
 .chart-line { fill: none; stroke: #146351; stroke-width: 3; stroke-linejoin: round; }
 .chart-area { fill: #a8d8cb; stroke: none; }
 .chart-point { fill: #146351; stroke: white; stroke-width: 2; }
+.chart-series.series-1, .chart-legend .series-1 { --series-color: #146351; }
+.chart-series.series-2, .chart-legend .series-2 { --series-color: #2355a2; }
+.chart-series.series-3, .chart-legend .series-3 { --series-color: #a34e16; }
+.chart-series.series-4, .chart-legend .series-4 { --series-color: #71459d; }
+.chart-series.series-5, .chart-legend .series-5 { --series-color: #a1263d; }
+.chart-series.series-6, .chart-legend .series-6 { --series-color: #087e83; }
+.chart-series.series-7, .chart-legend .series-7 { --series-color: #79522b; }
+.chart-series.series-8, .chart-legend .series-8 { --series-color: #34495e; }
+.chart-series .chart-line { stroke: var(--series-color); }
+.chart-series .chart-area { fill: var(--series-color); opacity: .13; }
+.chart-series .chart-point { fill: var(--series-color); }
+.chart-legend { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; list-style: none; padding: 0; }
+.chart-legend li { display: flex; align-items: center; gap: .4rem; }
+.chart-swatch { width: 1rem; height: 1rem; border-radius: 50%; background: var(--series-color); }
 .chart-controls { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1rem 0; }
 .chart-controls button { margin: 0; }
 

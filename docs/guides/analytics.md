@@ -61,8 +61,9 @@ The Dashboards navigation lists retained saved definitions in bounded pages.
 Opening one shows its stored query and window policy; running it invokes
 `Service.execute_saved_query/5` after current authorization. A rolling
 definition resolves a new window on every run. One-series definitions use the
-shared graph/table component; multi-series definitions show each series in a
-separate exact table so none is silently omitted.
+shared graph/table component. Multi-series definitions can show line, area or
+point traces on one common scale, with separate paths for each observed run;
+each series also keeps an exact table, including empty-series disclosure.
 An administrator can choose **Prepare save** after running a one-asset query,
 then name a fixed incident or rolling dashboard. The page address gains a
 stable operation reference before the save form appears. Submission captures

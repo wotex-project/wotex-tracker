@@ -83,3 +83,5 @@ saved definitions. Their measurement, unit, query settings and window must
 match, and their series must be distinct. A generation-checked save creates one
 new multi-series query with an exact table. Its stable operation reference
 supports recovery after a lost reply; a reader can run but cannot create it.
+Editing that definition to a line, area or points view plots its series on one
+scale. Each series retains an exact table, and absent buckets remain gaps.

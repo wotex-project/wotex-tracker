@@ -1,5 +1,5 @@
 defmodule Wotex.Tracker.UI.Chart do
-  @moduledoc "Projects one admitted numeric query result to bounded SVG geometry."
+  @moduledoc "Projects admitted numeric query results to bounded SVG geometry."
 
   @left 56.0
   @right 944.0
@@ -9,12 +9,51 @@ defmodule Wotex.Tracker.UI.Chart do
   @doc "Returns nil for an empty result and separate paths for every observed run."
   @spec project(map()) :: map() | nil
   def project(%{"spec" => spec, "series" => [%{"points" => points}]}) when points != [] do
-    values = Enum.map(points, & &1["value"])
+    {minimum, maximum, scale, low, high} = bounds(Enum.map(points, & &1["value"]))
+
+    Map.merge(project_points(spec, points, scale, low, high), %{
+      minimum: minimum,
+      maximum: maximum
+    })
+  end
+
+  def project(_), do: nil
+
+  @doc "Uses one common value scale for two to eight distinct named series."
+  @spec project_many(map()) :: map() | nil
+  def project_many(%{"spec" => spec, "series" => series}) when length(series) in 2..8 do
+    values = for row <- series, point <- row["points"], do: point["value"]
+
+    if values == [] do
+      nil
+    else
+      {minimum, maximum, scale, low, high} = bounds(values)
+
+      projected =
+        Enum.map(series, fn row ->
+          Map.merge(
+            %{id: row["id"]},
+            project_points(spec, row["points"], scale, low, high)
+          )
+        end)
+
+      %{series: projected, minimum: minimum, maximum: maximum}
+    end
+  end
+
+  def project_many(_), do: nil
+
+  defp bounds(values) do
     minimum = Enum.min(values)
     maximum = Enum.max(values)
     scale = Enum.max([abs(minimum), abs(maximum), 1.0])
     {low, high} = extent(minimum / scale, maximum / scale)
+    {minimum, maximum, scale, low, high}
+  end
 
+  defp project_points(_, [], _, _, _), do: %{points: [], segments: []}
+
+  defp project_points(spec, points, scale, low, high) do
     coordinates =
       Map.new(points, fn point ->
         x =
@@ -37,13 +76,9 @@ defmodule Wotex.Tracker.UI.Chart do
 
     %{
       points: Enum.map(points, &Map.fetch!(coordinates, &1["start_at"])),
-      segments: Enum.map(runs(points), &paths(&1, coordinates)),
-      minimum: minimum,
-      maximum: maximum
+      segments: Enum.map(runs(points), &paths(&1, coordinates))
     }
   end
-
-  def project(_), do: nil
 
   defp extent(value, value), do: {value - 0.5, value + 0.5}
   defp extent(low, high), do: {low, high}

@@ -389,6 +389,8 @@ Administrators can select two to eight saved definitions with identical query
 settings and window policy and distinct series, then save a new multi-series
 exact-table dashboard with a generation check and recoverable operation receipt.
 This covers compatible series comparison, not arbitrary dashboard composition.
+Saved multi-series queries also support line, area and point views on a shared
+value scale, while keeping per-series gaps and tables visible.
 
 Add an explicitly configured public model adapter for question-to-query translation:
 synthetic boundary tests plus a separately recorded real-provider execution.

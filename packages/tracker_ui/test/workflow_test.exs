@@ -621,6 +621,70 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert has_element?(detail, "h3", "another-asset")
   end
 
+  test "a saved multi-series graph shows a shared scale and leaves an empty series unplotted",
+       c do
+    {thing, _} = enrolled(c)
+
+    {:ok, _} =
+      Service.materialize(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"thing_id" => thing, "expected_generation" => "2"},
+        c.now
+      )
+
+    {:ok, page} = Service.list(c.service, c.admin, c.scope, "saved_queries", %{}, c.now)
+    id = "multi-series-graph"
+
+    {:ok, _} =
+      Service.save_query(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        dashboard_request(id, "Shared scale", c, page["generation"], [thing, "empty-asset"]),
+        c.now
+      )
+
+    {:ok, detail, _} = live(c.conn, Presenter.dashboard_path(id))
+    detail |> element("button", "Run saved query") |> render_click()
+    assert has_element?(detail, "svg[aria-label*='comparing 2 series']")
+    assert has_element?(detail, ".chart-series.series-1 path.chart-line")
+    refute has_element?(detail, ".chart-series.series-2 circle")
+    assert has_element?(detail, ".chart-legend li", thing)
+    assert has_element?(detail, ".chart-legend li", "empty-asset")
+    assert render(detail) =~ "No qualified readings in this series"
+    assert has_element?(detail, "td", "24.3 °C")
+    refute render(detail) =~ "No qualified readings in this window"
+
+    detail |> element("button", "Prepare edit") |> render_click()
+    assert_patch(detail)
+
+    detail
+    |> form("#edit-dashboard", edit: %{title: "Shared area", view: "area"})
+    |> render_submit()
+
+    detail |> element("button", "Run saved query") |> render_click()
+    assert has_element?(detail, ".chart-series.series-1 path.chart-area")
+
+    {:ok, newer} = Service.list(c.service, c.admin, c.scope, "saved_queries", %{}, c.now)
+
+    table_request =
+      dashboard_request(id, "Shared table", c, newer["generation"], [thing, "empty-asset"])
+      |> update_in(["visualization", "type"], fn _ -> "table" end)
+
+    {:ok, _} =
+      Service.save_query(c.service, c.admin, c.scope, Identifier.uuid(), table_request, c.now)
+
+    detail |> element("button", "Refresh definition") |> render_click()
+    detail |> element("button", "Run saved query") |> render_click()
+    refute has_element?(detail, "svg[role=img]")
+    refute render(detail) =~ "No qualified readings in this window"
+    assert has_element?(detail, "td", "24.3 °C")
+  end
+
   test "a lost comparison reply recovers once and rejects a reused source operation", c do
     {first, second, source_operation} = comparison_sources(c)
     unrelated = "/dashboards/compare?operation=" <> source_operation

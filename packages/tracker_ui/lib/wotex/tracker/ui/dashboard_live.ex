@@ -287,7 +287,65 @@ defmodule Wotex.Tracker.UI.DashboardLive do
             "excluded_unavailable"
           ]} unavailable; {@result["excluded_quality"]} excluded by quality.
         </p>
-        <p>Each series is shown separately. Empty buckets are gaps.</p>
+        <p>
+          Each series keeps its own qualified buckets. Empty buckets are gaps; no value is inferred between them.
+        </p>
+        <figure :if={@chart} class="history-chart">
+          <svg
+            viewBox="0 0 1000 300"
+            role="img"
+            aria-label={"#{@definition["visualization"]["type"]} graph comparing #{length(@chart.series)} series of qualified #{@result["spec"]["measurement"]} buckets; exact values follow in separate tables"}
+          >
+            <line x1="56" y1="260" x2="944" y2="260" class="chart-axis" />
+            <g
+              :for={{series, index} <- Enum.with_index(@chart.series, 1)}
+              class={"chart-series series-#{index}"}
+            >
+              <title>{series.id}</title>
+              <path
+                :for={segment <- series.segments}
+                :if={@definition["visualization"]["type"] == "area"}
+                d={segment.area}
+                class="chart-area"
+              />
+              <path
+                :for={segment <- series.segments}
+                :if={@definition["visualization"]["type"] in ~w(line area)}
+                d={segment.line}
+                class="chart-line"
+              />
+              <circle
+                :for={point <- series.points}
+                :if={
+                  @definition["visualization"]["show_points"] ||
+                    @definition["visualization"]["type"] == "points"
+                }
+                cx={point.x}
+                cy={point.y}
+                r="5"
+                class="chart-point"
+              >
+                <title>
+                  {series.id} · {timestamp(point.start_at)} · {point.value} {Presenter.unit(
+                    @result["spec"]["unit"]
+                  )} · {point.sample_count} samples
+                </title>
+              </circle>
+            </g>
+          </svg>
+          <figcaption>
+            Shared range {@chart.minimum} to {@chart.maximum} {Presenter.unit(@result["spec"]["unit"])}.
+            Separate marks show gaps; use the tables for exact values and times.
+          </figcaption>
+          <ul :if={@definition["visualization"]["show_legend"]} class="chart-legend">
+            <li :for={{series, index} <- Enum.with_index(@chart.series, 1)} class={"series-#{index}"}>
+              <span class="chart-swatch" aria-hidden="true"></span>{series.id}
+            </li>
+          </ul>
+        </figure>
+        <p :if={Enum.all?(@result["series"], &(&1["points"] == []))}>
+          No qualified readings in this window.
+        </p>
         <div :for={series <- @result["series"]} class="table-scroll" tabindex="0">
           <h3>{series["id"]}</h3>
           <table>
@@ -296,7 +354,7 @@ defmodule Wotex.Tracker.UI.DashboardLive do
               <tr>
                 <th scope="col">Start (UTC)</th><th scope="col">End (UTC)</th><th scope="col">
                   Value
-                </th><th scope="col">Samples</th>
+                </th><th scope="col">Samples</th><th scope="col">Last observed (UTC)</th>
               </tr>
             </thead>
             <tbody>
@@ -305,6 +363,7 @@ defmodule Wotex.Tracker.UI.DashboardLive do
                 <td>{timestamp(point["end_at"])}</td>
                 <td>{point["value"]} {Presenter.unit(@result["spec"]["unit"])}</td>
                 <td>{point["sample_count"]}</td>
+                <td>{timestamp(point["last_event_at"])}</td>
               </tr>
             </tbody>
           </table>
@@ -331,7 +390,7 @@ defmodule Wotex.Tracker.UI.DashboardLive do
     case Auth.request(socket, :execute_saved_query, %{"id" => socket.assigns.id}) do
       {:ok, result} ->
         view = socket.assigns.definition["visualization"]["type"]
-        chart = if view == "table", do: nil, else: Chart.project(result)
+        chart = chart_for(result, view)
         assign(socket, result: result, chart: chart, error: nil)
 
       {:error, error} ->
@@ -353,7 +412,7 @@ defmodule Wotex.Tracker.UI.DashboardLive do
     case Auth.request(socket, :execute_saved_query, %{"id" => socket.assigns.id}) do
       {:ok, result} ->
         view = definition["visualization"]["type"]
-        chart = if view == "table", do: nil, else: Chart.project(result)
+        chart = chart_for(result, view)
 
         assign(socket,
           definition: definition,
@@ -418,6 +477,10 @@ defmodule Wotex.Tracker.UI.DashboardLive do
   defp window_label(_), do: "Saved window"
 
   defp timestamp(value), do: Presenter.timestamp(%{"value" => value})
+
+  defp chart_for(_, "table"), do: nil
+  defp chart_for(%{"series" => [_]} = result, _), do: Chart.project(result)
+  defp chart_for(result, _), do: Chart.project_many(result)
 
   defp current_generation(socket) do
     case Auth.request(socket, :list, %{"resource" => "saved_queries", "params" => %{"limit" => 1}}) do
