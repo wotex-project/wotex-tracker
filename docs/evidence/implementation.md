@@ -1520,3 +1520,13 @@ child; the store PID and collector epoch remain stable. Loading the service
 package remains inert. Each production-archive service consumer also checks a
 retained resource sample from its explicitly started HTTP host.
 Reconnect, rendering and OS-native resource instrumentation remain open work.
+
+### Pinned operational history pages — 2026-09-16
+
+The collector now exposes a host-only bounded page read. A continuation carries
+the exact filter, page size, collector epoch, last sequence and first-page
+high-water sequence. Concurrent new samples stay outside the traversal. Tests
+exercise multiple pages, an intervening sample, altered filters and limits,
+collector restart, and retention expiry. The production service archive
+consumer traverses its real HTTP request history through this interface.
+Operational pages are volatile and do not turn into durable asset history.

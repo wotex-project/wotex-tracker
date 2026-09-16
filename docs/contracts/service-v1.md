@@ -432,6 +432,14 @@ bytes, process count and port count on startup and every 30 seconds. The closed
 whole VM, including other host instances; they are not OS RSS or per-tenant
 measurements. The same volatile collector bounds and retains these samples.
 
+Host code can page retained operational history with `OperationalHistory.page/2`.
+The first page pins the collector epoch and current sequence high-water mark;
+continuations carry that epoch, filter, limit, last sequence and high-water mark.
+New samples do not enter a pinned traversal. A collector restart or altered
+filter/limit returns `invalid_cursor`; pruning a needed sequence returns
+`cursor_expired`. This is a host-only in-process interface, not an authenticated
+HTTP endpoint or a durable analytics dataset.
+
 Host code can read a coherent retained snapshot through
 `Server.operational_history/2`; the snapshot carries a restart epoch, expires
 samples after 15 minutes and is bounded to 2,048 entries unless the host chooses

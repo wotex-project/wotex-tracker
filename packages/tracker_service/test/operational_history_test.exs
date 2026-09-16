@@ -136,6 +136,69 @@ defmodule Wotex.Tracker.Service.OperationalHistoryTest do
     refute changed == epoch
   end
 
+  test "pages pin an epoch and high-water mark and reject expired or altered continuations" do
+    clock = :atomics.new(1, [])
+    :atomics.put(clock, 1, 1_000)
+
+    collector =
+      start_supervised!(
+        Supervisor.child_spec(
+          {OperationalHistory,
+           max_samples: 5, retention_ms: 50, clock: fn -> :atomics.get(clock, 1) end},
+          id: make_ref()
+        )
+      )
+
+    for _ <- 1..3, do: OperationalTelemetry.request(:health, 200, System.monotonic_time())
+
+    eventually(fn ->
+      match?({:ok, %{"samples" => [_, _, _]}}, OperationalHistory.snapshot(collector))
+    end)
+
+    assert {:ok, %{"samples" => [%{"sequence" => 1}], "through" => 3, "cursor" => first}} =
+             OperationalHistory.page(collector, limit: 1)
+
+    OperationalTelemetry.request(:health, 200, System.monotonic_time())
+
+    eventually(fn ->
+      match?({:ok, %{"samples" => [_, _, _, _]}}, OperationalHistory.snapshot(collector))
+    end)
+
+    assert {:ok, %{"samples" => [%{"sequence" => 2}], "through" => 3, "cursor" => second}} =
+             OperationalHistory.page(collector, limit: 1, cursor: first)
+
+    assert {:ok, %{"samples" => [%{"sequence" => 3}], "cursor" => nil}} =
+             OperationalHistory.page(collector, limit: 1, cursor: second)
+
+    assert {:error, :invalid_cursor} = OperationalHistory.page(collector, limit: 2, cursor: first)
+    assert {:error, :invalid_query} = OperationalHistory.page(collector, limit: 1, limit: 2)
+    assert {:error, :invalid_query} = OperationalHistory.page(collector, event: "unknown")
+    assert {:error, :invalid_cursor} = OperationalHistory.page(collector, limit: 1, cursor: %{})
+
+    assert {:error, :invalid_cursor} =
+             OperationalHistory.page(collector, limit: 1, event: "query.stop", cursor: first)
+
+    assert {:error, :invalid_cursor} =
+             OperationalHistory.page(collector, limit: 1, cursor: %{first | "through" => 9})
+
+    replacement =
+      start_supervised!(
+        Supervisor.child_spec({OperationalHistory, clock: fn -> :atomics.get(clock, 1) end},
+          id: make_ref()
+        )
+      )
+
+    assert {:error, :invalid_cursor} =
+             OperationalHistory.page(replacement, limit: 1, cursor: first)
+
+    assert {:ok, %{"samples" => [], "cursor" => nil}} = OperationalHistory.page(replacement)
+
+    :atomics.put(clock, 1, 1_051)
+    assert {:error, :cursor_expired} = OperationalHistory.page(collector, limit: 1, cursor: first)
+    GenServer.stop(replacement)
+    assert {:error, :unavailable} = OperationalHistory.page(replacement)
+  end
+
   test "ingest, commit, queue, publication and resource boundaries emit bounded outcomes" do
     context = service()
 

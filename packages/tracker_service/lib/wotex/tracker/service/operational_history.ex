@@ -26,6 +26,16 @@ defmodule Wotex.Tracker.Service.OperationalHistory do
     :exit, _ -> {:error, :unavailable}
   end
 
+  @doc "Reads a bounded page pinned to one collector epoch and sequence high-water mark."
+  @spec page(pid(), keyword()) ::
+          {:ok, map()}
+          | {:error, :invalid_query | :invalid_cursor | :cursor_expired | :unavailable}
+  def page(pid, options \\ []) when is_pid(pid) and is_list(options) do
+    GenServer.call(pid, {:page, options})
+  catch
+    :exit, _ -> {:error, :unavailable}
+  end
+
   @impl true
   def init(options) do
     with {:ok, config} <- config(options),
@@ -90,6 +100,20 @@ defmodule Wotex.Tracker.Service.OperationalHistory do
     end
   end
 
+  def handle_call({:page, options}, _from, state) do
+    case {page_query(options), current_time(state)} do
+      {{:ok, query}, {:ok, now}} ->
+        state = prune(state, now)
+        {:reply, page_result(state, query, now), state}
+
+      {{:error, _} = error, _} ->
+        {:reply, error, state}
+
+      _ ->
+        {:reply, {:error, :unavailable}, state}
+    end
+  end
+
   @impl true
   def terminate(_, state) do
     :telemetry.detach(state.handler)
@@ -135,6 +159,97 @@ defmodule Wotex.Tracker.Service.OperationalHistory do
     |> Enum.map(&elem(&1, 1))
     |> Enum.filter(&(is_nil(event) or &1["event"] == event))
     |> Enum.take(-limit)
+  end
+
+  defp page_result(state, query, now) do
+    with {:ok, after_sequence, through} <- page_position(state, query) do
+      matches =
+        state.table
+        |> :ets.tab2list()
+        |> Enum.filter(fn {sequence, sample} ->
+          sequence > after_sequence and sequence <= through and
+            (is_nil(query.event) or sample["event"] == query.event)
+        end)
+        |> Enum.take(query.limit + 1)
+
+      items = matches |> Enum.take(query.limit) |> Enum.map(&elem(&1, 1))
+
+      cursor =
+        if length(matches) > query.limit do
+          %{
+            "schema" => "wtr.operational-cursor.v1",
+            "epoch" => state.epoch,
+            "after" => List.last(items)["sequence"],
+            "through" => through,
+            "event" => query.event,
+            "limit" => query.limit
+          }
+        end
+
+      {:ok,
+       %{
+         "schema" => "wtr.operational-page.v1",
+         "epoch" => state.epoch,
+         "captured_at" => now,
+         "volatile" => true,
+         "through" => through,
+         "samples" => items,
+         "cursor" => cursor
+       }}
+    end
+  end
+
+  defp page_position(state, %{cursor: nil}) do
+    earliest = earliest(state)
+    {:ok, earliest - 1, state.sequence}
+  end
+
+  defp page_position(state, %{cursor: cursor, event: event, limit: limit}) do
+    case cursor do
+      %{
+        "schema" => "wtr.operational-cursor.v1",
+        "epoch" => epoch,
+        "after" => after_sequence,
+        "through" => through,
+        "event" => ^event,
+        "limit" => ^limit
+      }
+      when map_size(cursor) == 6 and is_integer(after_sequence) and after_sequence >= 0 and
+             is_integer(through) and through >= after_sequence ->
+        resume_position(state, epoch, after_sequence, through)
+
+      _ ->
+        {:error, :invalid_cursor}
+    end
+  end
+
+  defp resume_position(state, epoch, after_sequence, through) do
+    cond do
+      epoch != state.epoch or through > state.sequence -> {:error, :invalid_cursor}
+      after_sequence < earliest(state) - 1 -> {:error, :cursor_expired}
+      true -> {:ok, after_sequence, through}
+    end
+  end
+
+  defp earliest(state) do
+    case :ets.first(state.table) do
+      :"$end_of_table" -> state.sequence + 1
+      sequence -> sequence
+    end
+  end
+
+  defp page_query(options) do
+    if Keyword.keyword?(options) and length(options) == map_size(Map.new(options)) and
+         Enum.all?(Keyword.keys(options), &(&1 in [:event, :limit, :cursor])) do
+      event = Keyword.get(options, :event)
+      limit = Keyword.get(options, :limit, 100)
+
+      if (is_nil(event) or event in @events) and is_integer(limit) and limit in 1..1_000,
+        do: {:ok, %{event: event, limit: limit, cursor: Keyword.get(options, :cursor)}},
+        else: {:error, :invalid_query}
+    else
+      {:error, :invalid_query}
+    end
   end
 
   defp query(options) do
