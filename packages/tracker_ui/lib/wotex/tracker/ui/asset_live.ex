@@ -12,6 +12,9 @@ defmodule Wotex.Tracker.UI.AssetLive do
        assign(socket,
          enrollment: nil,
          state: nil,
+         thing: nil,
+         property_result: nil,
+         property_error: nil,
          history: nil,
          generation: nil,
          needs_materialization: false,
@@ -58,6 +61,24 @@ defmodule Wotex.Tracker.UI.AssetLive do
   def handle_event("check-operation", _, socket), do: {:noreply, socket |> recover() |> load()}
   def handle_event("refresh", _, socket), do: {:noreply, socket |> recover() |> load()}
 
+  def handle_event("read-property", %{"name" => name}, socket) when is_binary(name) do
+    properties = if socket.assigns.thing, do: socket.assigns.thing["properties"], else: nil
+
+    if is_map(properties) and Map.has_key?(properties, name) do
+      case Auth.request(socket, :read_property, %{"thing" => socket.assigns.id, "name" => name}) do
+        {:ok, result} ->
+          {:noreply,
+           assign(socket, property_result: Map.put(result, "name", name), property_error: nil)}
+
+        {:error, error} ->
+          {:noreply, assign(socket, property_result: nil, property_error: error)}
+      end
+    else
+      {:noreply,
+       assign(socket, property_result: nil, property_error: %{"code" => "invalid_request"})}
+    end
+  end
+
   def handle_event("next-history", _, %{assigns: %{history: %{"cursor" => cursor}}} = socket)
       when is_binary(cursor),
       do: {:noreply, history(socket, %{"cursor" => cursor})}
@@ -102,6 +123,29 @@ defmodule Wotex.Tracker.UI.AssetLive do
         </p>
       </section>
       <.measurements :if={@state} state={@state} />
+      <section :if={@thing && map_size(@thing["properties"]) > 0} class="panel">
+        <h2>Read a Property</h2>
+        <p>
+          Read a declared Property at the service's current committed snapshot. This does not contact the physical device.
+        </p>
+        <div class="property-controls">
+          <button
+            :for={name <- @thing["properties"] |> Map.keys() |> Enum.sort()}
+            class="secondary"
+            phx-click="read-property"
+            phx-value-name={name}
+          >Read {Presenter.label(name)}</button>
+        </div>
+        <.notice error={@property_error} />
+        <p :if={@property_result} role="status">
+          {Presenter.label(@property_result["name"])}: {Presenter.scalar(%{
+            "value" => @property_result["value"]
+          })}
+          {Presenter.unit(@thing["properties"][@property_result["name"]]["unit"])} · committed generation {@property_result[
+            "generation"
+          ]}
+        </p>
+      </section>
       <a :if={@state} class="button" href={Presenter.path(:asset, @id) <> "/analytics"}>
         Explore measurement history
       </a>
@@ -203,9 +247,12 @@ defmodule Wotex.Tracker.UI.AssetLive do
         enrollment: enrollment["value"],
         state: if(state, do: state["value"], else: nil),
         generation: page["generation"],
-        needs_materialization: needs_materialization
+        needs_materialization: needs_materialization,
+        property_result: nil,
+        property_error: nil
       )
       |> history(%{})
+      |> load_thing()
     else
       {:error, error} -> assign(socket, error: error)
     end
@@ -216,6 +263,15 @@ defmodule Wotex.Tracker.UI.AssetLive do
       {:ok, row} -> {:ok, row}
       {:error, %{"code" => "not_found"}} -> {:ok, nil}
       error -> error
+    end
+  end
+
+  defp load_thing(%{assigns: %{state: nil}} = socket), do: assign(socket, thing: nil)
+
+  defp load_thing(socket) do
+    case Auth.request(socket, :get, %{"resource" => "things", "id" => socket.assigns.id}) do
+      {:ok, %{"value" => thing}} -> assign(socket, thing: thing)
+      {:error, error} -> assign(socket, thing: nil, property_error: error)
     end
   end
 

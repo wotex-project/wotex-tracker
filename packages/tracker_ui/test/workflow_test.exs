@@ -78,6 +78,42 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert state["value"]["measurements"] != []
   end
 
+  test "a reader sees only declared Property controls and a committed read result", c do
+    {thing, _} = enrolled(c)
+
+    {:ok, _} =
+      Service.materialize(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"thing_id" => thing, "expected_generation" => "2"},
+        c.now
+      )
+
+    {:ok, %{"id" => reader}} = Sessions.login(c.sessions, c.reader, c.scope)
+    conn = build_conn() |> init_test_session(%{"browser_session" => reader})
+
+    {:ok, view, _} =
+      live(conn, Presenter.path(:asset, thing) <> "?operation=" <> Identifier.uuid())
+
+    assert has_element?(view, "button[phx-value-name='temperature']", "Read Temperature")
+    refute has_element?(view, "button[phx-value-name='missing']")
+    view |> element("button[phx-value-name='temperature']") |> render_click()
+    assert has_element?(view, "p[role=status]", "Temperature: 24.3 °C · committed generation 3")
+    assert render(view) =~ "does not contact the physical device"
+
+    render_click(view, "read-property", %{"name" => "missing"})
+    assert has_element?(view, "[role=alert]")
+    refute has_element?(view, "p[role=status]")
+
+    Agent.update(c.faults, &Map.put(&1, :read_property, :unavailable))
+    view |> element("button[phx-value-name='pressure']") |> render_click()
+    assert has_element?(view, "[role=alert]")
+    view |> element("button[phx-value-name='pressure']") |> render_click()
+    assert has_element?(view, "p[role=status]", "Pressure: 100044 Pa · committed generation 3")
+  end
+
   test "structured analytics queries qualified buckets without inventing gaps", c do
     {thing, _} = enrolled(c)
 

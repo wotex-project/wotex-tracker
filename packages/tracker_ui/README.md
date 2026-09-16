@@ -9,6 +9,8 @@ single-file Observation JSON capture import in Setup, evidence inspection,
 confirmed enrollment, later observation association, explicit Thing updates,
 retained measurements, resource history and per-asset measurement graphs with
 an exact table. Unsupported positioning and Actions are identified honestly.
+The asset page reads declared scalar Properties from the authorized committed
+service snapshot, with no physical-device freshness claim.
 Readers can list retained saved definitions and rerun them under current
 authorization. An administrator can save a displayed query with a fixed or
 rolling window, edit or delete it, and combine compatible saved series into a
@@ -16,6 +18,8 @@ new exact-table dashboard.
 This is not full application, Pi or mobile acceptance.
 
 `Wotex.Tracker.UI.Local` calls only the public authorized service facade.
+For Property reads it creates a bounded Runtime request context before calling
+that facade.
 `Wotex.Tracker.UI.Sessions` keeps bearer credentials in bounded server memory;
 browser cookies and LiveView session payloads carry an opaque session identifier.
 Every service request rechecks authority. Logout destroys the presentation

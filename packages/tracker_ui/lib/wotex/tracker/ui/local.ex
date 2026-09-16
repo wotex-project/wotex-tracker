@@ -7,7 +7,9 @@ defmodule Wotex.Tracker.UI.Local do
   LiveView. No request selects a module, function, clock or privileged store API.
   """
   @behaviour Wotex.Tracker.UI.Client
+  alias Wotex.Runtime.Context
   alias Wotex.Tracker.Service
+  alias Wotex.Tracker.Service.Identifier
 
   @impl true
   def request(provider, token, scope, action, arguments, now) do
@@ -43,6 +45,16 @@ defmodule Wotex.Tracker.UI.Local do
 
   defp dispatch(service, token, scope, :get, args, now),
     do: Service.get(service, token, scope, args["resource"], args["id"], now)
+
+  defp dispatch(service, token, scope, :read_property, args, now) do
+    {:ok, context} =
+      Context.new(
+        request_id: Identifier.uuid(),
+        deadline: System.monotonic_time(:millisecond) + 5000
+      )
+
+    Service.read_property(service, token, scope, args["thing"], args["name"], context, now)
+  end
 
   defp dispatch(service, token, scope, :history, args, now),
     do:

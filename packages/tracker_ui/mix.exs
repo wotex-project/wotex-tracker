@@ -26,6 +26,7 @@ defmodule WotexTrackerUI.MixProject do
   defp deps do
     [
       service(),
+      runtime(),
       {:phoenix, "== 1.8.14"},
       {:phoenix_live_view, "== 1.2.11"},
       {:phoenix_html, "== 4.3.0"},
@@ -46,6 +47,19 @@ defmodule WotexTrackerUI.MixProject do
 
       {"1", env} when env in [:dev, :test, :docs] ->
         {:wotex_tracker_service, path: "../tracker_service", env: env}
+
+      _ ->
+        raise "WOTEX_PATH_DEPS accepts only 1 in dev/test/docs; production requires artifacts"
+    end
+  end
+
+  defp runtime do
+    case {System.get_env("WOTEX_PATH_DEPS"), Mix.env()} do
+      {nil, _} ->
+        {:wotex_runtime, "~> 0.1.0"}
+
+      {"1", env} when env in [:dev, :test, :docs] ->
+        {:wotex_runtime, path: "../../../wotex-runtime", env: :prod}
 
       _ ->
         raise "WOTEX_PATH_DEPS accepts only 1 in dev/test/docs; production requires artifacts"

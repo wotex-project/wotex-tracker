@@ -1783,3 +1783,14 @@ JSON export and saved definitions; invalid readings are never selectable. A
 LiveView test checks exclusion counts for suspect-only against a known valid
 reading, inclusion for both, persistence after save and rejection of an
 unrecognized client selection.
+
+### Browser Property reads — 2026-09-16
+
+The asset page now lists only Properties declared by its public Thing Description.
+A reader can request one through the current authorized service facade, which
+uses Runtime's read-only Property dispatch against committed state. The page
+shows the returned value and generation and says that it did not contact the
+physical device. Unknown names are rejected before the service call. A failed
+read clears the previous value and can be retried; a LiveView test covers reader
+authority, successful temperature/pressure reads, tampering and temporary
+unavailability. Write/Action controls remain contingent on qualified affordances.
