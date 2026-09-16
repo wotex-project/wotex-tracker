@@ -5,6 +5,8 @@ defmodule Wotex.Tracker.UI.AssetLive do
   alias Wotex.Tracker.Service.Identifier
   alias Wotex.Tracker.UI.{Auth, HistoryExport, Presenter}
 
+  @history_back_limit 32
+
   @impl true
   def mount(_, _, socket),
     do:
@@ -17,6 +19,7 @@ defmodule Wotex.Tracker.UI.AssetLive do
          property_error: nil,
          history: nil,
          history_params: nil,
+         history_back: [],
          generation: nil,
          needs_materialization: false,
          operation: nil,
@@ -84,8 +87,26 @@ defmodule Wotex.Tracker.UI.AssetLive do
   end
 
   def handle_event("next-history", _, %{assigns: %{history: %{"cursor" => cursor}}} = socket)
-      when is_binary(cursor),
-      do: {:noreply, history(socket, %{"cursor" => cursor})}
+      when is_binary(cursor) do
+    next = history(socket, %{"cursor" => cursor})
+
+    if next.assigns.history_params == %{"cursor" => cursor} do
+      back = [socket.assigns.history_params | socket.assigns.history_back]
+      {:noreply, assign(next, history_back: Enum.take(back, @history_back_limit))}
+    else
+      {:noreply, next}
+    end
+  end
+
+  def handle_event("previous-history", _, %{assigns: %{history_back: [params | rest]}} = socket) do
+    previous = history(socket, params)
+
+    if previous.assigns.history_params == params do
+      {:noreply, assign(previous, history_back: rest)}
+    else
+      {:noreply, previous}
+    end
+  end
 
   def handle_event(
         "export-history",
@@ -103,7 +124,12 @@ defmodule Wotex.Tracker.UI.AssetLive do
           {:noreply, HistoryExport.push(socket, socket.assigns.id, shown)}
         else
           {:noreply,
-           assign(socket, history: nil, history_params: nil, error: %{"code" => "conflict"})}
+           assign(socket,
+             history: nil,
+             history_params: nil,
+             history_back: [],
+             error: %{"code" => "conflict"}
+           )}
         end
 
       {:error, %{"code" => code} = error} when code in ~w(forbidden unauthorized not_found) ->
@@ -227,6 +253,7 @@ defmodule Wotex.Tracker.UI.AssetLive do
           </table>
         </div>
         <button class="secondary" phx-click="export-history">Export this history page (JSON)</button>
+        <button :if={@history_back != []} class="secondary" phx-click="previous-history">Previous history page</button>
         <button :if={@history["cursor"]} class="secondary" phx-click="next-history">Next history page</button>
       </section>
       <div :if={@operation} class="operation">
@@ -261,6 +288,7 @@ defmodule Wotex.Tracker.UI.AssetLive do
         property_error: nil,
         history: nil,
         history_params: nil,
+        history_back: [],
         generation: nil,
         needs_materialization: false,
         outcome: nil,
@@ -309,6 +337,7 @@ defmodule Wotex.Tracker.UI.AssetLive do
         property_result: nil,
         property_error: nil
       )
+      |> assign(history_back: [])
       |> history(%{})
       |> load_thing()
     else
@@ -344,7 +373,7 @@ defmodule Wotex.Tracker.UI.AssetLive do
   end
 
   defp history(%{assigns: %{state: nil}} = socket, _),
-    do: assign(socket, history: nil, history_params: nil)
+    do: assign(socket, history: nil, history_params: nil, history_back: [])
 
   defp history(socket, params) do
     case Auth.request(socket, :history, %{
@@ -353,7 +382,7 @@ defmodule Wotex.Tracker.UI.AssetLive do
            "params" => params
          }) do
       {:ok, history} ->
-        assign(socket, history: history, history_params: params)
+        assign(socket, history: history, history_params: params, error: nil)
 
       {:error, %{"code" => code} = error} when code in ~w(forbidden unauthorized not_found) ->
         clear_detail(socket, error)
@@ -377,6 +406,7 @@ defmodule Wotex.Tracker.UI.AssetLive do
       property_error: nil,
       history: nil,
       history_params: nil,
+      history_back: [],
       generation: nil,
       needs_materialization: false,
       outcome: nil,

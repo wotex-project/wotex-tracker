@@ -8,7 +8,7 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
   alias Phoenix.LiveView.Static
   alias Wotex.Tracker.{QueryResult, QuerySpec}
   alias Wotex.Tracker.Service
-  alias Wotex.Tracker.Service.{Codec, Identifier}
+  alias Wotex.Tracker.Service.{Codec, Identifier, Projection, Store, Update}
   alias Wotex.Tracker.UI.{ErrorHTML, Presenter, Sessions, TestClient, TestEndpoint}
   @endpoint TestEndpoint
 
@@ -334,6 +334,80 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     render_click(asset, "export-history")
     refute_push_event(asset, "download-history-page", %{"content" => _})
     refute has_element?(asset, "button", "Export this history page (JSON)")
+  end
+
+  test "history pages can be revisited without losing the current page on failure", c do
+    {thing, _} = enrolled(c)
+
+    {:ok, _} =
+      Service.materialize(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"thing_id" => thing, "expected_generation" => "2"},
+        c.now
+      )
+
+    {:ok, %{"value" => state}} =
+      Service.get(c.service, c.admin, c.scope, "state", thing, c.now)
+
+    {:ok, access} = Service.authorize(c.service, c.admin, c.scope, "ingest", c.now)
+
+    for step <- 1..25 do
+      {:ok, update} =
+        Update.new(%{
+          principal: access.principal,
+          scope: c.scope,
+          authority: access,
+          operation_id: Identifier.uuid(),
+          expected_generation: Integer.to_string(step + 2),
+          request: %{"operation" => "history-fixture", "step" => step},
+          now: c.now,
+          observation: nil,
+          records: [
+            %{
+              kind: "state",
+              id: thing,
+              value: %{
+                "public" => Map.put(state, "observed_at", Projection.scalar(c.now + step * 1_000))
+              }
+            }
+          ],
+          events: [],
+          publication: nil
+        })
+
+      assert {:ok, _} = Store.mutate(c.store, update)
+    end
+
+    {:ok, asset, _} =
+      live(c.conn, Presenter.path(:asset, thing) <> "?operation=" <> Identifier.uuid())
+
+    assert has_element?(asset, "tbody tr:first-child td:first-child", "3")
+    assert has_element?(asset, "button", "Next history page")
+    refute has_element?(asset, "button", "Previous history page")
+
+    asset |> element("button", "Next history page") |> render_click()
+    assert has_element?(asset, "tbody tr:first-child td:first-child", "28")
+    assert has_element?(asset, "button", "Previous history page")
+    refute has_element?(asset, "button", "Next history page")
+
+    Agent.update(c.faults, &Map.put(&1, :history, :unavailable))
+    asset |> element("button", "Previous history page") |> render_click()
+    assert has_element?(asset, "tbody tr:first-child td:first-child", "28")
+    assert has_element?(asset, "button", "Previous history page")
+
+    asset |> element("button", "Previous history page") |> render_click()
+    assert has_element?(asset, "tbody tr:first-child td:first-child", "3")
+    refute has_element?(asset, "button", "Previous history page")
+    assert has_element?(asset, "button", "Next history page")
+
+    Agent.update(c.faults, &Map.put(&1, :history, {:deny, "forbidden"}))
+    asset |> element("button", "Next history page") |> render_click()
+    refute has_element?(asset, "button", "Next history page")
+    refute has_element?(asset, "button", "Previous history page")
+    assert has_element?(asset, "[role=alert]")
   end
 
   test "a reader sees only declared Property controls and a committed read result", c do

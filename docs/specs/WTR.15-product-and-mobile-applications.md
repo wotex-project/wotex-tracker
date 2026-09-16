@@ -12,6 +12,9 @@ unprovisioned/unavailable state. It does not claim live connectivity.
 The asset detail can export the currently displayed bounded state-history page
 as JSON after reauthorizing and matching its committed snapshot. This is a
 page export, not the required complete history, route or deletion workflow.
+Readers can move forward and revisit up to 32 earlier state-history pages;
+each move reloads that page under current read authority. Refresh starts again
+at the latest snapshot. Temporary failures keep the current page available.
 These are required product deliverables and optional installations for consumers
 of the library. An incomplete backend or UI framework cannot waive a product gate.
 

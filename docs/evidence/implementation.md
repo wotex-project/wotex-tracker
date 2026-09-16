@@ -1864,3 +1864,12 @@ checks that its definition is still accessible and unchanged. A changed
 snapshot or terminal denial clears the displayed result; a temporary service
 failure keeps it visible with an error for retry. Workflow tests cover exact
 downloads, changed snapshots, transient failure and denied reads.
+
+### Revisiting history pages — 2026-09-16
+
+The asset detail now keeps a bounded stack of 32 previously visited state-history
+page requests. Forward and backward navigation each fetch the page again under
+current read authority; a temporary failure retains the displayed page and its
+navigation state, while a terminal denial clears both. Refresh begins a new
+history snapshot at the first page. A browser workflow test exercises a real
+26-version store history across the page boundary, failure and denial.
