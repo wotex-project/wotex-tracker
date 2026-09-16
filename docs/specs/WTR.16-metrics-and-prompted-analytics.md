@@ -42,6 +42,9 @@ Saved multi-series definitions can also render line, area and point graphs on
 one common scale, with per-series gaps and exact tables.
 Readers can switch a currently displayed saved result among those views and a
 table without changing its admitted query, snapshot or stored definition.
+They can also shift or zoom the displayed saved result through a newly
+authorized absolute query. The page labels that result as exploration; running
+the saved definition again restores its configured window without editing it.
 The browser can export the currently displayed closed query result as JSON with
 its source snapshot, result identity, bounds, units, exclusions and gap policy.
 Export rechecks current read authority and the exact result identity; saved

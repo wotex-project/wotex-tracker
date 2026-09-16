@@ -1886,3 +1886,13 @@ Transient list failures preserve navigation, while terminal denial clears the
 rows and back path. A successful refresh starts a new first-page traversal.
 The browser tests cover 26 committed observations and saved dashboards, both
 directions, later commits, transient failures and denial.
+
+### Exploring saved dashboard windows — 2026-09-16
+
+The saved-dashboard detail now shifts and zooms its displayed result using the
+same bounded UTC window calculation as structured analytics. Each adjustment
+runs a fresh authorized absolute query, keeps the stored definition unchanged
+and marks the page as an exploration. A saved run restores the configured
+window. Temporary query failure retains the last result; terminal denial clears
+it. The browser test checks the returned bounds, snapshot, export, reset,
+failure and denial.

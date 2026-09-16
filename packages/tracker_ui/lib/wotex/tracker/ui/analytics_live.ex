@@ -4,7 +4,7 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
   import Wotex.Tracker.UI.Components
   alias Wotex.Tracker.QuerySpec
   alias Wotex.Tracker.Service.Identifier
-  alias Wotex.Tracker.UI.{Auth, Chart, Presenter, QueryExport}
+  alias Wotex.Tracker.UI.{Auth, Chart, Presenter, QueryExport, QueryWindow}
 
   @buckets %{"hour" => 3_600_000, "six_hours" => 21_600_000, "day" => 86_400_000}
   @aggregations %{
@@ -20,7 +20,6 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
     "valid_suspect" => [:valid, :suspect]
   }
   @counter_kinds ~w(movementCounter measurementSequence)
-  @max_browser_time 253_402_300_799_999
 
   @impl true
   def mount(_, _, socket) do
@@ -68,7 +67,7 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
   def handle_event("navigate", %{"direction" => direction}, %{assigns: %{result: %{}}} = socket) do
     with {:ok, from_at} <- utc_milliseconds(socket.assigns.query["from"]),
          {:ok, to_at} <- utc_milliseconds(socket.assigns.query["to"]),
-         {:ok, {new_from, new_to}} <- move_window(direction, from_at, to_at) do
+         {:ok, {new_from, new_to}} <- QueryWindow.move(direction, from_at, to_at) do
       input =
         socket.assigns.query
         |> Map.put("from", iso8601(new_from))
@@ -541,36 +540,6 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
       _ -> assign(socket, error: %{"code" => "invalid_request"})
     end
   end
-
-  defp move_window(direction, from_at, to_at) when to_at > from_at do
-    width = to_at - from_at
-    bounds = window_bounds(direction, from_at, to_at, width)
-
-    case bounds do
-      {start_at, end_at}
-      when start_at >= 0 and end_at > start_at and end_at <= @max_browser_time ->
-        {:ok, bounds}
-
-      _ ->
-        :error
-    end
-  end
-
-  defp move_window(_, _, _), do: :error
-
-  defp window_bounds("earlier", from_at, to_at, width),
-    do: {from_at - div(width, 2), to_at - div(width, 2)}
-
-  defp window_bounds("later", from_at, to_at, width),
-    do: {from_at + div(width, 2), to_at + div(width, 2)}
-
-  defp window_bounds("zoom_in", from_at, to_at, width),
-    do: {from_at + div(width, 4), to_at - div(width, 4)}
-
-  defp window_bounds("zoom_out", from_at, to_at, width),
-    do: {from_at - div(width, 2), to_at + div(width, 2)}
-
-  defp window_bounds(_, _, _, _), do: :invalid
 
   defp aggregation("mean", kind) when kind in @counter_kinds, do: :error
   defp aggregation(value, _), do: Map.fetch(@aggregations, value)

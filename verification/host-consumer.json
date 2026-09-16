@@ -90,7 +90,7 @@
   ],
   "host": {
     "darwin-arm64": {
-      "archive_sha256": "c25c110e0d5bcc89264eb3564d931c098c6860378aa622a8236b4c2c35e29ec2",
+      "archive_sha256": "d93d2f2df7c18294b6df6a99d5d84ab2b595474019568c13e3229d15249f59c3",
       "native_client_sha256": "1717e17a2b4649eff4728376ec5bd5e62a456848ea16ff9cafce252d52789193",
       "native_compiler": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
       "platform": "aarch64-apple-darwin",
@@ -108,7 +108,7 @@
         "restart_and_idempotency": "pass",
         "retained_revocation": "pass",
         "runtime_licenses": "pass",
-        "shutdown_seconds": 1.038,
+        "shutdown_seconds": 1.083,
         "sigkill_recovery": "pass",
         "sigterm_active_stream": "pass",
         "sqlite_full_rollback": "pass"
@@ -116,10 +116,10 @@
       "source_sha256": "c5335ea0e2366f22106e7c5eb72f9ae5c95d1a9206f3a6dcfb80938aa7457905"
     },
     "linux-arm64": {
-      "archive_sha256": "0af379c4ca25b25dafff8f5eed67258f2dcddc6163ae6e6a3e1885310b932009",
+      "archive_sha256": "1c892a3e708f58ee14df086fe8129697efcc68a1dc9940426f25e82169520773",
       "base_builder": "hexpm/elixir@sha256:473f77ee88977dc8cc5d05fb91080a308be86be3fc27d50aef9a837d07c8268b",
       "base_runtime": "debian@sha256:88200866dfff7ea7f5cbcb6ec7c8a701889efe6fe859fe64d6990e4b07ea4171",
-      "builder_image_id": "sha256:316686e77e65c2f608cf3473235b76afcaae4d5ef8beb0edc6bfb35ec49b4409",
+      "builder_image_id": "sha256:b66acf6e3e88f3ba44e407119e061249920980a6ab97355501580824d3072313",
       "builder_packages": [
         "gcc\t4:12.2.0-3",
         "libc6:arm64\t2.36-9+deb12u14",
@@ -127,7 +127,7 @@
         "make\t4.3-4.1"
       ],
       "compiler": "gcc (Debian 12.2.0-14+deb12u1) 12.2.0",
-      "image_id": "sha256:ebe25ae31dfc56e032786349548b03b96a7418520683a7c705cddbaba55c8853",
+      "image_id": "sha256:102e5f11a1ea5f6169feb470d11aa0ec8216d00be9599fb8df7102c29eb3dbc3",
       "image_tag": "wotex-tracker:0.1.0-linux-arm64-local",
       "native_builder": "rust@sha256:2775a09d208ff0d7c1f50490c45b62db929e87ba1dcbc3f2132ac71a704bcdd3",
       "native_client_sha256": "ec8ba1d52467c6fae8f7d24ce72f1bd3d0292647dd2ce7948c11d65595480319",
@@ -146,7 +146,7 @@
         "restart_and_idempotency": "pass",
         "retained_revocation": "pass",
         "runtime_licenses": "pass",
-        "shutdown_seconds": 1.103,
+        "shutdown_seconds": 1.096,
         "sigkill_recovery": "pass",
         "sigterm_active_stream": "pass",
         "sqlite_full_rollback": "pass"

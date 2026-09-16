@@ -71,6 +71,12 @@ each series also keeps an exact table, including empty-series disclosure.
 After running a saved definition, any reader can switch that displayed result
 between table, line, area and points. The switch uses the result already on the
 page, preserves its snapshot and identity, and does not edit the saved view.
+A reader can shift or zoom the displayed result's resolved absolute UTC window.
+Each adjustment runs a new authorized structured query and is labelled as an
+exploration of the saved result. It stops automatic refresh; **Run saved query**
+returns to the stored fixed or rolling window. An invalid window or temporary
+query failure keeps the last successful result, while loss of read authority
+clears it. Navigation never edits the saved definition.
 An administrator can choose **Prepare save** after running a one-asset query,
 then name a fixed incident or rolling dashboard. The page address gains a
 stable operation reference before the save form appears. Submission captures

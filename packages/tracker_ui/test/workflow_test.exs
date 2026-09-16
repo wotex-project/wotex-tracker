@@ -1109,6 +1109,50 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert has_element?(current, "[role=alert]")
   end
 
+  test "saved result window navigation leaves the stored dashboard unchanged", c do
+    {dashboard, _} = saved_dashboard(c)
+
+    {:ok, %{"value" => definition}} =
+      Service.get(c.service, c.admin, c.scope, "saved_queries", dashboard, c.now)
+
+    {:ok, original} =
+      Service.execute_saved_query(c.service, c.admin, c.scope, dashboard, c.now)
+
+    {:ok, view, _} = live(c.conn, Presenter.dashboard_path(dashboard))
+    view |> element("button", "Run saved query") |> render_click()
+    assert has_element?(view, "[aria-label='Explore saved result window']")
+
+    view |> element("button", "Earlier") |> render_click()
+
+    assert has_element?(view, "[role=status]", "Exploring")
+
+    view |> element("button", "Export result JSON") |> render_click()
+    assert_push_event(view, "download-query-result", %{"content" => json})
+    navigated = Jason.decode!(json)
+    assert navigated["spec"]["from_at"] < original["spec"]["from_at"]
+    assert navigated["spec"]["to_at"] < original["spec"]["to_at"]
+    assert navigated["snapshot"] == original["snapshot"]
+
+    Agent.update(c.faults, &Map.put(&1, :analytics, :unavailable))
+    view |> element("button", "Later") |> render_click()
+    assert has_element?(view, "h2", "Query result")
+    assert has_element?(view, "[role=alert]")
+    assert has_element?(view, "[role=status]", "Exploring")
+
+    render_click(view, "navigate-result", %{"direction" => "unknown"})
+    assert has_element?(view, "h2", "Query result")
+    view |> element("button", "Run saved query") |> render_click()
+    refute has_element?(view, "[role=status]", "Exploring")
+
+    assert {:ok, %{"value" => ^definition}} =
+             Service.get(c.service, c.admin, c.scope, "saved_queries", dashboard, c.now)
+
+    Agent.update(c.faults, &Map.put(&1, :analytics, {:deny, "forbidden"}))
+    view |> element("button", "Earlier") |> render_click()
+    refute has_element?(view, "h2", "Query result")
+    assert has_element?(view, "[role=alert]")
+  end
+
   test "an administrator saves two compatible series as a comparison dashboard", c do
     {first, second, _} = comparison_sources(c)
     {:ok, index, _} = live(c.conn, "/dashboards")

@@ -3,7 +3,7 @@ defmodule Wotex.Tracker.UI.DashboardLive do
   use Phoenix.LiveView, log: false
   import Wotex.Tracker.UI.Components
   alias Wotex.Tracker.Service.Identifier
-  alias Wotex.Tracker.UI.{Auth, Chart, Presenter, QueryExport}
+  alias Wotex.Tracker.UI.{Auth, Chart, Presenter, QueryExport, QueryWindow}
   @refresh_interval_ms 30_000
 
   @impl true
@@ -14,6 +14,7 @@ defmodule Wotex.Tracker.UI.DashboardLive do
        definition: nil,
        result: nil,
        chart: nil,
+       preview_window: false,
        display_view: nil,
        display_override: false,
        error: nil,
@@ -100,6 +101,42 @@ defmodule Wotex.Tracker.UI.DashboardLive do
          )}
 
   def handle_event("change-view", _, socket),
+    do: {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
+
+  def handle_event(
+        "navigate-result",
+        %{"direction" => direction},
+        %{assigns: %{result: %{"spec" => spec}}} = socket
+      ) do
+    case QueryWindow.query(spec, direction) do
+      {:ok, query} ->
+        socket = stop_refresh(socket)
+
+        case Auth.request(socket, :analytics, %{"query" => query}) do
+          {:ok, result} ->
+            {:noreply,
+             assign(socket,
+               result: result,
+               chart: chart_for(result, socket.assigns.display_view),
+               preview_window: true,
+               error: nil
+             )}
+
+          {:error, %{"code" => code} = error}
+          when code in ~w(forbidden unauthorized not_found) ->
+            {:noreply,
+             assign(socket, result: nil, chart: nil, preview_window: false, error: error)}
+
+          {:error, error} ->
+            {:noreply, assign(socket, error: error)}
+        end
+
+      :error ->
+        {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
+    end
+  end
+
+  def handle_event("navigate-result", _, socket),
     do: {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
 
   def handle_event("prepare-manage", %{"intent" => intent}, socket)
@@ -320,6 +357,20 @@ defmodule Wotex.Tracker.UI.DashboardLive do
         >{view}</button>
         <span class="muted">This choice does not edit the saved dashboard.</span>
       </div>
+      <div :if={@result} class="chart-controls" role="group" aria-label="Explore saved result window">
+        <button class="secondary" phx-click="navigate-result" phx-value-direction="earlier">Earlier</button>
+        <button class="secondary" phx-click="navigate-result" phx-value-direction="later">Later</button>
+        <button class="secondary" phx-click="navigate-result" phx-value-direction="zoom_in">Zoom in</button>
+        <button class="secondary" phx-click="navigate-result" phx-value-direction="zoom_out">Zoom out</button>
+      </div>
+      <p :if={@result && @preview_window} role="status">
+        Exploring {Presenter.timestamp(%{"value" => @result["spec"]["from_at"]})} to {Presenter.timestamp(
+          %{
+            "value" => @result["spec"]["to_at"]
+          }
+        )}.
+        This does not edit the saved dashboard. Run saved query to return to its window.
+      </p>
       <button :if={@result} class="secondary" phx-click="export-result">
         Export result JSON
       </button>
@@ -440,6 +491,7 @@ defmodule Wotex.Tracker.UI.DashboardLive do
           definition: definition,
           result: nil,
           chart: nil,
+          preview_window: false,
           display_view: definition["visualization"]["type"],
           display_override: false,
           error: nil
@@ -450,6 +502,7 @@ defmodule Wotex.Tracker.UI.DashboardLive do
           definition: nil,
           result: nil,
           chart: nil,
+          preview_window: false,
           display_view: nil,
           display_override: false,
           error: error
@@ -464,7 +517,7 @@ defmodule Wotex.Tracker.UI.DashboardLive do
       {:ok, result} ->
         view = socket.assigns.display_view
         chart = chart_for(result, view)
-        assign(socket, result: result, chart: chart, error: nil)
+        assign(socket, result: result, chart: chart, preview_window: false, error: nil)
 
       {:error, error} ->
         assign(socket, result: nil, chart: nil, error: error)
@@ -495,6 +548,7 @@ defmodule Wotex.Tracker.UI.DashboardLive do
           definition: definition,
           result: result,
           chart: chart,
+          preview_window: false,
           display_view: view,
           error: nil,
           refresh_status: :current,
