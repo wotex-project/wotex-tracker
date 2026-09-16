@@ -9,12 +9,12 @@ Development uses `WOTEX_PATH_DEPS=1 MIX_ENV=test mise exec -- mix check --no-ret
 from this directory. Production resolves normal package artifacts. The local
 workspace switch is rejected in production.
 
-Install the independent OpenAPI/client verification tools from the repository
-root before running the gate:
+The complete gate includes the separate-process HTTP/SSE consumer and the
+OpenAPI contract audit. Both run on the declared Elixir/OTP toolchain; there is
+no second language environment to install:
 
 ```sh
-python3 -m venv _build/openapi-venv
-_build/openapi-venv/bin/pip install -r scripts/requirements-openapi.txt
+WOTEX_PATH_DEPS=1 MIX_ENV=test mise exec -- mix check --no-retry
 ```
 
 `Wotex.Tracker.Service.new/1` takes an explicit `Store` handle, `Credentials`

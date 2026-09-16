@@ -5,7 +5,7 @@ defmodule Wotex.Tracker.HTTPTest do
   alias Wotex.Tracker.Service.{Codec, Store}
   alias Wotex.Tracker.Service.HTTP.{Capacity, Server}
 
-  test "an independent non-Elixir HTTP/SSE client executes the authenticated workflow" do
+  test "an independent HTTP/SSE process executes the authenticated workflow" do
     context = service()
     server = start_supervised!({Server, options(context)})
     assert {:ok, {{127, 0, 0, 1}, port}} = Server.listener_info(server)
@@ -23,13 +23,10 @@ defmodule Wotex.Tracker.HTTPTest do
     )
 
     File.chmod!(path, 0o600)
-    python = Path.expand("../../_build/openapi-venv/bin/python")
-    script = Path.expand("../../scripts/http_consumer.py")
-
-    assert File.exists?(python),
-           "Install scripts/requirements-openapi.txt into _build/openapi-venv"
-
-    {output, status} = System.cmd(python, [script, path], stderr_to_stdout: true)
+    elixir = System.find_executable("elixir") || flunk("Elixir executable is unavailable")
+    code_paths = Enum.flat_map(:code.get_path(), fn value -> ["-pa", List.to_string(value)] end)
+    script = Path.expand("../../scripts/http_consumer.exs")
+    {output, status} = System.cmd(elixir, code_paths ++ [script, path], stderr_to_stdout: true)
     assert status == 0, output
     assert output =~ "HTTP_CONSUMER_PASS"
     assert {:ok, capacity} = Server.child(server, :capacity)

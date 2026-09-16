@@ -6,11 +6,13 @@
     {:compiler, command: "mix compile --warnings-as-errors"},
     {:ex_unit, command: "mix coveralls"},
     {:credo, command: "mix credo --strict"},
+    {:boundary_credo,
+     command: "mix credo --strict ../../scripts/openapi.exs ../../scripts/http_consumer.exs"},
     {:dialyzer, command: "mix dialyzer"},
     {:ex_doc, command: "mix docs --warnings-as-errors"},
     {:mix_audit, command: "mix deps.audit"},
     {:archive, command: "mix run ../../scripts/check_archive.exs"},
-    {:openapi, command: "../../_build/openapi-venv/bin/python ../../scripts/openapi.py --check"},
+    {:openapi, command: "mix run --no-start ../../scripts/openapi.exs --check"},
     {:licenses, command: "mix run ../../scripts/check_licenses.exs"}
   ]
 ]
