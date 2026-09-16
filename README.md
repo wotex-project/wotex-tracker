@@ -69,7 +69,8 @@ implemented; see the [heartbeat guide](docs/guides/heartbeat.md).
 Its SQLite host integration persists changed heartbeat state and event intent
 atomically; deadline scheduling remains explicit host work.
 Evidence-backed low-battery state uses explicit measurement kind, unit, freshness,
-quality and hysteresis; see the [battery guide](docs/guides/battery.md).
+quality and hysteresis; its SQLite host integration atomically persists changed
+state and stable event intent. See the [battery guide](docs/guides/battery.md).
 The suspicious-movement rule combines confirmed motion, armed state and explicit
 owner-presence facts with three-valued logic; see the
 [policy guide](docs/guides/suspicious-movement.md).

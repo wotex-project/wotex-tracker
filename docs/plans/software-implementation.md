@@ -212,8 +212,9 @@ monotonic deadline scheduling remains subsequent work.
 Low-battery state is implemented over content-bound measurement samples with
 explicit kind/unit scope, freshness, future skew, suspect-quality policy and
 separate low/clear thresholds. It never derives percentage from voltage. See the
-[battery guide](../guides/battery.md). Host transaction integration remains
-subsequent work.
+[battery guide](../guides/battery.md). The service atomically persists its
+canonical state, history and stable event intent with restart recovery. Age
+scheduling and notification delivery remain subsequent work.
 
 Suspicious movement is implemented as a pure three-valued conjunction over
 confirmed motion and content-bound armed/owner-presence facts. Unknown presence

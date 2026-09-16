@@ -31,6 +31,16 @@ defmodule Wotex.Tracker.BatteryTransitionTest do
     assert low_result["event"]["event_at"] == 1_001
     assert low_result["physical_action_dispatch"] == "separate_authorization_required"
 
+    assert {:ok, ^low_result} =
+             BatteryTransition.validate_transition(baseline["state"], low_result)
+
+    assert :ok = BatteryTransition.validate_event(low_result["event"])
+    assert {:ok, document} = BatteryTransition.state_to_map(low_result["state"])
+    assert {:ok, restored} = BatteryTransition.state_from_map(document)
+    assert restored === low_result["state"]
+    assert {:ok, policy_document} = BatteryTransition.to_map(policy)
+    assert BatteryTransition.from_map(policy_document) == {:ok, policy}
+
     {:ok, retained} =
       BatteryTransition.evaluate(low_result["state"], band, policy, :live, 1_002)
 
@@ -202,9 +212,34 @@ defmodule Wotex.Tracker.BatteryTransitionTest do
     assert sample.observation_id == "later"
     assert {:ok, ^sample} = MeasurementSample.validate(sample)
 
-    for invalid <- [Map.put(claim, "quality", "guess"), Map.put(claim, "extra", true)] do
+    assert {:ok, evidence_document} = Evidence.to_map(evidence)
+    assert Evidence.from_map(evidence_document) == {:ok, evidence}
+    assert {:ok, bundle_document} = EvidenceBundle.to_map(bundle)
+    assert EvidenceBundle.from_map(bundle_document) == {:ok, bundle}
+    assert {:ok, sample_document} = MeasurementSample.to_map(sample)
+    assert MeasurementSample.from_map(sample_document) == {:ok, sample}
+
+    for invalid <- [
+          Map.put(claim, "quality", "guess"),
+          Map.put(claim, "extra", true)
+        ] do
       assert {:error, _} = Measurement.from_map(invalid)
     end
+
+    assert {:error, _} =
+             evidence_document
+             |> Map.put("kind", "made_up")
+             |> Evidence.from_map()
+
+    assert {:error, _} =
+             bundle_document
+             |> Map.put("identity", "forged")
+             |> EvidenceBundle.from_map()
+
+    assert {:error, _} =
+             sample_document
+             |> put_in(["bundle", "identity"], "forged")
+             |> MeasurementSample.from_map()
 
     assert {:error, _} = Measurement.from_map(nil)
     assert {:error, _} = MeasurementSample.new("missing", bundle)
@@ -251,6 +286,37 @@ defmodule Wotex.Tracker.BatteryTransitionTest do
 
     assert {:error, %{code: :conflict}} =
              BatteryTransition.validate_state(%{baseline["state"] | identity: "forged"})
+
+    assert {:ok, document} = BatteryTransition.state_to_map(baseline["state"])
+
+    for changed <- [
+          Map.put(document, "status", "low"),
+          Map.put(document, "evaluated_at", "1000"),
+          Map.put(document, "identity", "forged"),
+          put_in(document, ["policy", "identity"], "forged"),
+          put_in(document, ["sample", "identity"], "forged"),
+          Map.put(document, "extra", true)
+        ] do
+      assert {:error, _} = BatteryTransition.state_from_map(changed)
+    end
+
+    {:ok, low} =
+      BatteryTransition.evaluate(
+        baseline["state"],
+        sample("low-validation", 2.0, 1_001),
+        original,
+        :live,
+        1_001
+      )
+
+    assert {:error, _} =
+             BatteryTransition.validate_transition(
+               baseline["state"],
+               put_in(low, ["event", "reason"], "changed")
+             )
+
+    assert {:error, _} =
+             BatteryTransition.validate_event(Map.put(low["event"], "extra", true))
 
     assert {:error, _} = BatteryTransition.validate_state(:invalid)
     assert {:error, _} = BatteryTransition.new(nil)

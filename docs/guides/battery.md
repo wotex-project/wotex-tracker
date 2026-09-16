@@ -29,5 +29,13 @@ content conflicts.
 
 Rule revision emits `battery.recomputed`. Event keys bind both policy and sample
 identities while excluding live/replay mode. Replay produces the same state and
-events as live evaluation and prohibits physical Action dispatch. Host storage
-must persist state and event intent atomically.
+events as live evaluation and prohibits physical Action dispatch.
+
+The service package persists changed battery results through its generic rule
+transaction. Evidence, complete bundles and measurement samples use closed
+native-JSON forms that restore through their constructors without creating
+atoms. Policy/state restoration rechecks measurement scope, hysteresis status
+and content identities. `Store.commit_rule/2` writes canonical state, immutable
+history and any stable event intent at one scope generation, with restart,
+optimistic-writer, exact-retry and replay-prohibition semantics. Measurement
+ingestion, age scheduling and notification delivery remain caller-owned.

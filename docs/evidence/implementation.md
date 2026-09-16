@@ -1035,3 +1035,39 @@ restarts SQLite, reconstructs the state, evaluates the exact overdue deadline in
 replay, and proves atomic event intent plus retry deduplication. Exact archive
 and lock identities are recorded in `verification/service-consumer.json`. The
 host still needs a monotonic deadline scheduler and notification delivery.
+
+## WTR.05/06 atomic low-battery persistence — 2026-09-16
+
+Evidence, complete evidence bundles and measurement samples now have closed
+native-JSON forms that restore through their public constructors without creating
+atoms. Battery policies and state also restore from closed documents while
+rechecking measurement kind and unit, hysteresis status, observation/evidence
+closure and every content identity. Stable low, recovery and recomputation events
+have a closed validator that recomputes their idempotency key, and transition
+admission re-evaluates the pure result before storage.
+
+The schema-3 generic rule transaction now admits `battery` alongside heartbeat
+and transport degradation. It atomically compares the expected prior identity,
+advances canonical state and immutable history, and records any stable event
+intent plus public domain event. Restart recovery reconstructs the complete
+sample closure. Exact retry returns the committed generation, stale or changed
+transitions conflict, and replay intent permanently records prohibited physical
+dispatch. The existing generic tables require no migration.
+
+Both required root runtime lanes passed the complete gate with 1 doctest,
+18 properties and 147 tests, no failures and 95.0% production line coverage.
+Both service runtime lanes passed with 2 properties and 107 tests, no failures
+and 95.5% floor / 95.6% current production line coverage. Cases cover closed
+evidence/bundle/sample serialization, policy and state round trips, changed
+nested content, status/identity/event mutation, restart restoration, low-battery
+intent commit, exact retry, stale-writer rejection, snapshots and replay effect
+metadata. Compiler, formatter, strict Credo, Dialyzer, ExDoc, dependency audit,
+licences, OpenAPI validation, documentation contracts and archive inspection
+passed.
+
+The production service consumer commits an installed-archive normal-battery
+baseline, restarts SQLite, reconstructs its complete sample, evaluates an exact
+low threshold in replay, and proves atomic event intent plus retry deduplication.
+Exact archive and lock identities are recorded in
+`verification/service-consumer.json`. Measurement ingestion, age scheduling and
+notification delivery remain host work.

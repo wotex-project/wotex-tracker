@@ -42,15 +42,15 @@ idempotent, and terminal cleanup is explicit. This privileged API is not exposed
 as an unauthenticated HTTP queue.
 
 The privileged `Store` port can also atomically persist validated
-`TransportDegradation` and `HeartbeatTransition` results. `RuleTransition`
-rechecks the pure result; the SQLite commit compares the prior state identity
-and records canonical state, state history, a stable event intent and its event
-at one scope generation. Exact retries are idempotent, stale writers conflict,
-and restart recovery reads the native JSON state back through the pure
-constructor. Replay event intents retain prohibited dispatch, while live event
-intents retain the need for separate authorization. Deadline scheduling,
-notification delivery and public HTTP rule management remain outside this host
-port.
+`TransportDegradation`, `HeartbeatTransition` and `BatteryTransition` results.
+`RuleTransition` rechecks the pure result; the SQLite commit compares the prior
+state identity and records canonical state, state history, a stable event intent
+and its event at one scope generation. Exact retries are idempotent, stale
+writers conflict, and restart recovery reads the native JSON state back through
+the pure constructor. Replay event intents retain prohibited dispatch, while
+live event intents retain the need for separate authorization. Deadline
+scheduling, notification delivery and public HTTP rule management remain outside
+this host port.
 
 `GET …/{resource}/{id}/history` returns ascending public versions, including
 explicit deletion records, with `limit` and encrypted `cursor` pagination.

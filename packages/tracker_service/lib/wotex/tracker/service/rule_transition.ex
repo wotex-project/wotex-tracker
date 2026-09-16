@@ -5,14 +5,16 @@ defmodule Wotex.Tracker.Service.RuleTransition do
   Construction re-evaluates the pure transition. The durable store receives only
   its native-JSON state, stable event intent and expected prior-state identity.
   """
-  alias Wotex.Tracker.{HeartbeatTransition, TransportDegradation}
+  alias Wotex.Tracker.{BatteryTransition, HeartbeatTransition, TransportDegradation}
+  alias Wotex.Tracker.BatteryTransition.State, as: BatteryState
   alias Wotex.Tracker.HeartbeatTransition.State, as: HeartbeatState
   alias Wotex.Tracker.Service.Codec
   alias Wotex.Tracker.TransportDegradation.State, as: TransportState
 
+  @battery_kind "battery"
   @heartbeat_kind "heartbeat"
   @transport_kind "transport_degradation"
-  @kinds [@heartbeat_kind, @transport_kind]
+  @kinds [@battery_kind, @heartbeat_kind, @transport_kind]
   @fields [
     :scope,
     :kind,
@@ -32,8 +34,27 @@ defmodule Wotex.Tracker.Service.RuleTransition do
   @type t :: %__MODULE__{}
 
   @doc "Revalidates and projects one pure transition for atomic host storage."
-  @spec new(String.t(), HeartbeatState.t() | TransportState.t() | nil, map()) ::
+  @spec new(
+          String.t(),
+          BatteryState.t() | HeartbeatState.t() | TransportState.t() | nil,
+          map()
+        ) ::
           {:ok, t()} | {:error, atom()}
+  def new(scope, previous, %{"schema" => "wtr.battery-transition.v1"} = result) do
+    with true <- Codec.id?(scope),
+         {:ok, result} <- BatteryTransition.validate_transition(previous, result),
+         true <- result["state_changed"],
+         %BatteryState{} = state <- result["state"],
+         {:ok, document} <- BatteryTransition.state_to_map(state),
+         :ok <- optional_event(@battery_kind, result["event"]),
+         record_id = @battery_kind <> ":" <> state.policy.id,
+         true <- Codec.id?(record_id) do
+      transition(scope, @battery_kind, previous, state, document, result, record_id)
+    else
+      _ -> {:error, :invalid_rule_transition}
+    end
+  end
+
   def new(scope, previous, %{"schema" => "wtr.heartbeat-transition.v1"} = result) do
     with true <- Codec.id?(scope),
          {:ok, result} <- HeartbeatTransition.validate_transition(previous, result),
@@ -131,10 +152,16 @@ defmodule Wotex.Tracker.Service.RuleTransition do
   defp restore_state(@heartbeat_kind, document),
     do: HeartbeatTransition.state_from_map(document)
 
+  defp restore_state(@battery_kind, document),
+    do: BatteryTransition.state_from_map(document)
+
   defp restore_state(@transport_kind, document),
     do: TransportDegradation.state_from_map(document)
 
   defp optional_event(_kind, nil), do: :ok
+
+  defp optional_event(@battery_kind, event),
+    do: BatteryTransition.validate_event(event)
 
   defp optional_event(@heartbeat_kind, event),
     do: HeartbeatTransition.validate_event(event)
@@ -144,6 +171,18 @@ defmodule Wotex.Tracker.Service.RuleTransition do
 
   defp event_matches?(_kind, nil, _state, "live", "none"), do: true
   defp event_matches?(_kind, nil, _state, "replay", "prohibited"), do: true
+
+  defp event_matches?(@battery_kind, event, state, mode, action) when is_map(event) do
+    expected_action =
+      if(mode == "live", do: "separate_authorization_required", else: "prohibited")
+
+    action == expected_action and event["rule_id"] == state.policy.id and
+      event["policy_identity"] == state.policy.identity and
+      event["rule_revision"] == state.policy.revision and event["to_status"] == state.status and
+      event["to_sample_identity"] == state.sample.identity and
+      event["to_evidence_id"] == state.sample.evidence.id and
+      event["evaluated_at"] == state.evaluated_at
+  end
 
   defp event_matches?(@transport_kind, event, state, mode, action) when is_map(event) do
     expected_action =

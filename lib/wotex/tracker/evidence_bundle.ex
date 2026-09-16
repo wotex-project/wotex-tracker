@@ -60,6 +60,72 @@ defmodule Wotex.Tracker.EvidenceBundle do
 
   def validate(_, _), do: Admission.fail(:invalid_input)
 
+  @doc "Projects a validated bundle with complete observations and evidence to native JSON."
+  @spec to_map(term(), term()) :: {:ok, map()} | {:error, Error.t()}
+  def to_map(value, options \\ []) do
+    with {:ok, bundle} <- validate(value, options),
+         {:ok, observations} <- documents(bundle.observations, &Observation.to_map(&1, options)),
+         {:ok, evidence} <- documents(bundle.evidence, &Evidence.to_map(&1, options)) do
+      {:ok,
+       %{
+         "schema" => "wtr.evidence-bundle.v1",
+         "observations" => observations,
+         "evidence" => evidence,
+         "identity" => bundle.identity
+       }}
+    end
+  end
+
+  @doc "Restores and revalidates a complete native-JSON evidence bundle."
+  @spec from_map(term(), term()) :: {:ok, t()} | {:error, Error.t()}
+  def from_map(document, options \\ []) do
+    with true <-
+           is_map(document) and not is_struct(document) and
+             Enum.sort(Map.keys(document)) == ~w(evidence identity observations schema),
+         true <- document["schema"] == "wtr.evidence-bundle.v1",
+         {:ok, observations} <-
+           restore_documents(document["observations"], &Observation.from_map(&1, options)),
+         {:ok, evidence} <-
+           restore_documents(document["evidence"], &Evidence.from_map(&1, options)),
+         {:ok, bundle} <- new(observations, evidence, options),
+         true <- bundle.identity == document["identity"] do
+      {:ok, bundle}
+    else
+      false -> Admission.fail(:conflict)
+      error -> error
+    end
+  end
+
+  defp documents(values, serialize) do
+    values
+    |> Enum.sort()
+    |> Enum.reduce_while({:ok, []}, fn {_id, value}, {:ok, documents} ->
+      case serialize.(value) do
+        {:ok, document} -> {:cont, {:ok, [document | documents]}}
+        error -> {:halt, error}
+      end
+    end)
+    |> then(fn
+      {:ok, documents} -> {:ok, Enum.reverse(documents)}
+      error -> error
+    end)
+  end
+
+  defp restore_documents(values, restore) when is_list(values) do
+    Enum.reduce_while(values, {:ok, []}, fn document, {:ok, restored} ->
+      case restore.(document) do
+        {:ok, value} -> {:cont, {:ok, [value | restored]}}
+        error -> {:halt, error}
+      end
+    end)
+    |> then(fn
+      {:ok, restored} -> {:ok, Enum.reverse(restored)}
+      error -> error
+    end)
+  end
+
+  defp restore_documents(_, _), do: Admission.fail(:invalid_input)
+
   defp index(values, validate) do
     Enum.reduce_while(values, {:ok, %{}}, fn value, {:ok, acc} ->
       with {:ok, value} <- validate.(value),

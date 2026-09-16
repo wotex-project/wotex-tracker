@@ -65,6 +65,38 @@ defmodule Wotex.Tracker.MeasurementSample do
 
   def validate(_, _), do: Admission.fail(:invalid_input)
 
+  @doc "Projects a validated sample and its complete evidence bundle to native JSON."
+  @spec to_map(term(), term()) :: {:ok, map()} | {:error, Error.t()}
+  def to_map(value, options \\ []) do
+    with {:ok, sample} <- validate(value, options),
+         {:ok, bundle} <- EvidenceBundle.to_map(sample.bundle, options) do
+      {:ok,
+       %{
+         "schema" => "wtr.measurement-sample.v1",
+         "evidence_id" => sample.evidence.id,
+         "bundle" => bundle,
+         "identity" => sample.identity
+       }}
+    end
+  end
+
+  @doc "Restores and revalidates a sample from its complete native-JSON bundle."
+  @spec from_map(term(), term()) :: {:ok, t()} | {:error, Error.t()}
+  def from_map(document, options \\ []) do
+    with true <-
+           is_map(document) and not is_struct(document) and
+             Enum.sort(Map.keys(document)) == ~w(bundle evidence_id identity schema),
+         true <- document["schema"] == "wtr.measurement-sample.v1",
+         {:ok, bundle} <- EvidenceBundle.from_map(document["bundle"], options),
+         {:ok, sample} <- new(document["evidence_id"], bundle, options),
+         true <- sample.identity == document["identity"] do
+      {:ok, sample}
+    else
+      false -> Admission.fail(:conflict)
+      error -> error
+    end
+  end
+
   defp fetch_measurement(bundle, evidence_id) do
     case Map.fetch(bundle.evidence, evidence_id) do
       {:ok, %{kind: :measurement} = evidence} -> {:ok, evidence}

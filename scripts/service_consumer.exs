@@ -2,9 +2,12 @@
 alias Wotex.Tracker.Service
 
 alias Wotex.Tracker.{
+  BatteryTransition,
   Evidence,
   EvidenceBundle,
   HeartbeatTransition,
+  Measurement,
+  MeasurementSample,
   PolicyFact,
   TransportCandidate,
   TransportDegradation,
@@ -255,6 +258,68 @@ transport_request = %{
 {:ok, %{"generation" => "1", "event_disposition" => "none"}} =
   Store.commit_rule(store, heartbeat_transition)
 
+battery_sample = fn id, value, observed_at ->
+  capture = %{observation | id: "archive-battery-capture-#{id}", observed_at: observed_at}
+
+  {:ok, measurement} =
+    Measurement.new(%{
+      kind: "batteryVoltage",
+      value: value,
+      unit: "V",
+      availability: :available,
+      quality: :valid,
+      raw: value,
+      reason: "archive_fixture"
+    })
+
+  {:ok, claim} = Measurement.to_map(measurement)
+
+  {:ok, evidence} =
+    Evidence.new(%{
+      id: "archive-battery-#{id}",
+      kind: :measurement,
+      claim: claim,
+      source_observation_ids: [capture.id],
+      evidence_ids: [],
+      profile: {"archive-battery", "1"},
+      decoder: {"archive-battery", "1"},
+      confidence: :exact,
+      reasons: ["archive_fixture"],
+      association_id: nil
+    })
+
+  {:ok, bundle} = EvidenceBundle.new([capture], [evidence])
+  {:ok, sample} = MeasurementSample.new(evidence.id, bundle)
+  sample
+end
+
+{:ok, battery_policy} =
+  BatteryTransition.new(%{
+    id: "archive-battery",
+    revision: "archive-battery-v1",
+    measurement_kind: "batteryVoltage",
+    unit: "V",
+    low_threshold: 2.5,
+    clear_threshold: 2.8,
+    maximum_age_ms: 1_000,
+    future_skew_ms: 0,
+    accept_suspect: false
+  })
+
+{:ok, battery_result} =
+  BatteryTransition.evaluate(
+    nil,
+    battery_sample.("normal", 3.0, update.now),
+    battery_policy,
+    :live,
+    update.now
+  )
+
+{:ok, battery_transition} = RuleTransition.new("archive-battery", nil, battery_result)
+
+{:ok, %{"generation" => "1", "event_disposition" => "none"}} =
+  Store.commit_rule(store, battery_transition)
+
 {:ok, forward_item} =
   ForwardItem.new(%{
     scope: "archive",
@@ -350,6 +415,37 @@ true = restored_heartbeat === heartbeat_result["state"]
    "mode" => "replay",
    "physical_action_dispatch" => "prohibited"
  }} = Store.rule_event(store, "archive-heartbeat", overdue_receipt["event_id"])
+
+{:ok, durable_battery} =
+  Store.rule_state(store, "archive-battery", "battery", battery_policy.id)
+
+{:ok, restored_battery} = BatteryTransition.state_from_map(durable_battery["state"])
+true = restored_battery === battery_result["state"]
+
+{:ok, low_battery_result} =
+  BatteryTransition.evaluate(
+    restored_battery,
+    battery_sample.("low", 2.5, update.now + 1),
+    battery_policy,
+    :replay,
+    update.now + 1
+  )
+
+{:ok, low_battery_transition} =
+  RuleTransition.new("archive-battery", restored_battery, low_battery_result)
+
+{:ok, %{"generation" => "2", "event_disposition" => "recorded"} = battery_receipt} =
+  Store.commit_rule(store, low_battery_transition)
+
+{:ok, %{"disposition" => "duplicate", "generation" => "2"}} =
+  Store.commit_rule(store, low_battery_transition)
+
+{:ok,
+ %{
+   "event" => %{"kind" => "battery.low"},
+   "mode" => "replay",
+   "physical_action_dispatch" => "prohibited"
+ }} = Store.rule_event(store, "archive-battery", battery_receipt["event_id"])
 
 {:ok, %{"status" => "pending"}} =
   Store.forward_status(store, "archive", forward_item.id)
@@ -682,5 +778,5 @@ retained = Process.list() |> MapSet.new() |> MapSet.difference(before_processes)
 0 = retained
 
 IO.puts(
-  "SERVICE_COHORT_PASS durable_restart=true durable_store_forward=true atomic_transport_health=true atomic_heartbeat=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true explicit_association=true independent_http_sse=true actual_runtime_http_peer=true actual_runtime_sse=true retained_new_processes=#{retained}"
+  "SERVICE_COHORT_PASS durable_restart=true durable_store_forward=true atomic_transport_health=true atomic_heartbeat=true atomic_battery=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true explicit_association=true independent_http_sse=true actual_runtime_http_peer=true actual_runtime_sse=true retained_new_processes=#{retained}"
 )

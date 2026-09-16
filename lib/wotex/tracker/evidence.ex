@@ -8,6 +8,7 @@ defmodule Wotex.Tracker.Evidence do
   alias Wotex.Tracker.{Admission, Error, Limits}
 
   @fields ~w(id kind claim source_observation_ids evidence_ids profile decoder confidence reasons association_id)a
+  @serialized_fields ~w(schema id kind claim source_observation_ids evidence_ids profile decoder confidence reasons association_id)
   @kinds ~w(fingerprint identity capability measurement position transport)a
   @confidences ~w(exact strong candidate unknown)a
   @type t :: %__MODULE__{}
@@ -57,6 +58,60 @@ defmodule Wotex.Tracker.Evidence do
        |> Map.put("schema", "wtr.evidence.v1")}
     end
   end
+
+  @doc "Admits a closed native-JSON evidence export without creating atoms."
+  @spec from_map(term(), term()) :: {:ok, t()} | {:error, Error.t()}
+  def from_map(map, options \\ []) do
+    with true <- exact_fields?(map, @serialized_fields),
+         true <- map["schema"] == "wtr.evidence.v1",
+         {:ok, kind} <- kind(map["kind"]),
+         {:ok, confidence} <- confidence(map["confidence"]),
+         {:ok, profile} <- revision(map["profile"]),
+         {:ok, decoder} <- revision(map["decoder"]) do
+      new(
+        %{
+          id: map["id"],
+          kind: kind,
+          claim: map["claim"],
+          source_observation_ids: map["source_observation_ids"],
+          evidence_ids: map["evidence_ids"],
+          profile: profile,
+          decoder: decoder,
+          confidence: confidence,
+          reasons: map["reasons"],
+          association_id: map["association_id"]
+        },
+        options
+      )
+    else
+      false -> Admission.fail(:invalid_input)
+      error -> error
+    end
+  end
+
+  defp kind("fingerprint"), do: {:ok, :fingerprint}
+  defp kind("identity"), do: {:ok, :identity}
+  defp kind("capability"), do: {:ok, :capability}
+  defp kind("measurement"), do: {:ok, :measurement}
+  defp kind("position"), do: {:ok, :position}
+  defp kind("transport"), do: {:ok, :transport}
+  defp kind(_), do: Admission.fail(:invalid_input)
+
+  defp confidence("exact"), do: {:ok, :exact}
+  defp confidence("strong"), do: {:ok, :strong}
+  defp confidence("candidate"), do: {:ok, :candidate}
+  defp confidence("unknown"), do: {:ok, :unknown}
+  defp confidence(_), do: Admission.fail(:invalid_input)
+
+  defp revision([id, version]) when is_binary(id) and is_binary(version),
+    do: {:ok, {id, version}}
+
+  defp revision(_), do: Admission.fail(:invalid_input)
+
+  defp exact_fields?(value, fields),
+    do:
+      is_map(value) and not is_struct(value) and
+        Enum.sort(Map.keys(value)) == Enum.sort(fields)
 
   defp association(nil, _), do: :ok
   defp association(id, limits), do: Admission.id(id, limits)
