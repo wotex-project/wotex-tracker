@@ -3,20 +3,48 @@ defmodule Wotex.Tracker.Service.OperationalHistoryTest do
 
   import Wotex.Tracker.Service.Fixtures
 
+  alias Wotex.Tracker.Service
   alias Wotex.Tracker.Service.HTTP.Server
-  alias Wotex.Tracker.Service.{OperationalHistory, OperationalTelemetry}
+
+  alias Wotex.Tracker.Service.{
+    ForwardItem,
+    Identifier,
+    OperationalHistory,
+    OperationalTelemetry,
+    Store
+  }
 
   test "the event vocabulary documents units and closed low-cardinality metadata" do
-    assert [request, query] = OperationalTelemetry.contracts()
+    assert [request, query, ingest, store, queue, publication, resource] =
+             OperationalTelemetry.contracts()
+
     assert request.event == [:wotex, :tracker, :service, :request, :stop]
     assert request.measurements == %{duration_us: :microsecond}
 
     assert request.metadata.outcome ==
-             ~w(ok rejected conflict overloaded deadline unavailable unknown)a
+             ~w(ok dropped rejected conflict overloaded deadline unavailable unknown)a
 
     assert query.event == [:wotex, :tracker, :service, :query, :stop]
     assert query.measurements == %{duration_us: :microsecond, scanned_rows: :row}
     assert query.metadata.aggregation == ~w(count min max mean last)a
+    assert ingest.metadata.stage == [:admission, :decode]
+    assert store.metadata.operation == [:mutation, :rule_state, :rule_event]
+
+    assert queue.measurements == %{
+             duration_us: :microsecond,
+             depth_items: :count,
+             depth_bytes: :byte,
+             affected_items: :count,
+             dropped_items: :count
+           }
+
+    assert publication.metadata.operation == [:lookup, :latest, :confirm]
+
+    assert resource.metadata == %{
+             resource: [:store],
+             operation: [:readiness, :checkpoint, :backup],
+             outcome: request.metadata.outcome
+           }
   end
 
   test "bounded volatile samples expire and malformed external events are ignored" do
@@ -98,6 +126,75 @@ defmodule Wotex.Tracker.Service.OperationalHistoryTest do
     refute changed == epoch
   end
 
+  test "ingest, commit, queue, publication and resource boundaries emit bounded outcomes" do
+    context = service()
+
+    collector =
+      start_supervised!(
+        Supervisor.child_spec(
+          {OperationalHistory, max_samples: 32, clock: fn -> context.now end},
+          id: make_ref()
+        )
+      )
+
+    assert {:ok, _} =
+             Service.submit(
+               context.service,
+               context.admin,
+               context.scope,
+               Identifier.uuid(),
+               import_request(),
+               context.now
+             )
+
+    assert {:ok, _} = Store.readiness(context.store)
+
+    assert {:error, :not_found} =
+             Store.latest_publication(context.store, context.scope, "missing-thing")
+
+    first = forward_item("telemetry-first")
+    dropped = forward_item("telemetry-dropped", :lossy)
+    {queue_store, _} = store(forward_max_items: 1)
+    assert {:ok, _} = Store.enqueue_forward(queue_store, first)
+    assert {:ok, %{"disposition" => "dropped"}} = Store.enqueue_forward(queue_store, dropped)
+
+    eventually(fn ->
+      Enum.all?(~w(ingest.stop store.stop queue.stop publication.stop resource.stop), fn event ->
+        match?(
+          {:ok, %{"samples" => [_ | _]}},
+          OperationalHistory.snapshot(collector, event: event)
+        )
+      end)
+    end)
+
+    assert {:ok, %{"samples" => ingest_samples}} =
+             OperationalHistory.snapshot(collector, event: "ingest.stop")
+
+    assert Enum.map(ingest_samples, & &1["metadata"]) == [
+             %{"stage" => "admission", "outcome" => "ok"},
+             %{"stage" => "decode", "outcome" => "ok"}
+           ]
+
+    assert {:ok, %{"samples" => queue_samples}} =
+             OperationalHistory.snapshot(collector, event: "queue.stop")
+
+    assert %{
+             "measurements" => %{
+               "depth_items" => 1,
+               "affected_items" => 1,
+               "dropped_items" => 1
+             },
+             "metadata" => %{"operation" => "enqueue", "outcome" => "dropped"}
+           } = List.last(queue_samples)
+
+    for event <- ~w(ingest.stop store.stop queue.stop publication.stop resource.stop),
+        {:ok, %{"samples" => samples}} = OperationalHistory.snapshot(collector, event: event),
+        sample <- samples do
+      refute Map.has_key?(sample["metadata"], "scope")
+      refute Map.has_key?(sample["metadata"], "id")
+    end
+  end
+
   test "the explicit HTTP host owns a collector and records request outcomes" do
     Application.ensure_all_started(:inets)
     context = service()
@@ -129,6 +226,23 @@ defmodule Wotex.Tracker.Service.OperationalHistoryTest do
       poll_interval: 25,
       operational_history: [max_samples: 16, retention_ms: 1_000]
     ]
+
+  defp forward_item(id, source \\ :reliable) do
+    {:ok, item} =
+      ForwardItem.new(%{
+        scope: "workshop",
+        id: id,
+        candidate_id: "cellular",
+        bearer: "lte-m",
+        application_protocol: "fixture-protocol",
+        payload: %{"temperature" => 24.3},
+        source: source,
+        admitted_at: 1_700_000_000_000,
+        required_acknowledgement: :durable_admission
+      })
+
+    item
+  end
 
   defp eventually(check, attempts \\ 100)
   defp eventually(check, 0), do: assert(check.())

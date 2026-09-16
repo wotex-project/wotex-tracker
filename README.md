@@ -98,10 +98,11 @@ and closed visualization options, retain their version/tombstone history and
 execute them later under current read authority. See the
 [analytics guide](docs/guides/analytics.md).
 
-The service package also defines closed request/query `:telemetry` events and an
-explicitly supervised bounded local collector. The default HTTP host owns a
-volatile ETS history with a restart epoch; loading either library installs no
-handler and starts no process.
+The service package also defines closed `:telemetry` events for requests,
+queries, import stages, commits, forward queues, publication reconciliation and
+store health. An explicitly supervised collector gives the default HTTP host a
+bounded volatile ETS history with a restart epoch; loading either library
+installs no handler and starts no process.
 
 Start with the [WTR specification index](docs/specs/WTR-index.md) and the [software implementation sequence](docs/plans/software-implementation.md).
 

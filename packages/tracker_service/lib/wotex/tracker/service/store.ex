@@ -24,6 +24,7 @@ defmodule Wotex.Tracker.Service.Store do
     ForwardItem,
     ForwardQueue,
     Operation,
+    OperationalTelemetry,
     Publication,
     Read,
     RuleEvent,
@@ -279,7 +280,9 @@ defmodule Wotex.Tracker.Service.Store do
   end
 
   def handle_call(message, _from, state) do
+    started = System.monotonic_time()
     reply = SQL.boundary(fn -> dispatch(message, state) end)
+    emit_call(message, reply, state, started)
     {:reply, reply, state}
   end
 
@@ -552,6 +555,75 @@ defmodule Wotex.Tracker.Service.Store do
       end
     end
   end
+
+  defp emit_call({:mutate, _}, result, _state, started),
+    do: OperationalTelemetry.store(:mutation, result, started)
+
+  defp emit_call({:commit_rule, _}, result, _state, started),
+    do: OperationalTelemetry.store(:rule_state, result, started)
+
+  defp emit_call({:commit_rule_event, _}, result, _state, started),
+    do: OperationalTelemetry.store(:rule_event, result, started)
+
+  defp emit_call({:enqueue_forward, item}, result, state, started),
+    do: emit_queue(:enqueue, item.scope, result, state, started)
+
+  defp emit_call({:claim_forward, scope, _, _, _}, result, state, started),
+    do: emit_queue(:claim, scope, result, state, started)
+
+  defp emit_call({:complete_forward, scope, _, _, _}, result, state, started),
+    do: emit_queue(:complete, scope, result, state, started)
+
+  defp emit_call({:cleanup_forward, scope, _}, result, state, started),
+    do: emit_queue(:cleanup, scope, result, state, started)
+
+  defp emit_call({:publication, _, _, _}, result, _state, started),
+    do: OperationalTelemetry.publication(:lookup, result, started)
+
+  defp emit_call({:latest_publication, _, _}, result, _state, started),
+    do: OperationalTelemetry.publication(:latest, result, started)
+
+  defp emit_call({:confirm_publication, _, _, _, _}, result, _state, started),
+    do: OperationalTelemetry.publication(:confirm, result, started)
+
+  defp emit_call(:readiness, result, _state, started),
+    do: OperationalTelemetry.resource(:store, :readiness, result, started)
+
+  defp emit_call(:checkpoint, result, _state, started),
+    do: OperationalTelemetry.resource(:store, :checkpoint, result, started)
+
+  defp emit_call({:backup, _}, result, _state, started),
+    do: OperationalTelemetry.resource(:store, :backup, result, started)
+
+  defp emit_call(_, _, _, _), do: :ok
+
+  defp emit_queue(operation, scope, result, state, started) do
+    case SQL.boundary(fn -> ForwardQueue.metrics(state.db, scope) end) do
+      %{depth_items: _, depth_bytes: _} = depth ->
+        OperationalTelemetry.queue(
+          operation,
+          result,
+          Map.merge(depth, queue_effects(operation, result)),
+          started
+        )
+
+      _ ->
+        :ok
+    end
+  end
+
+  defp queue_effects(:enqueue, {:ok, %{"disposition" => disposition}}),
+    do: %{affected_items: 1, dropped_items: if(disposition == "dropped", do: 1, else: 0)}
+
+  defp queue_effects(:claim, {:ok, %{"items" => items}}),
+    do: %{affected_items: length(items), dropped_items: 0}
+
+  defp queue_effects(:complete, {:ok, _}), do: %{affected_items: 1, dropped_items: 0}
+
+  defp queue_effects(:cleanup, {:ok, %{"removed" => removed}}),
+    do: %{affected_items: removed, dropped_items: 0}
+
+  defp queue_effects(_, _), do: %{affected_items: 0, dropped_items: 0}
 
   defp access_scope(%Access{scope: scope}), do: scope
   defp access_scope(_), do: nil

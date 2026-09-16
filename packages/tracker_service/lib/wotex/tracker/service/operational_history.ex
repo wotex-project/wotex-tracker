@@ -12,6 +12,7 @@ defmodule Wotex.Tracker.Service.OperationalHistory do
 
   @default_max_samples 2_048
   @default_retention_ms 900_000
+  @events ~w(request.stop query.stop ingest.stop store.stop queue.stop publication.stop resource.stop)
 
   @doc "Starts an isolated collector and attaches only the documented events."
   @spec start_link(keyword()) :: GenServer.on_start()
@@ -142,7 +143,7 @@ defmodule Wotex.Tracker.Service.OperationalHistory do
       event = Keyword.get(options, :event)
       limit = Keyword.get(options, :limit, 100)
 
-      if (is_nil(event) or event in ["request.stop", "query.stop"]) and
+      if (is_nil(event) or event in @events) and
            is_integer(limit) and limit in 1..1_000,
          do: {:ok, %{event: event, limit: limit}},
          else: {:error, :invalid_query}

@@ -6,7 +6,7 @@ defmodule Wotex.Tracker.Service.AnalyticsTest do
   alias Exqlite.Sqlite3
   alias Wotex.Tracker.QuerySpec
   alias Wotex.Tracker.Service
-  alias Wotex.Tracker.Service.{Codec, Identifier, Projection, SQL, Store, Update}
+  alias Wotex.Tracker.Service.{AnalyticsCall, Codec, Identifier, Projection, SQL, Store, Update}
 
   test "materialized state history is queried at one restart-stable committed snapshot" do
     c = service()
@@ -189,6 +189,38 @@ defmodule Wotex.Tracker.Service.AnalyticsTest do
     :ets.insert(table, {{:rate, access.principal}, window, 15})
     assert {:ok, _} = Store.authorized_analytics(c.store, access, spec, c.now)
     assert {:error, :overloaded} = Store.authorized_analytics(c.store, access, spec, c.now)
+  end
+
+  test "executor configuration and stage failures reject without retaining reservations" do
+    c = service()
+    {:ok, access} = Service.authorize(c.service, c.reader, c.scope, "read", c.now)
+    {:ok, spec} = QuerySpec.from_map(query_document("sensor", c.now, c.now + 1, 1))
+
+    assert {:error, :invalid_query} = AnalyticsCall.run(%{}, access, spec, c.now)
+
+    before_failure = %{
+      c.store.analytics
+      | fault: fn
+          :before_analytics -> :injected_failure
+          _ -> :ok
+        end
+    }
+
+    assert {:error, :storage_unavailable} =
+             AnalyticsCall.run(before_failure, access, spec, c.now)
+
+    opened_failure = %{
+      c.store.analytics
+      | fault: fn
+          :analytics_opened -> :injected_failure
+          _ -> :ok
+        end
+    }
+
+    assert {:error, :storage_unavailable} =
+             AnalyticsCall.run(opened_failure, access, spec, c.now)
+
+    assert active_queries(c.store) == 0
   end
 
   test "a timed-out SQLite scan is cancelled and releases its query reservation" do

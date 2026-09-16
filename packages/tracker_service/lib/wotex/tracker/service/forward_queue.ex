@@ -93,6 +93,19 @@ defmodule Wotex.Tracker.Service.ForwardQueue do
     end)
   end
 
+  @doc false
+  def metrics(db, scope) do
+    [[items, bytes]] =
+      SQL.rows!(
+        db,
+        "SELECT count(*),coalesce(sum(size_bytes),0) FROM forward_queue " <>
+          "WHERE scope=? AND status='pending'",
+        [scope]
+      )
+
+    %{depth_items: items, depth_bytes: bytes}
+  end
+
   def completion(value) do
     with true <-
            is_map(value) and not is_struct(value) and

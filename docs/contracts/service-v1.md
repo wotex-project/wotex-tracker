@@ -390,19 +390,24 @@ private database read-only.
 
 This revision does not page query input, translate prompts or render graphs.
 Saved absolute-window queries are part of this contract. Rolling query
-resolution and the remaining operational event families remain visible product
-work rather than implied endpoint behavior.
+resolution and reconnect/render/native host-resource event families remain
+visible product work rather than implied endpoint behavior.
 
 The HTTP host supervises one volatile `OperationalHistory` collector by default.
-It records the closed `request.stop` and `query.stop` events documented by
-`OperationalTelemetry.contracts/0`, with integer microsecond durations, query
-row counts and bounded operation/outcome/aggregation metadata. No raw scope,
-principal, record, position, prompt or payload becomes a metric label. Host code
-can read a coherent retained snapshot through `Server.operational_history/2`;
-the snapshot carries a restart epoch, expires samples after 15 minutes and is
-bounded to 2,048 entries unless the host chooses smaller or explicitly admitted
-finite limits. This is an in-process host contract, not an HTTP operation or a
-durable history promise. Loading the package attaches no telemetry handler.
+It records the closed request, query, import-stage, store, forward-queue,
+publication and store-resource events documented by
+`OperationalTelemetry.contracts/0`. Measurements include integer microsecond
+durations, query row counts, current pending queue depth/bytes and per-operation
+processed/drop counts. Metadata is restricted to bounded stage, operation,
+outcome, aggregation and resource atoms. No raw scope, principal, record,
+position, prompt or payload becomes a metric label.
+
+Host code can read a coherent retained snapshot through
+`Server.operational_history/2`; the snapshot carries a restart epoch, expires
+samples after 15 minutes and is bounded to 2,048 entries unless the host chooses
+smaller or explicitly admitted finite limits. This is an in-process host
+contract, not an HTTP operation or a durable history promise. Loading the
+package attaches no telemetry handler.
 
 ## Runtime Property read contract
 

@@ -3,30 +3,42 @@ defmodule Wotex.Tracker.Service.Import do
   alias Wotex.Tracker
   alias Wotex.Tracker.Decoders.RuuviRawV2
   alias Wotex.Tracker.{Evidence, Observation}
-  alias Wotex.Tracker.Service.{Codec, Projection, Update}
+  alias Wotex.Tracker.Service.{Codec, OperationalTelemetry, Projection, Update}
 
   def admit(request) do
-    with true <-
-           is_map(request) and map_size(request) == 2 and Map.has_key?(request, "observation"),
-         {:ok, _} <- Codec.generation(Map.get(request, "expected_generation")),
-         {:ok, observation} <- Observation.from_map(request["observation"]) do
-      {:ok, observation}
-    else
-      false -> {:error, :invalid_request}
-      :error -> {:error, :invalid_request}
-      {:error, _} -> {:error, :invalid_observation}
-    end
+    started = System.monotonic_time()
+
+    result =
+      with true <-
+             is_map(request) and map_size(request) == 2 and Map.has_key?(request, "observation"),
+           {:ok, _} <- Codec.generation(Map.get(request, "expected_generation")),
+           {:ok, observation} <- Observation.from_map(request["observation"]) do
+        {:ok, observation}
+      else
+        false -> {:error, :invalid_request}
+        :error -> {:error, :invalid_request}
+        {:error, _} -> {:error, :invalid_observation}
+      end
+
+    OperationalTelemetry.ingest(:admission, result, started)
+    result
   end
 
   def prepare(service, access, operation, request, observation, now) do
-    case Tracker.import_observation(
-           observation,
-           service.catalogue,
-           {RuuviRawV2.revision(), &RuuviRawV2.decode/1}
-         ) do
-      {:ok, imported} -> update(service, access, operation, request, now, imported)
-      {:error, _} -> {:error, :invalid_observation}
-    end
+    started = System.monotonic_time()
+
+    result =
+      case Tracker.import_observation(
+             observation,
+             service.catalogue,
+             {RuuviRawV2.revision(), &RuuviRawV2.decode/1}
+           ) do
+        {:ok, imported} -> update(service, access, operation, request, now, imported)
+        {:error, _} -> {:error, :invalid_observation}
+      end
+
+    OperationalTelemetry.ingest(:decode, result, started)
+    result
   end
 
   defp update(service, access, operation, request, now, imported) do

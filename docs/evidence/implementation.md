@@ -1296,3 +1296,27 @@ passed. Tests cover the exact vocabulary, capacity and expiry boundaries,
 malformed events, filtered snapshots, restart epochs and real HTTP request
 capture. Ingestion, decoding, admission, queue, publication, reconnect and
 native-resource events remain required instrumentation work.
+
+### Operational pipeline outcomes — 2026-09-16
+
+The closed vocabulary now also emits `ingest.stop` for document admission and
+protocol decode, `store.stop` for ordinary and rule transactions, `queue.stop`
+for enqueue/claim/complete/cleanup, `publication.stop` for durable intent reads
+and reconciliation, and `resource.stop` for readiness, checkpoints and backups.
+Every event uses low-cardinality atoms and elapsed microseconds. Queue events
+also report coherent post-operation pending item/byte depth, processed items and
+lossy overflow drops without exposing a scope or item identity.
+
+Instrumentation observes the existing result and cannot change it. The default
+collector handler only sends a message to its supervised owner; malformed
+external measurements are rejected by the same closed sample admission. Tests
+exercise real import and SQLite commit paths, a reliable queued item, a lossy
+overflow, missing publication lookup and writable-store readiness, then inspect
+the retained event documents for exact outcomes and absent identifiers.
+
+Both service runtime lanes passed the complete gate with 2 properties and 137
+tests, no failures and 95.2% floor / 95.3% current production line coverage.
+Compiler, formatter, strict Credo, Dialyzer, ExDoc, dependency audit, licences,
+generated/packaged OpenAPI 1.7.0 equality and 61-member archive inspection
+passed. Reconnect, render and native host-resource events remain with the future
+adapters and UI that own those operations.

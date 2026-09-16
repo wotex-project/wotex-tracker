@@ -115,11 +115,13 @@ rendering remain later contracts.
 ## Bounded operational history
 
 `OperationalTelemetry.contracts/0` documents the closed
-`[:wotex, :tracker, :service, …]` request/query event names, integer microsecond
-durations, row counts and allowed metadata atoms. Labels contain only operation,
-outcome and aggregation categories; they never contain scope, principal, record
-ID, position, prompt or payload values. The service depends directly on
-`:telemetry`, but package loading attaches no handler.
+`[:wotex, :tracker, :service, …]` request, query, import-stage, store, queue,
+publication and resource event names. Measurements include integer microsecond
+durations, query row counts, queue depth/bytes and processed/drop counts. Labels
+contain only closed stage, operation, outcome, aggregation and resource
+categories; they never contain scope, principal, record ID, position, prompt or
+payload values. The service depends directly on `:telemetry`, but package
+loading attaches no handler.
 
 `OperationalHistory` is an explicitly started collector backed by owner-held
 ETS. It retains at most 2,048 samples for 15 minutes by default (configurable up
@@ -128,8 +130,8 @@ clears everything on restart. Invalid external events are ignored. Collector
 loss cannot change durable tracking or alarm decisions. The explicit HTTP
 `Server` supervises one collector by default and exposes it to host code through
 `Server.operational_history/2`; no metrics server or exporter is required.
-Ingestion/decoder, queue, publication, reconnect and native-resource event
-coverage remains to be added to this vocabulary.
+Reconnect, render and native host-resource coverage remains to be added by the
+adapters and UI that own those operations.
 
 ## Explicit HTTP instance
 

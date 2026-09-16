@@ -61,15 +61,19 @@ handlers and releases the reservation. Query pagination, rolling windows, named
 display timezones, prompt translation and graph rendering remain required by the
 analytics target contract.
 
-The service emits closed `request.stop` and `query.stop` telemetry with
-microsecond durations, scanned-row counts and bounded operation/outcome/
-aggregation metadata. An explicitly started `OperationalHistory` collector
-retains volatile ETS samples under a unique restart epoch. The default HTTP host
-supervises that collector and host code reads it through
-`Server.operational_history/2`. Package loading remains inert, and collector
-failure cannot affect a committed observation or rule decision. Operational
-events for ingestion stages, queues, publications, reconnects and native
-resources remain required before the full instrumentation contract is complete.
+The service emits closed `request.stop`, `query.stop`, `ingest.stop`,
+`store.stop`, `queue.stop`, `publication.stop` and `resource.stop` telemetry.
+Measurements cover microsecond durations, scanned rows, current pending queue
+depth/bytes, processed items and overflow drops. Metadata is limited to bounded
+stage, operation, outcome, aggregation and resource categories.
+
+An explicitly started `OperationalHistory` collector retains volatile ETS
+samples under a unique restart epoch. The default HTTP host supervises that
+collector and host code reads it through `Server.operational_history/2`.
+Package loading remains inert, and collector failure cannot affect a committed
+observation or rule decision. Reconnect, rendering and native host-resource
+events belong to the adapters and UIs that perform those operations and remain
+required for the complete product instrumentation contract.
 
 `Service.save_query/6` and `POST …/saved_queries` persist an admitted absolute
 query with closed visualization options, private ownership and a public owner

@@ -10,9 +10,20 @@ defmodule Wotex.Tracker.Service.OperationalTelemetry do
 
   @request [:wotex, :tracker, :service, :request, :stop]
   @query [:wotex, :tracker, :service, :query, :stop]
-  @outcomes ~w(ok rejected conflict overloaded deadline unavailable unknown)a
+  @ingest [:wotex, :tracker, :service, :ingest, :stop]
+  @store [:wotex, :tracker, :service, :store, :stop]
+  @queue [:wotex, :tracker, :service, :queue, :stop]
+  @publication [:wotex, :tracker, :service, :publication, :stop]
+  @resource [:wotex, :tracker, :service, :resource, :stop]
+  @outcomes ~w(ok dropped rejected conflict overloaded deadline unavailable unknown)a
   @request_operations ~w(health contract capabilities mutation resource events stream property analytics saved_query unknown)a
   @aggregations ~w(count min max mean last)a
+  @ingest_stages ~w(admission decode)a
+  @store_operations ~w(mutation rule_state rule_event)a
+  @queue_operations ~w(enqueue claim complete cleanup)a
+  @publication_operations ~w(lookup latest confirm)a
+  @resources ~w(store)a
+  @resource_operations ~w(readiness checkpoint backup)a
 
   @doc "Returns the complete event vocabulary and its measurement units."
   def contracts do
@@ -28,6 +39,42 @@ defmodule Wotex.Tracker.Service.OperationalTelemetry do
         name: "query.stop",
         measurements: %{duration_us: :microsecond, scanned_rows: :row},
         metadata: %{aggregation: @aggregations, outcome: @outcomes}
+      },
+      %{
+        event: @ingest,
+        name: "ingest.stop",
+        measurements: %{duration_us: :microsecond},
+        metadata: %{stage: @ingest_stages, outcome: @outcomes}
+      },
+      %{
+        event: @store,
+        name: "store.stop",
+        measurements: %{duration_us: :microsecond},
+        metadata: %{operation: @store_operations, outcome: @outcomes}
+      },
+      %{
+        event: @queue,
+        name: "queue.stop",
+        measurements: %{
+          duration_us: :microsecond,
+          depth_items: :count,
+          depth_bytes: :byte,
+          affected_items: :count,
+          dropped_items: :count
+        },
+        metadata: %{operation: @queue_operations, outcome: @outcomes}
+      },
+      %{
+        event: @publication,
+        name: "publication.stop",
+        measurements: %{duration_us: :microsecond},
+        metadata: %{operation: @publication_operations, outcome: @outcomes}
+      },
+      %{
+        event: @resource,
+        name: "resource.stop",
+        measurements: %{duration_us: :microsecond},
+        metadata: %{resource: @resources, operation: @resource_operations, outcome: @outcomes}
       }
     ]
   end
@@ -53,7 +100,36 @@ defmodule Wotex.Tracker.Service.OperationalTelemetry do
   end
 
   @doc false
-  def event_names, do: [@request, @query]
+  def ingest(stage, result, started) when stage in @ingest_stages and is_integer(started),
+    do: stop(@ingest, %{stage: stage}, result, started)
+
+  @doc false
+  def store(operation, result, started)
+      when operation in @store_operations and is_integer(started),
+      do: stop(@store, %{operation: operation}, result, started)
+
+  @doc false
+  def queue(operation, result, measurements, started)
+      when operation in @queue_operations and is_map(measurements) and is_integer(started) do
+    execute(
+      @queue,
+      Map.put(measurements, :duration_us, elapsed(started)),
+      %{operation: operation, outcome: queue_outcome(result)}
+    )
+  end
+
+  @doc false
+  def publication(operation, result, started)
+      when operation in @publication_operations and is_integer(started),
+      do: stop(@publication, %{operation: operation}, result, started)
+
+  @doc false
+  def resource(resource, operation, result, started)
+      when resource in @resources and operation in @resource_operations and is_integer(started),
+      do: stop(@resource, %{resource: resource, operation: operation}, result, started)
+
+  @doc false
+  def event_names, do: [@request, @query, @ingest, @store, @queue, @publication, @resource]
 
   @doc false
   def sample(@request, measurements, metadata),
@@ -69,12 +145,53 @@ defmodule Wotex.Tracker.Service.OperationalTelemetry do
         [:aggregation, :outcome]
       )
 
+  def sample(@ingest, measurements, metadata),
+    do: sample("ingest.stop", measurements, metadata, [:duration_us], [:stage, :outcome])
+
+  def sample(@store, measurements, metadata),
+    do: sample("store.stop", measurements, metadata, [:duration_us], [:operation, :outcome])
+
+  def sample(@queue, measurements, metadata),
+    do:
+      sample(
+        "queue.stop",
+        measurements,
+        metadata,
+        [:duration_us, :depth_items, :depth_bytes, :affected_items, :dropped_items],
+        [:operation, :outcome]
+      )
+
+  def sample(@publication, measurements, metadata),
+    do: sample("publication.stop", measurements, metadata, [:duration_us], [:operation, :outcome])
+
+  def sample(@resource, measurements, metadata),
+    do:
+      sample(
+        "resource.stop",
+        measurements,
+        metadata,
+        [:duration_us],
+        [:resource, :operation, :outcome]
+      )
+
   def sample(_, _, _), do: {:error, :invalid_sample}
 
   defp execute(event, measurements, metadata) do
     :telemetry.execute(event, measurements, metadata)
     :ok
+  rescue
+    _ -> :ok
+  catch
+    _, _ -> :ok
   end
+
+  defp stop(event, metadata, result, started),
+    do:
+      execute(
+        event,
+        %{duration_us: elapsed(started)},
+        Map.put(metadata, :outcome, outcome(result))
+      )
 
   defp sample(name, measurements, metadata, measurement_keys, metadata_keys) do
     with true <- exact?(measurements, measurement_keys),
@@ -100,6 +217,23 @@ defmodule Wotex.Tracker.Service.OperationalTelemetry do
   defp valid_metadata?("query.stop", metadata),
     do: metadata.aggregation in @aggregations and metadata.outcome in @outcomes
 
+  defp valid_metadata?("ingest.stop", metadata),
+    do: metadata.stage in @ingest_stages and metadata.outcome in @outcomes
+
+  defp valid_metadata?("store.stop", metadata),
+    do: metadata.operation in @store_operations and metadata.outcome in @outcomes
+
+  defp valid_metadata?("queue.stop", metadata),
+    do: metadata.operation in @queue_operations and metadata.outcome in @outcomes
+
+  defp valid_metadata?("publication.stop", metadata),
+    do: metadata.operation in @publication_operations and metadata.outcome in @outcomes
+
+  defp valid_metadata?("resource.stop", metadata),
+    do:
+      metadata.resource in @resources and metadata.operation in @resource_operations and
+        metadata.outcome in @outcomes
+
   defp exact?(value, keys),
     do: is_map(value) and not is_struct(value) and Enum.sort(Map.keys(value)) == Enum.sort(keys)
 
@@ -120,10 +254,20 @@ defmodule Wotex.Tracker.Service.OperationalTelemetry do
   defp http_outcome(_), do: :unavailable
 
   defp outcome({:ok, _}), do: :ok
+  defp outcome(:ok), do: :ok
   defp outcome({:error, :overloaded}), do: :overloaded
   defp outcome({:error, :deadline_exceeded}), do: :deadline
-  defp outcome({:error, :conflict}), do: :conflict
-  defp outcome({:error, reason}) when reason in [:storage_unavailable, :unknown], do: :unavailable
+
+  defp outcome({:error, reason}) when reason in [:conflict, :forward_conflict, :superseded],
+    do: :conflict
+
+  defp outcome({:error, reason})
+       when reason in [:storage_unavailable, :storage_full, :busy, :unknown],
+       do: :unavailable
+
   defp outcome({:error, _}), do: :rejected
   defp outcome(_), do: :unknown
+
+  defp queue_outcome({:ok, %{"disposition" => "dropped"}}), do: :dropped
+  defp queue_outcome(result), do: outcome(result)
 end

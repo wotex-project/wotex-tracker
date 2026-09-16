@@ -340,12 +340,13 @@ preserved gaps. The service reauthorizes against a pinned SQLite snapshot,
 exposes the same closed documents to independent HTTP clients, bounds global and
 per-principal work, and cancels timed-out or abandoned scans. The transactional
 service now also saves, versions, executes and tombstones owned absolute-window
-query definitions with closed visualization options. A closed request/query
-telemetry vocabulary and explicitly supervised bounded ETS collector now give
-the default host restart-identified local operational history. Query pagination,
-the remaining ingestion/queue/publication/reconnect/resource events, rolling
-windows, dashboard composition/sharing, prompting and every UI acceptance gate
-remain.
+query definitions with closed visualization options. A closed telemetry
+vocabulary now covers requests, queries, import admission/decoding, transactional
+commits, forward-queue depth and overflow, publication reconciliation and store
+resource checks. The explicitly supervised bounded ETS collector gives the
+default host restart-identified local operational history. Query pagination,
+reconnect/render/native-resource events, rolling windows, dashboard
+composition/sharing, prompting and every UI acceptance gate remain.
 
 Add an explicitly configured public model adapter for question-to-query translation:
 synthetic boundary tests plus a separately recorded real-provider execution.

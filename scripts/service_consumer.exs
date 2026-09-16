@@ -30,6 +30,7 @@ alias Wotex.Tracker.Service.{
   Cursor,
   ForwardItem,
   Identifier,
+  OperationalTelemetry,
   Projection,
   RuleEvent,
   RuleTransition,
@@ -61,6 +62,17 @@ end
 for module <- [Phoenix, Nerves, Nx, Wotex.Directory] do
   false = Code.ensure_loaded?(module)
 end
+
+[
+  "request.stop",
+  "query.stop",
+  "ingest.stop",
+  "store.stop",
+  "queue.stop",
+  "publication.stop",
+  "resource.stop"
+] =
+  Enum.map(OperationalTelemetry.contracts(), & &1.name)
 
 directory = Path.expand("store")
 File.mkdir!(directory)
@@ -1113,6 +1125,22 @@ File.chmod!(descriptor, 0o600)
   )
 
 true = String.contains?(output, "HTTP_CONSUMER_PASS")
+
+await_history = fn await_history, attempts ->
+  case Server.operational_history(server, event: "request.stop") do
+    {:ok, %{"samples" => [_ | _]}} ->
+      :ok
+
+    _ when attempts > 0 ->
+      Process.sleep(10)
+      await_history.(await_history, attempts - 1)
+
+    _ ->
+      raise "archive operational history did not retain an HTTP request"
+  end
+end
+
+:ok = await_history.(await_history, 100)
 {:ok, store_pid} = Server.child(server, :store)
 origin = "http://127.0.0.1:#{port}"
 
@@ -1209,5 +1237,5 @@ retained = Process.list() |> MapSet.new() |> MapSet.difference(before_processes)
 0 = retained
 
 IO.puts(
-  "SERVICE_COHORT_PASS durable_restart=true durable_store_forward=true atomic_transport_health=true atomic_heartbeat=true atomic_battery=true atomic_motion=true atomic_geofence=true atomic_geofence_crossing=true atomic_suspicious_movement=true analytics=true saved_queries=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true explicit_association=true independent_http_sse=true actual_runtime_http_peer=true actual_runtime_sse=true retained_new_processes=#{retained}"
+  "SERVICE_COHORT_PASS durable_restart=true durable_store_forward=true atomic_transport_health=true atomic_heartbeat=true atomic_battery=true atomic_motion=true atomic_geofence=true atomic_geofence_crossing=true atomic_suspicious_movement=true analytics=true saved_queries=true operational_telemetry=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true explicit_association=true independent_http_sse=true actual_runtime_http_peer=true actual_runtime_sse=true retained_new_processes=#{retained}"
 )
