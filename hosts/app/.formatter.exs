@@ -4,5 +4,6 @@
     ".formatter.exs",
     ".check.exs",
     "{config,lib,ui,scripts,test,ui_test}/**/*.{ex,exs}"
-  ]
+  ],
+  plugins: [DoctestFormatter]
 ]

@@ -34,6 +34,7 @@ defmodule WotexTrackerNerves.MixProject do
     [
       service(),
       {:nerves, "~> 1.15", runtime: false},
+      {:doctest_formatter, "~> 0.4", only: [:dev, :test], runtime: false},
       {:nerves_runtime, "~> 0.13.13", targets: @device_targets},
       {:shoehorn, "~> 0.9.1", targets: @device_targets},
       {:ring_logger, "~> 0.11.0", targets: @device_targets},

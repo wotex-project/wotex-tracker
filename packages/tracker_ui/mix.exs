@@ -36,6 +36,7 @@ defmodule WotexTrackerUI.MixProject do
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:ex_check, "~> 0.16", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.38", only: [:dev, :test, :docs], runtime: false},
+      {:doctest_formatter, "~> 0.4", only: [:dev, :test], runtime: false},
       {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false}
     ]
   end

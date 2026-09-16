@@ -7,7 +7,7 @@ defmodule Wotex.Tracker do
   remain successful domain results, with no decoder execution.
 
       iex> {:ok, catalogue} = Wotex.Tracker.catalogue([])
-      iex> catalogue.profiles
+      ...> catalogue.profiles
       []
   """
 
