@@ -751,3 +751,36 @@ The final source archive consumer reconstructs the identified synthetic trip on
 both runtime lanes. Six fresh, locked and minimum consumer identities are recorded
 in `verification/source-consumer.json`. The result is bounded reconstruction,
 not persistent trip storage; host transaction integration remains separate.
+
+## WTR.05 evidence-backed overdue heartbeat — 2026-09-16
+
+The pure `HeartbeatTransition` policy derives current or overdue state from a
+complete admitted receiver observation and explicit caller time. Its content
+identity fixes maximum silence, permitted receiver future skew, threshold
+equality and event semantics. A nil observation is an explicit time tick; no
+clock, timer or process is hidden in the package.
+
+Initial state is a baseline even if already overdue. Equality remains current and
+the first following integer millisecond transitions to overdue at an exact derived
+deadline. A newer current observation recovers overdue state. Observation order
+uses receiver time, ID and full content identity; exact duplicates, historical
+input and same-ID content conflicts remain distinct. Historical input can
+accompany a deadline tick without replacing the canonical heartbeat. Caller-clock
+regression and excessive future skew leave canonical state unchanged.
+
+Rule changes emit `heartbeat.recomputed` rather than fabricating silence or
+recovery. Overdue, recovered and recomputed event keys bind old/new policy and
+observation identities and exclude live/replay mode. Replay produces identical
+state and events while prohibiting physical Action dispatch.
+
+Both required runtime lanes passed the complete root gate with 1 doctest,
+14 properties and 119 tests, no failures and 96.7% production line coverage.
+Cases include equality, repeated ticks, recovery, initially overdue/missing
+evidence, future skew, clock regression, historical and conflicting observations,
+rule revisions, state mutation and generated exact deadlines. Strict analysis,
+documentation, dependency, license and archive checks passed.
+
+The final six fresh, locked and minimum archive consumers execute a replay
+deadline transition on both runtime lanes and record exact identities in
+`verification/source-consumer.json`. Host monotonic scheduling and atomic state/
+event-intent persistence remain separate work.

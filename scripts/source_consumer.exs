@@ -49,6 +49,38 @@ before_processes = MapSet.new(Process.list())
     {RuuviRawV2.revision(), &RuuviRawV2.decode/1}
   )
 
+{:ok, heartbeat_policy} =
+  Wotex.Tracker.HeartbeatTransition.new(%{
+    id: "archive-heartbeat",
+    revision: "archive-heartbeat-v1",
+    maximum_silence_ms: 100,
+    future_skew_ms: 0
+  })
+
+{:ok, %{"status" => "baseline", "state" => heartbeat_state}} =
+  Wotex.Tracker.HeartbeatTransition.evaluate(
+    nil,
+    observation,
+    heartbeat_policy,
+    :replay,
+    observation.observed_at
+  )
+
+{:ok,
+ %{
+   "status" => "transition",
+   "heartbeat_status" => "overdue",
+   "event" => %{"kind" => "heartbeat.overdue"},
+   "physical_action_dispatch" => "prohibited"
+ }} =
+  Wotex.Tracker.HeartbeatTransition.evaluate(
+    heartbeat_state,
+    nil,
+    heartbeat_policy,
+    :replay,
+    observation.observed_at + 101
+  )
+
 thing_id = "urn:uuid:aca49b80-1e09-40cf-929e-b193047f6ca9"
 
 {:ok, association} =
@@ -425,5 +457,5 @@ true = archive_distance["center_distance_m"] > 0
 true = MapSet.subset?(MapSet.new(Process.list()), before_processes)
 
 IO.puts(
-  "SOURCE_COHORT_PASS Elixir=#{System.version()} OTP=#{System.otp_release()} properties=10 position_freshness=true position_selection=true position_order=true movement=true motion_transition=true trip_distance=true geofence=true geofence_transition=true geofence_crossing=true no_new_processes=true optional_hosts_absent=true"
+  "SOURCE_COHORT_PASS Elixir=#{System.version()} OTP=#{System.otp_release()} properties=10 position_freshness=true position_selection=true position_order=true movement=true motion_transition=true trip_distance=true heartbeat=true geofence=true geofence_transition=true geofence_crossing=true no_new_processes=true optional_hosts_absent=true"
 )

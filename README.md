@@ -60,7 +60,8 @@ two-fix movement/uncertainty classification is also implemented. See the
 stationary/moving state and stable trip start, stop and interruption events. Host
 transactional rule persistence remains subsequent work. Bounded trip-distance
 reconstruction includes only adjacent segments proved moving and reports every
-exclusion.
+exclusion. Evidence-backed heartbeat state and overdue/recovery events are also
+implemented; see the [heartbeat guide](docs/guides/heartbeat.md).
 [Implementation evidence](docs/evidence/implementation.md) records
 executed software checks and unpassed release, host and hardware gates.
 

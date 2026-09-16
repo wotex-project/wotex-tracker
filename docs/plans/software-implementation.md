@@ -202,6 +202,12 @@ a trip. Bounded trip-distance reconstruction sums only adjacent segments proved
 moving and retains explicit exclusions. Atomic host persistence remains subsequent
 work. See the [motion guide](../guides/motion.md).
 
+Receiver-observation heartbeat state is implemented as a pure caller-ticked rule
+with exact overdue equality, newer/historical ordering, recovery, revision
+recomputation and stable live/replay events. See the
+[heartbeat guide](../guides/heartbeat.md). Host deadline scheduling and atomic
+persistence remain subsequent work.
+
 Implement explicit time/freshness, quality selection, motion/trips/stops,
 geofence membership/transitions, heartbeat, suspicious movement, low-battery,
 late-data handling, deduplication and transport-policy values under WTR.05/06.
