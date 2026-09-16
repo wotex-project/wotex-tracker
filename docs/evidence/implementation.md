@@ -114,7 +114,7 @@ Both required runtime lanes passed the complete local gate: 1 doctest,
 coverage threshold or dependency constraint was weakened. Core source remains
 `eadc6c9f9c285faf9324b8a7396a001381098b6c`.
 
-`python3 scripts/source_consumer.py` additionally passed six isolated production
+`mix run --no-start scripts/qualify_source.exs` additionally passed six isolated production
 archive consumers: fresh resolution, locked resolution and selected compatible
 minimum dependencies on both runtime lanes. The minimum set is Jason 1.4.0,
 ex_json_schema 0.11.0 and Decimal 2.0.0, with unchanged Tracker/Wotex requirements
@@ -243,8 +243,8 @@ hardware are separate later slices.
 
 An explicitly started per-instance Bandit/Plug server now exposes the imported
 data workflow and durable event replay. The exact request/result/error and raw
-export schemas are packaged as OpenAPI 3.1.0, contract 1.0.0. The independent
-Python client reads that document over HTTP and validates actual exchanges.
+export schemas are packaged as OpenAPI 3.1.0, contract 1.0.0. A separate BEAM
+client reads that document over HTTP and validates actual exchanges.
 It imports, inspects, enrolls, materialises, downloads raw bytes, resumes events,
 revokes access and checks that an existing stream closes. Native `1`/`1.0`,
 zero/false/null, byte payloads and wide integer projections are exercised across
@@ -285,7 +285,7 @@ nothing. Credential custody remains caller-owned; only an opaque private-table
 reference is retained in the tested `ConsumedThing`. Actual HTTP tests cover two
 instances, temperature/pressure, unavailable state, revoked access, unsupported
 Forms, response bounds, malformed framing, deadlines, caller death and socket
-closure. The independent Python/OpenAPI client also reads actual TD Properties.
+closure. The separate OpenAPI client also reads actual TD Properties.
 
 The service's complete gates pass on both required runtime lanes with 2 properties
 and 65 tests and at least 95% production line coverage. No check or threshold is
@@ -320,8 +320,8 @@ Both required service lanes pass all configured checks with 2 properties and
 70 tests and at least 95% production line coverage. Tests cover writes between
 pages, exact history-to-event handoff, restart/resume, wrong resource/ID/principal/
 page-size/purpose, expiry, revocation, missing resources, malformed input,
-retained tombstones and the 4 MiB response ceiling. The independent Python
-client verifies history against served OpenAPI, including stable pagination
+retained tombstones and the 4 MiB response ceiling. The separate BEAM client
+verifies history against served OpenAPI, including stable pagination
 while new versions arrive, replay continuity and wide integer projections.
 The six production archive consumers run that workflow against installed
 artifacts, followed by real Runtime Property reads and complete teardown.
@@ -338,8 +338,8 @@ JSON, hashes, instance key, credential grants, numeric listen address and exposu
 policy. The host has the application callback; the reusable packages remain
 inert. Startup failures are bounded and do not expose configuration contents.
 
-The POSIX Python 3.11+ standard-library CLI provisions a new private loopback
-instance and performs the available machine workflows over HTTP. It separates
+The POSIX launcher and bundled Elixir CLI provision a new private loopback
+instance and perform the available machine workflows over HTTP. They separate
 token custody from arguments/URLs, requires conditional generations, prints
 operation identities before mutation attempts, distinguishes preflight failure
 from uncertain network outcomes and never retries automatically. Finite request,
@@ -347,8 +347,8 @@ response, header, frame and stream budgets are enforced. Raw downloads preserve
 the original response bytes in exclusive 0600 output files.
 
 Both required host runtime lanes pass their complete configured checks with
-5 ExUnit tests, 98.1% production Elixir line coverage and 5 additional Python CLI
-tests. A separate process executes import/inspect/raw export/enrollment/
+5 ExUnit tests, 98.1% production Elixir line coverage and 5 additional CLI
+acceptance tests. A separate process executes import/inspect/raw export/enrollment/
 materialisation/Property reads/history/replay/SSE/revocation through the actual
 host listener. Failure tests cover private-file admission, duplicate/oversized
 input, disconnected mutation ambiguity, HTTP 202 receipts, proxy isolation,
@@ -367,11 +367,11 @@ ERTS for Darwin ARM64 and Linux ARM64. Both retain normal package requirements
 and the source lock; a temporary signed loopback registry supplies unpublished
 sibling artifacts. The Linux builder pins Elixir 1.18.4 / OTP 27.3.4.15 and Hex
 2.5.1 on a digest-pinned Debian Bookworm base. A separate runtime image includes
-runtime libraries and Python, runs as UID/GID 10001, and contains no external
-Elixir, Erlang, Mix or compiler. Release distribution is disabled. Runtime
+only the libraries required by bundled ERTS, runs as UID/GID 10001, and contains
+no external language tools or compiler. Release distribution is disabled. Runtime
 license/notice files accompany the assembled release.
 
-The independent Python/OpenAPI workflow runs against the actual bundled service.
+The separate BEAM/OpenAPI workflow runs against the actual bundled service.
 It exercises enrollment, native Property reads, raw fidelity, immutable history,
 snapshot/replay continuity, idempotency and revocation. The artifact lifecycle
 probe closes an active SSE stream on SIGTERM, restarts from the same private
@@ -384,7 +384,7 @@ an unwritable data destination. Logs are checked for fixture credential/key
 leaks. Only fixture-owned containers and volumes are removed.
 
 The two complete host verification lanes pass with 5 ExUnit tests, 98.3% Elixir
-line coverage and 5 Python CLI tests. The six clean production service consumers
+line coverage and 5 isolated CLI tests. The six clean production service consumers
 also pass on the floor/current runtime lanes. Exact package, host source, archive,
 base-image and built-image identities are recorded in
 `verification/host-consumer.json`; artifacts remain under `_build/releases` and
@@ -425,7 +425,7 @@ mutation; importing or associating alone does not alter canonical state.
 
 Both required service lanes pass the complete gate with 2 properties, 72 tests
 and at least 96.1% line coverage. Both host lanes pass 5 ExUnit tests at 98.3%
-coverage plus 5 Python CLI tests. The separate CLI process verifies the real HTTP
+coverage plus 5 isolated CLI tests. The separate CLI process verifies the real HTTP
 flow from a 24.3 °C sample to a 30.0 °C sample, the unchanged Thing ID, retained
 history and the deliberate state boundary between association and materialisation.
 Tests reject missing confirmation, invalid/unknown/unresolved inputs, missing
@@ -458,7 +458,7 @@ byte split of an independent fixture. It does not reconnect automatically.
 
 Both service runtime lanes passed the complete gate: 2 properties and 87 tests,
 0 failures, 95.5% / 95.6% production line coverage. Host gates passed on both lanes
-with 5 ExUnit tests, 98.3% coverage and 6 independent Python tests. The root's
+with 5 ExUnit tests, 98.3% coverage and 6 independent CLI tests. The root's
 unchanged pure code passed both complete gates with 1 doctest, 4 properties and
 48 tests. No threshold, warning rule or dependency constraint was reduced.
 
@@ -1192,8 +1192,8 @@ semantics, rejects duplicate requested measurements and malformed stored scalar
 or quality metadata, and binds a deterministic service snapshot identity into
 the core result. The endpoint has no mutation receipt or idempotency key.
 
-The independent Python HTTP client constructs the content identity without
-Elixir code, validates the query and result against JSON Schema, executes a
+The separate HTTP client constructs the content identity independently from
+the service domain modules, validates the query and result against JSON Schema, executes a
 known-answer query and verifies that forged input fails without mutation
 metadata. Restart tests prove an identical committed snapshot result; scope
 isolation, unavailable rows, quality exclusion, unit conflicts and storage
@@ -1264,7 +1264,7 @@ passed. Tests cover create/update/replay/delete, immutable history, owner
 isolation, invalid definitions, stale generations, deterministic execution and
 the public HTTP lifecycle.
 
-The independent Python client validates the new request, resource, result,
+The separate BEAM client validates the new request, resource, result,
 receipt, event and tombstone shapes against the packaged JSON Schema before
 exercising them. The production service archive consumer saves, replays, reads,
 executes and histories a definition through the installed facade. The remaining
@@ -1337,7 +1337,7 @@ Tests insert a write between pages and prove that all continued results retain
 the first generation and snapshot while a fresh query sees the new row. They
 also cover descending traversal, final partial pages, exact request admission,
 future and malformed cursors, changed queries and page sizes, principal binding
-and revocation before resume. The independent Python HTTP client validates and
+and revocation before resume. The separate BEAM HTTP client validates and
 traverses the public page schemas against the served OpenAPI document. The
 production service archive consumer traverses the same two-page continuation
 through the installed facade.
@@ -1445,8 +1445,35 @@ the OpenAPI structure/reference audit and 63-member service archive inspection
 passed. The separate BEAM HTTP/SSE process validates live exchanges against the
 served schemas and retains the prior negative protocol coverage.
 
-Production-archive consumers require requalification after their orchestration
-is migrated off the removed secondary language environment; no earlier report
-is treated as evidence for this final tree. Named display timezones, dashboard
-composition and sharing, prompt translation, interactive graphs, input-triggered
-rule orchestration and notification delivery remain subsequent work.
+Six root and six service production-archive consumers have since passed in fresh,
+locked and minimum modes on both required runtime lanes with the migrated Elixir
+orchestrator. The exact revised archive and lock identities are recorded in
+`verification/service-consumer.json` and `verification/host-consumer.json`.
+Named display timezones, dashboard composition and sharing, prompt translation,
+interactive graphs, input-triggered rule orchestration and notification delivery
+remain subsequent work.
+
+### Stack-native artifact qualification — 2026-09-16
+
+The signed local registry, six archive consumer modes, static registry server,
+independent HTTP/OpenAPI client, bundled release lifecycle probe and host CLI now
+run on Elixir/OTP. The CLI's POSIX launcher uses bundled ERTS and the release's
+clean boot script. The Linux builder and runtime image install no Python package.
+The runtime keeps only its bundled BEAM and required system libraries.
+
+Both Darwin and Linux ARM64 releases passed actual HTTP/SSE and packaged CLI
+Property snapshot/resume, active-stream SIGTERM shutdown, restart and receipt
+replay, SIGKILL recovery, retained revocation, private-storage rejection and a
+definite SQLite-full rollback. Linux additionally passed a non-root, read-only,
+network-isolated runtime probe and an unwritable data destination. Its image
+contains no external BEAM toolchain or compiler. Root, service and host complete
+local gates pass at 95.4%, 95.0% and 98.3% production line coverage respectively.
+Exact source, archive, dependency, image and result identities are recorded in
+`verification/host-consumer.json`. No release or image was published.
+
+The separate-process BEAM HTTP consumer imports no service domain code and checks
+actual wire exchanges against the served OpenAPI schemas. The distinct product
+gate for an independent non-Elixir client remains unpassed; it should be fulfilled
+with a Rust or C++ protocol client. The sibling repository language findings and
+migration targets are recorded in the
+[stack language audit](../provenance/stack-language-audit.md).
