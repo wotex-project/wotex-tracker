@@ -1,5 +1,14 @@
 defmodule Wotex.Tracker.UI.ObservationLive do
-  @moduledoc "Evidence-first enrollment with a stable operation reference across reconnects."
+  @moduledoc """
+  Reviews captured evidence before enrolling a new asset.
+
+  The page shows the admitted observation and profile resolution without
+  treating an unknown match as a device identity. A confirmed enrollment
+  carries the scope generation and a stable operation reference in the URL.
+  On reconnect it inspects the receipt before offering another mutation.
+  Native capture and evidence downloads require a current `raw` grant.
+  """
+
   use Phoenix.LiveView, log: false
   import Wotex.Tracker.UI.Components
   alias Wotex.Tracker.Service.Identifier

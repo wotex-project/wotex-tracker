@@ -1,5 +1,14 @@
 defmodule Wotex.Tracker.UI.BrowseLive do
-  @moduledoc "Bounded authorized browsing and observation capture import."
+  @moduledoc """
+  Browses authorized assets and imports one observation capture.
+
+  Asset cards load their latest committed state separately and distinguish
+  retained readings from unknown connectivity. Asset and observation lists
+  keep a bounded cursor back path and reload pages under current authority.
+  Setup accepts one JSON capture file of at most 256 KiB, then submits it
+  through the service with a stable operation reference for recovery.
+  """
+
   use Phoenix.LiveView, log: false
   import Wotex.Tracker.UI.Components
   alias Wotex.Tracker.Service.{Codec, Identifier}

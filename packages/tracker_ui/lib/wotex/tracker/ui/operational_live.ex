@@ -1,5 +1,13 @@
 defmodule Wotex.Tracker.UI.OperationalLive do
-  @moduledoc "Host-only, authorized pages of volatile operational measurements."
+  @moduledoc """
+  Inspects host operational measurements when that host enables the page.
+
+  A current administrative grant is required for each page. Event and metric
+  filters select bounded volatile samples; the chart marks recorded values
+  individually and the table retains exact values. This is a host diagnostic
+  view, not the durable asset event history or a public analytics query.
+  """
+
   use Phoenix.LiveView, log: false
   import Wotex.Tracker.UI.Components
   alias Wotex.Tracker.Service.OperationalTelemetry

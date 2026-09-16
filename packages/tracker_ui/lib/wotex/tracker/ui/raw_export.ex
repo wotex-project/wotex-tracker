@@ -1,5 +1,13 @@
 defmodule Wotex.Tracker.UI.RawExport do
-  @moduledoc "Emits grant-gated native observation and evidence JSON as downloads."
+  @moduledoc """
+  Prepares bounded native evidence downloads for a LiveView.
+
+  The caller obtains raw bytes through a current `raw` service grant.
+  `push/3` accepts at most 1 MiB of valid JSON and sends it as a download event
+  without retaining the document in socket assigns. Invalid or oversized
+  content returns a coded error and emits no download.
+  """
+
   alias Phoenix.LiveView
 
   @max_bytes 1_048_576

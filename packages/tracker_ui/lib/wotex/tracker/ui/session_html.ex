@@ -1,5 +1,6 @@
 defmodule Wotex.Tracker.UI.SessionHTML do
   @moduledoc false
+
   use Phoenix.Component
 
   def new(assigns) do

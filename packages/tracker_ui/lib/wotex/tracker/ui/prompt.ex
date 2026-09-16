@@ -1,9 +1,12 @@
 defmodule Wotex.Tracker.UI.Prompt do
   @moduledoc """
-  Optional question translator boundary. The adapter sees only the question,
-  permitted measurement names/units, closed choices and current UTC time.
-  It never receives a service credential, asset identifier or reading.
-  Its answer is untrusted and can only fill the structured query form.
+  Validates proposals from an optional graph-question translator.
+
+  The host adapter sees only the question, permitted measurement names and
+  units, closed query choices, and current UTC time. It receives no service
+  credential, asset identifier, or reading. `propose/4` bounds and validates
+  its answer before filling the structured query form; executing that query
+  remains a separate authorized service operation.
   """
 
   @query_keys ~w(kind measurement aggregation quality from to bucket view explanation)

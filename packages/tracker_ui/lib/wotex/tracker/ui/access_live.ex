@@ -1,5 +1,14 @@
 defmodule Wotex.Tracker.UI.AccessLive do
-  @moduledoc "Current access inspection and confirmed administrator self-revocation."
+  @moduledoc """
+  Shows the browser's current service access and permits administrator self-revocation.
+
+  The page displays principal, scope, expiry, and grant categories without
+  exposing the bearer token. Revocation requires a fresh credential ID and
+  scope generation from the service, a stable operation reference, and explicit
+  confirmation. A committed result ends this browser session. An uncertain
+  result carries its operation reference to sign-in for later service lookup.
+  """
+
   use Phoenix.LiveView, log: false
   import Wotex.Tracker.UI.Components
   alias Wotex.Tracker.Service.Identifier

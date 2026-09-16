@@ -1,5 +1,12 @@
 defmodule Wotex.Tracker.UI.QueryExport do
-  @moduledoc "Rechecks current read authority and downloads an unchanged displayed query result."
+  @moduledoc """
+  Exports the exact analytics result currently shown by a LiveView.
+
+  `verify/2` reruns the displayed query through the session's authorized
+  service client and requires the same result identity. A changed snapshot or
+  withdrawn grant prevents the download. Once verified, `push/2` emits the
+  retained result document as local JSON without changing the query.
+  """
 
   alias Phoenix.LiveView
   alias Wotex.Tracker.UI.Auth

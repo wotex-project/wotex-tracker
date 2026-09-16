@@ -1,5 +1,13 @@
 defmodule Wotex.Tracker.UI.Router do
-  @moduledoc "Browser routes mounted by an explicitly configured host endpoint."
+  @moduledoc """
+  Mounts the shared sign-in and authorized LiveView routes.
+
+  A host owns the endpoint, listener, and session store. This router supplies
+  session and CSRF handling, a restrictive content security policy, no-store
+  responses, and the `Wotex.Tracker.UI.Auth` mount hook for protected screens.
+  The UI package does not start a server by importing this module.
+  """
+
   use Phoenix.Router
   import Phoenix.LiveView.Router
 

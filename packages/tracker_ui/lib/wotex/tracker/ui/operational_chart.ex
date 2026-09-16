@@ -1,5 +1,12 @@
 defmodule Wotex.Tracker.UI.OperationalChart do
-  @moduledoc "Projects one bounded operational page into discrete SVG marks."
+  @moduledoc """
+  Projects a page of operational samples into discrete chart coordinates.
+
+  `project/2` selects one nonnegative integer measurement from each sample and
+  keeps the samples in page order. It returns point positions and the observed
+  value range, or `nil` when no plottable sample exists. The projection does
+  not connect marks or infer measurements between recorded samples.
+  """
 
   @left 56.0
   @right 944.0

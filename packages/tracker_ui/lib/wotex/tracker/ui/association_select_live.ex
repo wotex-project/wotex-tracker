@@ -1,5 +1,13 @@
 defmodule Wotex.Tracker.UI.AssociationSelectLive do
-  @moduledoc "Selects a retained observation for an existing authorized asset."
+  @moduledoc """
+  Browses retained observations before associating one with an asset.
+
+  Each page is loaded through the authorized service, with a bounded path back
+  through earlier cursor pages. Selection opens the observation and asset
+  evidence in `Wotex.Tracker.UI.AssociationLive`; browsing does not mutate the
+  association or infer that an observation belongs to the asset.
+  """
+
   use Phoenix.LiveView, log: false
   import Wotex.Tracker.UI.Components
   alias Wotex.Tracker.UI.{Auth, Presenter}

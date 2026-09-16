@@ -1,9 +1,19 @@
 defmodule Wotex.Tracker.UI.QueryWindow do
-  @moduledoc "Bounded UTC window movement shared by structured and saved analytics."
+  @moduledoc """
+  Moves a closed analytics time window without changing its query terms.
+
+  `move/3` shifts or zooms an absolute Unix-millisecond interval using the
+  browser's `earlier`, `later`, `zoom_in`, and `zoom_out` controls. `query/2`
+  admits a serialized `Wotex.Tracker.QuerySpec`, moves its interval, and
+  revalidates the result. Invalid directions and windows outside the supported
+  browser timestamp range return `:error`.
+  """
+
   alias Wotex.Tracker.QuerySpec
 
   @max_browser_time 253_402_300_799_999
 
+  @doc "Moves a valid interval by the requested browser control."
   @spec move(String.t(), integer(), integer()) :: {:ok, {integer(), integer()}} | :error
   def move(direction, from_at, to_at)
       when is_integer(from_at) and is_integer(to_at) and to_at > from_at do
@@ -21,6 +31,7 @@ defmodule Wotex.Tracker.UI.QueryWindow do
 
   def move(_, _, _), do: :error
 
+  @doc "Moves and revalidates a serialized query while retaining its other terms."
   @spec query(map(), String.t()) :: {:ok, map()} | :error
   def query(document, direction) when is_map(document) do
     with {:ok, spec} <- QuerySpec.from_map(document),

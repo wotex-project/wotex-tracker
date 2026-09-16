@@ -1,5 +1,14 @@
 defmodule Wotex.Tracker.UI.AssetLive do
-  @moduledoc "Explicit Thing provisioning, retained measurements and bounded public history."
+  @moduledoc """
+  Shows one authorized asset's committed state, evidence, and history.
+
+  The screen distinguishes an unprovisioned asset from unavailable or retained
+  measurements. It reads declared scalar Properties from the service snapshot;
+  that read does not contact the device or establish current connectivity.
+  Provisioning uses a stable operation reference and generation check. History
+  navigation reloads bounded pages under current authority.
+  """
+
   use Phoenix.LiveView, log: false
   import Wotex.Tracker.UI.Components
   alias Wotex.Tracker.Service.Identifier

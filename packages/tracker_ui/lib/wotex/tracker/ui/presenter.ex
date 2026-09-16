@@ -1,5 +1,12 @@
 defmodule Wotex.Tracker.UI.Presenter do
-  @moduledoc "Pure display helpers preserving missing values, measurement quality and recorded time."
+  @moduledoc """
+  Formats public service values for the shared browser screens.
+
+  These helpers label known measurement kinds and units, construct encoded
+  local paths, and display scalar values, timestamps, and bounded error text.
+  They do not convert units, turn missing values into zero, or infer freshness
+  from a recorded timestamp. Canonical values remain in the service result.
+  """
 
   @errors %{
     "forbidden" => "Your credential does not permit this operation.",

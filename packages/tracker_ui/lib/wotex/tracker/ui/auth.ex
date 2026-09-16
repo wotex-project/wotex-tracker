@@ -1,5 +1,13 @@
 defmodule Wotex.Tracker.UI.Auth do
-  @moduledoc "Checks current service authority on mount, user events and a bounded idle interval."
+  @moduledoc """
+  Rechecks service authority for protected LiveViews.
+
+  The mount hook reads only an opaque browser session ID from the LiveView
+  session. `request/3` asks `Wotex.Tracker.UI.Sessions` to use the server-held
+  credential. Authority is checked on mount, before each user event, and on a
+  five-second idle timer; a failed check redirects to sign-in.
+  """
+
   import Phoenix.Component
   import Phoenix.LiveView
   alias Wotex.Tracker.UI.Sessions

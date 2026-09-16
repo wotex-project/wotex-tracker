@@ -1,5 +1,13 @@
 defmodule Wotex.Tracker.UI.Layout do
-  @moduledoc "Shared responsive application document; all executable assets are served locally."
+  @moduledoc """
+  Renders the shared browser document for server and kiosk hosts.
+
+  The root layout includes navigation, sign-out, a skip link, connection
+  status, and the CSRF token. It loads Phoenix, LiveView, and Tracker assets
+  from the local host. Screen content is supplied through `root/1` rather than
+  duplicated by each presentation host.
+  """
+
   use Phoenix.Component
 
   @doc "Renders the common root document for browsers, kiosks and presentation hosts."

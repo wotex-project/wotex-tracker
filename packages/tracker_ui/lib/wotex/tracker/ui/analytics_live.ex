@@ -1,5 +1,14 @@
 defmodule Wotex.Tracker.UI.AnalyticsLive do
-  @moduledoc "Bounded structured measurement queries for one authorized asset."
+  @moduledoc """
+  Runs bounded measurement queries for one authorized asset.
+
+  The screen builds a closed `Wotex.Tracker.QuerySpec` from available retained
+  measurements and asks the service to execute it under current authority.
+  Charts keep empty buckets as gaps and provide an exact values table. An
+  administrator can save the displayed query with a stable operation reference;
+  an optional prompt provider cannot bypass query admission.
+  """
+
   use Phoenix.LiveView, log: false
   import Wotex.Tracker.UI.Components
   alias Wotex.Tracker.QuerySpec

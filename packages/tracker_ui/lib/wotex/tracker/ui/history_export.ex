@@ -1,5 +1,13 @@
 defmodule Wotex.Tracker.UI.HistoryExport do
-  @moduledoc "Exports reauthorized public state history without session-bound cursors."
+  @moduledoc """
+  Collects and emits public retained state history for an asset.
+
+  A caller supplies an authorized page fetcher to `collect/2`. Collection
+  checks that every page belongs to the same committed generation and stops at
+  ten pages, 1,000 rows, or 1 MB; it returns an error instead of a partial file
+  when a bound is exceeded. Exports contain no service continuation cursor.
+  `push/3` also supports a single displayed page.
+  """
 
   alias Phoenix.LiveView
 

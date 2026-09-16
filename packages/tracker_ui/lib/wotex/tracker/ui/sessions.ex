@@ -8,6 +8,7 @@ defmodule Wotex.Tracker.UI.Sessions do
   repeated by that service. Logout rejects subsequent delivery, including an
   in-flight read. Restart requires sign-in and stores no observations.
   """
+
   use GenServer
   alias Wotex.Tracker.UI.Client
 

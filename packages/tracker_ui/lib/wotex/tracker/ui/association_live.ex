@@ -1,5 +1,13 @@
 defmodule Wotex.Tracker.UI.AssociationLive do
-  @moduledoc "Evidence-first reassociation of an existing asset with a stable operation URL."
+  @moduledoc """
+  Reviews an observation before associating it with an existing asset.
+
+  The page loads both records and the observation's profile resolution through
+  the authorized service. A confirmed mutation carries an expected generation
+  and stable operation reference in the URL. On reconnect, the view checks the
+  existing receipt instead of repeating an uncertain association.
+  """
+
   use Phoenix.LiveView, log: false
   import Wotex.Tracker.UI.Components
   alias Wotex.Tracker.Service.Identifier

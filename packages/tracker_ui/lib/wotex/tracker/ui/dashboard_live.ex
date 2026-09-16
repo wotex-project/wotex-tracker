@@ -1,5 +1,14 @@
 defmodule Wotex.Tracker.UI.DashboardLive do
-  @moduledoc "Re-executes a saved definition under current read authority."
+  @moduledoc """
+  Runs and displays one saved query under current read authority.
+
+  The page can refresh an open result every 30 seconds and discloses a stale
+  result when a temporary refresh fails. Readers can switch between an exact
+  table and gap-preserving chart views without changing the definition.
+  Administrators can edit its title or view and delete it with generation and
+  operation checks; a deleted or unauthorized definition is cleared.
+  """
+
   use Phoenix.LiveView, log: false
   import Wotex.Tracker.UI.Components
   alias Wotex.Tracker.Service.Identifier

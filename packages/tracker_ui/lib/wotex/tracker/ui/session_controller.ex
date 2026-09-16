@@ -1,5 +1,6 @@
 defmodule Wotex.Tracker.UI.SessionController do
   @moduledoc false
+
   use Phoenix.Controller, formats: [:html]
   import Plug.Conn
   alias Wotex.Tracker.UI.Sessions

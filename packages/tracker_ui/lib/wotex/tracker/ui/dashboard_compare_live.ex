@@ -1,5 +1,14 @@
 defmodule Wotex.Tracker.UI.DashboardCompareLive do
-  @moduledoc "Combines compatible saved series under a new authorized definition."
+  @moduledoc """
+  Creates a multi-series saved query from compatible existing definitions.
+
+  The screen checks that two to eight selected definitions use the same
+  measurement, unit, window, and query settings with distinct series. The
+  service makes the generation-checked save under an administrator grant.
+  A stable operation reference lets reconnect inspect an uncertain outcome
+  without silently submitting a second definition.
+  """
+
   use Phoenix.LiveView, log: false
   import Wotex.Tracker.UI.Components
   alias Wotex.Tracker.QuerySpec

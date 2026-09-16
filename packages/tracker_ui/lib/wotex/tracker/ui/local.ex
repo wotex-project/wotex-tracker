@@ -6,6 +6,7 @@ defmodule Wotex.Tracker.UI.Local do
   the current service on every call so a restarted store is never cached in a
   LiveView. No request selects a module, function, clock or privileged store API.
   """
+
   @behaviour Wotex.Tracker.UI.Client
   alias Wotex.Runtime.Context
   alias Wotex.Tracker.Service

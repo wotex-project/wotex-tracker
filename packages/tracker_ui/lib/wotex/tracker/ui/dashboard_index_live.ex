@@ -1,5 +1,13 @@
 defmodule Wotex.Tracker.UI.DashboardIndexLive do
-  @moduledoc "Bounded read-only browsing of saved query definitions."
+  @moduledoc """
+  Lists saved query definitions available to the current reader.
+
+  Each page is fetched through the authorized service. The screen keeps a
+  bounded path through earlier cursor pages and reloads them under current
+  authority. Opening a definition runs it in `Wotex.Tracker.UI.DashboardLive`;
+  listing alone does not execute or change a saved query.
+  """
+
   use Phoenix.LiveView, log: false
   import Wotex.Tracker.UI.Components
   alias Wotex.Tracker.UI.{Auth, Presenter}

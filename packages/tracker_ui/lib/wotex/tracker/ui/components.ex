@@ -1,5 +1,13 @@
 defmodule Wotex.Tracker.UI.Components do
-  @moduledoc "Shared accessible presentation components."
+  @moduledoc """
+  Renders evidence, measurements, query results, and coded errors for LiveViews.
+
+  Components consume already authorized public projections. The query result
+  view pairs charts with exact tables and marks absent buckets as gaps. Callers
+  remain responsible for service requests and for keeping raw evidence outside
+  ordinary page assigns.
+  """
+
   use Phoenix.Component
   alias Wotex.Tracker.UI.Presenter
 

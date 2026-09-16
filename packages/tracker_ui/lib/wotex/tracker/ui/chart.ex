@@ -1,5 +1,12 @@
 defmodule Wotex.Tracker.UI.Chart do
-  @moduledoc "Projects admitted numeric query results to bounded SVG geometry."
+  @moduledoc """
+  Projects admitted query buckets into bounded SVG coordinates.
+
+  `project/1` handles one series and `project_many/1` uses a common value
+  scale for two to eight series. Both return `nil` when there are no points.
+  Separate paths represent nonadjacent buckets, so a gap is not drawn as a
+  continuous measurement. The exact values remain in the accompanying table.
+  """
 
   @left 56.0
   @right 944.0
