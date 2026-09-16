@@ -144,11 +144,34 @@ def main():
     assert analytics["spec"] == query and analytics["scanned_rows"] == 1
     assert analytics["qualified_rows"] == 1 and analytics["excluded_unavailable"] == 0
     assert analytics["series"][0]["points"][0]["value"] == 24.3
+    paged_query = {**query, "to_at": descriptor["now"] + 2, "max_points": 2}
+    paged_query.pop("identity")
+    paged_query["identity"] = "wtr-json-v1:sha256:" + hashlib.sha256(json.dumps(
+        paged_query, separators=(",", ":"), sort_keys=True).encode()).hexdigest()
+    page_request = {"schema": "wtr.query-page-request.v1", "query": paged_query,
+                    "page_size": 1, "cursor": None}
+    first_page = data("page_analytics", prefix + "/analytics/pages", page_request,
+                      who="reader")
+    assert first_page["query"] == paged_query and first_page["page"]["index"] == 0
+    assert first_page["result"]["series"][0]["points"][0]["value"] == 24.3
+    assert first_page["cursor"] is not None
+    second_page = data("page_analytics", prefix + "/analytics/pages",
+                       {**page_request, "cursor": first_page["cursor"]}, who="reader")
+    assert second_page["generation"] == first_page["generation"]
+    assert second_page["result"]["snapshot"] == first_page["result"]["snapshot"]
+    assert second_page["page"]["index"] == 1 and second_page["cursor"] is None
+    assert second_page["result"]["series"][0]["points"] == []
     assert data("capabilities", prefix + "/capabilities")["analytics"] == "structured_queries"
     forged = {**query, "identity": "wtr-json-v1:sha256:" + "0" * 64}
     failed, _ = request("query_analytics", prefix + "/analytics/query", forged,
                         who="reader", status=400)
     assert "outcome" not in failed["error"] and "operation_id" not in failed["error"]
+    failed, _ = request("page_analytics", prefix + "/analytics/pages",
+                        {**page_request, "query": forged, "cursor": None},
+                        who="reader", status=400)
+    assert "outcome" not in failed["error"] and "operation_id" not in failed["error"]
+    request("page_analytics", prefix + "/analytics/pages",
+            {**page_request, "cursor": "wtrc1.invalid"}, who="reader", status=400)
     replay = data("replay_events", prefix + "/events?" + urllib.parse.urlencode({"cursor": snapshot["stream_cursor"]}), who="reader")
     assert [event["id"] for event in replay["items"]] == ["1", "2", "3"]
     request("replay_events", prefix + "/events?cursor=wtrc1.invalid", status=400)
@@ -304,7 +327,7 @@ def main():
     request("get_saved_queries", saved_path, status=404)
     saved_history = data("history_saved_queries", saved_path + "/history")
     assert [item["deleted"] for item in saved_history["items"]] == [False, True]
-    print("HTTP_CONSUMER_PASS openapi=true enrollment=true materialisation=true native_types=true history=true replay=true revoked_stream_closed=true property_observation=true saved_queries=true")
+    print("HTTP_CONSUMER_PASS openapi=true enrollment=true materialisation=true native_types=true history=true replay=true revoked_stream_closed=true property_observation=true analytics_pagination=true saved_queries=true")
 
 
 

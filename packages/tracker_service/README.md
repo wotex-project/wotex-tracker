@@ -95,6 +95,12 @@ content-identified `wtr.query-result.v1` with disclosure counts and preserved
 gaps. The operation is read-only, so it does not use mutation receipts or
 `Idempotency-Key`.
 
+`Service.analytics_page/5` and `POST …/analytics/pages` split the same admitted
+window into bounded bucket pages. An encrypted seven-day cursor binds the exact
+query, page size, next page, principal, scope, instance and first committed
+generation. Continuations exclude later writes and recheck current `read`
+authority without retaining a SQLite transaction between requests.
+
 Analytics execution is capped at eight concurrent queries, two per principal and
 sixteen starts per principal in each one-second window. Caller loss, store
 shutdown or the configured timeout cancels the dedicated SQLite connection and
@@ -108,9 +114,8 @@ ownership is stored privately and projected as a scope pseudonym. Ordinary
 resource reads and history expose reviewed definitions and deletion tombstones.
 `GET …/saved_queries/{id}/execute` rechecks current `read` authority and runs the
 exact stored query through the same bounded engine. Possessing or sharing a
-definition grants no data access and does not call a model. Pagination, rolling
-windows, named display timezones, prompting, operational telemetry and graph
-rendering remain later contracts.
+definition grants no data access and does not call a model. Rolling windows,
+named display timezones, prompting and graph rendering remain later contracts.
 
 ## Bounded operational history
 
@@ -156,11 +161,11 @@ and key paths. Explicit `:proxy` mode requires an HTTPS public origin and a
 protected proxy-to-listener network; forwarded headers never supply authority or
 Forms. No remote exposure is inferred.
 
-OpenAPI **3.1.0**, contract revision **1.7.0**, is packaged at
+OpenAPI **3.1.0**, contract revision **1.8.0**, is packaged at
 `priv/openapi/v1.json` and served at `/api/v1/openapi.json`. Liveness is
 `/health/live`; authenticated resources are under `/api/v1/scopes/{scope}`.
 Use `Authorization: Bearer …`, and a UUIDv4 `Idempotency-Key` for POST mutations.
-The read-only analytics POST uses authorization without an idempotency key.
+The read-only analytics POST operations use authorization without an idempotency key.
 Saved-query writes use the same mutation receipt/idempotency contract as other
 durable resources; saved-query execution is a read-only GET.
 API responses have `schema: wtr.response.v1` and `data` or `error`. Successful

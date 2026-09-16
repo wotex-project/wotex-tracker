@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "WoTEx Tracker service",
-    "version": "1.7.0",
-    "description": "Authenticated imported-observation service with deterministic structured and saved measurement queries. No scanner, rules or physical interaction is implied."
+    "version": "1.8.0",
+    "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries. No scanner, rules or physical interaction is implied."
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "security": [
@@ -277,6 +277,63 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/QuerySpec"
+              }
+            }
+          },
+          "description": "At most 1 MiB, UTF-8 JSON; duplicate keys and unknown fields are rejected."
+        }
+      }
+    },
+    "/api/v1/scopes/{scope}/analytics/pages": {
+      "post": {
+        "operationId": "page_analytics",
+        "description": "Evaluate one bounded bucket page at the first request's committed generation. The encrypted cursor binds the exact query, page size, principal, scope and generation for seven days. Every continuation repeats the exact query and rechecks current read authority; later commits are excluded. This read-only POST does not use an Idempotency-Key. Query concurrency, rate, deadline and cancellation limits still apply.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/QueryPage"
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QueryPageRequest"
               }
             }
           },
@@ -4887,6 +4944,121 @@
           "excluded_quality",
           "downsampling",
           "continuity",
+          "identity"
+        ],
+        "additionalProperties": false
+      },
+      "QueryPageRequest": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "wtr.query-page-request.v1"
+          },
+          "query": {
+            "$ref": "#/components/schemas/QuerySpec"
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "cursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4096,
+                "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "schema",
+          "query",
+          "page_size",
+          "cursor"
+        ],
+        "additionalProperties": false
+      },
+      "QueryPageWindow": {
+        "type": "object",
+        "properties": {
+          "index": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 999
+          },
+          "from_at": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "to_at": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "index",
+          "from_at",
+          "to_at"
+        ],
+        "additionalProperties": false
+      },
+      "QueryPage": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "wtr.query-page.v1"
+          },
+          "algorithm": {
+            "const": "snapshot-pinned-bucket-pages-v1"
+          },
+          "query": {
+            "$ref": "#/components/schemas/QuerySpec"
+          },
+          "result": {
+            "$ref": "#/components/schemas/QueryResult"
+          },
+          "page": {
+            "$ref": "#/components/schemas/QueryPageWindow"
+          },
+          "generation": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,18})$",
+            "description": "Canonical decimal integer below 9223372036854775807."
+          },
+          "cursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4096,
+                "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "identity": {
+            "type": "string",
+            "pattern": "^wtr-analytics-page-v1:sha256:[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "schema",
+          "algorithm",
+          "query",
+          "result",
+          "page",
+          "generation",
+          "cursor",
           "identity"
         ],
         "additionalProperties": false

@@ -344,8 +344,9 @@ query definitions with closed visualization options. A closed telemetry
 vocabulary now covers requests, queries, import admission/decoding, transactional
 commits, forward-queue depth and overflow, publication reconciliation and store
 resource checks. The explicitly supervised bounded ETS collector gives the
-default host restart-identified local operational history. Query pagination,
-reconnect/render/native-resource events, rolling windows, dashboard
+default host restart-identified local operational history. Snapshot-pinned
+bucket pagination now excludes concurrent commits and reauthorizes every page.
+Reconnect/render/native-resource events, rolling windows, dashboard
 composition/sharing, prompting and every UI acceptance gate remain.
 
 Add an explicitly configured public model adapter for question-to-query translation:

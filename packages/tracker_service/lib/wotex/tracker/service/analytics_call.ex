@@ -11,6 +11,20 @@ defmodule Wotex.Tracker.Service.AnalyticsCall do
   @rate_window_ms 1_000
 
   def run(config, %Access{} = access, %QuerySpec{} = spec, now) do
+    run(config, access, spec, now, nil)
+  end
+
+  def run(_, _, _, _), do: {:error, :invalid_query}
+
+  @doc false
+  def run_at(config, %Access{} = access, %QuerySpec{} = spec, now, generation)
+      when is_integer(generation) and generation >= 0 do
+    run(config, access, spec, now, generation)
+  end
+
+  def run_at(_, _, _, _, _), do: {:error, :invalid_query}
+
+  defp run(config, access, spec, now, generation) do
     started = System.monotonic_time()
 
     result =
@@ -19,10 +33,11 @@ defmodule Wotex.Tracker.Service.AnalyticsCall do
         recipient = Process.alias()
         caller = self()
         control = :atomics.new(1, [])
+        query = {spec, generation}
 
         {worker, monitor} =
           spawn_monitor(fn ->
-            worker(caller, recipient, control, config, access, spec, now, deadline)
+            worker(caller, recipient, control, config, access, query, now, deadline)
           end)
 
         try do
@@ -39,14 +54,12 @@ defmodule Wotex.Tracker.Service.AnalyticsCall do
     result
   end
 
-  def run(_, _, _, _), do: {:error, :invalid_query}
-
-  defp worker(caller, recipient, control, config, access, spec, now, deadline) do
+  defp worker(caller, recipient, control, config, access, query, now, deadline) do
     result =
       with :ok <- rate(config.slots, access.principal),
            {:ok, lease} <- reserve(config.slots, access.principal) do
         try do
-          execute(caller, recipient, control, config, access, spec, now, deadline)
+          execute(caller, recipient, control, config, access, query, now, deadline)
         after
           release(config.slots, access.principal, lease)
         end
@@ -56,18 +69,18 @@ defmodule Wotex.Tracker.Service.AnalyticsCall do
     send(recipient, {recipient, :result, self(), result})
   end
 
-  defp execute(caller, recipient, control, config, access, spec, now, deadline) do
+  defp execute(caller, recipient, control, config, access, query, now, deadline) do
     with :ok <- config.fault.(:before_analytics),
          true <-
            Process.alive?(caller) and Process.alive?(config.store) and remaining(deadline) > 0 do
-      open(caller, recipient, control, config, access, spec, now, deadline)
+      open(caller, recipient, control, config, access, query, now, deadline)
     else
       false -> {:error, :deadline_exceeded}
       _ -> {:error, :storage_unavailable}
     end
   end
 
-  defp open(caller, recipient, control, config, access, spec, now, deadline) do
+  defp open(caller, recipient, control, config, access, {spec, generation}, now, deadline) do
     case Sqlite3.open(config.path, mode: :readonly) do
       {:ok, db} ->
         watcher = watch(caller, config.store, self(), control, db, deadline)
@@ -82,16 +95,22 @@ defmodule Wotex.Tracker.Service.AnalyticsCall do
                 SQL.execute!(db, "PRAGMA query_only=ON")
                 require_schema!(db)
 
-                Analytics.query(db, access.scope, spec, fn ->
-                  Authority.check!(
-                    db,
-                    config.credentials,
-                    access,
-                    access.scope,
-                    "read",
-                    Authority.now(config, now)
-                  )
-                end)
+                Analytics.query(
+                  db,
+                  access.scope,
+                  spec,
+                  fn ->
+                    Authority.check!(
+                      db,
+                      config.credentials,
+                      access,
+                      access.scope,
+                      "read",
+                      Authority.now(config, now)
+                    )
+                  end,
+                  generation
+                )
               end)
 
             _ ->

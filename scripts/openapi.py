@@ -140,6 +140,22 @@ def document():
             "downsampling": {"const": "requested_bucket_aggregation"},
             "continuity": {"const": "gaps_preserved"},
             "identity": content_identity}),
+        "QueryPageRequest": obj({
+            "schema": {"const": "wtr.query-page-request.v1"},
+            "query": ref("QuerySpec"),
+            "page_size": {"type": "integer", "minimum": 1, "maximum": 1000},
+            "cursor": nullable_cursor}),
+        "QueryPageWindow": obj({
+            "index": {"type": "integer", "minimum": 0, "maximum": 999},
+            "from_at": safe_time, "to_at": safe_time}),
+        "QueryPage": obj({
+            "schema": {"const": "wtr.query-page.v1"},
+            "algorithm": {"const": "snapshot-pinned-bucket-pages-v1"},
+            "query": ref("QuerySpec"), "result": ref("QueryResult"),
+            "page": ref("QueryPageWindow"), "generation": generation,
+            "cursor": nullable_cursor,
+            "identity": {"type": "string",
+                         "pattern": "^wtr-analytics-page-v1:sha256:[0-9a-f]{64}$"}}),
         "Visualization": obj({
             "type": enum("line", "area", "points", "table"),
             "show_legend": {"type": "boolean"}, "show_points": {"type": "boolean"}}),
@@ -208,6 +224,19 @@ def document():
         "requestBody": {"required": True,
                         "content": {"application/json": {"schema": ref("QuerySpec")}},
                         "description": "At most 1 MiB, UTF-8 JSON; duplicate keys and unknown fields are rejected."}}}
+    paths[base + "/analytics/pages"] = {"post": {
+        "operationId": "page_analytics",
+        "description": "Evaluate one bounded bucket page at the first request's committed generation. "
+                       "The encrypted cursor binds the exact query, page size, principal, scope and generation "
+                       "for seven days. Every continuation repeats the exact query and rechecks current read "
+                       "authority; later commits are excluded. This read-only POST does not use an "
+                       "Idempotency-Key. Query concurrency, rate, deadline and cancellation limits still apply.",
+        "parameters": [{"$ref": "#/components/parameters/Scope"}],
+        "responses": {"200": response(envelope(ref("QueryPage"))),
+                      "default": response(ref("Error"))},
+        "requestBody": {"required": True,
+                        "content": {"application/json": {"schema": ref("QueryPageRequest")}},
+                        "description": "At most 1 MiB, UTF-8 JSON; duplicate keys and unknown fields are rejected."}}}
     for resource, schema in [("observations", "Observation"), ("resolutions", "Resolution"),
                              ("evidence", "EvidenceSummary"), ("state", "State"),
                              ("enrollments", "Enrollment"), ("things", "Thing"),
@@ -275,8 +304,8 @@ def document():
                        "Connection lifetime 300 s; idle reauthorization/poll 1 s; no unlimited queue."},
         ("Scope", "Cursor", "Resume"), media="text/event-stream")}
     paths["/api/v1/openapi.json"] = {"get": operation("openapi", {"type": "object"}, public=True)}
-    return {"openapi": "3.1.0", "info": {"title": "WoTEx Tracker service", "version": "1.7.0",
-        "description": "Authenticated imported-observation service with deterministic structured and saved measurement queries. "
+    return {"openapi": "3.1.0", "info": {"title": "WoTEx Tracker service", "version": "1.8.0",
+        "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries. "
                        "No scanner, rules or physical interaction is implied."},
         "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema", "security": [{"bearer": []}],
         "paths": paths, "components": {"securitySchemes": {"bearer": {"type": "http", "scheme": "bearer"}},

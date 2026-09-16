@@ -12,7 +12,9 @@ with closed visualization options. Closed telemetry now covers requests,
 queries, import admission/decoding, transactional commits, forward-queue depth
 and overflow, publication reconciliation and store checks through an explicitly
 supervised bounded volatile collector. Reconnect, rendering and native
-host-resource events remain with their owning adapters. Rolling dashboards,
+host-resource events remain with their owning adapters. Encrypted analytics
+continuations now bind the exact query and first committed generation while
+reauthorizing every bucket page. Rolling dashboards,
 prompt integration and graphs remain required product deliverables.
 Model execution is explicitly configured and can be disabled; deterministic
 tracking and structured analytics MUST remain useful without AI or any external

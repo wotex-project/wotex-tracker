@@ -1004,6 +1004,46 @@ association_request = %{
    "series" => [%{"points" => [%{"value" => 24.3}]}]
  }} = Service.analytics(service, token, "archive", query_document, update.now)
 
+{:ok, paged_query_spec} =
+  query_spec
+  |> Map.from_struct()
+  |> Map.drop([:identity])
+  |> Map.merge(%{to_at: update.now + 2, max_points: 2})
+  |> QuerySpec.new()
+
+{:ok, paged_query_document} = QuerySpec.to_map(paged_query_spec)
+
+page_request = %{
+  "schema" => "wtr.query-page-request.v1",
+  "query" => paged_query_document,
+  "page_size" => 1,
+  "cursor" => nil
+}
+
+{:ok,
+ %{
+   "generation" => "7",
+   "result" => %{
+     "snapshot" => paged_snapshot,
+     "series" => [%{"points" => [%{"value" => 24.3}]}]
+   },
+   "cursor" => page_cursor
+ }} = Service.analytics_page(service, token, "archive", page_request, update.now)
+
+{:ok,
+ %{
+   "generation" => "7",
+   "result" => %{"snapshot" => ^paged_snapshot, "series" => [%{"points" => []}]},
+   "cursor" => nil
+ }} =
+  Service.analytics_page(
+    service,
+    token,
+    "archive",
+    %{page_request | "cursor" => page_cursor},
+    update.now
+  )
+
 save_operation = Identifier.uuid()
 
 save_request = %{
@@ -1237,5 +1277,5 @@ retained = Process.list() |> MapSet.new() |> MapSet.difference(before_processes)
 0 = retained
 
 IO.puts(
-  "SERVICE_COHORT_PASS durable_restart=true durable_store_forward=true atomic_transport_health=true atomic_heartbeat=true atomic_battery=true atomic_motion=true atomic_geofence=true atomic_geofence_crossing=true atomic_suspicious_movement=true analytics=true saved_queries=true operational_telemetry=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true explicit_association=true independent_http_sse=true actual_runtime_http_peer=true actual_runtime_sse=true retained_new_processes=#{retained}"
+  "SERVICE_COHORT_PASS durable_restart=true durable_store_forward=true atomic_transport_health=true atomic_heartbeat=true atomic_battery=true atomic_motion=true atomic_geofence=true atomic_geofence_crossing=true atomic_suspicious_movement=true analytics=true analytics_pagination=true saved_queries=true operational_telemetry=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true explicit_association=true independent_http_sse=true actual_runtime_http_peer=true actual_runtime_sse=true retained_new_processes=#{retained}"
 )

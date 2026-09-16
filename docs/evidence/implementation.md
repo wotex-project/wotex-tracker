@@ -1320,3 +1320,38 @@ Compiler, formatter, strict Credo, Dialyzer, ExDoc, dependency audit, licences,
 generated/packaged OpenAPI 1.7.0 equality and 61-member archive inspection
 passed. Reconnect, render and native host-resource events remain with the future
 adapters and UI that own those operations.
+
+### Snapshot-pinned analytics pagination — 2026-09-16
+
+The service now exposes `Service.analytics_page/5` and the read-only
+`POST …/analytics/pages` operation in OpenAPI contract 1.8.0. A first request
+partitions one admitted absolute query into a bounded bucket window and pins the
+current committed scope generation. Its encrypted seven-day continuation binds
+the exact query identity, page size, next index, principal, scope and service
+instance to that generation. Every continuation rechecks current read authority;
+later commits remain excluded without keeping a SQLite transaction open between
+requests. Ascending and descending pages cover disjoint bucket windows in global
+query order.
+
+Tests insert a write between pages and prove that all continued results retain
+the first generation and snapshot while a fresh query sees the new row. They
+also cover descending traversal, final partial pages, exact request admission,
+future and malformed cursors, changed queries and page sizes, principal binding
+and revocation before resume. The independent Python HTTP client validates and
+traverses the public page schemas against the served OpenAPI document. The
+production service archive consumer traverses the same two-page continuation
+through the installed facade.
+
+Both service runtime lanes passed the complete gate with 2 properties and 142
+tests, no failures and 95.1% production line coverage. Both required root
+runtime lanes remained green with 1 doctest, 19 properties and 158 tests, no
+failures and 95.4% coverage. Compiler, formatter, strict Credo, Dialyzer, ExDoc,
+dependency audit, licences, documentation contracts, generated/packaged OpenAPI
+equality and 62-member service / 93-member root archive inspection passed.
+
+Six root and six service production-archive modes pass in fresh, locked and
+minimum dependency configurations across both runtime lanes. Exact archive and
+lock identities are recorded in `verification/source-consumer.json` and
+`verification/service-consumer.json`. Rolling windows, named display timezones,
+prompt translation and interactive graph/dashboard UI remain required analytics
+work.

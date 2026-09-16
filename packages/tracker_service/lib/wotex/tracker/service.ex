@@ -11,6 +11,7 @@ defmodule Wotex.Tracker.Service do
   alias Wotex.Tracker.Decoders.RuuviRawV2
 
   alias Wotex.Tracker.Service.{
+    AnalyticsPage,
     Association,
     Codec,
     Credentials,
@@ -206,6 +207,17 @@ defmodule Wotex.Tracker.Service do
       with {:ok, access} <- authorize(service, token, scope, "read", now),
            {:ok, spec} <- query_spec(document),
            do: Store.authorized_analytics(service.store, access, spec, now)
+
+    Result.normalize(result)
+  end
+
+  @doc "Pages one closed numeric history query at a cursor-bound committed generation."
+  @spec analytics_page(t(), String.t(), String.t(), map(), integer()) ::
+          {:ok, map()} | {:error, map()}
+  def analytics_page(service, token, scope, request, now) do
+    result =
+      with {:ok, access} <- authorize(service, token, scope, "read", now),
+           do: AnalyticsPage.run(service, access, request, now)
 
     Result.normalize(result)
   end

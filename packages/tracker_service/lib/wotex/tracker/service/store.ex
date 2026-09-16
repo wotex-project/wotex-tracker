@@ -127,6 +127,17 @@ defmodule Wotex.Tracker.Service.Store do
          do: AnalyticsCall.run(store.analytics, access, admitted, now)
   end
 
+  @doc false
+  @spec authorized_analytics_at(t(), Access.t(), QuerySpec.t(), integer(), non_neg_integer()) ::
+          {:ok, map()} | {:error, atom()}
+  def authorized_analytics_at(store, access, spec, now, generation)
+      when is_integer(generation) and generation >= 0 do
+    with {:ok, admitted} <- QuerySpec.validate(spec),
+         do: AnalyticsCall.run_at(store.analytics, access, admitted, now, generation)
+  end
+
+  def authorized_analytics_at(_, _, _, _, _), do: {:error, :invalid_query}
+
   @doc "Reads bounded ascending record versions, retaining explicit deletion tombstones."
   @spec history(t(), map()) :: {:ok, map()} | {:error, atom()}
   def history(store, query), do: StoreCall.run(store, {:history, query})

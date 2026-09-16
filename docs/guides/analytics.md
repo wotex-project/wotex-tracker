@@ -44,7 +44,17 @@ inside a SQLite read transaction and pins the current scope generation. For each
 explicit series it extracts matching measurements from committed state history,
 then passes admitted rows and a scope-generation snapshot identity to the pure
 evaluator. The same operation is available as the read-only
-`POST …/analytics/query` endpoint in service contract 1.7.0.
+`POST …/analytics/query` endpoint in service contract 1.8.0.
+
+`Service.analytics_page/5` and `POST …/analytics/pages` partition the admitted
+bucket window into pages of 1 to 1,000 buckets. The first request supplies the
+exact query, a page size and a null cursor. The response identifies its committed
+scope generation and returns an encrypted continuation when more buckets remain.
+Every continuation repeats the exact query and page size; the cursor binds both,
+the next page index, principal, scope, instance and original generation. Later
+commits are excluded, while current `read` authority is checked again for every
+page. Ascending and descending requests traverse disjoint bucket windows in their
+global order without retaining a long-lived SQLite transaction.
 
 The adapter admits at most 100,000 matching measurement rows across all series.
 Its `scanned_rows` value counts those extracted rows, rather than SQLite pages or
@@ -57,9 +67,9 @@ The service admits at most eight simultaneous queries, two from one principal,
 and sixteen starts per principal per second. Each accepted query uses its own
 read-only SQLite connection. Caller loss, store shutdown or the configured
 five-second deadline cancels the connection through its busy and progress
-handlers and releases the reservation. Query pagination, rolling windows, named
-display timezones, prompt translation and graph rendering remain required by the
-analytics target contract.
+handlers and releases the reservation. Rolling windows, named display timezones,
+prompt translation and graph rendering remain required by the analytics target
+contract.
 
 The service emits closed `request.stop`, `query.stop`, `ingest.stop`,
 `store.stop`, `queue.stop`, `publication.stop` and `resource.stop` telemetry.

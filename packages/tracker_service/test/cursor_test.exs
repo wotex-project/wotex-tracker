@@ -99,6 +99,28 @@ defmodule Wotex.Tracker.Service.CursorTest do
              Cursor.issue(context.key, binding, %{data | "after" => "private-id"}, 10)
   end
 
+  test "analytics cursors bind a generation, query identity, page size and next index", context do
+    binding = %{context.binding | purpose: "analytics"}
+
+    data = %{
+      "kind" => "analytics",
+      "generation" => "42",
+      "query_identity" => "wtr-json-v1:sha256:query",
+      "page_size" => 25,
+      "page_index" => 2
+    }
+
+    assert {:ok, cursor} = Cursor.issue(context.key, binding, data, 10)
+    assert {:ok, ^data} = Cursor.open(context.key, binding, cursor, 10)
+    assert {:error, :invalid_cursor} = Cursor.issue(context.key, context.binding, data, 10)
+
+    assert {:error, :invalid_cursor} =
+             Cursor.issue(context.key, binding, %{data | "page_index" => 0}, 10)
+
+    assert {:error, :invalid_cursor} =
+             Cursor.issue(context.key, binding, %{data | "page_size" => 1_001}, 10)
+  end
+
   test "authenticated payloads still require the exact versioned shape and expiry contract",
        context do
     base = %{

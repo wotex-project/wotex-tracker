@@ -257,7 +257,7 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
-## HTTP and stream contract 1.7.0
+## HTTP and stream contract 1.8.0
 
 The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
 2020-12. The independently maintained generator and validator check the packaged
@@ -280,6 +280,7 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | `/api/v1/scopes/{scope}/health/ready` | GET authenticated writable-store check |
 | `/api/v1/scopes/{scope}/capabilities` | GET explicit available/unsupported/unconfigured status |
 | `…/analytics/query` | POST one read-only structured measurement query against a committed snapshot |
+| `…/analytics/pages` | POST one snapshot-pinned bucket page with an encrypted continuation |
 | `…/observations`, `…/resolutions`, `…/evidence`, `…/state`, `…/enrollments`, `…/things`, `…/saved_queries` | GET public snapshot pages |
 | `…/{resource}/{id}` | GET one public value |
 | `…/{resource}/{id}/history` | GET ascending committed public versions, including deletion records |
@@ -295,8 +296,8 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | `…/events/stream` | GET resumable SSE |
 
 Scoped endpoints require a canonical bearer token in `Authorization`; POST
-mutations additionally require a UUIDv4 `Idempotency-Key`. The analytics query
-is a read-only POST and does not use an idempotency key. No cookies or implicit
+mutations additionally require a UUIDv4 `Idempotency-Key`. Analytics queries and
+pages are read-only POST operations and do not use an idempotency key. No cookies or implicit
 loopback authority are accepted. Success envelopes have exactly `schema`
 (`wtr.response.v1`) and `data`; failures have `schema` and bounded `error` with
 stable `code`/`path`. Mutation failures identify `not_committed`; a lost
@@ -379,6 +380,16 @@ ordered series, bucket geometry, stable last-row ties and disclosure counts.
 Empty buckets stay absent, which requires clients to render gaps. The core
 result material is limited to 256 KiB and HTTP keeps its existing 4 MiB response
 ceiling.
+
+`POST …/analytics/pages` accepts exactly `wtr.query-page-request.v1`: the same
+closed query, a page size from 1 through 1,000 and either null or the previous
+encrypted cursor. The first response pins the current committed generation.
+Each continuation binds the exact query identity, page size, next page index,
+principal, scope and instance to that generation for seven days. Later writes
+cannot enter later pages, while current read authority is checked again on every
+request. Ascending and descending traversal use disjoint bucket windows in the
+requested global order. Invalid, expired, foreign, exhausted or altered cursors
+fail explicitly and never fall forward to a newer generation.
 
 At most eight analytics queries execute concurrently, with two per principal and
 sixteen starts per principal in each one-second window. Admission happens before

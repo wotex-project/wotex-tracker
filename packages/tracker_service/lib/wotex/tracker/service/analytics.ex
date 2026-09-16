@@ -6,14 +6,17 @@ defmodule Wotex.Tracker.Service.Analytics do
 
   @maximum_rows 100_000
 
-  def query(db, scope, spec, authorize \\ fn -> :ok end) do
+  def query(db, scope, spec, authorize \\ fn -> :ok end, pinned_generation \\ nil) do
     with true <- Codec.id?(scope),
-         {:ok, spec} <- QuerySpec.validate(spec) do
+         {:ok, spec} <- QuerySpec.validate(spec),
+         true <- is_nil(pinned_generation) or is_integer(pinned_generation) do
       SQL.execute!(db, "BEGIN")
 
       try do
         authorize.()
-        generation = Transaction.generation(db, scope)
+        current = Transaction.generation(db, scope)
+        generation = pinned_generation || current
+        if generation < 0 or generation > current, do: throw({:storage, :invalid_cursor})
 
         with {:ok, rows} <- rows(db, scope, generation, spec),
              {:ok, result} <-

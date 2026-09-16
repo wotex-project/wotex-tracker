@@ -1,6 +1,7 @@
 defmodule Wotex.Tracker.Service.Cursor do
   @moduledoc """
-  Authenticated encrypted page and event cursors with explicit time and binding.
+  Authenticated encrypted resource, event and analytics cursors with explicit
+  time and binding.
 
   AES-256-GCM keeps internal sort keys and observation identifiers out of URLs.
   Authentication binds instance, principal, scope and purpose. A valid cursor is
@@ -97,7 +98,7 @@ defmodule Wotex.Tracker.Service.Cursor do
        when map_size(binding) == 4,
        do:
          Enum.all?([instance, principal, scope], &Codec.id?/1) and
-           purpose in ["page", "events", "history", "property"]
+           purpose in ["page", "events", "history", "property", "analytics"]
 
   defp binding?(_), do: false
 
@@ -160,13 +161,29 @@ defmodule Wotex.Tracker.Service.Cursor do
       (is_nil(snapshot) or match?({:ok, _}, Codec.generation(snapshot)))
   end
 
+  defp data?(
+         %{
+           "kind" => "analytics",
+           "generation" => generation,
+           "query_identity" => identity,
+           "page_size" => page_size,
+           "page_index" => page_index
+         } = data
+       )
+       when map_size(data) == 5 do
+    match?({:ok, _}, Codec.generation(generation)) and Codec.id?(identity) and
+      is_integer(page_size) and page_size in 1..1_000 and is_integer(page_index) and
+      page_index in 1..999
+  end
+
   defp data?(_), do: false
   defp purpose?(%{purpose: "events"}, data), do: data["kind"] == "events"
   defp purpose?(%{purpose: "history"}, data), do: data["kind"] == "history"
   defp purpose?(%{purpose: "property"}, data), do: data["kind"] == "property"
+  defp purpose?(%{purpose: "analytics"}, data), do: data["kind"] == "analytics"
 
   defp purpose?(%{purpose: "page"}, data),
-    do: data["kind"] not in ["events", "history", "property"]
+    do: data["kind"] not in ["events", "history", "property", "analytics"]
 
   defp key?(key), do: is_binary(key) and byte_size(key) == 32
   defp time?(now), do: Codec.time?(now) and now <= 9_007_199_254_740_991 - @retention

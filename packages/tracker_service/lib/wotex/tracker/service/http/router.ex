@@ -62,6 +62,9 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
   defp request_operation(%{path_info: ["api", "v1", "scopes", _, "analytics", "query"]}),
     do: :analytics
 
+  defp request_operation(%{path_info: ["api", "v1", "scopes", _, "analytics", "pages"]}),
+    do: :analytics
+
   defp request_operation(%{
          path_info: ["api", "v1", "scopes", _, "saved_queries", _, "execute"]
        }),
@@ -114,9 +117,10 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
   defp uncommitted(
          {%{
             method: "POST",
-            path_info: ["api", "v1", "scopes", _scope, "analytics", "query"]
+            path_info: ["api", "v1", "scopes", _scope, "analytics", operation]
           } = conn, result}
-       ),
+       )
+       when operation in ["query", "pages"],
        do: {conn, result}
 
   defp uncommitted({%{method: "POST"} = conn, {:error, code}}) when is_atom(code),
@@ -156,8 +160,9 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
       case conn do
         %{
           method: "POST",
-          path_info: ["api", "v1", "scopes", _scope, "analytics", "query"]
-        } ->
+          path_info: ["api", "v1", "scopes", _scope, "analytics", operation]
+        }
+        when operation in ["query", "pages"] ->
           error
 
         %{method: "POST"} ->
@@ -210,6 +215,22 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
     with {:ok, _} <- Service.authorize(service, token, scope, "read", now),
          {:ok, body, conn} <- Wire.body(conn) do
       {conn, Service.analytics(service, token, scope, body, now)}
+    else
+      {:error, code, conn} -> {conn, Wire.error(code)}
+      error -> {conn, normalize(error)}
+    end
+  end
+
+  defp scoped(
+         %{method: "POST"} = conn,
+         ["analytics", "pages"],
+         params,
+         {service, token, scope, now}
+       )
+       when map_size(params) == 0 do
+    with {:ok, _} <- Service.authorize(service, token, scope, "read", now),
+         {:ok, body, conn} <- Wire.body(conn) do
+      {conn, Service.analytics_page(service, token, scope, body, now)}
     else
       {:error, code, conn} -> {conn, Wire.error(code)}
       error -> {conn, normalize(error)}
