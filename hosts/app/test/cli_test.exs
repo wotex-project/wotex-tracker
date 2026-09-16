@@ -59,8 +59,13 @@ defmodule Wotex.Tracker.Host.CLITest do
     File.write!(path, Codec.encode!(descriptor))
     File.chmod!(path, 0o600)
 
+    elixir = System.find_executable("elixir") || flunk("Elixir executable is unavailable")
+
+    code_paths =
+      Enum.flat_map(:code.get_path(), fn code_path -> ["-pa", List.to_string(code_path)] end)
+
     {output, status} =
-      System.cmd("python3", ["test/cli_consumer.py", path], stderr_to_stdout: true)
+      System.cmd(elixir, code_paths ++ ["scripts/cli_consumer.exs", path], stderr_to_stdout: true)
 
     assert status == 0, output
     assert output =~ "CLI_CONSUMER_PASS"
