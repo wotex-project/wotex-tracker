@@ -92,10 +92,19 @@ defmodule Wotex.Tracker.Host.BrowserTest do
 
     refute inspect(logged_in_headers) =~ c.token
 
+    browser_cookie = cookie(logged_in_headers)
+
+    {302, setup_headers, _} =
+      request(:get, origin <> "/setup", [{~c"cookie", browser_cookie}], nil)
+
+    setup_path = setup_headers |> List.keyfind(~c"location", 0) |> elem(1) |> to_string()
+    assert setup_path =~ "/setup?operation="
+
     {200, _, setup} =
-      request(:get, origin <> "/setup", [{~c"cookie", cookie(logged_in_headers)}], nil)
+      request(:get, origin <> setup_path, [{~c"cookie", browser_cookie}], nil)
 
     assert setup =~ "Inspect observation"
+    assert setup =~ "Import an observation capture"
     refute setup =~ c.token
 
     for path <- [

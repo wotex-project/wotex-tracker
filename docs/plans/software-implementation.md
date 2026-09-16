@@ -303,8 +303,9 @@ showcase is labelled real interoperability or general public availability.
 ## Phase 10 — complete shared LiveView application
 
 The first shared package and optional app-host composition implement sign-in,
-bounded asset/observation browsing, source evidence, confirmed enrollment,
-explicit Thing provisioning, retained measurements and paged history. The host
+bounded asset/observation browsing, one-file Observation JSON import in Setup,
+source evidence, confirmed enrollment, explicit Thing provisioning, retained
+measurements and paged history. The host
 owns the listener, credentials and supervision; the package calls the authorized
 service facade. Stable operation URLs recover durable outcomes on reconnect.
 Revocation, read-only denial, stale writes, lost replies and real HTTP session

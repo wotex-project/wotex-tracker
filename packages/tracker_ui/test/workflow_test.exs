@@ -7,7 +7,7 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
   import Wotex.Tracker.Service.Fixtures
   alias Phoenix.LiveView.Static
   alias Wotex.Tracker.Service
-  alias Wotex.Tracker.Service.Identifier
+  alias Wotex.Tracker.Service.{Codec, Identifier}
   alias Wotex.Tracker.UI.{ErrorHTML, Presenter, Sessions, TestClient, TestEndpoint}
   @endpoint TestEndpoint
 
@@ -182,7 +182,8 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
                )
     end
 
-    {:ok, view, _} = live(c.conn, "/setup")
+    {:error, {:redirect, %{to: path}}} = live(c.conn, "/setup")
+    {:ok, view, _} = live(c.conn, path)
 
     assert length(
              view
@@ -202,6 +203,146 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     view |> element("button", "Refresh") |> render_click()
     assert has_element?(view, "button", "Next page")
     render_click(view, "unknown-event")
+  end
+
+  test "setup imports an observation capture and resumes its durable receipt", c do
+    assert {:error, {:redirect, %{to: path}}} = live(c.conn, "/setup")
+    assert path =~ "/setup?operation="
+    {:ok, view, _} = live(c.conn, path)
+    assert has_element?(view, "#import-capture")
+
+    upload_capture(view, Codec.encode!(import_request()["observation"]))
+    view |> form("#import-capture") |> render_submit()
+
+    assert has_element?(view, "h2", "Capture imported")
+    assert has_element?(view, "a", "Inspect observation")
+    refute has_element?(view, "#import-capture")
+
+    {:ok, %{"items" => [row]}} =
+      Service.list(c.service, c.admin, c.scope, "observations", %{}, c.now)
+
+    assert has_element?(view, ~s(a[href="/observations/#{row["id"]}"]), "Inspect observation")
+    {:ok, resumed, _} = live(c.conn, path)
+    assert has_element?(resumed, "h2", "Capture imported")
+    refute has_element?(resumed, "#import-capture")
+    refute render(resumed) =~ c.admin
+    refute render(resumed) =~ "private-hardware"
+  end
+
+  test "lost capture import reply is recovered without a duplicate write", c do
+    operation = Identifier.uuid()
+    path = "/setup?operation=" <> operation
+    {:ok, view, _} = live(c.conn, path)
+    Agent.update(c.faults, &Map.put(&1, :submit, :lost_reply))
+
+    upload_capture(view, Codec.encode!(import_request()["observation"]))
+    view |> form("#import-capture") |> render_submit()
+
+    assert has_element?(view, "h2", "Import outcome unknown")
+    refute has_element?(view, "#import-capture")
+    view |> element("button", "Check operation outcome") |> render_click()
+    assert has_element?(view, "h2", "Capture imported")
+    {:ok, resumed, _} = live(c.conn, path)
+    assert has_element?(resumed, "h2", "Capture imported")
+    {:ok, receipt} = Service.operation(c.service, c.admin, c.scope, operation, c.now)
+    assert receipt["outcome"] == "committed"
+    {:ok, page} = Service.list(c.service, c.admin, c.scope, "observations", %{}, c.now)
+    assert length(page["items"]) == 1
+  end
+
+  test "a temporary read failure does not mislabel a committed import as unrelated", c do
+    operation = Identifier.uuid()
+
+    {:ok, _} =
+      Service.submit(c.service, c.admin, c.scope, operation, import_request(), c.now)
+
+    {:ok, view, _} = live(c.conn, "/setup?operation=" <> operation)
+    Agent.update(c.faults, &Map.put(&1, :get, :unavailable))
+    view |> element("button", "Check operation outcome") |> render_click()
+    assert has_element?(view, "h2", "Import outcome unknown")
+    refute render(view) =~ "different workflow"
+    view |> element("button", "Check operation outcome") |> render_click()
+    assert has_element?(view, "h2", "Capture imported")
+  end
+
+  test "invalid captures and reader events do not import observations", c do
+    path = "/setup?operation=" <> Identifier.uuid()
+    {:ok, view, _} = live(c.conn, path)
+    upload_capture(view, ~s({"id":1,"id":2}))
+    view |> form("#import-capture") |> render_submit()
+    assert render(view) =~ "Check the required fields"
+    assert has_element?(view, "#import-capture")
+
+    {:ok, %{"id" => reader}} = Sessions.login(c.sessions, c.reader, c.scope)
+    conn = build_conn() |> init_test_session(%{"browser_session" => reader})
+    {:ok, readonly, _} = live(conn, path)
+    refute has_element?(readonly, "#import-capture")
+    render_click(readonly, "import")
+    assert render(readonly) =~ "does not permit"
+    {:ok, page} = Service.list(c.service, c.admin, c.scope, "observations", %{}, c.now)
+    assert page["items"] == []
+  end
+
+  test "capture uploads enforce the file bound and a fresh service generation", c do
+    {:ok, view, _} = live(c.conn, "/setup?operation=" <> Identifier.uuid())
+
+    oversized =
+      file_input(view, "#import-capture", :observation, [
+        %{
+          name: "large.json",
+          content: String.duplicate("x", 262_145),
+          type: "application/json"
+        }
+      ])
+
+    assert {:error, _} = render_upload(oversized, "large.json")
+    assert render(view) =~ "Choose one JSON capture of 256 KiB or less"
+
+    {:ok, fresh, _} = live(c.conn, "/setup?operation=" <> Identifier.uuid())
+
+    {:ok, _} =
+      Service.submit(c.service, c.admin, c.scope, Identifier.uuid(), import_request(), c.now)
+
+    upload_capture(
+      fresh,
+      Codec.encode!(import_request(%{id: "later", observed_at: c.now + 1})["observation"])
+    )
+
+    fresh |> form("#import-capture") |> render_submit()
+    assert render(fresh) =~ "changed since this page loaded"
+    refute has_element?(fresh, "h2", "Capture imported")
+    {:ok, page} = Service.list(c.service, c.admin, c.scope, "observations", %{}, c.now)
+    assert length(page["items"]) == 1
+  end
+
+  test "setup rejects an unrelated operation receipt and a malformed reference", c do
+    import_operation = Identifier.uuid()
+
+    {:ok, imported} =
+      Service.submit(c.service, c.admin, c.scope, Identifier.uuid(), import_request(), c.now)
+
+    observation = imported["data"]["observation_id"]
+
+    {:ok, _} =
+      Service.enroll(
+        c.service,
+        c.admin,
+        c.scope,
+        import_operation,
+        %{
+          "observation_id" => observation,
+          "title" => "Other workflow",
+          "owner_confirmed" => true,
+          "expected_generation" => "1"
+        },
+        c.now
+      )
+
+    {:ok, view, _} = live(c.conn, "/setup?operation=" <> import_operation)
+    assert render(view) =~ "different workflow"
+    refute has_element?(view, "#import-capture")
+    {:ok, invalid, _} = live(c.conn, "/setup?operation=invalid")
+    refute has_element?(invalid, "#import-capture")
   end
 
   test "lost enrollment reply is recovered through its receipt after reconnect", c do
@@ -351,6 +492,15 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
       Service.submit(c.service, c.admin, c.scope, Identifier.uuid(), import_request(), c.now)
 
     result["data"]["observation_id"]
+  end
+
+  defp upload_capture(view, bytes) do
+    upload =
+      file_input(view, "#import-capture", :observation, [
+        %{name: "observation.json", content: bytes, type: "application/json"}
+      ])
+
+    render_upload(upload, "observation.json")
   end
 
   defp enrolled(c) do

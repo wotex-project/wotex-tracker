@@ -5,9 +5,10 @@ no application callback, endpoint, listener or automatic session store.
 Hosts own and explicitly supervise those resources.
 
 The first workflow covers sign-in, bounded asset and observation lists,
-evidence inspection, confirmed enrollment, explicit provisioning, retained
-measurements and resource history. Unsupported positioning and Actions are
-identified honestly. This is not full application, Pi or mobile acceptance.
+single-file Observation JSON capture import in Setup, evidence inspection,
+confirmed enrollment, explicit provisioning, retained measurements and
+resource history. Unsupported positioning and Actions are identified honestly.
+This is not full application, Pi or mobile acceptance.
 
 `Wotex.Tracker.UI.Local` calls only the public authorized service facade.
 `Wotex.Tracker.UI.Sessions` keeps bearer credentials in bounded server memory;
@@ -21,11 +22,14 @@ each request, so a restarted store is not cached in a view. The standalone app
 host owns the endpoint, PubSub, session supervision and private listener
 configuration; this package imports no host modules.
 
-Enrollment and provisioning acquire a stable operation reference in the page
-URL before exposing a submit control. Reconnect checks the durable receipt,
-including its resource identity. An unknown outcome is shown explicitly and
-does not permit an automatic repeat. Views retain only bounded presentation
-snapshots; authority and canonical state remain in the service.
+Capture import, enrollment and provisioning acquire a stable operation reference
+in the page URL before exposing a submit control. Reconnect checks the durable
+receipt, including its resource identity. An unknown outcome is shown explicitly
+and does not permit an automatic repeat. Setup accepts one `.json` file of at
+most 256 KiB and passes its decoded Observation envelope to the authorized
+service admission contract. It does not scan a device or create a capture.
+Views retain only bounded presentation snapshots; authority and canonical state
+remain in the service.
 
 Run the complete local gate from this package directory:
 
@@ -41,8 +45,8 @@ package archive contains its Elixir modules, CSS and hook, with no endpoint or
 test helpers. Root and service-only consumers do not depend on this package.
 
 The first cohort exercises real authorized services, duplicate prevention,
-lost-reply recovery, revocation, read-only denial, bounded lists/history,
-CSRF protection and credential custody. Complete setup/import, maps, trips,
-protection, interactions, privacy controls, analytics, remote adapters and
-cross-surface accessibility remain subsequent work. A responsive browser view
-does not qualify a mobile or Pi application.
+lost-reply recovery, revocation, read-only denial, upload bounds, bounded
+lists/history, CSRF protection and credential custody. Device discovery and
+capture, maps, trips, protection, interactions, privacy controls, analytics,
+remote adapters and cross-surface accessibility remain subsequent work. A
+responsive browser view does not qualify a mobile or Pi application.

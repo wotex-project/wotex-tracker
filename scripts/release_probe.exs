@@ -356,6 +356,24 @@ defmodule Wotex.Tracker.ReleaseProbe do
     {200, _headers, assets} = browser_request(:get, origin <> "/", [{~c"cookie", cookie}], nil)
     true = String.contains?(assets, thing)
 
+    {302, setup_headers, _body} =
+      browser_request(:get, origin <> "/setup", [{~c"cookie", cookie}], nil)
+
+    setup_location = setup_headers |> List.keyfind(~c"location", 0) |> elem(1) |> to_string()
+    true = String.contains?(setup_location, "/setup?operation=")
+
+    {200, _headers, setup} =
+      browser_request(
+        :get,
+        URI.merge(origin, setup_location) |> to_string(),
+        [{~c"cookie", cookie}],
+        nil
+      )
+
+    true = String.contains?(setup, "Import an observation capture")
+    true = String.contains?(setup, "id=\"import-capture\"")
+    false = String.contains?(setup, instance.token)
+
     {302, detail_headers, _body} =
       browser_request(
         :get,
