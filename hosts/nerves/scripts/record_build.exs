@@ -1,18 +1,22 @@
 defmodule Wotex.Tracker.Nerves.BuildRecord do
   @moduledoc false
 
-  @required ~w(exqlite nerves_runtime nerves_time vintage_net vintage_net_ethernet wotex_tracker_service)
-  @excluded ~w(nerves_ssh nerves_pack phoenix phoenix_live_view wotex_tracker_host wotex_tracker_ui)
+  @base_required ~w(exqlite nerves_runtime nerves_time vintage_net vintage_net_ethernet wotex_tracker_service)
+  @base_excluded ~w(nerves_ssh nerves_pack wotex_tracker_host)
 
   def run do
+    ui? = System.get_env("WOTEX_TRACKER_UI") == "1"
+    profile = if(ui?, do: "kiosk", else: "headless")
+    build_dir = if(ui?, do: "_build/ui", else: "_build")
+    system = if(ui?, do: :kiosk_system_rpi5, else: :nerves_system_rpi5)
     host = File.cwd!()
     root = Path.expand("../..", host)
-    image = Path.join(host, "_build/rpi5_dev/nerves/images/wotex_tracker_nerves.fw")
+    image = Path.join(host, "#{build_dir}/rpi5_dev/nerves/images/wotex_tracker_nerves.fw")
 
     release =
       Path.join(
         host,
-        "_build/rpi5_dev/rel/wotex_tracker_nerves/releases/0.1.0/wotex_tracker_nerves.rel"
+        "#{build_dir}/rpi5_dev/rel/wotex_tracker_nerves/releases/0.1.0/wotex_tracker_nerves.rel"
       )
 
     release_root = Path.expand("../../..", release)
@@ -30,8 +34,22 @@ defmodule Wotex.Tracker.Nerves.BuildRecord do
       end)
 
     names = Map.keys(apps)
-    true = Enum.all?(@required, &(&1 in names))
-    true = Enum.all?(@excluded, &(&1 not in names))
+    ui_required = ~w(muontrap myelin phoenix phoenix_live_view wotex_tracker_ui)
+    required = @base_required ++ if(ui?, do: ui_required, else: [])
+    excluded = @base_excluded ++ if(ui?, do: [], else: ui_required)
+    true = Enum.all?(required, &(&1 in names))
+    true = Enum.all?(excluded, &(&1 not in names))
+
+    if ui? do
+      kiosk_beam =
+        Path.join(
+          release_root,
+          "lib/wotex_tracker_nerves-0.1.0/ebin/Elixir.Wotex.Tracker.Nerves.Kiosk.Process.beam"
+        )
+
+      true = File.regular?(kiosk_beam)
+    end
+
     {_, :none} = Map.fetch!(apps, "iex")
 
     args = File.read!(Path.join(release_root, "releases/0.1.0/vm.args"))
@@ -44,6 +62,15 @@ defmodule Wotex.Tracker.Nerves.BuildRecord do
     nif = Path.join(release_root, "lib/exqlite-0.40.0/priv/sqlite3_nif.so")
     {nif_type, 0} = System.cmd("file", ["-b", nif])
     true = String.contains?(nif_type, "ARM aarch64")
+
+    myelin_extension =
+      if ui? do
+        {version, _} = Map.fetch!(apps, "myelin")
+        library = Path.join(release_root, "lib/myelin-#{version}/priv/webext/libmyelin.so")
+        {type, 0} = System.cmd("file", ["-b", library])
+        true = String.contains?(type, "ARM aarch64")
+        String.trim(type)
+      end
 
     {metadata_text, 0} = System.cmd("fwup", ["-m", "-i", image])
 
@@ -59,30 +86,50 @@ defmodule Wotex.Tracker.Nerves.BuildRecord do
     "aarch64" = metadata["meta-architecture"]
     lock = Mix.Dep.Lock.read()
 
-    record = %{
-      "schema" => "wtr.nerves-headless-build.v1",
-      "kind" => "development_cross_build",
-      "firmware" => %{
+    firmware =
+      %{
         "sha256" => digest(image),
         "bytes" => File.stat!(image).size,
         "metadata" => metadata,
         "target_erts" => erts,
         "target_elixir" => elem(apps["elixir"], 0),
         "sqlite_nif" => String.trim(nif_type)
-      },
+      }
+      |> then(fn value ->
+        if ui?, do: Map.put(value, "myelin_web_extension", myelin_extension), else: value
+      end)
+
+    record = %{
+      "schema" => "wtr.nerves-#{profile}-build.v1",
+      "kind" => "development_cross_build",
+      "firmware" => firmware,
       "resolved" =>
         Map.new(
-          ~w(nerves nerves_system_rpi5 nerves_toolchain_aarch64_nerves_linux_gnu nerves_runtime nerves_time vintage_net vintage_net_ethernet)a,
+          [
+            :nerves,
+            system,
+            :nerves_toolchain_aarch64_nerves_linux_gnu,
+            :nerves_runtime,
+            :nerves_time,
+            :vintage_net,
+            :vintage_net_ethernet
+          ] ++
+            if(ui?, do: [:muontrap, :myelin, :phoenix, :phoenix_live_view], else: []),
           fn name -> {Atom.to_string(name), lock |> Map.fetch!(name) |> elem(2)} end
         ),
       "release_applications" => Enum.sort(names),
-      "checks" => %{
-        "required_service_network_time_storage" => true,
-        "no_browser_or_ssh_applications" => true,
-        "no_active_iex_or_distribution" => true,
-        "no_credentials_in_runtime_config" => true,
-        "sqlite_nif_aarch64" => true
-      },
+      "checks" =>
+        %{
+          "required_service_network_time_storage" => true,
+          "profile_application_set" => true,
+          "no_ssh_applications" => true,
+          "no_active_iex_or_distribution" => true,
+          "no_credentials_in_runtime_config" => true,
+          "sqlite_nif_aarch64" => true
+        }
+        |> then(fn checks ->
+          if ui?, do: Map.put(checks, "myelin_web_extension_aarch64", true), else: checks
+        end),
       "sources" => %{
         "wotex_tracker" => source(root),
         "wotex" => source(Path.expand("../wotex", root)),
@@ -93,7 +140,7 @@ defmodule Wotex.Tracker.Nerves.BuildRecord do
       "hardware_acceptance" => "not_executed"
     }
 
-    destination = Path.join(root, "verification/nerves-headless-build.json")
+    destination = Path.join(root, "verification/nerves-#{profile}-build.json")
     File.write!(destination, Jason.encode!(record, pretty: true) <> "\n")
     IO.puts("Recorded #{Path.relative_to(destination, root)}")
   end

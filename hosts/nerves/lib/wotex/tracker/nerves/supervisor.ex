@@ -1,0 +1,46 @@
+defmodule Wotex.Tracker.Nerves.Supervisor do
+  @moduledoc "Appliance-owned service and optional presentation supervision."
+  use Supervisor
+  alias Wotex.Tracker.Service.HTTP.{Config, Server}
+  @kiosk_target Mix.target() == :rpi5
+
+  def start_link(options), do: Supervisor.start_link(__MODULE__, options, name: __MODULE__)
+
+  @impl true
+  def init(options) do
+    parent = self()
+    {:ok, config} = Config.new(options[:service])
+
+    provider = fn ->
+      with {:ok, server} <- Server.child(parent, Server), do: Server.context(server, config)
+    end
+
+    server_provider = fn -> Server.child(parent, Server) end
+
+    browser =
+      if options[:browser] do
+        [
+          {Wotex.Tracker.Nerves.Browser, {options[:browser], provider, server_provider}}
+        ]
+      else
+        []
+      end
+
+    kiosk = if @kiosk_target, do: kiosk_child(options[:browser]), else: []
+
+    Supervisor.init([{Server, options[:service]}] ++ browser ++ kiosk,
+      strategy: :one_for_one
+    )
+  end
+
+  defp kiosk_child(nil), do: []
+
+  defp kiosk_child(config) do
+    [
+      Supervisor.child_spec(
+        {Wotex.Tracker.Nerves.Kiosk, config},
+        restart: :temporary
+      )
+    ]
+  end
+end

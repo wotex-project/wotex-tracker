@@ -1,8 +1,8 @@
 defmodule Wotex.Tracker.Nerves.Application do
-  @moduledoc "Headless Pi host; the shared library and service remain inert until started here."
+  @moduledoc "Pi host for the headless and optional kiosk images."
   use Application
   alias Wotex.Tracker.Nerves.Config
-  alias Wotex.Tracker.Service.HTTP.Server
+  alias Wotex.Tracker.Nerves.Supervisor, as: HostSupervisor
 
   @impl true
   def start(_type, _args) do
@@ -10,11 +10,29 @@ defmodule Wotex.Tracker.Nerves.Application do
            Config.load(
              Application.get_env(:wotex_tracker_nerves, :config_path),
              Application.get_env(:wotex_tracker_nerves, :data_root)
-           ) do
-      Supervisor.start_link([{Server, options}],
-        strategy: :one_for_one,
-        name: Wotex.Tracker.Nerves.Supervisor
-      )
+           ),
+         {:ok, browser} <- browser_config(options) do
+      HostSupervisor.start_link(service: options, browser: browser)
+    end
+  end
+
+  defp browser_config(options) do
+    case Application.get_env(:wotex_tracker_nerves, :browser_config_path) do
+      nil ->
+        {:ok, nil}
+
+      path ->
+        module = Wotex.Tracker.Nerves.BrowserConfig
+
+        if Code.ensure_loaded?(module) do
+          apply(module, :load, [
+            path,
+            Application.get_env(:wotex_tracker_nerves, :data_root),
+            options
+          ])
+        else
+          {:error, :ui_not_in_artifact}
+        end
     end
   end
 end

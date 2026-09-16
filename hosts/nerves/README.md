@@ -1,8 +1,8 @@
-# Headless Raspberry Pi 5 host
+# Raspberry Pi 5 host
 
-This is a separate Nerves application that starts one explicit Tracker HTTP
-service. The root library has no startup callback. This image does not contain
-the desktop host, Phoenix, LiveView, a display server, SSH service, or an active
+This separate Nerves application starts one explicit Tracker HTTP service. The
+root library has no startup callback. The default headless image contains no
+desktop host, Phoenix, LiveView, display server, SSH service, or active
 IEx/distribution listener. Ethernet uses DHCP; NervesTime attempts NTP and
 retains a last-known clock estimate under `/data`.
 
@@ -51,10 +51,60 @@ trial has been exercised. The default Nerves data-partition initialization can
 reformat unreadable storage; a durable product image needs a tested recovery
 policy before history preservation can be claimed. Offline clock estimates are
 not trusted NTP synchronization, so credential expiry under an unsynchronized
-clock needs a device policy before exposed use. The separate UI-enabled image,
-local authenticated setup, presentation failure isolation and hardware gates
-remain open.
+clock needs a device policy before exposed use. Local authenticated bootstrap
+setup and hardware gates remain open.
 
 The build record in `../../verification/nerves-headless-build.json` contains
 the local firmware digest and resolved target components when generated. The
 firmware itself is deliberately untracked.
+
+## Optional local control panel
+
+Set `WOTEX_TRACKER_UI=1` to select a separately locked kiosk build. It uses
+`kiosk_system_rpi5` 2.1.2, the shared Tracker LiveView package, a loopback
+endpoint and Cog on the attached display. Myelin supplies a touch keyboard for
+text fields. The kiosk launcher waits for a DRM card and gives display startup
+a finite retry budget. It is a sibling of the HTTP service, so the service and
+store continue when presentation is stopped. There is no SSH or distribution
+listener in this profile either.
+
+```sh
+WOTEX_PATH_DEPS=1 WOTEX_TRACKER_UI=1 MIX_TARGET=host MIX_ENV=test \
+  mise exec -- mix deps.get
+WOTEX_PATH_DEPS=1 WOTEX_TRACKER_UI=1 MIX_TARGET=host MIX_ENV=test \
+  mise exec -- mix test --no-start
+WOTEX_PATH_DEPS=1 WOTEX_TRACKER_UI=1 MIX_TARGET=rpi5 MIX_ENV=dev \
+  mise exec elixir@1.20.4-otp-29 erlang@29.0.4 -- mix deps.get
+WOTEX_PATH_DEPS=1 WOTEX_TRACKER_UI=1 MIX_TARGET=rpi5 MIX_ENV=dev \
+  mise exec elixir@1.20.4-otp-29 erlang@29.0.4 -- mix firmware
+```
+
+The firmware is `_build/ui/rpi5_dev/nerves/images/wotex_tracker_nerves.fw`.
+Its dependency lock is `mix.ui.lock`, separate from the headless `mix.lock`.
+
+The kiosk also needs `/data/tracker/browser.json`, a private 0600 file under
+the same private directory as the service configuration:
+
+```json
+{
+  "schema": "wtr.browser.v1",
+  "listen": {"ip": "127.0.0.1", "port": 4000},
+  "exposure": "loopback",
+  "public_origin": "http://127.0.0.1:4000",
+  "secret_key_base": "replace-with-at-least-64-unpredictable-characters"
+}
+```
+
+The signing secret must be independently generated and kept private. The
+browser signs in with a provisioned service token. The present image has no
+on-device credential/bootstrap setup, so a device without these files cannot
+reach an authenticated panel. The host test verifies the loopback page and
+that a controlled presentation restart retains the store. GPU, touch, keyboard,
+orientation, offline workflow and physical fault isolation remain hardware
+acceptance work, not conclusions from the cross-build.
+
+`../../verification/nerves-kiosk-build.json` records the resolved kiosk
+artifact when generated. Raspberry Pi OS containers can exercise ARM64 userland
+but cannot boot this Nerves firmware or validate its board/display path; the
+[Nerves ARM64 QEMU system](https://github.com/nerves-project/nerves_system_qemu_aarch64)
+is the closer virtual boot candidate.

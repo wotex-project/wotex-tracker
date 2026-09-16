@@ -3,9 +3,10 @@
 ## Status
 
 Accepted target contract. A separate headless host and Pi 5 development
-cross-build now exist under `hosts/nerves/`; local startup tests and a resolved
-firmware manifest are software evidence only. The image has not booted on a Pi,
-and no UI-enabled image, device provisioning workflow, durable-storage policy or
+cross-build now exist under `hosts/nerves/`. A separately locked kiosk source
+profile reuses the shared LiveView package and has local endpoint/store-isolation
+tests. Cross-build manifests are software evidence only. Neither image has
+booted on a Pi, and no device provisioning workflow, durable-storage policy or
 hardware acceptance exists yet. Bootable headless and local-display profiles
 remain required product deliverables and optional installations. They consume
 the pure library without changing its startup or dependency contract. WTR.13
