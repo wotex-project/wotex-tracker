@@ -1,9 +1,14 @@
 defmodule Wotex.Tracker.Host.Browser.Client do
   @moduledoc """
-  Browser host adapter. Ordinary actions use the shared authorized service
-  client; operational pages additionally require current admin authority on
-  both sides of a bounded collector read.
+  Connects the standalone browser to its current service instance.
+
+  Ordinary actions delegate to `Wotex.Tracker.UI.Local` and the public service
+  facade. Operational history is a separate bounded collector read, allowed
+  only under an administrator grant checked before and after the fetch. The
+  adapter normalizes failures to coded public errors and retains no privileged
+  store handle in a LiveView.
   """
+
   @behaviour Wotex.Tracker.UI.Client
   alias Wotex.Tracker.Service
   alias Wotex.Tracker.Service.{OperationalHistory, Result}

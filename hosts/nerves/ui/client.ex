@@ -1,5 +1,14 @@
 defmodule Wotex.Tracker.Nerves.Browser.Client do
-  @moduledoc "Authorized Pi host adapter for the shared browser screens."
+  @moduledoc """
+  Connects shared browser screens to the current Pi service instance.
+
+  Ordinary actions use `Wotex.Tracker.UI.Local` and its public service facade.
+  Host operational history is a separate administrator-only action: it checks
+  the current grant before and after fetching a volatile page and normalizes
+  failures to coded public errors. The adapter does not expose store internals
+  or retain a service process across restarts.
+  """
+
   @behaviour Wotex.Tracker.UI.Client
   alias Wotex.Tracker.Service
   alias Wotex.Tracker.Service.{OperationalHistory, Result}

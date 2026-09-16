@@ -1,7 +1,15 @@
 defmodule Wotex.Tracker.Host.Config do
   @moduledoc """
-  Private browser configuration for the standalone host.
+  Loads private service and optional browser configuration for the standalone host.
+
+  `load/1` delegates the closed service document to
+  `Wotex.Tracker.Service.HTTP.FileConfig`. `load_browser/2` accepts a separate
+  private browser file, checks its listener, origin, exposure, signing secret,
+  and optional model budgets against the service configuration, then returns
+  a `Wotex.Tracker.Host.BrowserConfig`. An absent browser path leaves the
+  headless service available; malformed configuration fails startup.
   """
+
   alias Wotex.Tracker.Host.{BrowserConfig, PromptConfig}
   alias Wotex.Tracker.Service.HTTP.Config, as: ServerConfig
   alias Wotex.Tracker.Service.HTTP.FileConfig

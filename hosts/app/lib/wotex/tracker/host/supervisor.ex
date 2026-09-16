@@ -1,5 +1,6 @@
 defmodule Wotex.Tracker.Host.Supervisor do
   @moduledoc false
+
   use Supervisor
   alias Wotex.Tracker.Service.HTTP.{Config, Server}
 

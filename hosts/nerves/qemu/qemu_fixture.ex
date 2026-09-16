@@ -1,5 +1,14 @@
 defmodule Wotex.Tracker.Nerves.QemuFixture do
-  @moduledoc "Ephemeral first-boot configuration for the virtual smoke image only."
+  @moduledoc """
+  Prepares the isolated configuration used by the QEMU software-boot image.
+
+  On the first virtual boot, `prepare/1` creates a private service directory,
+  data directory, and random credential digest without publishing a usable
+  token. The same virtual disk retains them for the reboot probe. `verify/0`
+  reports only whether the private SQLite file and guest-loopback health
+  endpoint are present. This fixture is absent from Pi firmware profiles.
+  """
+
   require Logger
   alias Wotex.Tracker.Service.{Codec, Credentials}
 

@@ -1,9 +1,14 @@
 defmodule Wotex.Tracker.Host.Browser.OpenAI do
   @moduledoc """
-  Explicit OpenAI Responses adapter for question translation only. No tools,
-  service credentials, readings or model-authored graph data cross this boundary.
-  The private host configuration supplies the endpoint, key and all budgets.
+  Sends bounded graph-question translations through the configured Responses endpoint.
+
+  The private host configuration supplies the endpoint, model, API key, timeout,
+  and byte, token, and cost budgets. Requests use a closed JSON schema with no
+  tools or stored response. Neither service credentials nor readings cross this
+  boundary. The model can propose form fields or a clarification, never graph
+  data or service authority; `Wotex.Tracker.UI.Prompt` validates its answer.
   """
+
   alias Mint.HTTP1, as: HTTP
 
   @instructions """

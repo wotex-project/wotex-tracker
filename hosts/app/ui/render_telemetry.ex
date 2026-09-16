@@ -1,5 +1,13 @@
 defmodule Wotex.Tracker.Host.Browser.RenderTelemetry do
-  @moduledoc "Host-owned bridge from LiveView render spans to closed operational samples."
+  @moduledoc """
+  Records bounded host operational samples for shared LiveView renders.
+
+  The process attaches to the listed Phoenix render telemetry events and
+  records duration and outcome through `Wotex.Tracker.Service.OperationalTelemetry`.
+  It accepts only known Tracker views, ignores component renders, and detaches
+  its handler on termination. Samples contain no rendered page or credential.
+  """
+
   use GenServer
 
   alias Wotex.Tracker.Service.OperationalTelemetry

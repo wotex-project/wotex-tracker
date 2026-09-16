@@ -1,5 +1,13 @@
 defmodule Wotex.Tracker.Host.BrowserConfig do
-  @moduledoc "Validated browser configuration with secrets and private paths redacted from inspection."
+  @moduledoc """
+  Holds the standalone host's validated browser listener configuration.
+
+  The host configuration loader checks the listener, public origin, exposure
+  mode, TLS, and session-signing secret before constructing this value. Only
+  the address, port, origin, and exposure appear in inspection; TLS material,
+  prompt configuration, and the secret key remain omitted.
+  """
+
   @derive {Inspect, only: [:ip, :port, :public_origin, :exposure]}
   @enforce_keys [:ip, :port, :public_origin, :exposure, :tls, :secret_key_base]
   defstruct @enforce_keys ++ [prompt: nil]

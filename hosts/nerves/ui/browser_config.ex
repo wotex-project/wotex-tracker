@@ -1,5 +1,13 @@
 defmodule Wotex.Tracker.Nerves.BrowserConfig do
-  @moduledoc "Private loopback configuration for the optional local control panel."
+  @moduledoc """
+  Loads the Pi control panel's private loopback configuration.
+
+  `load/3` accepts only `browser.json` under the writable private root. It
+  checks the closed schema, file and directory policy, listener and matching
+  origin, and session-signing secret before returning a listener configuration.
+  Inspection includes only the address, port, and origin, never the secret.
+  """
+
   @derive {Inspect, only: [:ip, :port, :public_origin]}
   @enforce_keys [:ip, :port, :public_origin, :secret_key_base]
   defstruct @enforce_keys

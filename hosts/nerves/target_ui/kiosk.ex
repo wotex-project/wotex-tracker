@@ -1,5 +1,13 @@
 defmodule Wotex.Tracker.Nerves.Kiosk do
-  @moduledoc "Bounded local display launcher, isolated from ingestion supervision."
+  @moduledoc """
+  Launches the Pi kiosk only after a DRM display card appears.
+
+  The launcher gives display startup a finite retry budget and monitors the
+  display process. It is a temporary child beside the service and browser,
+  so a missing or stopped display does not restart ingestion or the store.
+  This module is compiled only for the UI-enabled Pi target.
+  """
+
   use GenServer
   require Logger
 

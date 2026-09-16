@@ -1,5 +1,13 @@
 defmodule Wotex.Tracker.Host.PromptConfig do
-  @moduledoc "Validated host-owned model configuration; inspection omits the API key."
+  @moduledoc """
+  Holds the optional host-owned model provider configuration.
+
+  The structure fixes endpoint, model, request and response bounds, concurrency,
+  rate, and cost budgets for the public graph translator. Host configuration
+  validation constructs it; the shared UI receives only the provider seam.
+  Inspection omits the API key and provider unit prices.
+  """
+
   @derive {Inspect,
            only: [
              :endpoint,

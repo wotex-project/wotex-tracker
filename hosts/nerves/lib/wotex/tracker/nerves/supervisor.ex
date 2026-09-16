@@ -1,5 +1,14 @@
 defmodule Wotex.Tracker.Nerves.Supervisor do
-  @moduledoc "Appliance-owned service and optional presentation supervision."
+  @moduledoc """
+  Separates the Nerves service from optional presentation processes.
+
+  The service server is always supervised. A configured browser starts its
+  loopback endpoint and session store; the Pi display launcher is an additional
+  temporary child. A display failure does not restart the service or its
+  durable store. Browser requests resolve the current service child instead
+  of retaining an old process reference after a restart.
+  """
+
   use Supervisor
   alias Wotex.Tracker.Service.HTTP.{Config, Server}
   @kiosk_target Mix.target() == :rpi5

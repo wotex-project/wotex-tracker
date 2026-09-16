@@ -1,5 +1,14 @@
 defmodule Wotex.Tracker.Nerves.Application do
-  @moduledoc "Pi host for the headless and optional kiosk images."
+  @moduledoc """
+  Starts the Nerves Tracker service image and its optional control panel.
+
+  The Pi images load private service and, when configured, browser files from
+  the writable mount before supervision. The QEMU software-test target also
+  prepares its isolated first-boot fixture and checks loopback service health.
+  Startup does not turn the presence of a display into authority to enroll or
+  access Tracker data.
+  """
+
   use Application
   alias Wotex.Tracker.Nerves.Config
   alias Wotex.Tracker.Nerves.Supervisor, as: HostSupervisor

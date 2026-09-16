@@ -1,5 +1,6 @@
 defmodule Wotex.Tracker.Host.Browser.Endpoint do
   @moduledoc false
+
   use Phoenix.Endpoint, otp_app: :wotex_tracker_host
 
   @session [

@@ -6,6 +6,7 @@ defmodule Wotex.Tracker.Nerves.Config do
   private writable root before the appliance starts. Nothing in the firmware
   contains a credential or creates one on boot.
   """
+
   import Bitwise
   alias Wotex.Tracker.Service.HTTP.FileConfig
   alias Wotex.Tracker.Service.StorePath

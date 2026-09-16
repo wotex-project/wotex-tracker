@@ -1,5 +1,6 @@
 defmodule Wotex.Tracker.Nerves.Kiosk.Process do
   @moduledoc false
+
   use Supervisor
 
   @bus "unix:path=/run/dbus-session-bus"

@@ -1,5 +1,13 @@
 defmodule Wotex.Tracker.Nerves.Browser do
-  @moduledoc "Optional loopback control panel using the shared LiveView screens."
+  @moduledoc """
+  Supervises the Pi control panel's loopback browser endpoint.
+
+  This optional Nerves profile reuses `Wotex.Tracker.UI.Router` and its shared
+  LiveViews. The host owns PubSub, server-held sessions, listener bounds, and
+  origin checks. It binds to loopback and delegates all Tracker data requests
+  to the authorized service; stopping the panel leaves ingestion running.
+  """
+
   use Supervisor
   alias Wotex.Tracker.Nerves.Browser.{Client, Endpoint}
   alias Wotex.Tracker.UI.Sessions

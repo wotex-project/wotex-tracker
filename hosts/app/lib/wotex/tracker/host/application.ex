@@ -1,5 +1,13 @@
 defmodule Wotex.Tracker.Host.Application do
-  @moduledoc "Standalone host startup; the library packages remain inert."
+  @moduledoc """
+  Starts the standalone Tracker service host.
+
+  Startup loads private service configuration and optional browser
+  configuration before supervising either component. Requesting a browser
+  from a headless artifact fails instead of starting a partial UI. The root,
+  service, and shared UI library packages do not start this host themselves.
+  """
+
   use Application
   alias Wotex.Tracker.Host.Config
 

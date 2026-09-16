@@ -1,8 +1,13 @@
 defmodule Wotex.Tracker.Host.Browser.PromptProvider do
   @moduledoc """
-  Host-owned bounded request admission. Each proposal runs in a supervised task;
-  caller loss and deadlines cancel it. The model never handles service authority.
+  Admits optional graph-question translation requests within host budgets.
+
+  Each proposal runs in a supervised task under configured concurrency, rate,
+  and deadline limits. Caller loss and deadline expiry cancel work. The model
+  receives the bounded question context from `Wotex.Tracker.UI.Prompt`; it does
+  not hold a service credential or decide whether a query is authorized.
   """
+
   use GenServer
   alias Wotex.Tracker.Host.Browser.OpenAI
 

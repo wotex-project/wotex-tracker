@@ -1,5 +1,13 @@
 defmodule Wotex.Tracker.Host.Browser do
-  @moduledoc "Optional browser composition; only a UI-enabled artifact compiles this host."
+  @moduledoc """
+  Supervises the standalone host's optional browser presentation.
+
+  A UI-enabled artifact includes this module and the shared LiveView package.
+  It starts PubSub, bounded server-held sessions, the endpoint, render
+  telemetry, and an optional host-owned prompt provider. The service remains
+  authoritative; this supervisor owns no second observation store.
+  """
+
   use Supervisor
   alias Wotex.Tracker.Host.Browser.{Client, Endpoint}
   alias Wotex.Tracker.Host.Browser.PromptProvider

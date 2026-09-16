@@ -1,5 +1,6 @@
 defmodule Wotex.Tracker.Nerves.Browser.Endpoint do
   @moduledoc false
+
   use Phoenix.Endpoint, otp_app: :wotex_tracker_nerves
 
   @session [
