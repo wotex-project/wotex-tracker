@@ -340,6 +340,9 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     render_click(asset, "export-history")
     refute_push_event(asset, "download-history-page", %{"content" => _})
     refute has_element?(asset, "button", "Export this history page (JSON)")
+
+    render_click(asset, "export-all-history")
+    refute_push_event(asset, "download-history", %{"content" => _})
   end
 
   test "history pages can be revisited without losing the current page on failure", c do
@@ -368,6 +371,22 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert has_element?(asset, "tbody tr:first-child td:first-child", "3")
     assert has_element?(asset, "button", "Next history page")
     refute has_element?(asset, "button", "Previous history page")
+
+    asset |> element("button", "Export retained history (JSON)") |> render_click()
+    assert_push_event(asset, "download-history", %{"content" => complete_json})
+    complete = Jason.decode!(complete_json)
+    assert complete["schema"] == "wtr.history-export.v1"
+    assert complete["snapshot_generation"] == "28"
+    assert complete["item_count"] == 26
+    assert complete["page_count"] == 1
+    assert complete["complete"] == true
+    assert Enum.map(complete["items"], & &1["generation"]) == Enum.map(3..28, &to_string/1)
+    refute complete_json =~ "wtrc1."
+
+    Agent.update(c.faults, &Map.put(&1, :history, :unavailable))
+    asset |> element("button", "Export retained history (JSON)") |> render_click()
+    refute_push_event(asset, "download-history", %{"content" => _})
+    assert has_element?(asset, "[role=alert]")
 
     asset |> element("button", "Next history page") |> render_click()
     assert has_element?(asset, "tbody tr:first-child td:first-child", "28")
@@ -400,6 +419,12 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     refute has_element?(asset, "button", "Next history page")
     refute has_element?(asset, "button", "Previous history page")
     assert has_element?(asset, "[role=alert]")
+
+    asset |> element("button", "Refresh") |> render_click()
+    Agent.update(c.faults, &Map.put(&1, :history, {:deny, "forbidden"}))
+    asset |> element("button", "Export retained history (JSON)") |> render_click()
+    refute_push_event(asset, "download-history", %{"content" => _})
+    refute has_element?(asset, "button", "Export retained history (JSON)")
   end
 
   test "a reader sees only declared Property controls and a committed read result", c do

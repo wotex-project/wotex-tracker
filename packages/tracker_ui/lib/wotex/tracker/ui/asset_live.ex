@@ -148,6 +148,30 @@ defmodule Wotex.Tracker.UI.AssetLive do
   def handle_event("export-history", _, socket),
     do: {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
 
+  def handle_event("export-all-history", _, %{assigns: %{history: %{}}} = socket) do
+    fetch = fn params ->
+      Auth.request(socket, :history, %{
+        "resource" => "state",
+        "id" => socket.assigns.id,
+        "params" => params
+      })
+    end
+
+    case HistoryExport.collect(socket.assigns.id, fetch) do
+      {:ok, document} ->
+        {:noreply, HistoryExport.push_complete(socket, document)}
+
+      {:error, %{"code" => code} = error} when code in ~w(forbidden unauthorized not_found) ->
+        {:noreply, clear_detail(socket, error)}
+
+      {:error, error} ->
+        {:noreply, assign(socket, error: error)}
+    end
+  end
+
+  def handle_event("export-all-history", _, socket),
+    do: {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
+
   def handle_event(_, _, socket), do: {:noreply, socket}
 
   @impl true
@@ -223,7 +247,11 @@ defmodule Wotex.Tracker.UI.AssetLive do
       <section :if={@history} class="panel" aria-labelledby="history-title">
         <h2 id="history-title">Measurement history</h2>
         <p>Retained snapshots in commit order. Missing intervals are not interpolated.</p>
-        <p>JSON export includes only the rows on this page, after a fresh authorization check.</p>
+        <p>
+          Page export includes only the rows shown. Retained-history export traverses one committed
+          snapshot under fresh authorization for every page. It fails without a file if history exceeds
+          1,000 rows or 1 MB.
+        </p>
         <div class="table-scroll" tabindex="0" role="region" aria-labelledby="history-title">
           <table>
             <caption>Retained measurement versions</caption>
@@ -258,6 +286,7 @@ defmodule Wotex.Tracker.UI.AssetLive do
           </table>
         </div>
         <button class="secondary" phx-click="export-history">Export this history page (JSON)</button>
+        <button class="secondary" phx-click="export-all-history">Export retained history (JSON)</button>
         <button :if={@history_back != []} class="secondary" phx-click="previous-history">Previous history page</button>
         <button :if={@history["cursor"]} class="secondary" phx-click="next-history">Next history page</button>
       </section>

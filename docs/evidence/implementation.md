@@ -1938,3 +1938,16 @@ UTC timestamps remain visible. The selected measurement is checked against
 the documented event contracts; missing values yield an explicit empty plot.
 Pure projection and LiveView tests cover sparse, constant, absent and switched
 measurements. A larger time-windowed operational view remains open.
+
+### Bounded complete retained-history export — 2026-09-16
+
+The asset page can now download all retained state versions when they fit ten
+100-row service pages and a 1 MB JSON envelope. Each page is fetched through
+the authorized service; its continuation pins the first committed generation.
+The browser emits a file only after the entire traversal succeeds. Changed
+generation, revoked access, expired or repeated cursor, malformed page and
+budget excess produce no partial file. The export contains exact public rows
+and the snapshot generation, but no service cursors. Pure collector tests cover
+multi-page success and failure; a LiveView workflow exercises a real 26-version
+history, a failed read and the browser download event. Larger histories still
+need a separate bounded streaming or paged workflow.

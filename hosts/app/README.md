@@ -193,6 +193,9 @@ explicit Thing update. Asset details show actual measurements,
 quality, UTC observation time and bounded measurement history. No physical
 scanner, positioning, protection, Action or battery-percentage behavior is
 invented for the environmental fixture.
+The asset page exports its visible history page or a complete retained state
+history when it fits 1,000 rows and 1 MB. A complete export rechecks authority
+on every page and produces no file if the traversal cannot finish.
 
 Credentials stay in a bounded volatile server store. Encrypted HttpOnly,
 SameSite=Strict cookies and signed LiveView payloads carry only an opaque session

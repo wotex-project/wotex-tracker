@@ -11,7 +11,10 @@ separately, showing retained measurements and their provenance or an explicit
 unprovisioned/unavailable state. It does not claim live connectivity.
 The asset detail can export the currently displayed bounded state-history page
 as JSON after reauthorizing and matching its committed snapshot. This is a
-page export, not the required complete history, route or deletion workflow.
+page export. It can also traverse and export a complete retained state history
+when it fits 1,000 rows and 1 MB, reauthorizing every page and rejecting a
+changed snapshot or exceeded budget without a partial file. Larger history,
+route replay and deletion workflows remain open.
 Readers can move forward and revisit up to 32 earlier state-history pages;
 each move reloads that page under current read authority. Refresh starts again
 at the latest snapshot. Temporary failures keep the current page available;

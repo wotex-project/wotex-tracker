@@ -20,6 +20,8 @@ defmodule Wotex.Tracker.UI.Presenter do
     "unsupported" => "This host does not provide this view.",
     "invalid_cursor" => "This operational page can no longer be resumed. Refresh to start again.",
     "invalid_query" => "Check the selected operational filter and refresh.",
+    "export_limit" =>
+      "This retained history exceeds the 1,000-row or 1 MB download limit. Export individual pages instead.",
     "unavailable" => "Operational history is temporarily unavailable. Refresh to retry.",
     "prompt_unavailable" =>
       "The question provider is unavailable. You can still run a structured query.",

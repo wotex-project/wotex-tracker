@@ -22,4 +22,5 @@ const downloadJson = (event, filename) => {
 };
 window.addEventListener("phx:download-query-result", (event) => downloadJson(event, "wotex-query-result.json"));
 window.addEventListener("phx:download-history-page", (event) => downloadJson(event, "wotex-history-page.json"));
+window.addEventListener("phx:download-history", (event) => downloadJson(event, "wotex-retained-history.json"));
 liveSocket.connect();
