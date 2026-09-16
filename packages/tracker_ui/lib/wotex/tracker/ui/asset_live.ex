@@ -3,7 +3,7 @@ defmodule Wotex.Tracker.UI.AssetLive do
   use Phoenix.LiveView, log: false
   import Wotex.Tracker.UI.Components
   alias Wotex.Tracker.Service.Identifier
-  alias Wotex.Tracker.UI.{Auth, Presenter}
+  alias Wotex.Tracker.UI.{Auth, HistoryExport, Presenter}
 
   @impl true
   def mount(_, _, socket),
@@ -16,6 +16,7 @@ defmodule Wotex.Tracker.UI.AssetLive do
          property_result: nil,
          property_error: nil,
          history: nil,
+         history_params: nil,
          generation: nil,
          needs_materialization: false,
          operation: nil,
@@ -85,6 +86,36 @@ defmodule Wotex.Tracker.UI.AssetLive do
   def handle_event("next-history", _, %{assigns: %{history: %{"cursor" => cursor}}} = socket)
       when is_binary(cursor),
       do: {:noreply, history(socket, %{"cursor" => cursor})}
+
+  def handle_event(
+        "export-history",
+        _,
+        %{assigns: %{history: %{} = shown, history_params: params}} = socket
+      )
+      when is_map(params) do
+    case Auth.request(socket, :history, %{
+           "resource" => "state",
+           "id" => socket.assigns.id,
+           "params" => params
+         }) do
+      {:ok, current} ->
+        if same_history_page?(shown, current) do
+          {:noreply, HistoryExport.push(socket, socket.assigns.id, shown)}
+        else
+          {:noreply,
+           assign(socket, history: nil, history_params: nil, error: %{"code" => "conflict"})}
+        end
+
+      {:error, %{"code" => code} = error} when code in ~w(forbidden unauthorized not_found) ->
+        {:noreply, clear_detail(socket, error)}
+
+      {:error, error} ->
+        {:noreply, assign(socket, error: error)}
+    end
+  end
+
+  def handle_event("export-history", _, socket),
+    do: {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
 
   def handle_event(_, _, socket), do: {:noreply, socket}
 
@@ -161,6 +192,7 @@ defmodule Wotex.Tracker.UI.AssetLive do
       <section :if={@history} class="panel" aria-labelledby="history-title">
         <h2 id="history-title">Measurement history</h2>
         <p>Retained snapshots in commit order. Missing intervals are not interpolated.</p>
+        <p>JSON export includes only the rows on this page, after a fresh authorization check.</p>
         <div class="table-scroll" tabindex="0" role="region" aria-labelledby="history-title">
           <table>
             <caption>Retained measurement versions</caption>
@@ -194,6 +226,7 @@ defmodule Wotex.Tracker.UI.AssetLive do
             </tbody>
           </table>
         </div>
+        <button class="secondary" phx-click="export-history">Export this history page (JSON)</button>
         <button :if={@history["cursor"]} class="secondary" phx-click="next-history">Next history page</button>
       </section>
       <div :if={@operation} class="operation">
@@ -227,6 +260,7 @@ defmodule Wotex.Tracker.UI.AssetLive do
         property_result: nil,
         property_error: nil,
         history: nil,
+        history_params: nil,
         generation: nil,
         needs_materialization: false,
         outcome: nil,
@@ -309,7 +343,8 @@ defmodule Wotex.Tracker.UI.AssetLive do
     end
   end
 
-  defp history(%{assigns: %{state: nil}} = socket, _), do: socket
+  defp history(%{assigns: %{state: nil}} = socket, _),
+    do: assign(socket, history: nil, history_params: nil)
 
   defp history(socket, params) do
     case Auth.request(socket, :history, %{
@@ -318,7 +353,7 @@ defmodule Wotex.Tracker.UI.AssetLive do
            "params" => params
          }) do
       {:ok, history} ->
-        assign(socket, history: history)
+        assign(socket, history: history, history_params: params)
 
       {:error, %{"code" => code} = error} when code in ~w(forbidden unauthorized not_found) ->
         clear_detail(socket, error)
@@ -326,6 +361,11 @@ defmodule Wotex.Tracker.UI.AssetLive do
       {:error, error} ->
         assign(socket, error: error)
     end
+  end
+
+  defp same_history_page?(shown, current) do
+    Map.take(shown, ~w(items generation)) == Map.take(current, ~w(items generation)) and
+      is_binary(shown["cursor"]) == is_binary(current["cursor"])
   end
 
   defp clear_detail(socket, error) do
@@ -336,6 +376,7 @@ defmodule Wotex.Tracker.UI.AssetLive do
       property_result: nil,
       property_error: nil,
       history: nil,
+      history_params: nil,
       generation: nil,
       needs_materialization: false,
       outcome: nil,

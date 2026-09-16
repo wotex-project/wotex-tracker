@@ -1843,3 +1843,14 @@ also clear retained projections after a terminal read denial or a missing
 record. A later authorized refresh restores the page. Temporary storage
 failures retain the prior evidence for retry; a workflow test exercises these
 boundaries across the shared LiveView screens.
+
+### Authorized history-page export — 2026-09-16
+
+The asset page can download its current bounded state-history page as JSON. A
+fresh service history request must return the same generation, rows and
+continuation state before the socket emits the export. A changed snapshot
+invalidates the displayed page; denied access clears asset detail; temporary
+failure retains the page for retry. The exported public projection includes
+commit order and a `has_more` indicator but omits session-bound history and
+event cursors. The LiveView test checks exact rows, conflict, failure and denial.
+Route replay, full-range export and mobile sharing remain open.

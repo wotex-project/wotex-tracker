@@ -245,6 +245,97 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert has_element?(picker, "[role=alert]")
   end
 
+  test "history export rechecks the exact visible page and omits session cursors", c do
+    {thing, _} = enrolled(c)
+
+    {:ok, _} =
+      Service.materialize(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"thing_id" => thing, "expected_generation" => "2"},
+        c.now
+      )
+
+    {:ok, page} = Service.history(c.service, c.admin, c.scope, "state", thing, %{}, c.now)
+
+    {:ok, asset, _} =
+      live(c.conn, Presenter.path(:asset, thing) <> "?operation=" <> Identifier.uuid())
+
+    asset |> element("button", "Export this history page (JSON)") |> render_click()
+    assert_push_event(asset, "download-history-page", %{"content" => json})
+    document = Jason.decode!(json)
+    assert document["schema"] == "wtr.history-page-export.v1"
+    assert document["resource"] == "state"
+    assert document["asset_id"] == thing
+    assert document["snapshot_generation"] == page["generation"]
+    assert document["items"] == page["items"]
+    assert document["page_count"] == length(page["items"])
+    assert document["has_more"] == false
+    refute Map.has_key?(document, "cursor")
+    refute Map.has_key?(document, "stream_cursor")
+
+    Agent.update(c.faults, &Map.put(&1, :history, :unavailable))
+    asset |> element("button", "Export this history page (JSON)") |> render_click()
+    refute_push_event(asset, "download-history-page", %{"content" => _})
+    assert has_element?(asset, "[role=alert]")
+    asset |> element("button", "Export this history page (JSON)") |> render_click()
+    assert_push_event(asset, "download-history-page", %{"content" => _})
+
+    {:ok, imported} =
+      Service.submit(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        import_request(%{id: "later", observed_at: c.now + 1}, "3"),
+        c.now
+      )
+
+    {:ok, _} =
+      Service.associate(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{
+          "thing_id" => thing,
+          "observation_id" => imported["data"]["observation_id"],
+          "owner_confirmed" => true,
+          "expected_generation" => "4"
+        },
+        c.now
+      )
+
+    {:ok, _} =
+      Service.materialize(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"thing_id" => thing, "expected_generation" => "5"},
+        c.now
+      )
+
+    asset |> element("button", "Export this history page (JSON)") |> render_click()
+    refute_push_event(asset, "download-history-page", %{"content" => _})
+    refute has_element?(asset, "button", "Export this history page (JSON)")
+    assert render(asset) =~ "changed since this page loaded"
+
+    asset |> element("button", "Refresh") |> render_click()
+    assert has_element?(asset, "button", "Export this history page (JSON)")
+    Agent.update(c.faults, &Map.put(&1, :history, {:deny, "forbidden"}))
+    asset |> element("button", "Export this history page (JSON)") |> render_click()
+    refute_push_event(asset, "download-history-page", %{"content" => _})
+    refute has_element?(asset, ".reading")
+    assert has_element?(asset, "[role=alert]")
+
+    render_click(asset, "export-history")
+    refute_push_event(asset, "download-history-page", %{"content" => _})
+    refute has_element?(asset, "button", "Export this history page (JSON)")
+  end
+
   test "a reader sees only declared Property controls and a committed read result", c do
     {thing, _} = enrolled(c)
 
