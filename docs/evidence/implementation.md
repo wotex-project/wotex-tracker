@@ -1951,3 +1951,14 @@ and the snapshot generation, but no service cursors. Pure collector tests cover
 multi-page success and failure; a LiveView workflow exercises a real 26-version
 history, a failed read and the browser download event. Larger histories still
 need a separate bounded streaming or paged workflow.
+
+### Grant-gated raw evidence downloads — 2026-09-16
+
+The observation review page offers native capture and full claim JSON downloads
+only when the current credential holds `raw` authority. A click uses the
+authorized service facade again; bytes go directly to the browser download
+event and are never kept in LiveView assigns or ordinary HTML. Reader-only
+credentials do not see the controls and the service denies a forged download
+request. The workflow test checks both exact service documents, denial on a
+later click and non-disclosure in rendered markup. Broader data deletion and
+access-management workflows remain open.

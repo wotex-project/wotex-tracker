@@ -345,6 +345,60 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     refute_push_event(asset, "download-history", %{"content" => _})
   end
 
+  test "raw capture and evidence downloads require the separate grant on every click", c do
+    observation = imported(c)
+    path = Presenter.path(:observation, observation) <> "?operation=" <> Identifier.uuid()
+    {:ok, view, html} = live(c.conn, path)
+    assert html =~ "Private evidence export"
+    refute html =~ "private-hardware"
+
+    {:ok, native} = Service.raw_observation(c.service, c.admin, c.scope, observation, c.now)
+    {:ok, claims} = Service.raw_evidence(c.service, c.admin, c.scope, observation, c.now)
+
+    view |> element("button", "Export native observation (JSON)") |> render_click()
+    assert_push_event(view, "download-raw-observation", %{"content" => ^native})
+
+    view |> element("button", "Export raw evidence claims (JSON)") |> render_click()
+    assert_push_event(view, "download-raw-evidence", %{"content" => ^claims})
+    refute render(view) =~ "private-hardware"
+
+    Agent.update(c.faults, &Map.put(&1, :raw_observation, {:deny, "forbidden"}))
+    view |> element("button", "Export native observation (JSON)") |> render_click()
+    refute_push_event(view, "download-raw-observation", %{"content" => _})
+    assert has_element?(view, "[role=alert]")
+    assert has_element?(view, "h2", "Observation evidence")
+    assert has_element?(view, "#enroll")
+
+    Agent.update(
+      c.faults,
+      &Map.put(&1, :raw_observation, {:reply, {:ok, String.duplicate("x", 1_048_577)}})
+    )
+
+    view |> element("button", "Export native observation (JSON)") |> render_click()
+    refute_push_event(view, "download-raw-observation", %{"content" => _})
+
+    Agent.update(c.faults, &Map.put(&1, :raw_observation, {:reply, {:ok, %{}}}))
+    view |> element("button", "Export native observation (JSON)") |> render_click()
+    refute_push_event(view, "download-raw-observation", %{"content" => _})
+
+    Agent.update(c.faults, &Map.put(&1, :raw_observation, {:reply, {:ok, "not json"}}))
+    view |> element("button", "Export native observation (JSON)") |> render_click()
+    refute_push_event(view, "download-raw-observation", %{"content" => _})
+
+    {:ok, %{"id" => reader}} = Sessions.login(c.sessions, c.reader, c.scope)
+    conn = build_conn() |> init_test_session(%{"browser_session" => reader})
+    {:ok, reader_view, _} = live(conn, path)
+    refute has_element?(reader_view, "button", "Export native observation (JSON)")
+    refute has_element?(reader_view, "button", "Export raw evidence claims (JSON)")
+
+    render_click(reader_view, "export-raw", %{"kind" => "observation"})
+    refute_push_event(reader_view, "download-raw-observation", %{"content" => _})
+    assert has_element?(reader_view, "[role=alert]")
+
+    assert {:error, %{"code" => "forbidden"}} =
+             Sessions.request(c.sessions, reader, :raw_observation, %{"id" => observation})
+  end
+
   test "history pages can be revisited without losing the current page on failure", c do
     {thing, _} = enrolled(c)
 

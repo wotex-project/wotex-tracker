@@ -31,6 +31,8 @@ defmodule Wotex.Tracker.UI.Local do
              match?({:ok, _}, Service.authorize(service, token, scope, "enroll", now)),
            "can_ingest" =>
              match?({:ok, _}, Service.authorize(service, token, scope, "ingest", now)),
+           "can_read_raw" =>
+             match?({:ok, _}, Service.authorize(service, token, scope, "raw", now)),
            "can_manage_queries" =>
              match?({:ok, _}, Service.authorize(service, token, scope, "admin", now))
          }}
@@ -55,6 +57,12 @@ defmodule Wotex.Tracker.UI.Local do
 
     Service.read_property(service, token, scope, args["thing"], args["name"], context, now)
   end
+
+  defp dispatch(service, token, scope, :raw_observation, args, now),
+    do: Service.raw_observation(service, token, scope, args["id"], now)
+
+  defp dispatch(service, token, scope, :raw_evidence, args, now),
+    do: Service.raw_evidence(service, token, scope, args["id"], now)
 
   defp dispatch(service, token, scope, :history, args, now),
     do:

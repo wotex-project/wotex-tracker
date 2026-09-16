@@ -15,6 +15,10 @@ page export. It can also traverse and export a complete retained state history
 when it fits 1,000 rows and 1 MB, reauthorizing every page and rejecting a
 changed snapshot or exceeded budget without a partial file. Larger history,
 route replay and deletion workflows remain open.
+The browser observation page can download native capture JSON and full evidence
+claims only for a current `raw` grant. It asks the authorized service again for
+each download and never places raw bytes in the ordinary page. Access review,
+revocation management and deletion remain open privacy workflows.
 Readers can move forward and revisit up to 32 earlier state-history pages;
 each move reloads that page under current read authority. Refresh starts again
 at the latest snapshot. Temporary failures keep the current page available;

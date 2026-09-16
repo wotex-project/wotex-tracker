@@ -3,7 +3,7 @@ defmodule Wotex.Tracker.UI.ObservationLive do
   use Phoenix.LiveView, log: false
   import Wotex.Tracker.UI.Components
   alias Wotex.Tracker.Service.Identifier
-  alias Wotex.Tracker.UI.{Auth, Presenter}
+  alias Wotex.Tracker.UI.{Auth, Presenter, RawExport}
 
   @impl true
   def mount(_, _, socket),
@@ -65,6 +65,28 @@ defmodule Wotex.Tracker.UI.ObservationLive do
   def handle_event("refresh", _, socket),
     do: {:noreply, socket |> assign(error: nil) |> recover() |> load()}
 
+  def handle_event("export-raw", %{"kind" => kind}, %{assigns: %{observation: %{}}} = socket)
+      when kind in ~w(observation evidence) do
+    {action, export_kind} =
+      if kind == "observation",
+        do: {:raw_observation, :observation},
+        else: {:raw_evidence, :evidence}
+
+    case Auth.request(socket, action, %{"id" => socket.assigns.id}) do
+      {:ok, content} when is_binary(content) ->
+        case RawExport.push(socket, export_kind, content) do
+          {:ok, socket} -> {:noreply, assign(socket, error: nil)}
+          {:error, error} -> {:noreply, assign(socket, error: error)}
+        end
+
+      {:ok, _} ->
+        {:noreply, assign(socket, error: %{"code" => "storage_unavailable"})}
+
+      {:error, error} ->
+        {:noreply, assign(socket, error: error)}
+    end
+  end
+
   def handle_event(_, _, socket), do: {:noreply, socket}
 
   @impl true
@@ -82,6 +104,19 @@ defmodule Wotex.Tracker.UI.ObservationLive do
         resolution={@resolution}
         explanation="Enrollment creates a service identity. A profile match alone does not prove that you own the physical device."
       />
+      <section :if={@observation && @identity["can_read_raw"]} class="panel">
+        <h2>Private evidence export</h2>
+        <p>
+          These downloads can contain raw device identifiers and source claims. Keep them private.
+          Each download checks the raw-evidence grant again.
+        </p>
+        <button class="secondary" phx-click="export-raw" phx-value-kind="observation">
+          Export native observation (JSON)
+        </button>
+        <button class="secondary" phx-click="export-raw" phx-value-kind="evidence">
+          Export raw evidence claims (JSON)
+        </button>
+      </section>
       <section :if={@observation && @identity["can_enroll"] && is_nil(@outcome)} class="panel">
         <h2>Enroll an asset</h2>
         <.form for={%{}} id="enroll" phx-submit="enroll">

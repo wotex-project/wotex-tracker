@@ -31,6 +31,9 @@ defmodule Wotex.Tracker.UI.TestClient do
       {:deny, code} when code in ~w(forbidden unauthorized) ->
         {:error, %{"code" => code}}
 
+      {:reply, result} ->
+        result
+
       :lost_reply ->
         {:ok, _} = Local.request(provider, token, scope, action, args, now)
         {:ok, %{"outcome" => "unknown", "operation_id" => args["operation"]}}

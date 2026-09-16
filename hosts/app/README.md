@@ -196,6 +196,9 @@ invented for the environmental fixture.
 The asset page exports its visible history page or a complete retained state
 history when it fits 1,000 rows and 1 MB. A complete export rechecks authority
 on every page and produces no file if the traversal cannot finish.
+An observation review page offers separate native capture and full evidence
+downloads only to credentials with the `raw` grant. These private documents
+are fetched under current authorization on each click.
 
 Credentials stay in a bounded volatile server store. Encrypted HttpOnly,
 SameSite=Strict cookies and signed LiveView payloads carry only an opaque session

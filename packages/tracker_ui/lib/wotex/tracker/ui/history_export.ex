@@ -1,5 +1,5 @@
 defmodule Wotex.Tracker.UI.HistoryExport do
-  @moduledoc "Exports one reauthorized public state-history page without its session-bound cursors."
+  @moduledoc "Exports reauthorized public state history without session-bound cursors."
 
   alias Phoenix.LiveView
 
