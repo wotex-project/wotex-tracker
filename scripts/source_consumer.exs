@@ -670,7 +670,7 @@ transport_request = %{
      "application_protocol" => "teltonika-codec8e"
    },
    "required_acknowledgement" => "durable_admission"
- }} =
+ } = archive_transport_decision} =
   Wotex.Tracker.TransportPolicy.select(
     [cellular_route, lorawan_route],
     transport_request,
@@ -678,8 +678,50 @@ transport_request = %{
     1_002
   )
 
+{:ok, transport_health_policy} =
+  Wotex.Tracker.TransportDegradation.new(%{
+    id: "archive-transport-health",
+    revision: "archive-transport-health-v1",
+    transport_policy: transport_policy,
+    healthy_candidate_ids: ["cellular"],
+    maximum_decision_age_ms: 1_000,
+    future_skew_ms: 0
+  })
+
+{:ok, %{"transport_status" => "healthy", "state" => transport_health_state}} =
+  Wotex.Tracker.TransportDegradation.evaluate(
+    nil,
+    archive_transport_decision,
+    transport_health_policy,
+    :replay,
+    1_002
+  )
+
+{:ok, unavailable_transport_decision} =
+  Wotex.Tracker.TransportPolicy.select(
+    [],
+    %{transport_request | id: "archive-unavailable-request"},
+    transport_policy,
+    1_003
+  )
+
+{:ok,
+ %{
+   "status" => "transition",
+   "transport_status" => "degraded",
+   "event" => %{"kind" => "transport.degraded"},
+   "physical_action_dispatch" => "prohibited"
+ }} =
+  Wotex.Tracker.TransportDegradation.evaluate(
+    transport_health_state,
+    unavailable_transport_decision,
+    transport_health_policy,
+    :replay,
+    1_003
+  )
+
 true = MapSet.subset?(MapSet.new(Process.list()), before_processes)
 
 IO.puts(
-  "SOURCE_COHORT_PASS Elixir=#{System.version()} OTP=#{System.otp_release()} properties=10 position_freshness=true position_selection=true position_order=true movement=true motion_transition=true trip_distance=true heartbeat=true battery=true suspicious_movement=true transport_policy=true geofence=true geofence_transition=true geofence_crossing=true no_new_processes=true optional_hosts_absent=true"
+  "SOURCE_COHORT_PASS Elixir=#{System.version()} OTP=#{System.otp_release()} properties=10 position_freshness=true position_selection=true position_order=true movement=true motion_transition=true trip_distance=true heartbeat=true battery=true suspicious_movement=true transport_policy=true transport_degradation=true geofence=true geofence_transition=true geofence_crossing=true no_new_processes=true optional_hosts_absent=true"
 )

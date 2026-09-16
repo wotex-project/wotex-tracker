@@ -220,6 +220,13 @@ remains unknown unless the rule explicitly treats it as absence. See the
 [suspicious-movement guide](../guides/suspicious-movement.md). Atomic host
 deduplication and notification remain subsequent work.
 
+Transport degradation is implemented as pure state over content-validated
+transport decisions and a deployment-declared healthy candidate set. Fallback
+and no-route outcomes are distinct from pending, unknown and stale decisions;
+degradation, recovery and rule-edit events have stable identities. See the
+[transport policy guide](../guides/transport-policy.md). Atomic host persistence
+and notification remain subsequent work.
+
 Implement explicit time/freshness, quality selection, motion/trips/stops,
 geofence membership/transitions, heartbeat, suspicious movement, low-battery,
 late-data handling, deduplication and transport-policy values under WTR.05/06.

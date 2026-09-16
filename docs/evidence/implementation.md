@@ -929,3 +929,40 @@ before exercising the existing authenticated HTTP and Runtime lanes. Exact
 archive and lock identities are in `verification/service-consumer.json`. No
 radio sender, external server, automatic retry process or Continuum conversion
 is claimed; the host adapter still owns those effects.
+
+## WTR.05 transport degradation state — 2026-09-16
+
+`TransportPolicy.validate_decision/3` now revalidates the closed decision schema,
+policy binding, bounded route ledger, exact outcome shape and content identity.
+A changed reason, selected route, policy identity, outcome or extra field cannot
+be replayed as the original decision.
+
+The pure `TransportDegradation` rule embeds the exact transport policy and an
+explicit deployment set of candidate IDs that count as healthy. A fresh selected
+or acknowledged candidate in that set is healthy. A selected fallback,
+store-and-retry result or unavailable result is degraded. Pending and unknown
+acknowledgements, stale decisions and excessive-future decisions remain unknown;
+freshness and future-skew equality are inclusive.
+
+The first decision establishes a baseline. Changes emit stable
+`transport.degraded`, `transport.recovered` or rule-edit
+`transport.recomputed` events. Duplicate and historical decisions cannot replace
+newer canonical state. Live and replay evaluation produce identical state and
+event identities; replay prohibits physical Action dispatch and live events still
+require separate authorization.
+
+Both required runtime lanes passed the complete root gate with 1 doctest,
+18 properties and 147 tests, no failures and 96.1% production line coverage.
+Cases cover declared healthy candidates, fallback and no-route degradation,
+recovery, pending and exact acknowledgements, age/future equality, duplicates,
+history, clock regression, policy recomputation, decision/state mutation and
+generated candidate-order invariance. Compiler, formatter, strict Credo,
+Dialyzer, ExDoc, dependency audit, licences, documentation contracts and archive
+inspection passed.
+
+The final six archive consumers establish healthy cellular state and then a
+replay degradation event from a no-route decision on both supported runtime
+lanes. Exact archive and lock identities are in
+`verification/source-consumer.json`. Atomic policy-state/event persistence,
+Continuum conversion, notifications and actual transport effects remain host
+integration work.

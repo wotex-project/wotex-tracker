@@ -70,7 +70,9 @@ owner-presence facts with three-valued logic; see the
 [policy guide](docs/guides/suspicious-movement.md).
 Evidence-qualified transport selection keeps bearer, application protocol,
 budgets and acknowledgement layers explicit; see the
-[transport policy guide](docs/guides/transport-policy.md).
+[transport policy guide](docs/guides/transport-policy.md). A pure transport
+health rule classifies declared primary routes, fallbacks, no-route outcomes and
+uncertain acknowledgements, with stable degradation and recovery events.
 [Implementation evidence](docs/evidence/implementation.md) records
 executed software checks and unpassed release, host and hardware gates.
 

@@ -41,3 +41,23 @@ Tracker's service package already provides its SQLite transaction and commit-
 outcome foundation, but it does not yet persist these policy decisions. Continuum
 delivery and degradation values may carry later snapshots; they do not replace
 Tracker's domain policy or provide a transport engine.
+
+## Transport health
+
+`Wotex.Tracker.TransportDegradation` turns validated decisions into a pure
+health state. Its deployment policy embeds the exact transport policy, lists the
+candidate IDs that count as healthy, and fixes decision age and future-skew
+limits. This keeps a selected backup route distinct from normal operation without
+assuming that every deployment has the same primary bearer.
+
+A fresh selected or acknowledged healthy candidate is `healthy`. A fresh route
+outside that set, `store_and_retry`, or an unavailable decision is `degraded`.
+Pending and unknown acknowledgements remain `unknown`; stale and excessive-future
+decisions also remain unknown. Exact age and future-skew equalities are accepted.
+
+The first decision establishes a baseline. Healthy-to-degraded and
+degraded-to-healthy changes emit content-identified `transport.degraded` and
+`transport.recovered` events. A rule edit emits `transport.recomputed`. Duplicate
+and historical decisions cannot replace the canonical decision. Live and replay
+produce the same state and event identities; replay prohibits physical Action
+dispatch, and live results still require separate authorization.

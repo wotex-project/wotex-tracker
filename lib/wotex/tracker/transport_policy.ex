@@ -14,6 +14,7 @@ defmodule Wotex.Tracker.TransportPolicy do
   @no_route ~w(store_and_retry unavailable)a
   @request_fields ~w(id severity purpose maximum_cost_class maximum_power_class acknowledgement)a
   @acknowledgement_fields ~w(delivery_id candidate_id layer status)a
+  @decision_fields ~w(schema request_id severity purpose maximum_cost_class maximum_power_class required_acknowledgement acknowledgement selected qualified_count candidates policy_revision policy_identity evaluated_at status reason action decision_identity)
   @type t :: %__MODULE__{}
   @enforce_keys @fields ++ [:identity]
   defstruct @enforce_keys
@@ -64,6 +65,26 @@ defmodule Wotex.Tracker.TransportPolicy do
   end
 
   def validate(_, _), do: Admission.fail(:invalid_input)
+
+  @doc "Revalidates a closed decision, its policy binding and content identity."
+  @spec validate_decision(term(), term(), term()) :: {:ok, map()} | {:error, Error.t()}
+  def validate_decision(value, policy, options \\ []) do
+    with {:ok, limits} <- Limits.new(options),
+         {:ok, policy} <- validate(policy, options),
+         true <-
+           is_map(value) and not is_struct(value) and
+             Enum.sort(Map.keys(value)) == Enum.sort(@decision_fields),
+         :ok <- Admission.object(value, limits),
+         :ok <- decision_shape(value, policy, limits),
+         {:ok, identity} <-
+           Admission.digest(Map.delete(value, "decision_identity"), Limits.json(limits)),
+         true <- identity == value["decision_identity"] do
+      {:ok, value}
+    else
+      false -> Admission.fail(:conflict)
+      error -> error
+    end
+  end
 
   @doc "Selects a route, holds an uncertain acknowledgement, or returns the declared fallback."
   @spec select(term(), term(), term(), integer(), term()) ::
@@ -355,6 +376,203 @@ defmodule Wotex.Tracker.TransportPolicy do
         "acknowledgement_layers"
       ])
 
+  defp decision_shape(value, policy, limits) do
+    with true <- value["schema"] == "wtr.transport-decision.v1",
+         :ok <-
+           Admission.each(
+             [
+               value["request_id"],
+               value["policy_revision"],
+               value["policy_identity"],
+               value["reason"],
+               value["action"],
+               value["decision_identity"]
+             ],
+             &Admission.id(&1, limits)
+           ),
+         true <- value["policy_revision"] == policy.revision,
+         true <- value["policy_identity"] == policy.identity,
+         true <- value["severity"] in ~w(ordinary critical),
+         true <- value["purpose"] in ~w(telemetry event physical_action),
+         true <- class?(value["maximum_cost_class"]),
+         true <- class?(value["maximum_power_class"]),
+         true <-
+           value["required_acknowledgement"] in Enum.map(@acknowledgements, &Atom.to_string/1),
+         true <-
+           value["required_acknowledgement"] ==
+             decision_acknowledgement(policy, value["severity"]),
+         true <- is_integer(value["evaluated_at"]),
+         true <-
+           is_integer(value["qualified_count"]) and
+             value["qualified_count"] in 0..limits.max_sources,
+         :ok <- Admission.bounded_list(value["candidates"], limits.max_sources),
+         true <- Enum.all?(value["candidates"], &candidate_entry?(&1, limits)),
+         true <- unique_candidate_ids?(value["candidates"]),
+         true <-
+           value["qualified_count"] ==
+             Enum.count(value["candidates"], &(&1["status"] == "eligible")),
+         true <- acknowledgement_decision?(value["acknowledgement"], limits),
+         true <- acknowledgement_matches_policy?(value, policy),
+         true <- selected_decision?(value["selected"], limits),
+         true <- selected_matches_ledger?(value["selected"], value["candidates"]),
+         true <- outcome_shape?(value) do
+      :ok
+    else
+      false -> Admission.fail(:invalid_input)
+      error -> error
+    end
+  end
+
+  defp acknowledgement_decision?(nil, _limits), do: true
+
+  defp acknowledgement_decision?(value, limits) when is_map(value) do
+    Enum.sort(Map.keys(value)) == Enum.sort(~w(delivery_id candidate_id layer status)) and
+      Enum.all?([value["delivery_id"], value["candidate_id"]], fn id ->
+        match?(:ok, Admission.id(id, limits))
+      end) and
+      value["layer"] in Enum.map(TransportCandidate.acknowledgement_layers(), &Atom.to_string/1) and
+      value["status"] in ~w(pending acknowledged failed unknown)
+  end
+
+  defp acknowledgement_decision?(_, _), do: false
+
+  defp acknowledgement_matches_policy?(%{"acknowledgement" => nil}, _policy), do: true
+
+  defp acknowledgement_matches_policy?(value, policy) do
+    value["required_acknowledgement"] != "none" and
+      value["acknowledgement"]["candidate_id"] in decision_route_order(policy, value["severity"])
+  end
+
+  defp selected_decision?(nil, _limits), do: true
+
+  defp selected_decision?(value, limits) when is_map(value) do
+    Enum.sort(Map.keys(value)) ==
+      Enum.sort(
+        ~w(candidate_id candidate_identity bearer application_protocol cost_class power_class acknowledgement_layers)
+      ) and
+      Enum.all?(
+        [
+          value["candidate_id"],
+          value["candidate_identity"],
+          value["bearer"],
+          value["application_protocol"]
+        ],
+        fn id -> match?(:ok, Admission.id(id, limits)) end
+      ) and
+      class?(value["cost_class"]) and class?(value["power_class"]) and
+      is_list(value["acknowledgement_layers"]) and
+      Enum.uniq(value["acknowledgement_layers"]) == value["acknowledgement_layers"] and
+      Enum.all?(
+        value["acknowledgement_layers"],
+        &(&1 in Enum.map(TransportCandidate.acknowledgement_layers(), fn layer ->
+            Atom.to_string(layer)
+          end))
+      )
+  end
+
+  defp selected_decision?(_, _), do: false
+
+  defp candidate_entry?(value, limits) when is_map(value) do
+    keys = Map.keys(value) |> Enum.sort()
+    missing = Enum.sort(~w(candidate_id preference_rank status reason))
+
+    present =
+      Enum.sort(
+        ~w(candidate_id candidate_identity bearer application_protocol cost_class power_class acknowledgement_layers capability_fact_identity connectivity_fact_identity preference_rank status reason)
+      )
+
+    case keys do
+      ^missing -> missing_candidate_entry?(value, limits)
+      ^present -> present_candidate_entry?(value, limits)
+      _ -> false
+    end
+  end
+
+  defp candidate_entry?(_, _), do: false
+
+  defp missing_candidate_entry?(value, limits),
+    do:
+      id?(value["candidate_id"], limits) and rank?(value["preference_rank"]) and
+        value["status"] == "rejected" and value["reason"] == "candidate_missing"
+
+  defp present_candidate_entry?(value, limits) do
+    identifiers =
+      ~w(candidate_id candidate_identity bearer application_protocol capability_fact_identity connectivity_fact_identity reason)
+
+    Enum.all?(identifiers, &id?(value[&1], limits)) and class?(value["cost_class"]) and
+      class?(value["power_class"]) and optional_rank?(value["preference_rank"]) and
+      value["status"] in ~w(eligible rejected) and
+      acknowledgement_layer_strings?(value["acknowledgement_layers"])
+  end
+
+  defp optional_rank?(nil), do: true
+  defp optional_rank?(value), do: rank?(value)
+  defp rank?(value), do: is_integer(value) and value >= 0
+
+  defp selected_matches_ledger?(nil, _candidates), do: true
+
+  defp selected_matches_ledger?(selected, candidates) do
+    projection =
+      ~w(candidate_id candidate_identity bearer application_protocol cost_class power_class acknowledgement_layers)
+
+    Enum.any?(candidates, fn candidate ->
+      candidate["status"] == "eligible" and Map.take(candidate, projection) == selected
+    end)
+  end
+
+  defp acknowledgement_layer_strings?(values) when is_list(values) do
+    admitted = Enum.map(TransportCandidate.acknowledgement_layers(), &Atom.to_string/1)
+    Enum.uniq(values) == values and Enum.all?(values, &(&1 in admitted))
+  end
+
+  defp acknowledgement_layer_strings?(_), do: false
+
+  defp id?(value, limits), do: match?(:ok, Admission.id(value, limits))
+
+  defp outcome_shape?(%{"status" => "selected", "action" => "send", "selected" => selected}),
+    do: is_map(selected)
+
+  defp outcome_shape?(%{
+         "status" => "deferred",
+         "action" => "store_and_retry",
+         "selected" => nil
+       }),
+       do: true
+
+  defp outcome_shape?(%{"status" => "unavailable", "action" => "unavailable", "selected" => nil}),
+    do: true
+
+  defp outcome_shape?(%{
+         "status" => "acknowledged",
+         "action" => "none",
+         "selected" => nil,
+         "acknowledgement" => acknowledgement
+       }),
+       do: is_map(acknowledgement)
+
+  defp outcome_shape?(%{
+         "status" => "pending",
+         "action" => "wait",
+         "selected" => nil,
+         "acknowledgement" => acknowledgement
+       }),
+       do: is_map(acknowledgement)
+
+  defp outcome_shape?(%{
+         "status" => "unknown",
+         "action" => "hold",
+         "selected" => nil,
+         "acknowledgement" => acknowledgement
+       }),
+       do: is_map(acknowledgement)
+
+  defp outcome_shape?(_), do: false
+
+  defp unique_candidate_ids?(candidates) do
+    ids = Enum.map(candidates, &Map.get(&1, "candidate_id"))
+    Enum.all?(ids, &is_binary/1) and Enum.uniq(ids) == ids
+  end
+
   defp fact_truth(fact, policy, now) do
     age = now - fact.observed_at
 
@@ -391,6 +609,18 @@ defmodule Wotex.Tracker.TransportPolicy do
 
   defp required_acknowledgement(policy, :ordinary), do: policy.ordinary_acknowledgement
   defp required_acknowledgement(policy, :critical), do: policy.critical_acknowledgement
+
+  defp decision_acknowledgement(policy, "ordinary"),
+    do: Atom.to_string(policy.ordinary_acknowledgement)
+
+  defp decision_acknowledgement(policy, "critical"),
+    do: Atom.to_string(policy.critical_acknowledgement)
+
+  defp decision_acknowledgement(_policy, _severity), do: nil
+
+  defp decision_route_order(policy, "ordinary"), do: policy.ordinary_order
+  defp decision_route_order(policy, "critical"), do: policy.critical_order
+  defp decision_route_order(_policy, _severity), do: []
 
   defp policy_budgets(policy, :ordinary),
     do: {policy.ordinary_max_cost_class, policy.ordinary_max_power_class}
