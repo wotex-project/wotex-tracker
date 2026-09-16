@@ -36,7 +36,11 @@ defmodule Wotex.Tracker.Nerves.BuildRecord do
     names = Map.keys(apps)
     ui_required = ~w(muontrap myelin phoenix phoenix_live_view wotex_tracker_ui)
     required = @base_required ++ if(ui?, do: ui_required, else: [])
-    excluded = @base_excluded ++ if(ui?, do: [], else: ui_required)
+
+    excluded =
+      @base_excluded ++
+        if(ui?, do: [], else: ~w(myelin phoenix phoenix_live_view wotex_tracker_ui))
+
     true = Enum.all?(required, &(&1 in names))
     true = Enum.all?(excluded, &(&1 not in names))
 
