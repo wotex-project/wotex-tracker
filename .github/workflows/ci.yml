@@ -1,0 +1,129 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - elixir: "1.18.4-otp-27"
+            otp: "27.3.4.15"
+          - elixir: "1.20.4-otp-29"
+            otp: "29.0.4"
+    defaults:
+      run:
+        working-directory: wotex-tracker
+    env:
+      MIX_ENV: test
+      WOTEX_PATH_DEPS: "1"
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          path: wotex-tracker
+          persist-credentials: false
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          repository: wotex-project/wotex
+          ref: eadc6c9f9c285faf9324b8a7396a001381098b6c
+          path: wotex
+          persist-credentials: false
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          elixir-version: ${{ matrix.elixir }}
+          otp-version: ${{ matrix.otp }}
+      - run: mix deps.get --check-locked
+      - run: mix check --no-retry
+
+  components:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - profile: service
+            directory: packages/tracker_service
+            ui: false
+          - profile: ui
+            directory: packages/tracker_ui
+            ui: false
+          - profile: host
+            directory: hosts/app
+            ui: false
+          - profile: host-ui
+            directory: hosts/app
+            ui: true
+          - profile: nerves
+            directory: hosts/nerves
+            ui: false
+          - profile: nerves-ui
+            directory: hosts/nerves
+            ui: true
+    defaults:
+      run:
+        working-directory: wotex-tracker/${{ matrix.directory }}
+    env:
+      MIX_ENV: test
+      MIX_TARGET: host
+      WOTEX_PATH_DEPS: "1"
+      CI_PROFILE: ${{ matrix.profile }}
+      CI_TRACKER_UI: ${{ matrix.ui }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          path: wotex-tracker
+          persist-credentials: false
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          repository: wotex-project/wotex
+          ref: eadc6c9f9c285faf9324b8a7396a001381098b6c
+          path: wotex
+          persist-credentials: false
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          repository: wotex-project/wotex-runtime
+          ref: 65d0b521ccb6b7838fe37bf26bf9dac65b40cc68
+          path: wotex-runtime
+          persist-credentials: false
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          repository: wotex-project/wotex-binding-http
+          ref: 4c0d9104e81079bfdef610c003a9c700549bdbd9
+          path: wotex-binding-http
+          persist-credentials: false
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          elixir-version: "1.18.4-otp-27"
+          otp-version: "27.3.4.15"
+      - name: Install native toolchain
+        if: startsWith(matrix.profile, 'host')
+        run: rustup toolchain install 1.97.1 --profile minimal --component rustfmt && rustup default 1.97.1
+      - name: Check locked dependencies
+        run: |
+          if [ "$CI_TRACKER_UI" = "true" ]; then export WOTEX_TRACKER_UI=1; fi
+          mix deps.get --check-locked
+      - name: Verify package or host
+        run: |
+          if [ "$CI_TRACKER_UI" = "true" ]; then export WOTEX_TRACKER_UI=1; fi
+          case "$CI_PROFILE" in
+            nerves|nerves-ui)
+              mix format --check-formatted
+              mix compile --warnings-as-errors
+              mix test --no-start
+              ;;
+            *) mix check --no-retry ;;
+          esac
