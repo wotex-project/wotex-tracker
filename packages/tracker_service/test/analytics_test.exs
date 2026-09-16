@@ -189,6 +189,11 @@ defmodule Wotex.Tracker.Service.AnalyticsTest do
     :ets.insert(table, {{:rate, access.principal}, window, 15})
     assert {:ok, _} = Store.authorized_analytics(c.store, access, spec, c.now)
     assert {:error, :overloaded} = Store.authorized_analytics(c.store, access, spec, c.now)
+
+    :ets.insert(table, {{:rate, access.principal}, 0, 16})
+    assert {:ok, _} = Store.authorized_analytics(c.store, access, spec, c.now)
+    assert [{{:rate, _}, renewed_window, 1}] = :ets.lookup(table, {:rate, access.principal})
+    assert renewed_window == div(System.monotonic_time(:millisecond), 1_000)
   end
 
   test "executor configuration and stage failures reject without retaining reservations" do

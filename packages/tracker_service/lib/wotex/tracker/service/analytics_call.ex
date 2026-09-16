@@ -215,7 +215,7 @@ defmodule Wotex.Tracker.Service.AnalyticsCall do
           else: {:error, :overloaded}
 
       [current] ->
-        match = [{current, [], [{key, window, 1}]}]
+        match = [{current, [], [{:const, {key, window, 1}}]}]
         if :ets.select_replace(table, match) == 1, do: :ok, else: rate(table, key, window)
     end
   end
