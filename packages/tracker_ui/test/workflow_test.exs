@@ -6,7 +6,7 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
   import Phoenix.LiveViewTest
   import Wotex.Tracker.Service.Fixtures
   alias Phoenix.LiveView.Static
-  alias Wotex.Tracker.QuerySpec
+  alias Wotex.Tracker.{QueryResult, QuerySpec}
   alias Wotex.Tracker.Service
   alias Wotex.Tracker.Service.{Codec, Identifier}
   alias Wotex.Tracker.UI.{ErrorHTML, Presenter, Sessions, TestClient, TestEndpoint}
@@ -103,6 +103,15 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert render(view) =~ "no line or value is inferred across a gap"
     assert has_element?(view, "svg[role=img]")
     assert has_element?(view, "path.chart-line")
+    view |> element("button", "Export result JSON") |> render_click()
+    assert_push_event(view, "download-query-result", %{"content" => analytics_json})
+    analytics_export = Jason.decode!(analytics_json)
+    assert {:ok, _} = QueryResult.from_map(analytics_export)
+    assert analytics_export["qualified_rows"] == 1
+
+    assert get_in(analytics_export, ["series", Access.at(0), "points", Access.at(0), "value"]) ==
+             24.3
+
     assert has_element?(view, "[role=group][aria-label='Explore time window']")
 
     view |> element("button", "Later") |> render_click()
@@ -184,6 +193,9 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     {:ok, unprovisioned, html} = live(c.conn, Presenter.path(:asset, thing) <> "/analytics")
     assert html =~ "record measurements before querying history"
     refute has_element?(unprovisioned, "#analytics-query")
+    refute has_element?(unprovisioned, "button", "Export result JSON")
+    render_click(unprovisioned, "export-result", %{})
+    assert has_element?(unprovisioned, "[role=alert]")
     render_submit(unprovisioned, "run", %{"query" => %{}})
     assert has_element?(unprovisioned, "[role=alert]")
 
@@ -543,6 +555,14 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert has_element?(detail, "path.chart-line")
     assert render(detail) =~ "24.3"
     assert render(detail) =~ "Snapshot"
+    detail |> element("button", "Export result JSON") |> render_click()
+    assert_push_event(detail, "download-query-result", %{"content" => dashboard_json})
+    dashboard_export = Jason.decode!(dashboard_json)
+    assert {:ok, _} = QueryResult.from_map(dashboard_export)
+    assert dashboard_export["spec"]["series"] == [thing]
+
+    assert get_in(dashboard_export, ["series", Access.at(0), "points", Access.at(0), "value"]) ==
+             24.3
 
     {:ok, history} =
       Service.history(c.service, c.admin, c.scope, "saved_queries", dashboard, %{}, c.now)
@@ -846,12 +866,17 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     send(detail.pid, {:auto_refresh, 1})
     refute has_element?(detail, "h2", "Query result")
     refute has_element?(detail, "button", "Stop auto-refresh")
+    render_click(detail, "export-result", %{})
+    assert_redirect(detail, "/sign-in")
   end
 
   test "missing and temporarily unavailable saved dashboards expose no result", c do
     {:ok, missing, _} = live(c.conn, "/dashboards/missing")
     assert has_element?(missing, "[role=alert]")
     refute has_element?(missing, "button", "Run saved query")
+    refute has_element?(missing, "button", "Export result JSON")
+    render_click(missing, "export-result", %{})
+    assert has_element?(missing, "[role=alert]")
     render_click(missing, "run", %{})
     refute has_element?(missing, "h2", "Query result")
 

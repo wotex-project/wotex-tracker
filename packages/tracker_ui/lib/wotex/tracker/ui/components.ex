@@ -78,6 +78,7 @@ defmodule Wotex.Tracker.UI.Components do
         Aggregation is at the requested bucket width.
       </p>
       <p class="identifier">Snapshot {@result["snapshot"]}</p>
+      <p class="identifier">Result {@result["identity"]}</p>
       <figure :if={@chart} class="history-chart">
         <svg
           viewBox="0 0 1000 300"

@@ -30,6 +30,8 @@ generation check and stable operation receipt, then edit its title/view or
 delete it with another checked operation. Ownership and query authority stay
 with the service. An open dashboard can also rerun automatically every 30
 seconds, distinguishing a temporary stale result from an invalidated read.
+The browser can export the currently displayed closed query result as JSON with
+its source snapshot, result identity, bounds, units, exclusions and gap policy.
 Model execution is explicitly configured and can be disabled; deterministic
 tracking and structured analytics MUST remain useful without AI or any external
 observability service.

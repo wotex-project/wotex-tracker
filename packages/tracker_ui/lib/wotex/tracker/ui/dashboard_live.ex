@@ -3,7 +3,7 @@ defmodule Wotex.Tracker.UI.DashboardLive do
   use Phoenix.LiveView, log: false
   import Wotex.Tracker.UI.Components
   alias Wotex.Tracker.Service.Identifier
-  alias Wotex.Tracker.UI.{Auth, Chart, Presenter}
+  alias Wotex.Tracker.UI.{Auth, Chart, Presenter, QueryExport}
   @refresh_interval_ms 30_000
 
   @impl true
@@ -60,6 +60,13 @@ defmodule Wotex.Tracker.UI.DashboardLive do
   end
 
   def handle_event("stop-auto-refresh", _, socket), do: {:noreply, stop_refresh(socket)}
+
+  def handle_event("export-result", _, %{assigns: %{result: result}} = socket)
+      when is_map(result),
+      do: {:noreply, QueryExport.push(socket, result)}
+
+  def handle_event("export-result", _, socket),
+    do: {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
 
   def handle_event("prepare-manage", %{"intent" => intent}, socket)
       when intent in ~w(edit delete) do
@@ -268,9 +275,13 @@ defmodule Wotex.Tracker.UI.DashboardLive do
         chart={@chart}
         view={@definition["visualization"]["type"]}
       />
+      <button :if={@result} class="secondary" phx-click="export-result">
+        Export result JSON
+      </button>
       <section :if={@result && length(@result["series"]) > 1} class="panel">
         <h2>Query result</h2>
         <p class="identifier">Snapshot {@result["snapshot"]}</p>
+        <p class="identifier">Result {@result["identity"]}</p>
         <p>
           {@result["qualified_rows"]} qualified of {@result["selected_rows"]} selected readings. {@result[
             "excluded_unavailable"

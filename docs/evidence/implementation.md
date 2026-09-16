@@ -1739,3 +1739,14 @@ stop it, and an epoch rejects queued ticks from a prior run. LiveView tests
 cover failure and recovery, changed definitions, deletion, revocation and a
 late tick after stopping. Subscription-driven updates and physical UI
 acceptance remain open.
+
+### Browser query-result export — 2026-09-16
+
+Both the per-asset analytics screen and saved dashboard now offer a JSON export
+of their current service-returned `QueryResult`. The export does not rerun the
+query: its content identity and snapshot are the ones shown on the page. The
+closed document retains query bounds, units, qualified values, exclusion counts,
+downsampling disclosure and gap policy. The browser creates a local file from
+the LiveView event; no export path accepts a client-supplied result. Workflow
+tests re-admit exported documents, verify representative values, reject export
+without a result and deny it after session revocation.

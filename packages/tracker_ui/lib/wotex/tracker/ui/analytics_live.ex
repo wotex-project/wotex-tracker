@@ -4,7 +4,7 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
   import Wotex.Tracker.UI.Components
   alias Wotex.Tracker.QuerySpec
   alias Wotex.Tracker.Service.Identifier
-  alias Wotex.Tracker.UI.{Auth, Chart, Presenter}
+  alias Wotex.Tracker.UI.{Auth, Chart, Presenter, QueryExport}
 
   @buckets %{"hour" => 3_600_000, "six_hours" => 21_600_000, "day" => 86_400_000}
   @aggregations %{
@@ -148,6 +148,13 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
 
   def handle_event("check-save", _, socket), do: {:noreply, recover_save(socket)}
 
+  def handle_event("export-result", _, %{assigns: %{result: result}} = socket)
+      when is_map(result),
+      do: {:noreply, QueryExport.push(socket, result)}
+
+  def handle_event("export-result", _, socket),
+    do: {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
+
   def handle_event("run", _, socket),
     do: {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
 
@@ -228,6 +235,9 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
         <button class="secondary" phx-click="navigate" phx-value-direction="zoom_out">Zoom out</button>
       </div>
       <.query_result :if={@result} result={@result} chart={@chart} view={@query["view"]} />
+      <button :if={@result} class="secondary" phx-click="export-result">
+        Export result JSON
+      </button>
       <.notice error={@save_error} />
       <section :if={(@result && @identity["can_manage_queries"]) || @save_operation} class="panel">
         <h2>Save this query</h2>

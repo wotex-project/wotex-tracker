@@ -73,3 +73,7 @@ Saved dashboard pages offer a 30-second automatic query refresh while open,
 with stale-result disclosure on temporary failure and immediate clearing when
 the definition or read grant disappears. Subscription-driven updates and
 cross-surface acceptance remain open.
+Executed analytics and saved-dashboard results can be downloaded as their exact
+closed JSON documents, including snapshot and result identity, time bounds,
+units, exclusions and gap policy. The browser creates the file locally from the
+current authorized LiveView result rather than making a new query.

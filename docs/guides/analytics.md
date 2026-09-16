@@ -80,6 +80,12 @@ rechecks the definition and reruns its query every 30 seconds while it stays
 open. A temporary failure keeps the last successful result marked **stale** and
 retries; deletion or lost read authority clears that result and stops refresh.
 Manual runs, definition refreshes and navigation stop the timer.
+After a query runs, **Export result JSON** downloads that exact closed result
+from the current page state without rerunning it. The file includes the result
+identity shown beside the snapshot, admitted query and resolved time bounds,
+units, qualified buckets, exclusion counts and gap policy. If automatic refresh
+is marked stale, the export contains the last successful result shown on the
+page. A new run creates a new exportable result.
 
 `Service.analytics_page/5` and `POST …/analytics/pages` partition the admitted
 bucket window into pages of 1 to 1,000 buckets. The first request supplies the

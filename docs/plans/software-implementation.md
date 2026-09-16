@@ -383,6 +383,8 @@ edit its title/view or delete it with the same generation and receipt rules.
 An open saved dashboard can rerun automatically every 30 seconds, retaining a
 marked stale result through a temporary failure and clearing it if the
 definition or read authority disappears.
+The currently displayed query result can also be exported as its exact closed
+JSON document without selecting a new snapshot.
 
 Add an explicitly configured public model adapter for question-to-query translation:
 synthetic boundary tests plus a separately recorded real-provider execution.
