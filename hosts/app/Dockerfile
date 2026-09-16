@@ -14,5 +14,6 @@ COPY --chown=10001:10001 release/ /opt/wotex/
 USER 10001:10001
 WORKDIR /opt/wotex
 ENV RELEASE_TMP=/tmp/wotex-runtime
+ENV LANG=C.UTF-8
 STOPSIGNAL SIGTERM
 ENTRYPOINT ["/opt/wotex/bin/wotex_tracker", "start"]

@@ -23,27 +23,17 @@ if [ ! -f "$release_script" ]; then
   exit 1
 fi
 
-erl=
-for candidate in "$root"/erts-*/bin/erl; do
-  if [ -x "$candidate" ]; then
-    erl=$candidate
-    break
-  fi
-done
+release_vsn=
+IFS=' ' read -r _erts_vsn release_vsn < "$root/releases/start_erl.data" || [ -n "$release_vsn" ]
+release_elixir="$root/releases/$release_vsn/elixir"
 
-if [ -z "$erl" ]; then
+if [ ! -x "$release_elixir" ]; then
   printf '%s\n' '{"schema":"wtr.cli.v1","error":{"code":"erts_not_installed"}}' >&2
   exit 1
 fi
 
-set -- -extra "$@"
-set -- -eval 'application:ensure_all_started(elixir), Args = [list_to_binary(Arg) || Arg <- init:get_plain_arguments()], '\''Elixir.System'\'':argv(Args), '\''Elixir.Code'\'':require_file(list_to_binary(os:getenv("WOTEX_TRACKER_CLI_SCRIPT"))).' "$@"
-set -- -noshell -noinput "$@"
-for ebin in "$root"/lib/*/ebin; do
-  if [ -d "$ebin" ]; then
-    set -- -pa "$ebin" "$@"
-  fi
-done
-
-export WOTEX_TRACKER_CLI_SCRIPT="$release_script"
-exec "$erl" "$@"
+export ELIXIR_ERL_OPTIONS="${ELIXIR_ERL_OPTIONS:+$ELIXIR_ERL_OPTIONS }+fnu"
+exec "$release_elixir" \
+  --boot "$root/releases/$release_vsn/start_clean" \
+  --boot-var RELEASE_LIB "$root/lib" \
+  "$release_script" "$@"

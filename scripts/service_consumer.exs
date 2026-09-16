@@ -1254,12 +1254,12 @@ File.write!(
 
 File.chmod!(descriptor, 0o600)
 
+elixir = System.find_executable("elixir") || raise("Elixir executable is unavailable")
+code_paths = Enum.flat_map(:code.get_path(), fn value -> ["-pa", List.to_string(value)] end)
+http_consumer = Path.expand("http_consumer.exs", __DIR__)
+
 {output, 0} =
-  System.cmd(
-    System.fetch_env!("WTR_HTTP_PYTHON"),
-    [System.fetch_env!("WTR_HTTP_CONSUMER"), descriptor],
-    stderr_to_stdout: true
-  )
+  System.cmd(elixir, code_paths ++ [http_consumer, descriptor], stderr_to_stdout: true)
 
 true = String.contains?(output, "HTTP_CONSUMER_PASS")
 

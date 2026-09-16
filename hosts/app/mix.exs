@@ -22,7 +22,10 @@ defmodule WotexTrackerHost.MixProject do
   end
 
   def application,
-    do: [extra_applications: [:logger, :crypto, :ssl], mod: {Wotex.Tracker.Host.Application, []}]
+    do: [
+      extra_applications: [:logger, :crypto, :ssl, :inets],
+      mod: {Wotex.Tracker.Host.Application, []}
+    ]
 
   def cli, do: [preferred_envs: [check: :test, coveralls: :test]]
 

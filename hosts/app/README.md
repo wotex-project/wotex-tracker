@@ -121,7 +121,7 @@ From the repository root, with Docker, the declared mise toolchains and the
 OpenAPI verification environment installed:
 
 ```sh
-python3 scripts/source_consumer.py --host
+MIX_ENV=test WOTEX_PATH_DEPS=1 mise exec -- mix run --no-start scripts/qualify_source.exs --host
 ```
 
 The harness builds bundled ERTS releases under `_build/releases/` for Darwin
