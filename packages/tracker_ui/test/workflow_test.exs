@@ -39,7 +39,7 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
        check_origin: ["https://www.example.com"],
        render_errors: [formats: [html: Wotex.Tracker.UI.ErrorHTML], layout: false],
        server: false,
-       tracker_ui: [sessions: sessions, prompt: {PromptPeer, prompt}]}
+       tracker_ui: [sessions: sessions, prompt: {PromptPeer, prompt}, operational_history: true]}
     )
 
     {:ok, %{"id" => id}} = Sessions.login(sessions, c.admin, c.scope)
@@ -499,6 +499,100 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert render(view) =~ "No qualified readings in this window"
     refute has_element?(view, "tbody tr")
     refute has_element?(view, "svg[role=img]")
+  end
+
+  test "host operational pages require admin authority and retain a pinned collector page", c do
+    cursor = %{
+      "schema" => "wtr.operational-cursor.v1",
+      "epoch" => "collector-one",
+      "after" => 1,
+      "through" => 2,
+      "event" => nil,
+      "limit" => 25
+    }
+
+    first = %{
+      "schema" => "wtr.operational-page.v1",
+      "epoch" => "collector-one",
+      "captured_at" => c.now,
+      "volatile" => true,
+      "through" => 2,
+      "samples" => [
+        %{
+          "sequence" => 1,
+          "observed_at" => c.now,
+          "event" => "query.stop",
+          "measurements" => %{"duration_us" => 123, "scanned_rows" => 1},
+          "metadata" => %{"aggregation" => "mean", "outcome" => "ok"}
+        }
+      ],
+      "cursor" => cursor
+    }
+
+    second = %{
+      first
+      | "samples" => [
+          %{
+            "sequence" => 2,
+            "observed_at" => c.now,
+            "event" => "render.stop",
+            "measurements" => %{"duration_us" => 456},
+            "metadata" => %{"surface" => "browser", "outcome" => "ok"}
+          }
+        ],
+        "cursor" => nil
+    }
+
+    Agent.update(c.faults, &Map.put(&1, :operational_history, {:page, first}))
+    {:ok, view, html} = live(c.conn, "/operations")
+    assert html =~ "Operational history"
+    assert html =~ "query.stop"
+    assert html =~ "duration_us: 123"
+    assert has_element?(view, "button", "Next page")
+
+    Agent.update(c.faults, &Map.put(&1, :operational_history, {:page, second}))
+    view |> element("button", "Next page") |> render_click()
+    assert render(view) =~ "render.stop"
+    assert has_element?(view, "button", "Previous page")
+
+    Agent.update(c.faults, &Map.put(&1, :operational_history, {:page, first}))
+    view |> element("button", "Previous page") |> render_click()
+    assert render(view) =~ "query.stop"
+
+    Agent.update(c.faults, &Map.put(&1, :operational_history, :unavailable))
+    view |> element("button", "Refresh") |> render_click()
+    assert render(view) =~ "query.stop"
+    assert has_element?(view, "[role=alert]")
+
+    Agent.update(c.faults, &Map.put(&1, :operational_history, {:page, first}))
+    view |> form("#operational-filter", filter: %{event: "query.stop"}) |> render_submit()
+    assert has_element?(view, "#operational-event option[value='query.stop'][selected]")
+    assert render(view) =~ "query.stop"
+
+    Agent.update(c.faults, &Map.put(&1, :operational_history, {:page, %{"samples" => []}}))
+    view |> element("button", "Refresh") |> render_click()
+    refute has_element?(view, "tbody tr")
+    assert has_element?(view, "[role=alert]")
+
+    Agent.update(c.faults, &Map.put(&1, :operational_history, {:page, first}))
+    view |> element("button", "Refresh") |> render_click()
+    assert render(view) =~ "query.stop"
+
+    render_hook(view, "filter", %{"filter" => %{"event" => "unknown"}})
+    assert has_element?(view, "[role=alert]")
+    assert render(view) =~ "query.stop"
+
+    Agent.update(c.faults, &Map.put(&1, :operational_history, {:deny, "forbidden"}))
+    view |> element("button", "Refresh") |> render_click()
+    refute has_element?(view, "tbody tr")
+    assert has_element?(view, "[role=alert]")
+
+    {:ok, %{"id" => reader}} = Sessions.login(c.sessions, c.reader, c.scope)
+    conn = build_conn() |> init_test_session(%{"browser_session" => reader})
+    {:ok, reader_view, _} = live(conn, "/operations")
+    refute has_element?(reader_view, "#operational-filter")
+    refute has_element?(reader_view, "tbody tr")
+    assert has_element?(reader_view, "[role=alert]")
   end
 
   test "a prompted graph uses only disclosed schema and a newly authorized closed query", c do

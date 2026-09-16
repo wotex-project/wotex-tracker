@@ -153,6 +153,13 @@ The host makes one request with no provider tools, retries or stored response.
 Failure leaves the structured form and existing result usable. Keep the key in
 the 0600 file and refresh the price inputs when provider pricing changes.
 
+The optional browser also offers **Operational history** from the asset list to
+administrators. It reads at most 25 recent local telemetry samples per page,
+with event filtering and previous/next navigation pinned to the collector's
+volatile epoch. Each read checks current admin authority. Refresh starts a new
+snapshot; collector restart or retention expiry requires a fresh first page.
+The route needs no external metrics service and is absent from the headless host.
+
 After creating `_build/local` with the CLI above, create a loopback browser
 configuration without printing its secret or replacing an existing file:
 

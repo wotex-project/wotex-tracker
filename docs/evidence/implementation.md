@@ -1916,3 +1916,15 @@ abandoned requests. The host checks explicit rate, concurrency, byte, token and
 operator-supplied price budgets. Unit tests exercise the request shape, response
 parser, bounded pool and synthetic transport failures. No live paid-provider run
 has been recorded; product acceptance of the public path remains open.
+
+### Authorized browser operational history — 2026-09-16
+
+The optional browser host exposes `/operations` to current administrators. Its
+host adapter checks admin authority before and after each bounded collector
+read. The shared view filters closed event names, shows no more than 25 retained
+samples per page, and navigates with the collector epoch and first-page
+high-water mark. A transient read failure keeps the prior page with an error;
+revocation, expired cursors and malformed pages clear it. The route is disabled
+for generic UI consumers and absent from headless host artifacts. UI workflow
+and real loopback-browser tests cover paging, filter, failure, denial and
+non-disclosure of credentials. Operational graphing remains open.

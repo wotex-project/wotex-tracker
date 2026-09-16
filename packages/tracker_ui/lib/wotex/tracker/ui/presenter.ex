@@ -17,6 +17,10 @@ defmodule Wotex.Tracker.UI.Presenter do
     "operation_mismatch" =>
       "This operation reference belongs to a different workflow. No new operation was submitted.",
     "overloaded" => "The query service is busy. Wait before running another query.",
+    "unsupported" => "This host does not provide this view.",
+    "invalid_cursor" => "This operational page can no longer be resumed. Refresh to start again.",
+    "invalid_query" => "Check the selected operational filter and refresh.",
+    "unavailable" => "Operational history is temporarily unavailable. Refresh to retry.",
     "prompt_unavailable" =>
       "The question provider is unavailable. You can still run a structured query.",
     "prompt_invalid" =>

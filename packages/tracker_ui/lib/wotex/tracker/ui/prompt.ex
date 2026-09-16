@@ -23,6 +23,7 @@ defmodule Wotex.Tracker.UI.Prompt do
          question <- String.trim(question),
          true <- question != "",
          {module, context} when is_atom(module) <- adapter(socket),
+         true <- Code.ensure_loaded?(module),
          true <- function_exported?(module, :propose, 2),
          {:ok, now} <- DateTime.from_unix(now_ms, :millisecond),
          {:ok, proposal} <-

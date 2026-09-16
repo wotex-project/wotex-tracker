@@ -18,6 +18,11 @@ browser host records sanitized LiveView render durations there. Reconnect and
 OS-native resource events remain with their owning adapters.
 Host-only operational pages pin a collector epoch and sequence high-water mark;
 continuations reject restart, altered filters and expired samples.
+The optional browser host now exposes those pages at `/operations` to current
+administrators. It reauthorizes every bounded read, including navigation and
+refresh, and shows event filters, retained measurements and the volatile epoch.
+The view clears samples on revoked authority or expired continuation. A general
+operational graph and remote exporter remain open.
 Encrypted analytics continuations now bind the exact query and first committed
 generation while reauthorizing every bucket page. General dashboard composition
 and sharing, a live public-provider prompt run and cross-surface graph acceptance remain

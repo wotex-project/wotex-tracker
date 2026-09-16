@@ -16,6 +16,7 @@ defmodule Wotex.Tracker.UI.BrowseLive do
        page_params: nil,
        page_back: [],
        summaries: %{},
+       operational_enabled: socket.endpoint.config(:tracker_ui)[:operational_history] == true,
        operation: nil,
        outcome: nil,
        error: nil
@@ -136,6 +137,9 @@ defmodule Wotex.Tracker.UI.BrowseLive do
         </div>
         <button class="secondary" phx-click="refresh">Refresh</button>
       </div>
+      <a :if={@operational_enabled && @identity["can_manage_queries"]} href="/operations">
+        Operational history
+      </a>
       <.notice error={@error} />
       <section
         :if={

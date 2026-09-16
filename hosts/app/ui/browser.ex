@@ -1,16 +1,16 @@
 defmodule Wotex.Tracker.Host.Browser do
   @moduledoc "Optional browser composition; only a UI-enabled artifact compiles this host."
   use Supervisor
-  alias Wotex.Tracker.Host.Browser.Endpoint
+  alias Wotex.Tracker.Host.Browser.{Client, Endpoint}
   alias Wotex.Tracker.Host.Browser.PromptProvider
   alias Wotex.Tracker.Host.Browser.RenderTelemetry
-  alias Wotex.Tracker.UI.{Local, Sessions}
+  alias Wotex.Tracker.UI.Sessions
 
   @doc false
   def start_link(options), do: Supervisor.start_link(__MODULE__, options)
 
   @impl true
-  def init({config, provider}) do
+  def init({config, provider, server_provider}) do
     uri = URI.parse(config.public_origin)
     transport = if config.exposure == :tls, do: :https, else: :http
 
@@ -50,7 +50,8 @@ defmodule Wotex.Tracker.Host.Browser do
             if(config.prompt,
               do: {PromptProvider, Wotex.Tracker.Host.Browser.PromptProvider},
               else: nil
-            )
+            ),
+          operational_history: true
         ],
         debug_errors: false,
         code_reloader: false
@@ -73,7 +74,8 @@ defmodule Wotex.Tracker.Host.Browser do
     Supervisor.init(
       [
         {Phoenix.PubSub, name: Wotex.Tracker.Host.Browser.PubSub},
-        {Sessions, name: Wotex.Tracker.Host.Browser.Sessions, client: {Local, provider}}
+        {Sessions,
+         name: Wotex.Tracker.Host.Browser.Sessions, client: {Client, {provider, server_provider}}}
       ] ++
         prompt ++
         [

@@ -5,7 +5,7 @@ defmodule Wotex.Tracker.Host.BrowserTest do
   alias Wotex.Tracker.Host.BrowserConfig
   alias Wotex.Tracker.Host.PromptConfig
   alias Wotex.Tracker.Host.Supervisor, as: HostSupervisor
-  alias Wotex.Tracker.Host.Browser.Endpoint
+  alias Wotex.Tracker.Host.Browser.{Client, Endpoint}
   alias Wotex.Tracker.Service
   alias Wotex.Tracker.Service.{Codec, Credentials, Identifier}
   alias Wotex.Tracker.Service.HTTP.{Config, Server}
@@ -19,6 +19,8 @@ defmodule Wotex.Tracker.Host.BrowserTest do
     on_exit(fn -> File.rm_rf!(directory) end)
     token = Credentials.generate_token()
     {:ok, digest} = Credentials.token_digest(token)
+    reader_token = Credentials.generate_token()
+    {:ok, reader_digest} = Credentials.token_digest(reader_token)
 
     {:ok, credentials} =
       Credentials.new(%{
@@ -30,6 +32,13 @@ defmodule Wotex.Tracker.Host.BrowserTest do
             principal: "owner",
             token_sha256: digest,
             grants: %{"workshop" => ~w(read ingest enroll admin)},
+            expires_at: System.system_time(:millisecond) + 60_000
+          },
+          %{
+            id: "reader",
+            principal: "reader",
+            token_sha256: reader_digest,
+            grants: %{"workshop" => ~w(read)},
             expires_at: System.system_time(:millisecond) + 60_000
           }
         ]
@@ -44,7 +53,12 @@ defmodule Wotex.Tracker.Host.BrowserTest do
       exposure: :loopback
     ]
 
-    %{directory: directory, token: token, service_options: service_options}
+    %{
+      directory: directory,
+      token: token,
+      reader_token: reader_token,
+      service_options: service_options
+    }
   end
 
   test "optional browser composition serves local assets, authenticates over HTTP and rejects foreign WebSocket origins",
@@ -129,6 +143,26 @@ defmodule Wotex.Tracker.Host.BrowserTest do
     refute inspect(logged_in_headers) =~ c.token
 
     browser_cookie = cookie(logged_in_headers)
+
+    {200, _, operations} =
+      request(:get, origin <> "/operations", [{~c"cookie", browser_cookie}], nil)
+
+    assert operations =~ "Operational history"
+    assert operations =~ "Collector epoch"
+    refute operations =~ c.token
+    refute operations =~ browser.prompt.api_key
+
+    host_client = {fn -> {:ok, service} end, fn -> {:ok, api} end}
+
+    assert {:error, %{"code" => "forbidden"}} =
+             Client.request(
+               host_client,
+               c.reader_token,
+               "workshop",
+               :operational_history,
+               %{"event" => nil, "cursor" => nil},
+               System.system_time(:millisecond)
+             )
 
     {302, setup_headers, _} =
       request(:get, origin <> "/setup", [{~c"cookie", browser_cookie}], nil)
