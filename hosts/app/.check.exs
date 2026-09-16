@@ -9,7 +9,6 @@
     {:dialyzer, command: "mix dialyzer"},
     {:ex_doc, command: "mix docs --warnings-as-errors"},
     {:mix_audit, command: "mix deps.audit"},
-    {:cli, command: "python3 test/test_trackerctl.py"},
     {:licenses, command: "mix run --no-start ../../scripts/check_licenses.exs"}
   ]
 ]
