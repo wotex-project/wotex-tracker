@@ -86,6 +86,16 @@ identity shown beside the snapshot, admitted query and resolved time bounds,
 units, qualified buckets, exclusion counts and gap policy. If automatic refresh
 is marked stale, the export contains the last successful result shown on the
 page. A new run creates a new exportable result.
+An administrator can use **Compare saved queries** from the Dashboards page to
+select two to eight definitions on one bounded list page. The browser accepts
+only distinct series with identical measurement, unit, query settings and
+window policy, then saves one new multi-series definition as an exact-table
+dashboard. The current scope generation protects the save against concurrent
+edits. Its operation reference remains in the page address, so an uncertain
+reply can be checked without sending another save. Readers can run the saved
+comparison under their current authority, but cannot create it. This is one
+compatible query over several series; it does not combine unrelated windows or
+grant access to the underlying assets.
 
 `Service.analytics_page/5` and `POST …/analytics/pages` partition the admitted
 bucket window into pages of 1 to 1,000 buckets. The first request supplies the

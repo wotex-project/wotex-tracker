@@ -583,6 +583,262 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert_redirect(detail, "/sign-in")
   end
 
+  test "an administrator saves two compatible series as a comparison dashboard", c do
+    {first, second, _} = comparison_sources(c)
+    {:ok, index, _} = live(c.conn, "/dashboards")
+    assert has_element?(index, "a[href='/dashboards/compare']")
+    operation = Identifier.uuid()
+    path = "/dashboards/compare?operation=" <> operation
+    {:ok, view, _} = live(c.conn, path)
+    assert has_element?(view, "#compare-dashboard")
+
+    view
+    |> form("#compare-dashboard",
+      compose: %{title: "Compare temperatures", query_ids: [first, second]}
+    )
+    |> render_submit()
+
+    assert render(view) =~ "Comparison saved"
+    refute has_element?(view, "#compare-dashboard")
+
+    render_submit(view, "save", %{
+      "compose" => %{"title" => "Repeated", "query_ids" => [first, second]}
+    })
+
+    refute has_element?(view, "#compare-dashboard")
+    dashboard = "comparison-" <> operation
+    assert has_element?(view, "a[href='#{Presenter.dashboard_path(dashboard)}']")
+    {:ok, stored} = Service.get(c.service, c.admin, c.scope, "saved_queries", dashboard, c.now)
+    assert stored["value"]["query"]["series"] == ["workshop-asset", "another-asset"]
+    assert stored["value"]["visualization"]["type"] == "table"
+    assert stored["value"]["window"]["kind"] == "rolling"
+
+    {:ok, resumed, _} = live(c.conn, path)
+    assert render(resumed) =~ "Comparison saved"
+    {:ok, detail, _} = live(c.conn, Presenter.dashboard_path(dashboard))
+    detail |> element("button", "Run saved query") |> render_click()
+    assert has_element?(detail, "h3", "workshop-asset")
+    assert has_element?(detail, "h3", "another-asset")
+  end
+
+  test "a lost comparison reply recovers once and rejects a reused source operation", c do
+    {first, second, source_operation} = comparison_sources(c)
+    unrelated = "/dashboards/compare?operation=" <> source_operation
+    {:ok, mismatch, _} = live(c.conn, unrelated)
+    assert render(mismatch) =~ "different workflow"
+    refute has_element?(mismatch, "#compare-dashboard")
+
+    operation = Identifier.uuid()
+    path = "/dashboards/compare?operation=" <> operation
+    {:ok, view, _} = live(c.conn, path)
+    Agent.update(c.faults, &Map.put(&1, :save_query, :lost_reply))
+
+    view
+    |> form("#compare-dashboard",
+      compose: %{title: "Recovered comparison", query_ids: [first, second]}
+    )
+    |> render_submit()
+
+    assert render(view) =~ "Save outcome unknown"
+    refute has_element?(view, "#compare-dashboard")
+    {:ok, resumed, _} = live(c.conn, path)
+    assert render(resumed) =~ "Comparison saved"
+
+    {:ok, history} =
+      Service.history(
+        c.service,
+        c.admin,
+        c.scope,
+        "saved_queries",
+        "comparison-" <> operation,
+        %{},
+        c.now
+      )
+
+    assert length(history["items"]) == 1
+  end
+
+  test "comparison recovers a failed verification read and leaves transport uncertainty explicit",
+       c do
+    {first, second, _} = comparison_sources(c)
+    operation = Identifier.uuid()
+    path = "/dashboards/compare?operation=" <> operation
+    {:ok, view, _} = live(c.conn, path)
+    Agent.update(c.faults, &Map.put(&1, :get, :unavailable))
+
+    view
+    |> form("#compare-dashboard", compose: %{title: "Verify later", query_ids: [first, second]})
+    |> render_submit()
+
+    assert render(view) =~ "Save outcome unknown"
+    view |> element("button", "Check save outcome") |> render_click()
+    assert render(view) =~ "Comparison saved"
+
+    other_operation = Identifier.uuid()
+    {:ok, uncertain, _} = live(c.conn, "/dashboards/compare?operation=" <> other_operation)
+    Agent.update(c.faults, &Map.put(&1, :save_query, :unavailable))
+
+    uncertain
+    |> form("#compare-dashboard", compose: %{title: "No write", query_ids: [first, second]})
+    |> render_submit()
+
+    assert render(uncertain) =~ "Save outcome unknown"
+    refute has_element?(uncertain, "#compare-dashboard")
+    uncertain |> element("button", "Check save outcome") |> render_click()
+    refute has_element?(uncertain, "#compare-dashboard")
+
+    assert {:error, %{"code" => "not_found"}} =
+             Service.get(
+               c.service,
+               c.admin,
+               c.scope,
+               "saved_queries",
+               "comparison-" <> other_operation,
+               c.now
+             )
+  end
+
+  test "comparison rejects incompatible, repeated and unknown definitions", c do
+    {first, second, _} = comparison_sources(c, :absolute_second)
+    operation = Identifier.uuid()
+    {:ok, view, _} = live(c.conn, "/dashboards/compare?operation=" <> operation)
+
+    view
+    |> form("#compare-dashboard",
+      compose: %{title: "Different windows", query_ids: [first, second]}
+    )
+    |> render_submit()
+
+    assert has_element?(view, "[role=alert]")
+    assert has_element?(view, "#compare-dashboard")
+
+    render_submit(view, "save", %{
+      "compose" => %{"title" => "One series", "query_ids" => [first]}
+    })
+
+    assert has_element?(view, "[role=alert]")
+
+    render_submit(view, "save", %{
+      "compose" => %{"title" => "Repeated", "query_ids" => [first, first]}
+    })
+
+    assert has_element?(view, "[role=alert]")
+
+    render_submit(view, "save", %{
+      "compose" => %{"title" => "Missing", "query_ids" => [first, "missing"]}
+    })
+
+    assert has_element?(view, "[role=alert]")
+
+    assert {:error, %{"code" => "not_found"}} =
+             Service.get(
+               c.service,
+               c.admin,
+               c.scope,
+               "saved_queries",
+               "comparison-" <> operation,
+               c.now
+             )
+  end
+
+  test "comparison requires distinct series even when definitions otherwise match", c do
+    {first, _, _} = comparison_sources(c)
+    duplicate = "duplicate-series-dashboard"
+    {:ok, page} = Service.list(c.service, c.admin, c.scope, "saved_queries", %{}, c.now)
+
+    {:ok, _} =
+      Service.save_query(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        dashboard_request(duplicate, "Same asset", c, page["generation"]),
+        c.now
+      )
+
+    {:ok, view, _} = live(c.conn, "/dashboards/compare?operation=" <> Identifier.uuid())
+
+    view
+    |> form("#compare-dashboard",
+      compose: %{title: "Duplicate series", query_ids: [first, duplicate]}
+    )
+    |> render_submit()
+
+    assert has_element?(view, "[role=alert]")
+    assert has_element?(view, "#compare-dashboard")
+  end
+
+  test "comparison refuses a stale generation after a concurrent definition update", c do
+    {first, second, _} = comparison_sources(c)
+    operation = Identifier.uuid()
+    {:ok, view, _} = live(c.conn, "/dashboards/compare?operation=" <> operation)
+    {:ok, page} = Service.list(c.service, c.admin, c.scope, "saved_queries", %{}, c.now)
+
+    {:ok, _} =
+      Service.save_query(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        dashboard_request(first, "Newer source", c, page["generation"]),
+        c.now
+      )
+
+    view
+    |> form("#compare-dashboard", compose: %{title: "Stale", query_ids: [first, second]})
+    |> render_submit()
+
+    assert render(view) =~ "service changed since this page loaded"
+    assert has_element?(view, "#compare-dashboard")
+
+    assert {:error, %{"code" => "not_found"}} =
+             Service.get(
+               c.service,
+               c.admin,
+               c.scope,
+               "saved_queries",
+               "comparison-" <> operation,
+               c.now
+             )
+  end
+
+  test "comparison requires an administrator and a valid operation", c do
+    {first, second, _} = comparison_sources(c)
+    {:ok, %{"id" => reader}} = Sessions.login(c.sessions, c.reader, c.scope)
+    conn = build_conn() |> init_test_session(%{"browser_session" => reader})
+    {:ok, index, _} = live(conn, "/dashboards")
+    refute has_element?(index, "a[href='/dashboards/compare']")
+    {:ok, readonly, _} = live(conn, "/dashboards/compare?operation=" <> Identifier.uuid())
+    refute has_element?(readonly, "#compare-dashboard")
+    assert render(readonly) =~ "cannot save a comparison"
+
+    render_submit(readonly, "save", %{
+      "compose" => %{"title" => "Denied", "query_ids" => [first, second]}
+    })
+
+    assert render(readonly) =~ "does not permit"
+
+    {:ok, invalid, _} = live(c.conn, "/dashboards/compare?operation=invalid")
+    assert has_element?(invalid, "[role=alert]")
+    refute has_element?(invalid, "#compare-dashboard")
+    render_submit(invalid, "save", %{"compose" => %{}})
+    assert has_element?(invalid, "[role=alert]")
+    assert {:error, {:redirect, %{to: redirected}}} = live(c.conn, "/dashboards/compare")
+    assert redirected =~ "/dashboards/compare?operation="
+  end
+
+  test "comparison reports a temporary list failure without saving", c do
+    comparison_sources(c)
+    {:ok, view, _} = live(c.conn, "/dashboards/compare?operation=" <> Identifier.uuid())
+    Agent.update(c.faults, &Map.put(&1, :list, :unavailable))
+    view |> element("button", "Refresh definitions") |> render_click()
+    assert has_element?(view, "[role=alert]")
+    refute has_element?(view, "#compare-dashboard")
+    view |> element("button", "Refresh definitions") |> render_click()
+    assert has_element?(view, "#compare-dashboard")
+    refute has_element?(view, "[role=alert]")
+  end
+
   test "an administrator edits a dashboard and reconnects without repeating the write", c do
     {dashboard, _} = saved_dashboard(c)
     path = Presenter.dashboard_path(dashboard)
@@ -1693,5 +1949,22 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
       "visualization" => %{"type" => "line", "show_legend" => true, "show_points" => true},
       "expected_generation" => generation
     }
+  end
+
+  defp comparison_sources(c, second_window \\ :rolling) do
+    {first, operation} = saved_dashboard(c)
+    second = "another-dashboard"
+    {:ok, page} = Service.list(c.service, c.admin, c.scope, "saved_queries", %{}, c.now)
+
+    request =
+      dashboard_request(second, "Another dashboard", c, page["generation"], "another-asset")
+
+    request =
+      if second_window == :absolute_second, do: Map.delete(request, "window"), else: request
+
+    {:ok, _} =
+      Service.save_query(c.service, c.admin, c.scope, Identifier.uuid(), request, c.now)
+
+    {first, second, operation}
   end
 end

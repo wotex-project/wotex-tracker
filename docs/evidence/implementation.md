@@ -1750,3 +1750,16 @@ downsampling disclosure and gap policy. The browser creates a local file from
 the LiveView event; no export path accepts a client-supplied result. Workflow
 tests re-admit exported documents, verify representative values, reject export
 without a result and deny it after session revocation.
+
+### Saved-series comparison — 2026-09-16
+
+The shared browser now lets an administrator select two to eight compatible
+saved definitions and persist their distinct series as one multi-series query
+with an exact-table visualization. Selection is limited to the current bounded
+page; measurement, unit, query settings and window policy must agree. A scope
+generation check prevents a concurrent definition change from being ignored.
+The page retains a stable operation reference and verifies a committed receipt
+against the new saved definition. Workflow tests cover normal execution, a lost
+reply, failed verification read, stale generation, incompatible or duplicate
+series, reader denial and unrelated operation references. General composition,
+sharing, multi-series graphs and physical surface acceptance remain open.

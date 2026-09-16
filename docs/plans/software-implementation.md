@@ -374,7 +374,7 @@ The shared browser now executes a bounded per-asset structured query and shows
 its committed snapshot, bucket values and exclusions in line/area/point graphs
 and an accessible table. Gap-separated paths and time-window controls support
 historical exploration. Reconnect/render/OS-native resource events,
-subscription-driven refresh, dashboard composition and sharing, prompting and the physical UI
+subscription-driven refresh, general dashboard composition and sharing, prompting and the physical UI
 acceptance gates remain.
 The shared browser can also list saved query definitions and rerun one under
 current read authority. Administrators can save a displayed graph with a fixed
@@ -385,6 +385,10 @@ marked stale result through a temporary failure and clearing it if the
 definition or read authority disappears.
 The currently displayed query result can also be exported as its exact closed
 JSON document without selecting a new snapshot.
+Administrators can select two to eight saved definitions with identical query
+settings and window policy and distinct series, then save a new multi-series
+exact-table dashboard with a generation check and recoverable operation receipt.
+This covers compatible series comparison, not arbitrary dashboard composition.
 
 Add an explicitly configured public model adapter for question-to-query translation:
 synthetic boundary tests plus a separately recorded real-provider execution.

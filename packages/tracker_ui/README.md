@@ -11,7 +11,8 @@ retained measurements, resource history and per-asset measurement graphs with
 an exact table. Unsupported positioning and Actions are identified honestly.
 Readers can list retained saved definitions and rerun them under current
 authorization. An administrator can save a displayed query with a fixed or
-rolling window; editing and deleting in the browser remain open.
+rolling window, edit or delete it, and combine compatible saved series into a
+new exact-table dashboard.
 This is not full application, Pi or mobile acceptance.
 
 `Wotex.Tracker.UI.Local` calls only the public authorized service facade.
@@ -66,7 +67,7 @@ current scope generation and submits the admitted query plus visualization
 through the authorized service. It verifies a committed receipt against the
 saved definition's asset series and suppresses duplicate writes after an
 uncertain reply. This is historical inspection with explicit refresh; scheduled
-subscription-driven refresh, dashboard composition and prompted queries are still open. An
+subscription-driven refresh, general dashboard composition and prompted queries are still open. An
 administrator can also edit a saved dashboard's title and view or delete it with
 a generation check and recoverable operation receipt.
 Saved dashboard pages offer a 30-second automatic query refresh while open,
@@ -77,3 +78,8 @@ Executed analytics and saved-dashboard results can be downloaded as their exact
 closed JSON documents, including snapshot and result identity, time bounds,
 units, exclusions and gap policy. The browser creates the file locally from the
 current authorized LiveView result rather than making a new query.
+The Dashboards page also lets an administrator select two to eight compatible
+saved definitions. Their measurement, unit, query settings and window must
+match, and their series must be distinct. A generation-checked save creates one
+new multi-series query with an exact table. Its stable operation reference
+supports recovery after a lost reply; a reader can run but cannot create it.

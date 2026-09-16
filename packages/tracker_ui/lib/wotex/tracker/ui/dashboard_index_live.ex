@@ -32,6 +32,9 @@ defmodule Wotex.Tracker.UI.DashboardIndexLive do
         <button class="secondary" phx-click="refresh">Refresh</button>
       </div>
       <.notice error={@error} />
+      <a :if={@identity["can_manage_queries"]} href="/dashboards/compare">
+        Compare saved queries
+      </a>
       <section :if={@page} aria-label="Saved dashboards">
         <div :if={@page["items"] == []} class="empty">
           <h2>No saved dashboards on this page</h2>

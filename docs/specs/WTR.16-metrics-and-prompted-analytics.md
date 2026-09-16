@@ -18,8 +18,9 @@ rendering and OS-native resource events remain with their owning adapters.
 Host-only operational pages pin a collector epoch and sequence high-water mark;
 continuations reject restart, altered filters and expired samples.
 Encrypted analytics continuations now bind the exact query and first committed
-generation while reauthorizing every bucket page. Dashboard composition and
-sharing, prompt integration and graphs remain required product deliverables.
+generation while reauthorizing every bucket page. General dashboard composition
+and sharing, prompt integration and multi-series graphs remain required product
+deliverables.
 The shared browser now submits a bounded structured numeric query for one asset
 and renders snapshot-bound line, area and point graphs with separate paths at
 gaps, time-window controls and an exact table with exclusion counts. Scheduled
@@ -30,6 +31,9 @@ generation check and stable operation receipt, then edit its title/view or
 delete it with another checked operation. Ownership and query authority stay
 with the service. An open dashboard can also rerun automatically every 30
 seconds, distinguishing a temporary stale result from an invalidated read.
+The browser can combine two to eight compatible saved definitions with distinct
+series into one generation-checked multi-series exact-table dashboard. The
+stable operation reference permits receipt recovery without a duplicate write.
 The browser can export the currently displayed closed query result as JSON with
 its source snapshot, result identity, bounds, units, exclusions and gap policy.
 Model execution is explicitly configured and can be disabled; deterministic
