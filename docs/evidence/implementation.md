@@ -1586,7 +1586,34 @@ inspected with ordinary dependency metadata and excludes tests and host code.
 The root gate also passes on the floor runtime at 95.4% production coverage.
 
 Complete setup/import, maps/trips, protection, interactions, privacy controls,
-analytics screens, remote-service presentation, UI-enabled production archive
-consumers and bundled release/OCI qualification remain open. The existing
+analytics screens and remote-service presentation remain open. The existing
 headless artifact receipts retain their original scope and source identities.
 Pi, mobile and all physical gates remain unpassed.
+
+### Bundled browser artifact qualification — 2026-09-16
+
+The local signed registry packages the shared UI with ordinary production
+dependency metadata. Six isolated consumers install its archive in fresh,
+locked and minimum modes on Elixir 1.18.4 / OTP 27.3.4.15 and Elixir 1.20.4 /
+OTP 29.0.4. Each executes the public session and presenter contract from the
+installed package, confirms its local assets and absent host/application
+callback, then verifies invalid credentials and logout denial. No consumer
+imports repository source or starts the app host.
+
+Separate Darwin ARM64 and Linux ARM64 bundled ERTS hosts resolve the local
+signed registry and include the optional UI. Their release probe signs in over
+HTTP with real CSRF/cookie handling, inspects an enrolled asset and its retained
+measurements, fetches all four local JavaScript/CSS assets, then proves a browser
+cookie from before restart no longer grants access. The same release lifecycle
+also passes HTTP/OpenAPI/SSE, CLI Property resume, receipt replay, active-stream
+SIGTERM, SIGKILL recovery, durable revocation and definite SQLite-full rollback.
+An independent Rust client passes its enrolled-asset, analytics, paging and
+stream-revocation flow on both artifacts. Linux runs the probe as a non-root user
+inside a read-only, network-isolated image and tests an unwritable data
+destination. Its runtime image has no external BEAM tools or compiler.
+
+The archive, dependency lock, host source, runtime base, native client and
+per-platform results are recorded in `verification/ui-consumer.json`.
+The bundles and image are local artifacts; none was published. These probes
+qualify the first browser workflow and release composition, not a complete
+tracking application, physical device, Pi panel or mobile companion.

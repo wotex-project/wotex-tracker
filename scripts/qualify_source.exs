@@ -51,10 +51,13 @@ defmodule Wotex.Tracker.SourceQualifier do
 
   def main(arguments) do
     {options, rest, invalid} =
-      OptionParser.parse(arguments, strict: [service: :boolean, host: :boolean])
+      OptionParser.parse(arguments, strict: [service: :boolean, host: :boolean, ui: :boolean])
 
-    if rest != [] or invalid != [], do: raise("usage: qualify_source.exs [--service|--host]")
-    host? = options[:host] == true
+    if rest != [] or invalid != [],
+      do: raise("usage: qualify_source.exs [--service|--host|--ui]")
+
+    ui? = options[:ui] == true
+    host? = options[:host] == true or ui?
     service? = options[:service] == true or host?
 
     workspace =
@@ -63,13 +66,13 @@ defmodule Wotex.Tracker.SourceQualifier do
     File.mkdir_p!(workspace)
 
     try do
-      qualify(workspace, service?, host?)
+      qualify(workspace, service?, host?, ui?)
     after
       File.rm_rf!(workspace)
     end
   end
 
-  defp qualify(workspace, service?, host?) do
+  defp qualify(workspace, service?, host?, ui?) do
     environment = clean_environment()
     registry = Path.join(workspace, "registry")
     tarballs = Path.join(registry, "tarballs")
@@ -111,7 +114,16 @@ defmodule Wotex.Tracker.SourceQualifier do
       environment
     )
 
-    packages = if host?, do: packages ++ locked_packages(), else: packages
+    if ui? do
+      Command.run!(
+        ["mix", "hex.build", "--output", Path.join(tarballs, "wotex_tracker_ui-0.1.0.tar")],
+        Path.join(@root, "packages/tracker_ui"),
+        environment
+      )
+    end
+
+    lockfile = if ui?, do: "mix.ui.lock", else: "mix.lock"
+    packages = if host?, do: packages ++ locked_packages(lockfile), else: packages
     fetch_packages(Enum.uniq(packages), workspace, tarballs, environment)
     key = Path.join(workspace, "registry-key.pem")
     Command.plain!("openssl", ["genrsa", "-out", key, "2048"])
@@ -126,9 +138,9 @@ defmodule Wotex.Tracker.SourceQualifier do
 
     try do
       url = "http://127.0.0.1:#{port}"
-      results = consumers(workspace, registry, url, environment, service?)
-      host_result = if host?, do: qualify_host(workspace, registry, url, environment)
-      write_report(tarballs, revisions, results, host_result, service?, host?)
+      results = consumers(workspace, registry, url, environment, service?, ui?)
+      host_result = if host?, do: qualify_host(workspace, registry, url, environment, ui?)
+      write_report(tarballs, revisions, results, host_result, service?, host?, ui?)
     after
       Process.exit(server, :shutdown)
     end
@@ -185,7 +197,7 @@ defmodule Wotex.Tracker.SourceQualifier do
     {revisions, @base_packages ++ @service_packages}
   end
 
-  defp consumers(workspace, registry, url, environment, service?) do
+  defp consumers(workspace, registry, url, environment, service?, ui?) do
     for lane <- @lanes, mode <- ~w(fresh locked minimum) do
       {elixir, otp} = lane
       consumer = Path.join(workspace, "consumer-#{elixir}-#{mode}")
@@ -208,7 +220,7 @@ defmodule Wotex.Tracker.SourceQualifier do
         lane
       )
 
-      write_consumer(consumer, mode, service?)
+      write_consumer(consumer, mode, service?, ui?)
 
       if mode == "locked" do
         floor = Path.join(workspace, "consumer-#{elixir}-fresh/mix.lock")
@@ -222,19 +234,29 @@ defmodule Wotex.Tracker.SourceQualifier do
 
       output =
         Command.run!(
-          ["mix", "run", Path.join(@root, "scripts/source_consumer.exs")],
+          [
+            "mix",
+            "run",
+            Path.join(
+              @root,
+              if(ui?, do: "scripts/ui_consumer.exs", else: "scripts/source_consumer.exs")
+            )
+          ],
           consumer,
           consumer_environment,
           lane
         )
 
-      unless String.contains?(output, "SOURCE_COHORT_PASS") and
+      expected = if ui?, do: "UI_COHORT_PASS", else: "SOURCE_COHORT_PASS"
+
+      unless String.contains?(output, expected) and
                File.read!(Path.join(consumer, "mix.lock")) == lock,
              do: raise("consumer contract or immutable lock check failed")
 
       IO.puts(String.trim(output))
 
-      if service?, do: verify_service_consumer!(consumer, consumer_environment, lane)
+      if service? and not ui?,
+        do: verify_service_consumer!(consumer, consumer_environment, lane)
 
       %{
         "elixir" => elixir,
@@ -261,8 +283,13 @@ defmodule Wotex.Tracker.SourceQualifier do
     IO.puts(String.trim(output))
   end
 
-  defp write_consumer(directory, mode, service?) do
-    dependency = if service?, do: "wotex_tracker_service", else: "wotex_tracker"
+  defp write_consumer(directory, mode, service?, ui?) do
+    dependency =
+      cond do
+        ui? -> "wotex_tracker_ui"
+        service? -> "wotex_tracker_service"
+        true -> "wotex_tracker"
+      end
 
     dependencies =
       if mode == "minimum" do
@@ -310,8 +337,8 @@ defmodule Wotex.Tracker.SourceQualifier do
     end)
   end
 
-  defp locked_packages do
-    lock = File.read!(Path.join(@root, "hosts/app/mix.lock"))
+  defp locked_packages(lockfile) do
+    lock = File.read!(Path.join(@root, "hosts/app/#{lockfile}"))
 
     packages =
       Regex.scan(~r/"([a-z0-9_]+)": \{:hex, :[a-z0-9_]+, "([^"]+)"/, lock,
@@ -323,11 +350,11 @@ defmodule Wotex.Tracker.SourceQualifier do
     packages
   end
 
-  defp qualify_host(workspace, registry, url, environment) do
-    ReleaseQualifier.verify(workspace, registry, url, environment)
+  defp qualify_host(workspace, registry, url, environment, ui?) do
+    ReleaseQualifier.verify(workspace, registry, url, environment, ui?)
   end
 
-  defp write_report(tarballs, revisions, results, host_result, service?, host?) do
+  defp write_report(tarballs, revisions, results, host_result, service?, host?, ui?) do
     archives =
       tarballs
       |> Path.join("*.tar")
@@ -348,10 +375,12 @@ defmodule Wotex.Tracker.SourceQualifier do
     File.mkdir_p!(destination)
 
     name =
-      if(host?,
-        do: "host-consumer.json",
-        else: if(service?, do: "service-consumer.json", else: "source-consumer.json")
-      )
+      cond do
+        ui? -> "ui-consumer.json"
+        host? -> "host-consumer.json"
+        service? -> "service-consumer.json"
+        true -> "source-consumer.json"
+      end
 
     File.write!(Path.join(destination, name), Jason.encode!(report, pretty: true) <> "\n")
     IO.puts("Recorded _build/verification/#{name}; temporary registry and keys removed on exit")
@@ -372,6 +401,8 @@ defmodule Wotex.Tracker.SourceQualifier do
     System.get_env()
     |> Map.merge(%{
       "WOTEX_PATH_DEPS" => nil,
+      "WOTEX_TRACKER_UI" => nil,
+      "WOTEX_TRACKER_UI_CONFIG" => nil,
       "MIX_BUILD_PATH" => nil,
       "MIX_DEPS_PATH" => nil,
       "MIX_ENV" => nil

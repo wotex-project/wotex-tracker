@@ -173,9 +173,9 @@ reconnecting can recover a retained receipt without repeating a mutation.
 
 Source tests cover the shared workflow and actual host HTTP authentication,
 static assets, cookie attributes and WebSocket-origin denial. Browser review
-includes desktop and narrow viewport layouts. UI-enabled bundled release/OCI,
-remote-service presentation, complete accessibility and full product workflows
-remain unqualified. The artifact qualification below covers the headless build.
+includes desktop and narrow viewport layouts. The UI-enabled bundle passes its
+local software lifecycle probe as described below. Remote-service presentation,
+complete accessibility and full product workflows remain unqualified.
 
 ## Bundled release and local OCI qualification
 
@@ -189,11 +189,23 @@ toolchain installed:
 
 ```sh
 MIX_ENV=test WOTEX_PATH_DEPS=1 mise exec -- mix run --no-start scripts/qualify_source.exs --host
+MIX_ENV=test WOTEX_PATH_DEPS=1 mise exec -- mix run --no-start scripts/qualify_source.exs --ui
 ```
 
 The harness builds bundled ERTS releases under `_build/releases/` for Darwin
 ARM64 and Linux ARM64, plus the local image
-`wotex-tracker:0.1.0-linux-arm64-local`. Linux uses the pinned Debian Bookworm
+`wotex-tracker:0.1.0-linux-arm64-local`. `--ui` builds the separate UI package,
+checks fresh, locked and minimum production consumers on both supported
+Elixir/OTP lanes, and assembles `wotex_tracker_ui-0.1.0-{darwin,linux}-arm64.tar.gz`
+under `_build/releases/` and `wotex-tracker-ui:0.1.0-linux-arm64-local` locally.
+Its exact report is `_build/verification/ui-consumer.json`. The UI bundle keeps
+the same release command and uses both private service and browser configuration
+files described above. The release probe signs into the browser, checks an
+enrolled asset and measurements, and verifies the old browser session is denied
+after restart. Linux also exercises the read-only, non-root container. The UI
+package has no endpoint or listener when consumed alone.
+
+Linux uses the pinned Debian Bookworm
 builder with Elixir 1.18.4 / OTP 27.3.4.15 and Hex 2.5.1. The runtime image is a
 separate pinned Debian base with the libraries needed by the bundled ERTS; it
 contains no external Elixir, Erlang, Mix or C compiler. Artifact, base-image,

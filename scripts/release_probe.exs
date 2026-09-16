@@ -70,13 +70,13 @@ defmodule Wotex.Tracker.ReleaseProbe do
   def main(arguments) do
     {options, rest, invalid} =
       OptionParser.parse(arguments,
-        strict: [readonly_directory: :string, native_consumer: :string]
+        strict: [readonly_directory: :string, native_consumer: :string, browser: :boolean]
       )
 
     unless invalid == [] and length(rest) == 2,
       do:
         raise(
-          "usage: release_probe.exs RELEASE FIXTURES [--readonly-directory PATH] [--native-consumer PATH]"
+          "usage: release_probe.exs RELEASE FIXTURES [--readonly-directory PATH] [--native-consumer PATH] [--browser]"
         )
 
     [release, fixtures] = Enum.map(rest, &Path.expand/1)
@@ -95,7 +95,9 @@ defmodule Wotex.Tracker.ReleaseProbe do
         "external_beam_tools_absent" => true,
         "external_compiler_absent" => is_nil(System.find_executable("gcc"))
       }
-      |> Map.merge(lifecycle(release, Path.join(fixtures, "persistent")))
+      |> Map.merge(
+        lifecycle(release, Path.join(fixtures, "persistent"), options[:browser] == true)
+      )
       |> Map.merge(failures(release, fixtures, options[:readonly_directory]))
       |> Map.merge(native_consumer(release, fixtures, options[:native_consumer]))
 
@@ -103,13 +105,14 @@ defmodule Wotex.Tracker.ReleaseProbe do
     IO.puts("RELEASE_PROBE_PASS " <> Jason.encode!(report))
   end
 
-  defp lifecycle(release, directory) do
-    instance = new_instance(release, directory)
+  defp lifecycle(release, directory, browser?) do
+    instance = new_instance(release, directory, browser?)
 
     try do
       instance = start(instance)
       HTTPConsumer.main([instance.descriptor])
       thing = request(instance, "/things")["items"] |> hd() |> Map.fetch!("id")
+      browser_cookie = browser_workflow(instance, thing)
       generation = request(instance, "/state")["generation"]
       first = cli_sample(instance, thing)
       expected_snapshot = "property:snapshot:#{generation}:#{generation}"
@@ -128,6 +131,7 @@ defmodule Wotex.Tracker.ReleaseProbe do
       {instance, shutdown} = stop(instance)
       :closed = Task.await(watcher, 5_000)
       instance = start(instance)
+      browser_session_expired(instance, browser_cookie)
       ^receipt = request(instance, "/operations/" <> operation)
       ^receipt = request(instance, "/materialisations", body: body, operation: operation)
       ^td = request(instance, "/things/" <> encode_segment(thing))
@@ -153,7 +157,8 @@ defmodule Wotex.Tracker.ReleaseProbe do
         "shutdown_seconds" => Float.round(shutdown / 1_000, 3),
         "restart_and_idempotency" => "pass",
         "sigkill_recovery" => "pass",
-        "retained_revocation" => "pass"
+        "retained_revocation" => "pass",
+        "browser" => if(browser_cookie, do: "pass", else: "not-in-artifact")
       }
     after
       terminate(instance)
@@ -243,7 +248,7 @@ defmodule Wotex.Tracker.ReleaseProbe do
     end
   end
 
-  defp new_instance(release, directory) do
+  defp new_instance(release, directory, browser? \\ false) do
     File.mkdir_p!(Path.dirname(directory))
     port = available_port()
     cli = Path.join([release, "bin", "trackerctl"])
@@ -296,6 +301,8 @@ defmodule Wotex.Tracker.ReleaseProbe do
       "now" => 1_700_000_000_000
     })
 
+    browser = if browser?, do: browser_configuration(directory), else: nil
+
     %{
       release: release,
       directory: directory,
@@ -305,14 +312,128 @@ defmodule Wotex.Tracker.ReleaseProbe do
       document: %{document | "credentials" => [admin, reader_entry]},
       origin: "http://127.0.0.1:#{port}",
       descriptor: client,
+      browser: browser,
       process: nil
     }
+  end
+
+  defp browser_configuration(directory) do
+    port = available_port()
+    origin = "http://127.0.0.1:#{port}"
+    secret = Base.encode64(:crypto.strong_rand_bytes(64))
+    config = Path.join(directory, "browser.json")
+
+    write_json(config, %{
+      "schema" => "wtr.browser.v1",
+      "listen" => %{"ip" => "127.0.0.1", "port" => port},
+      "exposure" => "loopback",
+      "public_origin" => origin,
+      "secret_key_base" => secret
+    })
+
+    %{config: config, origin: origin, secret: secret}
+  end
+
+  defp browser_workflow(%{browser: nil}, _thing), do: nil
+
+  defp browser_workflow(instance, thing) do
+    origin = instance.browser.origin
+    {200, headers, sign_in} = browser_request(:get, origin <> "/sign-in", [], nil)
+    [_, csrf] = Regex.run(~r/name="_csrf_token"[^>]*value="([^"]+)"/, sign_in)
+    cookie = browser_cookie(headers)
+
+    {302, login_headers, body} =
+      browser_request(
+        :post,
+        origin <> "/session",
+        [{~c"cookie", cookie}],
+        URI.encode_query(%{"_csrf_token" => csrf, "scope" => @scope, "token" => instance.token})
+      )
+
+    false = String.contains?(body, instance.token)
+    false = String.contains?(inspect(login_headers), instance.token)
+    cookie = browser_cookie(login_headers)
+    {200, _headers, assets} = browser_request(:get, origin <> "/", [{~c"cookie", cookie}], nil)
+    true = String.contains?(assets, thing)
+
+    {302, detail_headers, _body} =
+      browser_request(
+        :get,
+        origin <> "/assets/" <> URI.encode(thing, &URI.char_unreserved?/1),
+        [{~c"cookie", cookie}],
+        nil
+      )
+
+    location = detail_headers |> List.keyfind(~c"location", 0) |> elem(1) |> to_string()
+    true = String.contains?(location, "?operation=")
+
+    {200, _headers, detail} =
+      browser_request(
+        :get,
+        URI.merge(origin, location) |> to_string(),
+        [{~c"cookie", cookie}],
+        nil
+      )
+
+    true = String.contains?(detail, "Recorded measurements")
+    true = String.contains?(detail, "Measurement history")
+    false = String.contains?(detail, instance.token)
+
+    for path <-
+          ~w(/assets/tracker.js /assets/tracker.css /assets/phoenix/phoenix.min.js /assets/liveview/phoenix_live_view.min.js) do
+      {200, _headers, bytes} = browser_request(:get, origin <> path, [], nil)
+      true = byte_size(bytes) > 100
+    end
+
+    cookie
+  end
+
+  defp browser_session_expired(%{browser: nil}, nil), do: :ok
+
+  defp browser_session_expired(instance, cookie) do
+    origin = instance.browser.origin
+    {302, headers, _body} = browser_request(:get, origin <> "/", [{~c"cookie", cookie}], nil)
+    location = headers |> List.keyfind(~c"location", 0) |> elem(1) |> to_string()
+    true = String.ends_with?(location, "/sign-in")
+    :ok
+  end
+
+  defp browser_request(method, url, headers, body) do
+    request =
+      if body,
+        do: {String.to_charlist(url), headers, ~c"application/x-www-form-urlencoded", body},
+        else: {String.to_charlist(url), headers}
+
+    {:ok, {{_version, status, _reason}, response_headers, response}} =
+      :httpc.request(method, request, [timeout: 5_000, autoredirect: false], body_format: :binary)
+
+    {status, response_headers, response}
+  end
+
+  defp browser_cookie(headers) do
+    headers
+    |> List.keyfind(~c"set-cookie", 0)
+    |> elem(1)
+    |> to_string()
+    |> String.split(";")
+    |> hd()
+    |> String.to_charlist()
   end
 
   defp start(instance, expected_failure \\ false) do
     write_json(instance.config, instance.document)
     executable = Path.join([instance.release, "bin", "wotex_tracker"])
-    environment = Map.put(System.get_env(), "WOTEX_TRACKER_CONFIG", instance.config)
+
+    environment =
+      System.get_env()
+      |> Map.delete("WOTEX_TRACKER_UI_CONFIG")
+      |> Map.put("WOTEX_TRACKER_CONFIG", instance.config)
+
+    environment =
+      if instance.browser,
+        do: Map.put(environment, "WOTEX_TRACKER_UI_CONFIG", instance.browser.config),
+        else: environment
+
     log = Path.join(instance.directory, "release.log")
     {:ok, process} = ReleaseProcess.start_link(executable, environment, log)
     instance = %{instance | process: process}
@@ -534,7 +655,10 @@ defmodule Wotex.Tracker.ReleaseProbe do
     if File.exists?(log) do
       bytes = File.read!(log)
 
-      for secret <- [instance.token, instance.reader, instance.document["secret_key"]],
+      secrets = [instance.token, instance.reader, instance.document["secret_key"]]
+      secrets = if instance.browser, do: [instance.browser.secret | secrets], else: secrets
+
+      for secret <- secrets,
           String.contains?(bytes, secret),
           do: raise("release log failed secret redaction")
     end
@@ -550,8 +674,17 @@ defmodule Wotex.Tracker.ReleaseProbe do
   end
 
   defp assert_licenses!(release) do
-    for component <-
-          ~w(wotex_tracker_host wotex_tracker wotex_tracker_service wotex wotex_runtime wotex_binding_http exqlite mint elixir erlang-OTP-27.3.4.15) do
+    components =
+      ~w(wotex_tracker_host wotex_tracker wotex_tracker_service wotex wotex_runtime wotex_binding_http exqlite mint elixir erlang-OTP-27.3.4.15)
+
+    components =
+      if Path.wildcard(Path.join(release, "lib/wotex_tracker_ui-*")) != [],
+        do:
+          components ++
+            ~w(wotex_tracker_ui phoenix phoenix_live_view phoenix_html phoenix_pubsub phoenix_template),
+        else: components
+
+    for component <- components do
       licenses = Path.join([release, "licenses", component, "LICENSE*"]) |> Path.wildcard()
       if licenses == [], do: raise("release omitted a runtime license for #{component}")
     end

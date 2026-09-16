@@ -51,8 +51,10 @@ privileged host port also atomically persists transport-health state and stable
 event intents plus heartbeat, low-battery, motion/trip and geofence state and
 intents, with restart recovery and retry deduplication. The
 standalone CLI and bundled Darwin/Linux ARM64 service artifacts pass local probes.
-See the [service contract](docs/contracts/service-v1.md). Live scanning and UI
-remain subsequent work.
+See the [service contract](docs/contracts/service-v1.md). The first shared browser
+workflow now covers sign-in, evidence review, enrollment, provisioning and
+retained measurements. Live scanning and the rest of the application remain
+subsequent work.
 
 The WTR.05 pure foundation admits position evidence, freshness, deterministic
 selection, event ordering with modular sequence evidence, and bounded geofence
@@ -166,7 +168,8 @@ provides headless and local touch-display profiles. The mobile companion shares
 the web UI and adds secure storage, notifications and qualified local BLE support.
 Each host owns startup and resources; the library remains inert. Framework gaps,
 missing hardware evidence or distribution funding block the relevant gate rather
-than reducing these requirements. No application or firmware has been built yet.
+than reducing these requirements. The first browser workflow is implemented;
+complete application and firmware acceptance remain open.
 
 No external metrics database, vendor tracking cloud, private AI engine or hosted
 build service is required to operate the deterministic product. Network bearers,

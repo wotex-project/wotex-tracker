@@ -124,8 +124,9 @@ implemented and tested from source and bundled artifacts. Darwin ARM64 releases
 and Linux ARM64 OCI pass their local lifecycle probes, including CLI Property
 resume and actual Runtime HTTP-binding subscriptions from production archives.
 The optional UI composition now supports source-tested enrollment and asset
-inspection. UI-enabled artifact qualification and later rule/analytics workflows
-remain required. See
+inspection. Its local UI package consumers and Darwin/Linux bundled artifacts
+pass the first browser lifecycle probe. Later rule/analytics workflows remain
+required. See
 [executed evidence](../evidence/implementation.md).
 
 Add the explicitly started shared service, server host and CLI using imported
@@ -307,8 +308,9 @@ explicit Thing provisioning, retained measurements and paged history. The host
 owns the listener, credentials and supervision; the package calls the authorized
 service facade. Stable operation URLs recover durable outcomes on reconnect.
 Revocation, read-only denial, stale writes, lost replies and real HTTP session
-security are exercised. The source UI does not yet satisfy complete application,
-UI-enabled release, remote adapter, accessibility, Pi or mobile acceptance.
+security are exercised. The UI-enabled bundles also pass an authenticated
+browser asset and restart probe. Complete application, remote adapter,
+accessibility, Pi and mobile acceptance remain open.
 
 Implement WTR.15's shared components and `hosts/app/` after Phase 3; use admitted
 fixtures before hardware is available. Do not wait for LoRaWAN or private AI.

@@ -6,23 +6,25 @@ defmodule Wotex.Tracker.ReleaseQualifier do
   @root Path.expand("..", __DIR__)
   @builder "wotex-tracker-builder:elixir-1.18.4-otp-27.3.4.15"
   @image "wotex-tracker:0.1.0-linux-arm64-local"
+  @ui_image "wotex-tracker-ui:0.1.0-linux-arm64-local"
   @builder_base "hexpm/elixir@sha256:473f77ee88977dc8cc5d05fb91080a308be86be3fc27d50aef9a837d07c8268b"
   @runtime_base "debian@sha256:88200866dfff7ea7f5cbcb6ec7c8a701889efe6fe859fe64d6990e4b07ea4171"
   @rust_builder "rust@sha256:2775a09d208ff0d7c1f50490c45b62db929e87ba1dcbc3f2132ac71a704bcdd3"
   @native_client "wotex-tracker-protocol-consumer"
 
-  def verify(workspace, registry, url, environment) do
+  def verify(workspace, registry, url, environment, ui? \\ false) do
     workspace = Path.expand(workspace)
     destination = Path.join(@root, "_build/releases")
     File.mkdir_p!(destination)
-    {native_result, native_archive} = native(workspace, registry, url, environment)
-    File.cp!(native_archive, Path.join(destination, "wotex_tracker-0.1.0-darwin-arm64.tar.gz"))
-    {linux_result, linux_archive} = linux(workspace, registry)
+    variant = if(ui?, do: "wotex_tracker_ui", else: "wotex_tracker")
+    {native_result, native_archive} = native(workspace, registry, url, environment, ui?)
+    File.cp!(native_archive, Path.join(destination, "#{variant}-0.1.0-darwin-arm64.tar.gz"))
+    {linux_result, linux_archive} = linux(workspace, registry, ui?)
 
     if native_result["source_sha256"] != linux_result["source_sha256"],
       do: raise("host source changed between platform builds")
 
-    File.cp!(linux_archive, Path.join(destination, "wotex_tracker-0.1.0-linux-arm64.tar.gz"))
+    File.cp!(linux_archive, Path.join(destination, "#{variant}-0.1.0-linux-arm64.tar.gz"))
 
     %{
       "darwin-arm64" => native_result,
@@ -31,10 +33,14 @@ defmodule Wotex.Tracker.ReleaseQualifier do
     }
   end
 
-  defp native(workspace, registry, url, environment) do
+  defp native(workspace, registry, url, environment, ui?) do
     source = Path.join(workspace, "native-host")
-    digest = source_copy(source)
-    build_environment = Map.put(environment, "HEX_HOME", Path.join(workspace, "native-host-hex"))
+    digest = source_copy(source, ui?)
+
+    build_environment =
+      environment
+      |> Map.put("HEX_HOME", Path.join(workspace, "native-host-hex"))
+      |> Map.put("WOTEX_TRACKER_UI", if(ui?, do: "1", else: nil))
 
     Command.run!(
       [
@@ -61,23 +67,26 @@ defmodule Wotex.Tracker.ReleaseQualifier do
       Command.run!(command, source, build_environment)
     end
 
-    release = Path.join(source, "_build/prod/rel/wotex_tracker")
+    release = Path.join(release_build_path(source, ui?), "rel/wotex_tracker")
     fixtures = Path.join(workspace, "native-fixtures")
     client = build_native_client(workspace)
     probe_environment = Map.put(environment, "PATH", "/usr/bin:/bin:/usr/sbin:/sbin")
     IO.puts("Host native: black-box HTTP/SSE, signal/restart, crash recovery and full storage")
 
+    probe_arguments =
+      [
+        release,
+        Path.join(@root, "scripts/release_probe.exs"),
+        release,
+        fixtures,
+        "--native-consumer",
+        client
+      ] ++ if(ui?, do: ["--browser"], else: [])
+
     output =
       Command.plain!(
         Path.join(@root, "scripts/run_release_script"),
-        [
-          release,
-          Path.join(@root, "scripts/release_probe.exs"),
-          release,
-          fixtures,
-          "--native-consumer",
-          client
-        ],
+        probe_arguments,
         env: probe_environment
       )
 
@@ -85,7 +94,7 @@ defmodule Wotex.Tracker.ReleaseQualifier do
       do: raise("native bundled release probe did not pass")
 
     IO.puts(String.trim(output))
-    artifact = Path.join(source, "_build/prod/wotex_tracker-0.1.0.tar.gz")
+    artifact = Path.join(release_build_path(source, ui?), "wotex_tracker-0.1.0.tar.gz")
 
     {%{
        "source_sha256" => digest,
@@ -97,10 +106,10 @@ defmodule Wotex.Tracker.ReleaseQualifier do
      }, artifact}
   end
 
-  defp linux(workspace, registry) do
+  defp linux(workspace, registry, ui?) do
     build = Path.join(workspace, "linux-build")
     File.mkdir!(build)
-    digest = source_copy(Path.join(build, "host"))
+    digest = source_copy(Path.join(build, "host"), ui?)
     {:ok, _files} = File.cp_r(registry, Path.join(build, "registry"))
     verification = Path.join(build, "verification")
     File.mkdir!(verification)
@@ -129,21 +138,22 @@ defmodule Wotex.Tracker.ReleaseQualifier do
         ]
     )
 
-    docker!([
-      "run",
-      "-d",
-      "--name",
-      container,
-      "--platform",
-      "linux/arm64",
-      "-v",
-      "#{build}:/build",
-      "-e",
-      "HEX_HOME=/build/hex-home",
-      @builder,
-      "sleep",
-      "infinity"
-    ])
+    image = image_tag(ui?)
+
+    docker!(
+      [
+        "run",
+        "-d",
+        "--name",
+        container,
+        "--platform",
+        "linux/arm64",
+        "-v",
+        "#{build}:/build",
+        "-e",
+        "HEX_HOME=/build/hex-home"
+      ] ++ ui_build_environment(ui?) ++ [@builder, "sleep", "infinity"]
+    )
 
     try do
       docker!([
@@ -189,7 +199,7 @@ defmodule Wotex.Tracker.ReleaseQualifier do
 
       {:ok, _files} =
         File.cp_r(
-          Path.join(build, "host/_build/prod/rel/wotex_tracker"),
+          Path.join(release_build_path(Path.join(build, "host"), ui?), "rel/wotex_tracker"),
           Path.join(context, "release")
         )
 
@@ -202,11 +212,11 @@ defmodule Wotex.Tracker.ReleaseQualifier do
         "-f",
         Path.join(@root, "hosts/app/Dockerfile"),
         "-t",
-        @image,
+        image,
         context
       ])
 
-      image_id = docker!(["image", "inspect", @image, "--format", "{{.Id}}"]) |> String.trim()
+      image_id = docker!(["image", "inspect", image, "--format", "{{.Id}}"]) |> String.trim()
       docker!(["volume", "create", volume])
 
       docker!([
@@ -218,12 +228,24 @@ defmodule Wotex.Tracker.ReleaseQualifier do
         "/bin/sh",
         "-v",
         "#{volume}:/fixtures",
-        @image,
+        image,
         "-c",
         "chown 10001:10001 /fixtures && chmod 0700 /fixtures"
       ])
 
       IO.puts("Host Linux ARM64: read-only container, non-root black-box release lifecycle probe")
+
+      probe_arguments =
+        [
+          "/opt/wotex",
+          "/verification/release_probe.exs",
+          "/opt/wotex",
+          "/fixtures",
+          "--readonly-directory",
+          "/var/lib/wotex",
+          "--native-consumer",
+          "/verification/#{@native_client}"
+        ] ++ if(ui?, do: ["--browser"], else: [])
 
       output =
         docker!([
@@ -243,15 +265,8 @@ defmodule Wotex.Tracker.ReleaseQualifier do
           "#{verification}:/verification:ro",
           "--entrypoint",
           "/verification/run_release_script",
-          @image,
-          "/opt/wotex",
-          "/verification/release_probe.exs",
-          "/opt/wotex",
-          "/fixtures",
-          "--readonly-directory",
-          "/var/lib/wotex",
-          "--native-consumer",
-          "/verification/#{@native_client}"
+          image
+          | probe_arguments
         ])
 
       unless String.contains?(output, "RELEASE_PROBE_PASS"),
@@ -264,7 +279,8 @@ defmodule Wotex.Tracker.ReleaseQualifier do
       if result["external_compiler_absent"] != true,
         do: raise("runtime image contains a compiler")
 
-      artifact = Path.join(build, "host/_build/prod/wotex_tracker-0.1.0.tar.gz")
+      artifact =
+        Path.join(release_build_path(Path.join(build, "host"), ui?), "wotex_tracker-0.1.0.tar.gz")
 
       {%{
          "source_sha256" => digest,
@@ -272,7 +288,7 @@ defmodule Wotex.Tracker.ReleaseQualifier do
          "base_runtime" => @runtime_base,
          "builder_image_id" => builder_id,
          "image_id" => image_id,
-         "image_tag" => @image,
+         "image_tag" => image,
          "compiler" => compiler,
          "native_builder" => @rust_builder,
          "native_compiler" =>
@@ -297,11 +313,14 @@ defmodule Wotex.Tracker.ReleaseQualifier do
     end
   end
 
-  defp source_copy(destination) do
+  defp source_copy(destination, ui?) do
     File.mkdir!(destination)
     source = Path.join(@root, "hosts/app")
 
-    for name <- ~w(mix.exs mix.lock README.md LICENSE NOTICE lib config priv rel bin scripts) do
+    files = ~w(mix.exs mix.lock README.md LICENSE NOTICE lib config priv rel bin scripts)
+    files = if(ui?, do: files ++ ~w(mix.ui.lock ui), else: files)
+
+    for name <- files do
       from = Path.join(source, name)
       to = Path.join(destination, name)
 
@@ -324,6 +343,15 @@ defmodule Wotex.Tracker.ReleaseQualifier do
     |> :crypto.hash_final()
     |> Base.encode16(case: :lower)
   end
+
+  defp release_build_path(source, true), do: Path.join(source, "_build/ui/prod")
+  defp release_build_path(source, false), do: Path.join(source, "_build/prod")
+
+  defp image_tag(true), do: @ui_image
+  defp image_tag(false), do: @image
+
+  defp ui_build_environment(true), do: ["-e", "WOTEX_TRACKER_UI=1"]
+  defp ui_build_environment(false), do: []
 
   defp build_native_client(workspace) do
     source = Path.join(@root, "native/protocol_consumer")
