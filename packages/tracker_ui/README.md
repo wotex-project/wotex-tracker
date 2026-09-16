@@ -66,6 +66,10 @@ current scope generation and submits the admitted query plus visualization
 through the authorized service. It verifies a committed receipt against the
 saved definition's asset series and suppresses duplicate writes after an
 uncertain reply. This is historical inspection with explicit refresh; scheduled
-live refresh, dashboard composition and prompted queries are still open. An
+subscription-driven refresh, dashboard composition and prompted queries are still open. An
 administrator can also edit a saved dashboard's title and view or delete it with
 a generation check and recoverable operation receipt.
+Saved dashboard pages offer a 30-second automatic query refresh while open,
+with stale-result disclosure on temporary failure and immediate clearing when
+the definition or read grant disappears. Subscription-driven updates and
+cross-surface acceptance remain open.

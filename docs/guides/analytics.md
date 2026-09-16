@@ -75,6 +75,11 @@ view or prepare a deletion. Each action captures the current scope generation
 and puts its own operation reference in the page address. An uncertain response
 hides the action until the retained receipt reports whether the edit or deletion
 committed. The service still enforces ownership and current authorization.
+Any reader can start automatic refresh on an open saved dashboard. The page
+rechecks the definition and reruns its query every 30 seconds while it stays
+open. A temporary failure keeps the last successful result marked **stale** and
+retries; deletion or lost read authority clears that result and stops refresh.
+Manual runs, definition refreshes and navigation stop the timer.
 
 `Service.analytics_page/5` and `POST …/analytics/pages` partition the admitted
 bucket window into pages of 1 to 1,000 buckets. The first request supplies the

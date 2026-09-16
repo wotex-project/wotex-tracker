@@ -4,6 +4,7 @@ defmodule Wotex.Tracker.UI.DashboardLive do
   import Wotex.Tracker.UI.Components
   alias Wotex.Tracker.Service.Identifier
   alias Wotex.Tracker.UI.{Auth, Chart, Presenter}
+  @refresh_interval_ms 30_000
 
   @impl true
   def mount(_, _, socket) do
@@ -18,13 +19,17 @@ defmodule Wotex.Tracker.UI.DashboardLive do
        manage_intent: nil,
        manage_generation: nil,
        manage_outcome: nil,
-       manage_error: nil
+       manage_error: nil,
+       refresh_epoch: 0,
+       refresh_timer: nil,
+       refresh_status: nil,
+       refresh_error: nil
      )}
   end
 
   @impl true
   def handle_params(%{"id" => id} = params, _, socket) do
-    socket = socket |> assign(id: id) |> load()
+    socket = socket |> stop_refresh() |> assign(id: id) |> load()
 
     {:noreply,
      socket
@@ -34,11 +39,27 @@ defmodule Wotex.Tracker.UI.DashboardLive do
   end
 
   @impl true
-  def handle_event("refresh", _, socket), do: {:noreply, load(socket)}
+  def handle_event("refresh", _, socket), do: {:noreply, socket |> stop_refresh() |> load()}
 
   def handle_event("run", _, socket) do
-    {:noreply, socket |> load() |> execute()}
+    {:noreply, socket |> stop_refresh() |> load() |> execute()}
   end
+
+  def handle_event("start-auto-refresh", _, socket) do
+    if socket.assigns.definition && is_nil(socket.assigns.refresh_timer) do
+      socket =
+        socket
+        |> assign(refresh_epoch: socket.assigns.refresh_epoch + 1)
+        |> schedule_refresh()
+        |> refresh_follow()
+
+      {:noreply, socket}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_event("stop-auto-refresh", _, socket), do: {:noreply, stop_refresh(socket)}
 
   def handle_event("prepare-manage", %{"intent" => intent}, socket)
       when intent in ~w(edit delete) do
@@ -90,7 +111,7 @@ defmodule Wotex.Tracker.UI.DashboardLive do
           "request" => request
         })
 
-      {:noreply, manage_result(socket, result)}
+      {:noreply, socket |> stop_refresh() |> manage_result(result)}
     else
       {:noreply, assign(socket, manage_error: %{"code" => "forbidden"})}
     end
@@ -110,7 +131,7 @@ defmodule Wotex.Tracker.UI.DashboardLive do
           }
         })
 
-      {:noreply, manage_result(socket, result)}
+      {:noreply, socket |> stop_refresh() |> manage_result(result)}
     else
       {:noreply, assign(socket, manage_error: %{"code" => "forbidden"})}
     end
@@ -119,6 +140,18 @@ defmodule Wotex.Tracker.UI.DashboardLive do
   def handle_event("check-manage", _, socket), do: {:noreply, recover_manage(socket)}
 
   def handle_event(_, _, socket), do: {:noreply, socket}
+
+  @impl true
+  def handle_info({:auto_refresh, epoch}, socket) do
+    if is_reference(socket.assigns.refresh_timer) and epoch == socket.assigns.refresh_epoch do
+      socket = socket |> refresh_follow() |> reschedule_refresh()
+      {:noreply, socket}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_info(_, socket), do: {:noreply, socket}
 
   @impl true
   def render(assigns) do
@@ -135,6 +168,23 @@ defmodule Wotex.Tracker.UI.DashboardLive do
       </div>
       <.notice error={@error} />
       <.notice error={@manage_error} />
+      <section :if={@definition} class="panel" aria-label="Automatic refresh">
+        <h2>Automatic refresh</h2>
+        <p>Recheck this saved definition and rerun it every 30 seconds while this page is open.</p>
+        <button :if={is_nil(@refresh_timer)} phx-click="start-auto-refresh">
+          Start auto-refresh
+        </button>
+        <button :if={@refresh_timer} class="secondary" phx-click="stop-auto-refresh">
+          Stop auto-refresh
+        </button>
+        <p :if={@refresh_timer && @refresh_status == :current} role="status">
+          Auto-refresh active; showing the latest successful query snapshot.
+        </p>
+        <p :if={@refresh_timer && @refresh_status == :stale} role="status">
+          The displayed result is stale. Auto-refresh will retry in 30 seconds.
+        </p>
+        <.notice error={@refresh_error} />
+      </section>
       <section :if={@manage_operation} class="panel">
         <h2>{if @manage_intent == "delete", do: "Delete dashboard", else: "Edit dashboard"}</h2>
         <p :if={@manage_outcome} role="status">{manage_status(@manage_intent, @manage_outcome)}</p>
@@ -277,6 +327,77 @@ defmodule Wotex.Tracker.UI.DashboardLive do
         assign(socket, result: nil, chart: nil, error: error)
     end
   end
+
+  defp refresh_follow(socket) do
+    case Auth.request(socket, :get, %{"resource" => "saved_queries", "id" => socket.assigns.id}) do
+      {:ok, %{"value" => definition}} ->
+        execute_follow(socket, definition)
+
+      {:error, error} ->
+        refresh_failure(socket, error)
+    end
+  end
+
+  defp execute_follow(socket, definition) do
+    case Auth.request(socket, :execute_saved_query, %{"id" => socket.assigns.id}) do
+      {:ok, result} ->
+        view = definition["visualization"]["type"]
+        chart = if view == "table", do: nil, else: Chart.project(result)
+
+        assign(socket,
+          definition: definition,
+          result: result,
+          chart: chart,
+          error: nil,
+          refresh_status: :current,
+          refresh_error: nil
+        )
+
+      {:error, error} ->
+        socket |> assign(definition: definition) |> refresh_failure(error)
+    end
+  end
+
+  defp refresh_failure(socket, %{"code" => code} = error)
+       when code in ~w(forbidden not_found unauthorized) do
+    socket
+    |> stop_refresh()
+    |> assign(definition: nil, result: nil, chart: nil, error: error)
+  end
+
+  defp refresh_failure(socket, error),
+    do: assign(socket, refresh_status: :stale, refresh_error: error)
+
+  defp schedule_refresh(socket) do
+    timer =
+      Process.send_after(
+        self(),
+        {:auto_refresh, socket.assigns.refresh_epoch},
+        @refresh_interval_ms
+      )
+
+    assign(socket, refresh_timer: timer)
+  end
+
+  defp reschedule_refresh(%{assigns: %{refresh_timer: timer}} = socket)
+       when is_reference(timer),
+       do: schedule_refresh(socket)
+
+  defp reschedule_refresh(socket), do: socket
+
+  defp stop_refresh(%{assigns: %{refresh_timer: timer}} = socket)
+       when is_reference(timer) do
+    Process.cancel_timer(timer)
+
+    assign(socket,
+      refresh_epoch: socket.assigns.refresh_epoch + 1,
+      refresh_timer: nil,
+      refresh_status: nil,
+      refresh_error: nil
+    )
+  end
+
+  defp stop_refresh(socket), do: socket
 
   defp window_label("absolute"), do: "Fixed absolute UTC bounds"
 

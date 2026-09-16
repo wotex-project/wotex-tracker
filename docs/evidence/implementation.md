@@ -1725,5 +1725,17 @@ revisit after a lost reply can distinguish the committed edit from a deletion
 without repeating the write. An unknown result hides the controls; stale
 generations fail without overwriting a newer definition. Browser tests cover
 reconnect recovery, reader denial, stale writes and unrelated receipts.
-Dashboard composition/sharing, scheduled live refresh and physical surface
+Dashboard composition/sharing, subscription-driven refresh and physical surface
+acceptance remain open.
+
+### Bounded saved-dashboard refresh — 2026-09-16
+
+An open saved dashboard can now opt into a 30-second timer. Each tick reloads
+its definition and executes through the current authorized service facade. A
+temporary lookup or execution failure keeps the last successful result with a
+visible stale label and retries; deletion or lost read authority clears the
+result and stops the timer. Manual runs, definition refreshes and navigation
+stop it, and an epoch rejects queued ticks from a prior run. LiveView tests
+cover failure and recovery, changed definitions, deletion, revocation and a
+late tick after stopping. Subscription-driven updates and physical UI
 acceptance remain open.

@@ -373,13 +373,16 @@ collector. Host-only operational pages pin its epoch and high-water sequence.
 The shared browser now executes a bounded per-asset structured query and shows
 its committed snapshot, bucket values and exclusions in line/area/point graphs
 and an accessible table. Gap-separated paths and time-window controls support
-historical exploration. Reconnect/render/OS-native resource events, scheduled
-live refresh, dashboard composition and sharing, prompting and the physical UI
+historical exploration. Reconnect/render/OS-native resource events,
+subscription-driven refresh, dashboard composition and sharing, prompting and the physical UI
 acceptance gates remain.
 The shared browser can also list saved query definitions and rerun one under
 current read authority. Administrators can save a displayed graph with a fixed
 or rolling window and recover a lost reply by operation reference. They can
 edit its title/view or delete it with the same generation and receipt rules.
+An open saved dashboard can rerun automatically every 30 seconds, retaining a
+marked stale result through a temporary failure and clearing it if the
+definition or read authority disappears.
 
 Add an explicitly configured public model adapter for question-to-query translation:
 synthetic boundary tests plus a separately recorded real-provider execution.

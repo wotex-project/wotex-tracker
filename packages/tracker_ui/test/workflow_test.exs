@@ -744,6 +744,110 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert {:ok, _} = Service.get(c.service, c.admin, c.scope, "saved_queries", dashboard, c.now)
   end
 
+  test "automatic dashboard refresh retains a marked stale result and recovers", c do
+    {thing, _} = enrolled(c)
+
+    {:ok, _} =
+      Service.materialize(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"thing_id" => thing, "expected_generation" => "2"},
+        c.now
+      )
+
+    {dashboard, _} = saved_dashboard(c, thing)
+    {:ok, detail, _} = live(c.conn, Presenter.dashboard_path(dashboard))
+    detail |> element("button", "Start auto-refresh") |> render_click()
+    assert render(detail) =~ "Auto-refresh active"
+    assert render(detail) =~ "24.3"
+    assert has_element?(detail, "path.chart-line")
+
+    Agent.update(c.faults, &Map.put(&1, :execute_saved_query, :unavailable))
+    send(detail.pid, {:auto_refresh, 1})
+    assert render(detail) =~ "displayed result is stale"
+    assert render(detail) =~ "24.3"
+
+    Agent.update(c.faults, &Map.put(&1, :get, :unavailable))
+    send(detail.pid, {:auto_refresh, 1})
+    assert render(detail) =~ "displayed result is stale"
+    assert has_element?(detail, "path.chart-line")
+
+    send(detail.pid, {:auto_refresh, 1})
+    assert render(detail) =~ "Auto-refresh active"
+    refute render(detail) =~ "displayed result is stale"
+
+    detail |> element("button", "Stop auto-refresh") |> render_click()
+    assert has_element?(detail, "button", "Start auto-refresh")
+    Agent.update(c.faults, &Map.put(&1, :execute_saved_query, :unavailable))
+    send(detail.pid, {:auto_refresh, 1})
+    render(detail)
+    assert Agent.get(c.faults, &Map.get(&1, :execute_saved_query)) == :unavailable
+  end
+
+  test "automatic refresh reloads changed definitions and clears a deleted dashboard", c do
+    {dashboard, _} = saved_dashboard(c)
+    {:ok, detail, _} = live(c.conn, Presenter.dashboard_path(dashboard))
+    detail |> element("button", "Start auto-refresh") |> render_click()
+    {:ok, page} = Service.list(c.service, c.admin, c.scope, "saved_queries", %{}, c.now)
+
+    {:ok, _} =
+      Service.save_query(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        dashboard_request(dashboard, "Updated while following", c, page["generation"])
+        |> put_in(["visualization", "type"], "area"),
+        c.now
+      )
+
+    send(detail.pid, {:auto_refresh, 1})
+    assert has_element?(detail, "h1", "Updated while following")
+    assert render(detail) =~ "area"
+    {:ok, current} = Service.list(c.service, c.admin, c.scope, "saved_queries", %{}, c.now)
+
+    {:ok, _} =
+      Service.delete_query(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"id" => dashboard, "expected_generation" => current["generation"]},
+        c.now
+      )
+
+    send(detail.pid, {:auto_refresh, 1})
+    assert has_element?(detail, "[role=alert]")
+    refute has_element?(detail, "button", "Run saved query")
+    refute has_element?(detail, "button", "Stop auto-refresh")
+  end
+
+  test "automatic refresh clears a reader result when access is revoked", c do
+    {dashboard, _} = saved_dashboard(c)
+    {:ok, %{"id" => reader}} = Sessions.login(c.sessions, c.reader, c.scope)
+    conn = build_conn() |> init_test_session(%{"browser_session" => reader})
+    {:ok, detail, _} = live(conn, Presenter.dashboard_path(dashboard))
+    detail |> element("button", "Start auto-refresh") |> render_click()
+    assert has_element?(detail, "h2", "Query result")
+    {:ok, page} = Service.list(c.service, c.admin, c.scope, "saved_queries", %{}, c.now)
+
+    {:ok, _} =
+      Service.revoke(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"credential_id" => "reader", "expected_generation" => page["generation"]},
+        c.now
+      )
+
+    send(detail.pid, {:auto_refresh, 1})
+    refute has_element?(detail, "h2", "Query result")
+    refute has_element?(detail, "button", "Stop auto-refresh")
+  end
+
   test "missing and temporarily unavailable saved dashboards expose no result", c do
     {:ok, missing, _} = live(c.conn, "/dashboards/missing")
     assert has_element?(missing, "[role=alert]")
@@ -1535,7 +1639,7 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     document
   end
 
-  defp saved_dashboard(c) do
+  defp saved_dashboard(c, series \\ "workshop-asset") do
     id = "workshop-dashboard"
     {:ok, page} = Service.list(c.service, c.admin, c.scope, "saved_queries", %{}, c.now)
     operation = Identifier.uuid()
@@ -1546,15 +1650,15 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
         c.admin,
         c.scope,
         operation,
-        dashboard_request(id, "Workshop dashboard", c, page["generation"]),
+        dashboard_request(id, "Workshop dashboard", c, page["generation"], series),
         c.now
       )
 
     {id, operation}
   end
 
-  defp dashboard_request(id, title, c, generation) do
-    query = dashboard_query("workshop-asset", c.now)
+  defp dashboard_request(id, title, c, generation, series \\ "workshop-asset") do
+    query = dashboard_query(series, c.now)
 
     %{
       "id" => id,
