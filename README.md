@@ -44,7 +44,8 @@ archive packaging. Start with the [pipeline guide](docs/guides/materialisation.m
 
 The separate service package implements a bounded SQLite store with atomic
 admission, historical snapshots, durable event/publication intents and recovery
-tests, authenticated HTTP/OpenAPI/SSE workflows, and Runtime Property reads and
+tests, bounded durable store-and-forward, authenticated HTTP/OpenAPI/SSE
+workflows, and Runtime Property reads and
 committed-value subscriptions through actual local HTTP binding peers. The
 standalone CLI and bundled Darwin/Linux ARM64 service artifacts pass local probes.
 See the [service contract](docs/contracts/service-v1.md). Live scanning and UI

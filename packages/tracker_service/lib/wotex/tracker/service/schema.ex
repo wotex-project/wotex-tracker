@@ -18,6 +18,10 @@ defmodule Wotex.Tracker.Service.Schema do
 
         [[1]] ->
           require_value!(SQL.rows!(db, "PRAGMA application_id"), [[1_465_143_857]])
+          migrate(db, "1-to-2.sql")
+
+        [[2]] ->
+          require_value!(SQL.rows!(db, "PRAGMA application_id"), [[1_465_143_857]])
 
         _ ->
           throw({:storage, :unsupported_schema})
@@ -40,7 +44,15 @@ defmodule Wotex.Tracker.Service.Schema do
 
     :wotex_tracker_service
     |> :code.priv_dir()
-    |> Path.join("schema/1.sql")
+    |> Path.join("schema/2.sql")
+    |> File.read!()
+    |> then(&SQL.execute!(db, &1))
+  end
+
+  defp migrate(db, file) do
+    :wotex_tracker_service
+    |> :code.priv_dir()
+    |> Path.join("schema/#{file}")
     |> File.read!()
     |> then(&SQL.execute!(db, &1))
   end
@@ -52,7 +64,9 @@ defmodule Wotex.Tracker.Service.Schema do
           {"observations", "scope,id,digest,generation,document"},
           {"records", "scope,kind,id,generation,document"},
           {"events", "sequence,scope,generation,created_at,document"},
-          {"publications", "scope,thing_id,generation,operation_id,document,status,cleanup"}
+          {"publications", "scope,thing_id,generation,operation_id,document,status,cleanup"},
+          {"forward_queue",
+           "scope,id,digest,document,size_bytes,admitted_at,expires_at,attempts,next_attempt_at,max_attempts,status,outcome,settled_at"}
         ] do
       SQL.rows!(db, "SELECT #{columns} FROM #{table} LIMIT 0")
     end

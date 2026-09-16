@@ -1,6 +1,17 @@
 # Production archive consumer: no repository source imports and no host packages.
 alias Wotex.Tracker.Service
-alias Wotex.Tracker.Service.{Codec, Credentials, Cursor, Identifier, Projection, Store, Update}
+
+alias Wotex.Tracker.Service.{
+  Codec,
+  Credentials,
+  Cursor,
+  ForwardItem,
+  Identifier,
+  Projection,
+  Store,
+  Update
+}
+
 alias Wotex.Binding.HTTP
 alias Wotex.Runtime.{ConsumedThing, Context, Result, Subscription}
 alias Wotex.Tracker.Service.HTTP.{LoopbackClient, Server}
@@ -111,11 +122,46 @@ store = Store.handle(pid)
 {:ok, result} = Store.mutate(store, update)
 "committed" = result["outcome"]
 {:ok, ^result} = Store.mutate(store, update)
-{:ok, %{"sqlite" => "3.53.4"}} = Store.readiness(store)
+{:ok, %{"schema" => "2", "sqlite" => "3.53.4"}} = Store.readiness(store)
+
+{:ok, forward_item} =
+  ForwardItem.new(%{
+    scope: "archive",
+    id: "archive-forward",
+    candidate_id: "cellular",
+    bearer: "lte-m",
+    application_protocol: "fixture-protocol",
+    payload: %{"event" => "alarm"},
+    source: :reliable,
+    admitted_at: update.now,
+    required_acknowledgement: :durable_admission
+  })
+
+{:ok, %{"status" => "pending"}} = Store.enqueue_forward(store, forward_item)
 GenServer.stop(pid)
 {:ok, pid} = Store.start_link(directory: directory, credentials: credentials)
 store = Store.handle(pid)
 {:ok, ^result} = Store.operation(store, "archive", "consumer", "import-1", update.now)
+
+{:ok, %{"status" => "pending"}} =
+  Store.forward_status(store, "archive", forward_item.id)
+
+{:ok, %{"items" => [%{"id" => "archive-forward", "attempt" => 1}]}} =
+  Store.claim_forward(store, "archive", update.now, 1, 1_000)
+
+{:ok, %{"status" => "delivered", "completion" => %{"layer" => "durable_admission"}}} =
+  Store.complete_forward(
+    store,
+    "archive",
+    forward_item.id,
+    forward_item.identity,
+    %{
+      status: :acknowledged,
+      layer: :durable_admission,
+      at: update.now + 1,
+      reference: "archive-server-admission"
+    }
+  )
 
 {:ok, %{"items" => [%{"value" => document}]}} =
   Store.authorized_snapshot(
@@ -428,5 +474,5 @@ retained = Process.list() |> MapSet.new() |> MapSet.difference(before_processes)
 0 = retained
 
 IO.puts(
-  "SERVICE_COHORT_PASS durable_restart=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true explicit_association=true independent_http_sse=true actual_runtime_http_peer=true actual_runtime_sse=true retained_new_processes=#{retained}"
+  "SERVICE_COHORT_PASS durable_restart=true durable_store_forward=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true explicit_association=true independent_http_sse=true actual_runtime_http_peer=true actual_runtime_sse=true retained_new_processes=#{retained}"
 )

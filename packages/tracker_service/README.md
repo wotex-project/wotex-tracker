@@ -30,6 +30,17 @@ expected generation. The original committed receipt is replayed before new
 profile/model work, including its generated Thing ID. Unknown outcomes require
 receipt lookup; they do not authorize automatic physical Action retries.
 
+The privileged `Store` port also supports bounded durable store-and-forward for
+host adapters. `ForwardItem` separates bearer from application protocol and
+declares source reliability plus the exact required acknowledgement layer.
+Per-scope defaults allow 1,024 pending items, 16 MiB encoded bytes, seven days
+and eight attempts; configuration may only lower those ceilings. Claims commit
+attempt/retry state in FIFO order before delivery. Reliable overflow rejects,
+while lossy overflow records a discarded receipt. Pending/unknown delivery does
+not remove an item. Exact send or layered acknowledgement completion is
+idempotent, and terminal cleanup is explicit. This privileged API is not exposed
+as an unauthenticated HTTP queue.
+
 `GET …/{resource}/{id}/history` returns ascending public versions, including
 explicit deletion records, with `limit` and encrypted `cursor` pagination.
 Pages stay at one committed generation and provide an event cursor for the same
@@ -75,7 +86,7 @@ and key paths. Explicit `:proxy` mode requires an HTTPS public origin and a
 protected proxy-to-listener network; forwarded headers never supply authority or
 Forms. No remote exposure is inferred.
 
-OpenAPI **3.1.0**, contract revision **1.0.0**, is packaged at
+OpenAPI **3.1.0**, contract revision **1.3.0**, is packaged at
 `priv/openapi/v1.json` and served at `/api/v1/openapi.json`. Liveness is
 `/health/live`; authenticated resources are under `/api/v1/scopes/{scope}`.
 Use `Authorization: Bearer …`, and a UUIDv4 `Idempotency-Key` for POST mutations.

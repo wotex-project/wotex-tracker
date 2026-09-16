@@ -890,3 +890,42 @@ LoRaWAN route on both supported runtime lanes; exact archive and lock identities
 are in `verification/source-consumer.json`. The policy remains pure. Durable
 queueing, policy-state persistence, Continuum snapshot conversion and actual
 radio/network delivery remain host integration work.
+
+## WTR.06 bounded durable store-and-forward — 2026-09-16
+
+The service store now admits closed `ForwardItem` values into SQLite schema 2.
+Each item binds scope and item ID, selected candidate, bearer, application
+protocol, native JSON payload, source reliability, admission time and exact
+required acknowledgement layer. A transactional schema-1 migration adds only
+the queue table and due index; tests retain and read a pre-migration scope.
+
+The queue fixes per-scope count and encoded-byte ceilings, maximum age and retry
+attempts. Age and attempt limits are captured in each row at admission so restart
+with different configuration cannot extend existing work. Claims serialize
+across independent SQLite writers, order by admission time then ID, and commit
+attempt plus next-retry time before returning bytes. Expiry and attempt exhaustion
+produce durable discarded receipts. Terminal receipt cleanup is explicit and
+cannot remove pending items.
+
+Reliable overflow returns `queue_full` without a commit. Lossy overflow records
+a durable `overflow` receipt while receipt capacity remains. Completion requires
+a prior claim, exact content identity and either send completion for a no-ACK
+route or acknowledgement at the exact policy layer. Earlier timestamps and
+different layers fail closed. Identical completion is idempotent; conflicting
+completion is rejected. Unknown after-commit admission is resolved by the same
+durable item status.
+
+Both service runtime lanes passed the complete gate with 2 properties and 96
+tests, no failures and at least 95.5% production line coverage. Cases cover
+item/byte limits, reliable versus lossy
+overflow, FIFO/retry/restart, exact expiry and exhaustion, cross-writer claims,
+layered completion, explicit cleanup, schema migration, malformed input and
+pre/post-commit failure. Compiler, formatter, strict Credo, Dialyzer, ExDoc,
+dependency audit, licenses, OpenAPI validation and archive inspection passed.
+
+The six production service consumers admit a queue item from the installed
+archive, restart SQLite, claim it and record durable-server-admission completion
+before exercising the existing authenticated HTTP and Runtime lanes. Exact
+archive and lock identities are in `verification/service-consumer.json`. No
+radio sender, external server, automatic retry process or Continuum conversion
+is claimed; the host adapter still owns those effects.

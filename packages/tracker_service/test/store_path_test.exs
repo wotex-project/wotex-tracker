@@ -39,6 +39,10 @@ defmodule Wotex.Tracker.Service.StorePathTest do
           [],
           [directory: directory(), max_rows: 0],
           [directory: directory(), max_pages: 262_145],
+          [directory: directory(), forward_max_items: 0],
+          [directory: directory(), forward_max_bytes: 16_777_217],
+          [directory: directory(), forward_max_age_ms: 604_800_001],
+          [directory: directory(), forward_max_attempts: 9],
           [directory: directory(), extra: 1],
           [directory: directory(), timeout: 1, timeout: 2],
           [directory: directory(), fault: :not_function]
@@ -49,7 +53,7 @@ defmodule Wotex.Tracker.Service.StorePathTest do
     path = directory()
     {:ok, db_path} = StorePath.database(path)
     {:ok, db} = Sqlite3.open(db_path)
-    :ok = Sqlite3.execute(db, "PRAGMA user_version=2")
+    :ok = Sqlite3.execute(db, "PRAGMA user_version=3")
     Sqlite3.close(db)
     assert {:error, {:unsupported_schema, _}} = start_supervised({Store, directory: path})
     {:ok, db} = Sqlite3.open(db_path)

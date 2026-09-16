@@ -17,6 +17,8 @@ defmodule Wotex.Tracker.Service.Store do
     Authority,
     Codec,
     Credentials,
+    ForwardItem,
+    ForwardQueue,
     Operation,
     Publication,
     Read,
@@ -146,6 +148,51 @@ defmodule Wotex.Tracker.Service.Store do
   def confirm_publication(store, scope, thing, generation, cleanup),
     do: StoreCall.run(store, {:confirm_publication, scope, thing, generation, cleanup})
 
+  @doc "Durably admits one bounded item or records a lossy overflow disposition."
+  @spec enqueue_forward(t(), ForwardItem.t()) :: {:ok, map()} | {:error, atom()}
+  def enqueue_forward(store, item) do
+    with {:ok, admitted} <- ForwardItem.validate(item),
+         do: StoreCall.run(store, {:enqueue_forward, admitted})
+  end
+
+  @doc "Claims due items in stable FIFO order and durably advances their attempt budget."
+  @spec claim_forward(t(), String.t(), integer(), pos_integer(), pos_integer()) ::
+          {:ok, map()} | {:error, atom()}
+  def claim_forward(store, scope, now, limit, retry_after_ms) do
+    if Codec.id?(scope) and Codec.time?(now) and is_integer(limit) and limit in 1..100 and
+         is_integer(retry_after_ms) and retry_after_ms in 1..86_400_000,
+       do: StoreCall.run(store, {:claim_forward, scope, now, limit, retry_after_ms}),
+       else: {:error, :invalid_query}
+  end
+
+  @doc "Returns one durable queue receipt without changing retry or expiry state."
+  @spec forward_status(t(), String.t(), String.t()) :: {:ok, map()} | {:error, atom()}
+  def forward_status(store, scope, id) do
+    if Codec.id?(scope) and Codec.id?(id),
+      do: StoreCall.run(store, {:forward_status, scope, id}),
+      else: {:error, :invalid_query}
+  end
+
+  @doc "Records exact send or layered acknowledgement evidence idempotently."
+  @spec complete_forward(t(), String.t(), String.t(), String.t(), map()) ::
+          {:ok, map()} | {:error, atom()}
+  def complete_forward(store, scope, id, identity, completion) do
+    with true <- Codec.id?(scope) and Codec.id?(id) and Codec.id?(identity),
+         {:ok, completion} <- ForwardQueue.completion(completion) do
+      StoreCall.run(store, {:complete_forward, scope, id, identity, completion})
+    else
+      _ -> {:error, :invalid_query}
+    end
+  end
+
+  @doc "Explicitly removes terminal queue receipts settled at or before a cutoff."
+  @spec cleanup_forward(t(), String.t(), integer()) :: {:ok, map()} | {:error, atom()}
+  def cleanup_forward(store, scope, before) do
+    if Codec.id?(scope) and Codec.time?(before),
+      do: StoreCall.run(store, {:cleanup_forward, scope, before}),
+      else: {:error, :invalid_query}
+  end
+
   @impl true
   def init(options) do
     with {:ok, options} <- options(options),
@@ -202,10 +249,14 @@ defmodule Wotex.Tracker.Service.Store do
       timeout: 5000,
       fault: fn _ -> :ok end,
       credentials: nil,
-      clock: nil
+      clock: nil,
+      forward_max_items: 1024,
+      forward_max_bytes: 16_777_216,
+      forward_max_age_ms: 604_800_000,
+      forward_max_attempts: 8
     ]
 
-    if Keyword.keyword?(options) and length(options) <= 8 and
+    if Keyword.keyword?(options) and length(options) <= 12 and
          length(Keyword.keys(options)) == length(Enum.uniq(Keyword.keys(options))) and
          Enum.all?(Keyword.keys(options), &(&1 in [:directory | Keyword.keys(defaults)])) do
       validate_options(defaults |> Keyword.merge(options) |> Map.new(), defaults)
@@ -215,9 +266,20 @@ defmodule Wotex.Tracker.Service.Store do
   end
 
   defp validate_options(merged, defaults) do
+    maxima = %{
+      max_rows: defaults[:max_rows],
+      max_pages: defaults[:max_pages],
+      busy_timeout: defaults[:busy_timeout],
+      timeout: defaults[:timeout],
+      forward_max_items: defaults[:forward_max_items],
+      forward_max_bytes: defaults[:forward_max_bytes],
+      forward_max_age_ms: defaults[:forward_max_age_ms],
+      forward_max_attempts: defaults[:forward_max_attempts]
+    }
+
     limits_valid =
-      Enum.all?([:max_rows, :max_pages, :busy_timeout, :timeout], fn key ->
-        is_integer(merged[key]) and merged[key] in 1..defaults[key]
+      Enum.all?(maxima, fn {key, maximum} ->
+        is_integer(merged[key]) and merged[key] in 1..maximum
       end)
 
     if Map.has_key?(merged, :directory) and limits_valid and is_function(merged.fault, 1) and
@@ -359,13 +421,28 @@ defmodule Wotex.Tracker.Service.Store do
   defp dispatch({:confirm_publication, scope, thing, generation, cleanup}, state),
     do: Publication.confirm(state.db, scope, thing, generation, cleanup)
 
+  defp dispatch({:enqueue_forward, item}, state),
+    do: ForwardQueue.enqueue(state.db, item, state.options)
+
+  defp dispatch({:claim_forward, scope, now, limit, retry_after_ms}, state),
+    do: ForwardQueue.claim(state.db, scope, now, limit, retry_after_ms, state.options)
+
+  defp dispatch({:forward_status, scope, id}, state),
+    do: ForwardQueue.status(state.db, scope, id)
+
+  defp dispatch({:complete_forward, scope, id, identity, completion}, state),
+    do: ForwardQueue.complete(state.db, scope, id, identity, completion, state.options)
+
+  defp dispatch({:cleanup_forward, scope, before}, state),
+    do: ForwardQueue.cleanup(state.db, scope, before, state.options)
+
   defp dispatch(:readiness, state) do
     SQL.execute!(state.db, "BEGIN IMMEDIATE")
 
     try do
       SQL.rows!(state.db, "INSERT OR IGNORE INTO scopes VALUES('__readiness__',0)")
       [[version]] = SQL.rows!(state.db, "SELECT sqlite_version()")
-      {:ok, %{"writable" => true, "schema" => "1", "sqlite" => version}}
+      {:ok, %{"writable" => true, "schema" => "2", "sqlite" => version}}
     after
       SQL.rollback(state.db)
     end

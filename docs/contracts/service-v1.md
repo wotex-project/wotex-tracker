@@ -22,8 +22,10 @@ a quiet scope's last event predates retention. Subsequent events still obey
 retention. The HTTP layer must bind this pair, principal, scope and issue/expiry
 time in its authenticated cursor; raw storage tokens do not grant authority.
 
-Schema version 1 is created transactionally using `PRAGMA user_version`.
-Unknown newer schemas fail startup. Migrations may never silently reset data.
+Schema version 2 is created transactionally using `PRAGMA user_version`.
+Version 1 upgrades in the same startup transaction by adding the forward queue;
+its existing scopes, operations, observations, records, events and publications
+remain unchanged. Unknown newer schemas fail startup. Migrations may never silently reset data.
 WAL, `synchronous=FULL`, foreign keys, a 1,000 ms busy timeout, 1,000-page
 auto-checkpoint and a 262,144-page database ceiling are mandatory. Page size is
 4,096 bytes. Checkpoint is an explicit administrative operation. Backup uses
@@ -68,6 +70,24 @@ unavailable. A crash after remote success before local confirmation remains
 pending/unknown until reconciliation. Cleanup failure is separate from committed
 admission and confirmed publication. No retry can overwrite a newer publication.
 
+The privileged host store also provides a durable store-and-forward queue. Each
+item fixes scope/item identity, selected bearer and application protocol, source
+reliability, native JSON payload, admission time and required acknowledgement
+layer. Admission records a content digest and captures the configured age and
+attempt limits in the row, so a restart or later configuration change cannot
+extend that item's budget. Pending items are claimed by admission time then item
+ID. Claim commits the attempt number and next retry time before bytes leave the
+process. A lost claim reply therefore delays a stable item; it does not remove it.
+
+Queue count and encoded-byte ceilings apply per scope. A reliable source receives
+`queue_full` without a commit or acknowledgement. A lossy source receives a
+durable discarded receipt with reason `overflow` when receipt capacity remains.
+Exact expiry and exhausted attempts become discarded receipts before another
+claim. Completion requires a prior claim, the exact item digest and either
+`sent` for a route requiring no acknowledgement or `acknowledged` at the exact
+declared layer. A lower/different layer does not satisfy it. Terminal receipts
+remain until explicit scoped cleanup; cleanup never removes pending items.
+
 ## Finite budgets
 
 These are service ceilings, not radio protocol maxima. Operator configuration
@@ -89,6 +109,10 @@ may lower them. Enlarging them requires a new qualified contract.
 | Retained operations / records / events | 100,000 each per database; reject at capacity |
 | Main database | 1 GiB; WAL/temp files require additional free space |
 | Operation / replay retention | 7 days; expiry explicit; fail closed at row capacity |
+| Forward item payload | 256 KiB native JSON before queue framing |
+| Pending forward queue | 1,024 items and 16 MiB encoded bytes per scope |
+| Forward age / attempts | 7 days / 8 attempts, captured at admission; operator may lower |
+| Forward claim | 100 due items; retry delay 1 ms–24 h; FIFO by admission time then ID |
 
 Readiness checks actual writable storage separately from liveness and ingress
 capabilities. Passive BLE absence is `unsupported`, never a successful empty scan.
@@ -210,7 +234,7 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
-## HTTP and stream contract 1.2.0
+## HTTP and stream contract 1.3.0
 
 The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
 2020-12. The independently maintained generator and validator check the packaged
@@ -376,7 +400,7 @@ Versions are sorted by ascending committed generation. Each item has `id`,
 `generation`, `deleted` and `value`. Deletion is explicit (`deleted: true`,
 `value: null`), while earlier versions remain readable. A resource with no
 retained versions returns `not_found`. This endpoint does not itself delete or
-alter resources. Schema 1 retains versions within the fixed database/table
+alter resources. Schema 2 retains versions within the fixed database/table
 capacity; it does not silently purge historical records.
 
 The response has `items`, snapshot `generation`, optional next `cursor` and

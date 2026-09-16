@@ -131,7 +131,7 @@ def document():
     base = "/api/v1/scopes/{scope}"
     paths = {"/health/live": {"get": operation("liveness", envelope(obj({"status": {"const": "live"}})), public=True)}}
     paths[base + "/health/ready"] = {"get": operation("readiness", envelope(obj({"writable": {"const": True},
-        "schema": {"const": "1"}, "sqlite": identifier})), ("Scope",))}
+        "schema": {"const": "2"}, "sqlite": identifier})), ("Scope",))}
     paths[base + "/capabilities"] = {"get": operation("capabilities", envelope(obj({
         "api_version": {"const": "v1"}, "import": {"const": "available"},
         **{key: {"const": "unsupported"} for key in ("ble_scan", "cellular", "rules", "analytics")},
@@ -154,7 +154,7 @@ def document():
             "Ascending immutable committed resource versions, including explicit deletion tombstones. "
             "Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. "
             "Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. "
-            "Record storage has a fixed capacity and no automatic historical deletion in schema 1.")
+            "Record storage has a fixed capacity and no automatic historical deletion in schema 2.")
     property_read = operation("read_property", {"type": ["number", "boolean"],
         "description": "Native JSON scalar constrained by the selected TD Property. Unavailable measurements return 503, never a numeric null. Requires read authority."},
         ("Scope", "ID", "Property"))
@@ -196,7 +196,7 @@ def document():
                        "Connection lifetime 300 s; idle reauthorization/poll 1 s; no unlimited queue."},
         ("Scope", "Cursor", "Resume"), media="text/event-stream")}
     paths["/api/v1/openapi.json"] = {"get": operation("openapi", {"type": "object"}, public=True)}
-    return {"openapi": "3.1.0", "info": {"title": "WoTEx Tracker service", "version": "1.2.0",
+    return {"openapi": "3.1.0", "info": {"title": "WoTEx Tracker service", "version": "1.3.0",
         "description": "Authenticated imported-observation foundation. No scanner, rules, analytics or physical interaction is implied."},
         "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema", "security": [{"bearer": []}],
         "paths": paths, "components": {"securitySchemes": {"bearer": {"type": "http", "scheme": "bearer"}},
