@@ -10,7 +10,8 @@ confirmed enrollment, later observation association, explicit Thing updates,
 retained measurements, resource history and per-asset measurement graphs with
 an exact table. Unsupported positioning and Actions are identified honestly.
 Readers can list retained saved definitions and rerun them under current
-authorization; creating and editing them in the browser is still open.
+authorization. An administrator can save a displayed query with a fixed or
+rolling window; editing and deleting in the browser remain open.
 This is not full application, Pi or mobile acceptance.
 
 `Wotex.Tracker.UI.Local` calls only the public authorized service facade.
@@ -60,5 +61,9 @@ aggregation and bucket vocabulary, delegates validation and execution to the
 authorized service, and shows the snapshot, qualified/excluded counts and only
 observed buckets. Line, area and point views keep gaps separate, expose exact
 bucket details in the table and offer keyboard-accessible time-window controls.
-This is historical inspection with explicit refresh; scheduled live refresh,
-browser save/edit controls and prompted queries are still open.
+The save control prepares a stable operation reference in the URL, captures the
+current scope generation and submits the admitted query plus visualization
+through the authorized service. It verifies a committed receipt against the
+saved definition's asset series and suppresses duplicate writes after an
+uncertain reply. This is historical inspection with explicit refresh; scheduled
+live refresh, dashboard composition/editing and prompted queries are still open.

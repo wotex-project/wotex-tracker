@@ -1697,3 +1697,21 @@ mid-session revocation. The composed-host HTTP test checks saved listing and
 detail through its authenticated listener; bundled browser probes reach the
 listing. Browser save/edit/delete controls, dashboard composition and sharing,
 scheduled live refresh and physical surfaces remain unqualified.
+
+### Browser dashboard save and recovery — 2026-09-16
+
+The per-asset analytics screen now lets an administrator save the displayed
+closed query as a fixed or rolling definition. It captures the current scope
+generation, puts a fresh operation UUID in the URL before showing the save form,
+and submits only the admitted query, title, window policy and closed graph
+options through `Service.save_query/6`. The committed receipt identifies the
+saved definition; the browser checks its asset series before reporting success.
+Reader credentials cannot prepare or submit a save.
+
+LiveView tests cover a rolling save and reconnect, a fixed save, invalid input,
+stale-generation refusal, a lost reply, a failed verification read, a temporary
+transport failure, read-only denial and an unrelated operation reference. An
+unknown outcome hides the form and can be checked through the retained receipt
+without sending the mutation again. Browser edit/delete controls, dashboard
+composition/sharing, scheduled live refresh and physical surface acceptance
+remain open.

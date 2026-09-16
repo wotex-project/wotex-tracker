@@ -377,7 +377,9 @@ historical exploration. Reconnect/render/OS-native resource events, scheduled
 live refresh, dashboard composition and sharing, prompting and the physical UI
 acceptance gates remain.
 The shared browser can also list saved query definitions and rerun one under
-current read authority. Browser creation, editing and deletion remain open.
+current read authority. Administrators can save a displayed graph with a fixed
+or rolling window and recover a lost reply by operation reference. Browser
+editing and deletion remain open.
 
 Add an explicitly configured public model adapter for question-to-query translation:
 synthetic boundary tests plus a separately recorded real-provider execution.

@@ -3,6 +3,7 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
   use Phoenix.LiveView, log: false
   import Wotex.Tracker.UI.Components
   alias Wotex.Tracker.QuerySpec
+  alias Wotex.Tracker.Service.Identifier
   alias Wotex.Tracker.UI.{Auth, Chart, Presenter}
 
   @buckets %{"hour" => 3_600_000, "six_hours" => 21_600_000, "day" => 86_400_000}
@@ -27,13 +28,28 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
        query: %{},
        result: nil,
        chart: nil,
+       save_operation: nil,
+       save_generation: nil,
+       save_title: nil,
+       save_outcome: nil,
+       save_error: nil,
        error: nil
      )}
   end
 
   @impl true
-  def handle_params(%{"id" => id}, _, socket),
-    do: {:noreply, socket |> assign(id: id, result: nil, chart: nil, error: nil) |> load()}
+  def handle_params(%{"id" => id} = params, _, socket) do
+    socket =
+      if socket.assigns.id == id and socket.assigns.asset do
+        socket
+      else
+        socket
+        |> assign(id: id, result: nil, chart: nil, error: nil, save_generation: nil)
+        |> load()
+      end
+
+    {:noreply, socket |> activate_save(params["save_operation"]) |> recover_save()}
+  end
 
   @impl true
   def handle_event("refresh", _, socket),
@@ -58,6 +74,79 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
       _ -> {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
     end
   end
+
+  def handle_event(
+        "prepare-save",
+        _,
+        %{
+          assigns: %{
+            result: %{},
+            save_operation: nil,
+            identity: %{"can_manage_queries" => true}
+          }
+        } = socket
+      ) do
+    case Auth.request(socket, :list, %{"resource" => "saved_queries", "params" => %{"limit" => 1}}) do
+      {:ok, %{"generation" => generation}} ->
+        socket =
+          assign(socket,
+            save_generation: generation,
+            save_title:
+              socket.assigns.asset["title"] <>
+                " " <>
+                Presenter.label(socket.assigns.result["spec"]["measurement"]),
+            save_error: nil
+          )
+
+        {:noreply,
+         push_patch(socket,
+           to:
+             Presenter.path(:asset, socket.assigns.id) <>
+               "/analytics?save_operation=" <>
+               Identifier.uuid()
+         )}
+
+      {:error, error} ->
+        {:noreply, assign(socket, save_error: error)}
+    end
+  end
+
+  def handle_event("prepare-save", _, socket),
+    do: {:noreply, assign(socket, save_error: %{"code" => "forbidden"})}
+
+  def handle_event(
+        "save",
+        %{"save" => %{"title" => title, "window" => window}},
+        %{
+          assigns: %{
+            result: %{},
+            save_operation: operation,
+            save_generation: generation,
+            save_outcome: nil,
+            identity: %{"can_manage_queries" => true}
+          }
+        } = socket
+      )
+      when is_binary(title) and is_binary(operation) and is_binary(generation) and
+             window in ~w(absolute rolling) do
+    socket = assign(socket, save_title: title)
+    request = save_request(socket, title, window)
+
+    result =
+      Auth.request(socket, :save_query, %{"operation" => operation, "request" => request})
+
+    {:noreply, save_result(socket, result)}
+  end
+
+  def handle_event("save", _, socket),
+    do:
+      {:noreply,
+       if(socket.assigns.save_outcome,
+         do: socket,
+         else: assign(socket, save_error: %{"code" => "forbidden"})
+       )}
+
+  def handle_event("check-save", _, socket), do: {:noreply, recover_save(socket)}
 
   def handle_event("run", _, socket),
     do: {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
@@ -139,6 +228,52 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
         <button class="secondary" phx-click="navigate" phx-value-direction="zoom_out">Zoom out</button>
       </div>
       <.query_result :if={@result} result={@result} chart={@chart} view={@query["view"]} />
+      <.notice error={@save_error} />
+      <section :if={(@result && @identity["can_manage_queries"]) || @save_operation} class="panel">
+        <h2>Save this query</h2>
+        <p :if={@result}>Save the admitted query and graph choice for later authorized runs.</p>
+        <button
+          :if={@result && @identity["can_manage_queries"] && is_nil(@save_operation)}
+          phx-click="prepare-save"
+        >Prepare save</button>
+        <.form
+          :if={
+            @result && @identity["can_manage_queries"] && @save_operation && @save_generation &&
+              is_nil(@save_outcome)
+          }
+          for={%{}}
+          id="save-dashboard"
+          phx-submit="save"
+        >
+          <label for="save-title">Dashboard title</label>
+          <input id="save-title" type="text" name="save[title]" value={@save_title} required />
+          <label for="save-window">Window policy</label>
+          <select id="save-window" name="save[window]">
+            <option value="absolute">Fixed incident window</option>
+            <option value="rolling">Rolling window ending at each run</option>
+          </select>
+          <button type="submit" phx-disable-with="Saving…">Save dashboard</button>
+        </.form>
+        <p :if={@save_outcome} role="status">
+          {if @save_outcome["outcome"] == "committed",
+            do: "Dashboard saved",
+            else: "Save outcome unknown"}
+        </p>
+        <a
+          :if={@save_outcome && @save_outcome["outcome"] == "committed"}
+          href={Presenter.dashboard_path(saved_id(@save_operation))}
+        >Open saved dashboard</a>
+        <p :if={@save_outcome && @save_outcome["outcome"] != "committed"}>
+          Keep this page's address and check the operation outcome before saving again.
+        </p>
+        <p :if={@save_operation} class="identifier">Save operation {@save_operation}</p>
+        <p :if={@save_operation && is_nil(@result) && is_nil(@save_outcome)}>
+          Rerun a query to finish this prepared save.
+        </p>
+        <button :if={@save_operation} class="secondary" phx-click="check-save">
+          Check save outcome
+        </button>
+      </section>
     </main>
     """
   end
@@ -194,6 +329,139 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
 
   defp default_query(_, []), do: %{}
 
+  defp activate_save(socket, nil) do
+    assign(socket,
+      save_operation: nil,
+      save_generation: nil,
+      save_title: nil,
+      save_outcome: nil,
+      save_error: nil
+    )
+  end
+
+  defp activate_save(socket, operation) do
+    cond do
+      not Identifier.operation?(operation) ->
+        assign(socket, save_operation: nil, save_error: %{"code" => "invalid_request"})
+
+      socket.assigns.save_operation == operation ->
+        socket
+
+      true ->
+        prepared? = is_nil(socket.assigns.save_operation) and is_map(socket.assigns.result)
+
+        assign(socket,
+          save_operation: operation,
+          save_generation: if(prepared?, do: socket.assigns.save_generation, else: nil),
+          save_title: if(prepared?, do: socket.assigns.save_title, else: nil),
+          save_outcome: nil,
+          save_error: nil
+        )
+    end
+  end
+
+  defp recover_save(%{assigns: %{save_operation: nil}} = socket), do: socket
+
+  defp recover_save(socket) do
+    case Auth.request(socket, :operation, %{"id" => socket.assigns.save_operation}) do
+      {:error, %{"code" => "not_found"}} -> socket
+      result -> save_result(socket, result)
+    end
+  end
+
+  defp save_result(socket, {:ok, %{"outcome" => "committed", "data" => data} = receipt}) do
+    expected = saved_id(socket.assigns.save_operation)
+
+    if data == %{"query_id" => expected} do
+      verify_saved(socket, expected, receipt)
+    else
+      unrelated_save(socket)
+    end
+  end
+
+  defp save_result(socket, {:ok, %{"outcome" => "unknown"} = result}),
+    do: assign(socket, save_outcome: result, save_error: nil)
+
+  defp save_result(socket, {:ok, _}), do: unrelated_save(socket)
+
+  defp save_result(socket, {:error, %{"outcome" => "not_committed"} = error}),
+    do: assign(socket, save_error: error)
+
+  defp save_result(socket, {:error, error}),
+    do: assign(socket, save_outcome: %{"outcome" => "unknown"}, save_error: error)
+
+  defp verify_saved(socket, id, receipt) do
+    asset = socket.assigns.id
+
+    case Auth.request(socket, :get, %{"resource" => "saved_queries", "id" => id}) do
+      {:ok, %{"value" => %{"query" => %{"series" => [^asset]}}}} ->
+        assign(socket, save_outcome: receipt, save_error: nil)
+
+      {:error, error} ->
+        assign(socket, save_outcome: %{"outcome" => "unknown"}, save_error: error)
+
+      _ ->
+        unrelated_save(socket)
+    end
+  end
+
+  defp unrelated_save(socket),
+    do:
+      assign(socket,
+        save_outcome: %{"outcome" => "unrelated"},
+        save_error: %{"code" => "operation_mismatch"}
+      )
+
+  defp saved_id(operation), do: "dashboard-" <> operation
+
+  defp save_request(socket, title, window) do
+    query = socket.assigns.result["spec"]
+
+    request = %{
+      "id" => saved_id(socket.assigns.save_operation),
+      "title" => title,
+      "query" => query,
+      "visualization" => %{
+        "type" => socket.assigns.query["view"],
+        "show_legend" => true,
+        "show_points" => true
+      },
+      "expected_generation" => socket.assigns.save_generation
+    }
+
+    if window == "rolling",
+      do:
+        Map.put(request, "window", %{
+          "kind" => "rolling",
+          "duration_ms" => query["to_at"] - query["from_at"]
+        }),
+      else: request
+  end
+
+  defp load_save_generation(%{assigns: %{save_operation: nil}} = socket), do: socket
+  defp load_save_generation(%{assigns: %{save_outcome: %{}}} = socket), do: socket
+
+  defp load_save_generation(%{assigns: %{save_generation: generation}} = socket)
+       when is_binary(generation),
+       do: socket
+
+  defp load_save_generation(socket) do
+    case Auth.request(socket, :list, %{"resource" => "saved_queries", "params" => %{"limit" => 1}}) do
+      {:ok, %{"generation" => generation}} ->
+        assign(socket,
+          save_generation: generation,
+          save_title:
+            socket.assigns.asset["title"] <>
+              " " <>
+              Presenter.label(socket.assigns.result["spec"]["measurement"]),
+          save_error: nil
+        )
+
+      {:error, error} ->
+        assign(socket, save_error: error)
+    end
+  end
+
   defp document(socket, input) do
     with %{"unit" => unit} = measurement <-
            Enum.find(socket.assigns.measurements, &(&1["kind"] == input["measurement"])),
@@ -231,7 +499,7 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
     with view when view in ~w(line area points) <- input["view"],
          {:ok, document} <- document(socket, input),
          {:ok, result} <- Auth.request(socket, :analytics, %{"query" => document}) do
-      assign(socket, result: result, chart: Chart.project(result))
+      socket |> assign(result: result, chart: Chart.project(result)) |> load_save_generation()
     else
       {:error, %{"code" => _} = error} -> assign(socket, error: error)
       _ -> assign(socket, error: %{"code" => "invalid_request"})

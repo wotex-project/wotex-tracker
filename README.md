@@ -104,8 +104,9 @@ The shared browser can submit an absolute UTC numeric query for one provisioned
 asset and inspect qualified buckets, source gaps, counts and snapshot identity.
 It offers line, area and point graphs with separate paths across gaps, an exact
 table and time-window navigation. The browser can list and rerun saved query
-definitions under current read authority. Scheduled live refresh, saving and
-editing dashboards in the browser, and prompted queries remain to be built.
+definitions under current read authority, and an administrator can save the
+current graph as a fixed or rolling definition. Scheduled live refresh,
+dashboard editing/composition/sharing, and prompted queries remain to be built.
 
 The service package also defines closed `:telemetry` events for requests,
 queries, import stages, commits, forward queues, publication reconciliation and

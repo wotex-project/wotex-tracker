@@ -63,6 +63,13 @@ Opening one shows its stored query and window policy; running it invokes
 definition resolves a new window on every run. One-series definitions use the
 shared graph/table component; multi-series definitions show each series in a
 separate exact table so none is silently omitted.
+An administrator can choose **Prepare save** after running a one-asset query,
+then name a fixed incident or rolling dashboard. The page address gains a
+stable operation reference before the save form appears. Submission captures
+the scope generation, persists the admitted query and visualization, and checks
+the resulting receipt against the saved definition and asset. A lost response
+leaves an explicit unknown outcome; revisiting the address or checking the
+operation resolves the durable receipt without sending a second save.
 
 `Service.analytics_page/5` and `POST …/analytics/pages` partition the admitted
 bucket window into pages of 1 to 1,000 buckets. The first request supplies the

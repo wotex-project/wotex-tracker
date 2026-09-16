@@ -23,9 +23,11 @@ sharing, prompt integration and graphs remain required product deliverables.
 The shared browser now submits a bounded structured numeric query for one asset
 and renders snapshot-bound line, area and point graphs with separate paths at
 gaps, time-window controls and an exact table with exclusion counts. Scheduled
-live refresh, browser save/edit controls and cross-surface graph acceptance
-remain. Readers can list and rerun existing saved definitions through the same
-service facade; their ownership and query authority stay with the service.
+live refresh, browser editing/composition and cross-surface graph acceptance
+remain. Readers can list and rerun saved definitions through the same service
+facade; administrators can save the current fixed or rolling graph with a
+generation check and stable operation receipt. Ownership and query authority
+stay with the service.
 Model execution is explicitly configured and can be disabled; deterministic
 tracking and structured analytics MUST remain useful without AI or any external
 observability service.

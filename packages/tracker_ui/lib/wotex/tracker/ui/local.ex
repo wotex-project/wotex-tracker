@@ -28,7 +28,9 @@ defmodule Wotex.Tracker.UI.Local do
            "can_enroll" =>
              match?({:ok, _}, Service.authorize(service, token, scope, "enroll", now)),
            "can_ingest" =>
-             match?({:ok, _}, Service.authorize(service, token, scope, "ingest", now))
+             match?({:ok, _}, Service.authorize(service, token, scope, "ingest", now)),
+           "can_manage_queries" =>
+             match?({:ok, _}, Service.authorize(service, token, scope, "admin", now))
          }}
 
       {:error, reason} ->
@@ -59,6 +61,9 @@ defmodule Wotex.Tracker.UI.Local do
 
   defp dispatch(service, token, scope, :execute_saved_query, args, now),
     do: Service.execute_saved_query(service, token, scope, args["id"], now)
+
+  defp dispatch(service, token, scope, :save_query, args, now),
+    do: Service.save_query(service, token, scope, args["operation"], args["request"], now)
 
   defp dispatch(service, token, scope, :enroll, args, now),
     do: Service.enroll(service, token, scope, args["operation"], args["request"], now)

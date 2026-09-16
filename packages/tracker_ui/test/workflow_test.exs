@@ -273,6 +273,229 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert has_element?(view, "circle.chart-point")
   end
 
+  test "browser saves a rolling dashboard once and recovers its durable receipt", c do
+    {thing, _} = enrolled(c)
+
+    {:ok, _} =
+      Service.materialize(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"thing_id" => thing, "expected_generation" => "2"},
+        c.now
+      )
+
+    {:ok, view, _} = live(c.conn, Presenter.path(:asset, thing) <> "/analytics")
+    view |> form("#analytics-query", query: %{view: "area"}) |> render_submit()
+    assert has_element?(view, "button", "Prepare save")
+    view |> element("button", "Prepare save") |> render_click()
+    path = assert_patch(view)
+    assert path =~ "?save_operation="
+    assert has_element?(view, "#save-dashboard")
+
+    view
+    |> form("#save-dashboard", save: %{title: "Workshop temperature chart", window: "rolling"})
+    |> render_submit()
+
+    assert render(view) =~ "Dashboard saved"
+    refute has_element?(view, "#save-dashboard")
+
+    operation =
+      path
+      |> URI.parse()
+      |> Map.fetch!(:query)
+      |> URI.decode_query()
+      |> Map.fetch!("save_operation")
+
+    dashboard = "dashboard-" <> operation
+    assert has_element?(view, "a[href='#{Presenter.dashboard_path(dashboard)}']")
+    {:ok, saved} = Service.get(c.service, c.admin, c.scope, "saved_queries", dashboard, c.now)
+    assert saved["value"]["title"] == "Workshop temperature chart"
+    assert saved["value"]["visualization"]["type"] == "area"
+    assert saved["value"]["window"]["kind"] == "rolling"
+
+    {:ok, resumed, _} = live(c.conn, path)
+    assert render(resumed) =~ "Dashboard saved"
+    refute has_element?(resumed, "#save-dashboard")
+    {:ok, page} = Service.list(c.service, c.admin, c.scope, "saved_queries", %{}, c.now)
+    assert length(page["items"]) == 1
+  end
+
+  test "read-only, stale and uncertain saves never create another dashboard", c do
+    {thing, _} = enrolled(c)
+
+    {:ok, _} =
+      Service.materialize(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"thing_id" => thing, "expected_generation" => "2"},
+        c.now
+      )
+
+    {:ok, %{"id" => reader}} = Sessions.login(c.sessions, c.reader, c.scope)
+    conn = build_conn() |> init_test_session(%{"browser_session" => reader})
+    {:ok, readonly, _} = live(conn, Presenter.path(:asset, thing) <> "/analytics")
+    readonly |> form("#analytics-query") |> render_submit()
+    refute has_element?(readonly, "button", "Prepare save")
+    render_click(readonly, "prepare-save", %{})
+    assert render(readonly) =~ "does not permit"
+
+    {:ok, stale, _} = live(c.conn, Presenter.path(:asset, thing) <> "/analytics")
+    stale |> form("#analytics-query") |> render_submit()
+    stale |> element("button", "Prepare save") |> render_click()
+    assert_patch(stale)
+
+    {:ok, _} =
+      Service.submit(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        import_request(%{id: "newer", observed_at: c.now + 1}, "3"),
+        c.now
+      )
+
+    stale
+    |> form("#save-dashboard", save: %{title: "Stale chart", window: "absolute"})
+    |> render_submit()
+
+    assert has_element?(stale, "[role=alert]")
+    refute render(stale) =~ "Dashboard saved"
+    {:ok, page} = Service.list(c.service, c.admin, c.scope, "saved_queries", %{}, c.now)
+    assert page["items"] == []
+
+    {:ok, uncertain, _} = live(c.conn, Presenter.path(:asset, thing) <> "/analytics")
+    uncertain |> form("#analytics-query") |> render_submit()
+    uncertain |> element("button", "Prepare save") |> render_click()
+    uncertain_path = assert_patch(uncertain)
+    Agent.update(c.faults, &Map.put(&1, :save_query, :lost_reply))
+
+    uncertain
+    |> form("#save-dashboard", save: %{title: "Recovered chart", window: "absolute"})
+    |> render_submit()
+
+    assert render(uncertain) =~ "Save outcome unknown"
+    refute has_element?(uncertain, "#save-dashboard")
+    {:ok, recovered, _} = live(c.conn, uncertain_path)
+    assert render(recovered) =~ "Dashboard saved"
+    {:ok, page} = Service.list(c.service, c.admin, c.scope, "saved_queries", %{}, c.now)
+    assert length(page["items"]) == 1
+  end
+
+  test "prepared save resumes after reconnect and recovers a lost verification read", c do
+    {thing, _} = enrolled(c)
+
+    {:ok, _} =
+      Service.materialize(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"thing_id" => thing, "expected_generation" => "2"},
+        c.now
+      )
+
+    path = Presenter.path(:asset, thing) <> "/analytics?save_operation=" <> Identifier.uuid()
+    {:ok, view, _} = live(c.conn, path)
+    refute has_element?(view, "#save-dashboard")
+    view |> form("#analytics-query") |> render_submit()
+    assert has_element?(view, "#save-dashboard")
+
+    render_submit(view, "save", %{"save" => %{"title" => "", "window" => "absolute"}})
+    assert has_element?(view, "[role=alert]")
+    assert has_element?(view, "#save-dashboard")
+
+    Agent.update(c.faults, &Map.put(&1, :get, :unavailable))
+
+    view
+    |> form("#save-dashboard", save: %{title: "Recovered fixed chart", window: "absolute"})
+    |> render_submit()
+
+    assert render(view) =~ "Save outcome unknown"
+    refute has_element?(view, "#save-dashboard")
+    view |> element("button", "Check save outcome") |> render_click()
+    assert render(view) =~ "Dashboard saved"
+
+    {:ok, resumed, _} = live(c.conn, path)
+    assert render(resumed) =~ "Dashboard saved"
+  end
+
+  test "unrelated and invalid save references cannot authorize a dashboard mutation", c do
+    {thing, enrollment_operation} = enrolled(c)
+
+    {:ok, _} =
+      Service.materialize(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"thing_id" => thing, "expected_generation" => "2"},
+        c.now
+      )
+
+    base = Presenter.path(:asset, thing) <> "/analytics"
+    {:ok, invalid, _} = live(c.conn, base <> "?save_operation=invalid")
+    assert has_element?(invalid, "[role=alert]")
+    refute has_element?(invalid, "#save-dashboard")
+
+    {:ok, unrelated, _} = live(c.conn, base <> "?save_operation=" <> enrollment_operation)
+    assert render(unrelated) =~ "different workflow"
+    unrelated |> form("#analytics-query") |> render_submit()
+    refute has_element?(unrelated, "#save-dashboard")
+    render_submit(unrelated, "save", %{"save" => %{"title" => "Wrong", "window" => "absolute"}})
+    assert render(unrelated) =~ "different workflow"
+
+    {:ok, retry, _} = live(c.conn, base)
+    retry |> form("#analytics-query") |> render_submit()
+    Agent.update(c.faults, &Map.put(&1, :list, :unavailable))
+    retry |> element("button", "Prepare save") |> render_click()
+    assert has_element?(retry, "[role=alert]")
+    refute has_element?(retry, "#save-dashboard")
+
+    prepared = base <> "?save_operation=" <> Identifier.uuid()
+    {:ok, interrupted, _} = live(c.conn, prepared)
+    Agent.update(c.faults, &Map.put(&1, :list, :unavailable))
+    interrupted |> form("#analytics-query") |> render_submit()
+    assert has_element?(interrupted, "[role=alert]")
+    refute has_element?(interrupted, "#save-dashboard")
+    interrupted |> form("#analytics-query") |> render_submit()
+    assert has_element?(interrupted, "#save-dashboard")
+  end
+
+  test "temporary save transport failure leaves the operation outcome unknown", c do
+    {thing, _} = enrolled(c)
+
+    {:ok, _} =
+      Service.materialize(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"thing_id" => thing, "expected_generation" => "2"},
+        c.now
+      )
+
+    {:ok, view, _} = live(c.conn, Presenter.path(:asset, thing) <> "/analytics")
+    view |> form("#analytics-query") |> render_submit()
+    view |> element("button", "Prepare save") |> render_click()
+    assert_patch(view)
+    Agent.update(c.faults, &Map.put(&1, :save_query, :unavailable))
+
+    view
+    |> form("#save-dashboard", save: %{title: "Temporary failure", window: "absolute"})
+    |> render_submit()
+
+    assert render(view) =~ "Save outcome unknown"
+    refute has_element?(view, "#save-dashboard")
+    view |> element("button", "Check save outcome") |> render_click()
+    assert render(view) =~ "Save outcome unknown"
+    {:ok, page} = Service.list(c.service, c.admin, c.scope, "saved_queries", %{}, c.now)
+    assert page["items"] == []
+  end
+
   test "saved dashboard lists and reruns an owned query under current reader access", c do
     {thing, _} = enrolled(c)
 
