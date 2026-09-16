@@ -60,8 +60,8 @@ defmodule Wotex.Tracker.SourceQualifier do
     host? = options[:host] == true or ui?
     service? = options[:service] == true or host?
 
-    workspace =
-      Path.join(System.tmp_dir!(), "wtr-source-cohort-#{System.unique_integer([:positive])}")
+    suffix = :crypto.strong_rand_bytes(12) |> Base.encode16(case: :lower)
+    workspace = Path.join(System.tmp_dir!(), "wtr-source-cohort-#{suffix}")
 
     File.mkdir_p!(workspace)
 
