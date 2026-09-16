@@ -1774,3 +1774,12 @@ Unit tests check common scaling, zero, gaps and an empty series. A LiveView test
 executes a two-series saved definition with one qualified series, checks the
 graph and tables, then edits the view to area and reruns it. Physical Pi/mobile
 and browser gesture acceptance remain open.
+
+### Browser reading-quality filters — 2026-09-16
+
+The per-asset structured query now offers valid, suspect, or both admitted
+qualities. The closed `QuerySpec` carries the choice through service execution,
+JSON export and saved definitions; invalid readings are never selectable. A
+LiveView test checks exclusion counts for suspect-only against a known valid
+reading, inclusion for both, persistence after save and rejection of an
+unrecognized client selection.

@@ -23,8 +23,9 @@ and sharing, prompt integration and cross-surface graph acceptance remain
 required product deliverables.
 The shared browser now submits a bounded structured numeric query for one asset
 and renders snapshot-bound line, area and point graphs with separate paths at
-gaps, time-window controls and an exact table with exclusion counts. Scheduled
-subscription-driven refresh, dashboard composition and cross-surface graph acceptance
+gaps, time-window controls and an exact table with exclusion counts. The browser
+also exposes a closed valid/suspect reading-quality filter that persists in
+saved definitions. Scheduled subscription-driven refresh, dashboard composition and cross-surface graph acceptance
 remain. Readers can list and rerun saved definitions through the same service
 facade; administrators can save the current fixed or rolling graph with a
 generation check and stable operation receipt, then edit its title/view or

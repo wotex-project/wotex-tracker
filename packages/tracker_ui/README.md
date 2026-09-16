@@ -62,6 +62,8 @@ aggregation and bucket vocabulary, delegates validation and execution to the
 authorized service, and shows the snapshot, qualified/excluded counts and only
 observed buckets. Line, area and point views keep gaps separate, expose exact
 bucket details in the table and offer keyboard-accessible time-window controls.
+The quality selector allows valid, suspect, or both admitted qualities; invalid
+readings remain excluded. A saved query retains the selected quality filter.
 The save control prepares a stable operation reference in the URL, captures the
 current scope generation and submits the admitted query plus visualization
 through the authorized service. It verifies a committed receipt against the

@@ -141,6 +141,58 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     refute has_element?(view, "svg[role=img]")
   end
 
+  test "quality filters preserve exclusions, reject tampering and persist in a saved query", c do
+    {thing, _} = enrolled(c)
+
+    {:ok, _} =
+      Service.materialize(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"thing_id" => thing, "expected_generation" => "2"},
+        c.now
+      )
+
+    {:ok, view, _} = live(c.conn, Presenter.path(:asset, thing) <> "/analytics")
+    assert has_element?(view, "#query-quality option[value='valid'][selected]")
+    view |> form("#analytics-query", query: %{quality: "suspect"}) |> render_submit()
+    assert render(view) =~ "0 qualified of 1 selected readings"
+    assert render(view) =~ "1 excluded by quality"
+    refute has_element?(view, "tbody tr")
+    view |> element("button", "Export result JSON") |> render_click()
+    assert_push_event(view, "download-query-result", %{"content" => suspect_json})
+    assert Jason.decode!(suspect_json)["spec"]["qualities"] == ["suspect"]
+
+    view |> form("#analytics-query", query: %{quality: "valid_suspect"}) |> render_submit()
+    assert render(view) =~ "1 qualified of 1 selected readings"
+    view |> element("button", "Prepare save") |> render_click()
+    assert_patch(view)
+
+    view
+    |> form("#save-dashboard", save: %{title: "Both admitted qualities", window: "absolute"})
+    |> render_submit()
+
+    assert render(view) =~ "Dashboard saved"
+    {:ok, page} = Service.list(c.service, c.admin, c.scope, "saved_queries", %{}, c.now)
+    assert hd(page["items"])["value"]["query"]["qualities"] == ["valid", "suspect"]
+
+    render_submit(view, "run", %{
+      "query" => %{
+        "measurement" => "temperature",
+        "aggregation" => "mean",
+        "quality" => "invalid",
+        "from" => DateTime.from_unix!(c.now - 86_399_999, :millisecond) |> DateTime.to_iso8601(),
+        "to" => DateTime.from_unix!(c.now + 1, :millisecond) |> DateTime.to_iso8601(),
+        "bucket" => "hour",
+        "view" => "line"
+      }
+    })
+
+    assert has_element?(view, "[role=alert]")
+    refute has_element?(view, "h2", "Query result")
+  end
+
   test "analytics rejects tampered filters and reader sessions can query but not mutate", c do
     {thing, _} = enrolled(c)
 

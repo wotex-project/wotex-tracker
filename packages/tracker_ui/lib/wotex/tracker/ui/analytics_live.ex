@@ -14,6 +14,11 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
     "mean" => :mean,
     "last" => :last
   }
+  @quality_filters %{
+    "valid" => [:valid],
+    "suspect" => [:suspect],
+    "valid_suspect" => [:valid, :suspect]
+  }
   @counter_kinds ~w(movementCounter measurementSequence)
   @max_browser_time 253_402_300_799_999
 
@@ -206,6 +211,14 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
               {name}
             </option>
           </select>
+          <label for="query-quality">Reading quality</label>
+          <select id="query-quality" name="query[quality]">
+            <option value="valid" selected={@query["quality"] == "valid"}>Valid only</option>
+            <option value="suspect" selected={@query["quality"] == "suspect"}>Suspect only</option>
+            <option value="valid_suspect" selected={@query["quality"] == "valid_suspect"}>
+              Valid and suspect
+            </option>
+          </select>
           <label for="query-from">From (UTC, inclusive)</label>
           <input id="query-from" name="query[from]" type="text" value={@query["from"]} required />
           <label for="query-to">To (UTC, exclusive)</label>
@@ -330,6 +343,7 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
     %{
       "measurement" => first["kind"],
       "aggregation" => if(first["kind"] in @counter_kinds, do: "last", else: "mean"),
+      "quality" => "valid",
       "from" => iso8601(max(0, end_at - 86_400_000)),
       "to" => iso8601(end_at),
       "bucket" => "hour",
@@ -476,6 +490,7 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
     with %{"unit" => unit} = measurement <-
            Enum.find(socket.assigns.measurements, &(&1["kind"] == input["measurement"])),
          {:ok, aggregation} <- aggregation(input["aggregation"], measurement["kind"]),
+         {:ok, qualities} <- Map.fetch(@quality_filters, input["quality"]),
          {:ok, from_at} <- utc_milliseconds(input["from"]),
          {:ok, to_at} <- utc_milliseconds(input["to"]),
          bucket_ms when is_integer(bucket_ms) <- @buckets[input["bucket"]],
@@ -487,7 +502,7 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
              measurement: measurement["kind"],
              unit: unit,
              series: [socket.assigns.id],
-             qualities: [:valid],
+             qualities: qualities,
              from_at: from_at,
              to_at: to_at,
              timezone: "Etc/UTC",

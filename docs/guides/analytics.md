@@ -57,6 +57,10 @@ browser route requires the same `read` grant as the service query. Line, area an
 point views project the returned points to SVG without introducing new values;
 each run of adjacent observed buckets has its own path. The table gives exact
 values and event times, and buttons shift or zoom the absolute UTC window.
+The quality selector admits valid readings, suspect readings, or both. Invalid
+readings remain excluded. The selected quality set is part of the closed query
+identity and persists with a saved dashboard; an unrecognized selection is
+rejected before the service request.
 The Dashboards navigation lists retained saved definitions in bounded pages.
 Opening one shows its stored query and window policy; running it invokes
 `Service.execute_saved_query/5` after current authorization. A rolling
