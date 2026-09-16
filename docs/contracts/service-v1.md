@@ -352,6 +352,13 @@ standalone CLI and local bundled releases. Scanner and public rule-management
 absence is explicit in capabilities. A listener being live does not qualify
 those integrations or a production deployment.
 
+The explicit host also supervises one internal `RuleScheduler`. Its bounded
+host-only snapshot is available through `Server.rule_schedule/1`; it is not a
+public HTTP rule-management endpoint. The scheduler restores heartbeat and
+battery state, maps the next receiver-time boundary to a local monotonic timer,
+rechecks durable identity and commits the pure live transition. Event intents may
+require separate physical authorization; no Action or notification is dispatched.
+
 ## Structured measurement query contract
 
 `POST …/analytics/query` requires `read` authority and the exact closed

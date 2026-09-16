@@ -3,7 +3,7 @@ defmodule Wotex.Tracker.Service.HTTP.Config do
   alias Wotex.Tracker.Service.Credentials
 
   @required ~w(directory credentials ip port public_origin exposure)a
-  @optional ~w(tls clock request_timeout stream_lifetime poll_interval store_options operational_history)a
+  @optional ~w(tls clock request_timeout stream_lifetime poll_interval store_options operational_history rule_scheduler)a
 
   def new(options) when is_list(options) do
     if Keyword.keyword?(options) and length(options) == map_size(Map.new(options)),
@@ -23,7 +23,8 @@ defmodule Wotex.Tracker.Service.HTTP.Config do
           stream_lifetime: 300_000,
           poll_interval: 1000,
           store_options: [],
-          operational_history: []
+          operational_history: [],
+          rule_scheduler: []
         },
         input
       )
@@ -47,7 +48,8 @@ defmodule Wotex.Tracker.Service.HTTP.Config do
   defp options?(value),
     do:
       is_function(value.clock, 0) and store_options?(value.store_options) and
-        history_options?(value.operational_history)
+        history_options?(value.operational_history) and
+        scheduler_options?(value.rule_scheduler)
 
   defp budgets?(value),
     do:
@@ -63,6 +65,22 @@ defmodule Wotex.Tracker.Service.HTTP.Config do
     do:
       is_list(options) and Keyword.keyword?(options) and
         Enum.all?(Keyword.keys(options), &(&1 in [:max_samples, :retention_ms]))
+
+  defp scheduler_options?(options),
+    do:
+      is_list(options) and Keyword.keyword?(options) and
+        length(options) == length(Enum.uniq(Keyword.keys(options))) and
+        Enum.all?(
+          Keyword.keys(options),
+          &(&1 in [:max_rules, :refresh_interval, :monotonic_clock])
+        ) and is_integer(Keyword.get(options, :max_rules, 1_024)) and
+        Keyword.get(options, :max_rules, 1_024) in 1..1_024 and
+        is_integer(Keyword.get(options, :refresh_interval, 1_000)) and
+        Keyword.get(options, :refresh_interval, 1_000) in 1..60_000 and
+        is_function(
+          Keyword.get(options, :monotonic_clock, fn -> System.monotonic_time(:millisecond) end),
+          0
+        )
 
   defp budget?(value, max), do: is_integer(value) and value in 1..max
 

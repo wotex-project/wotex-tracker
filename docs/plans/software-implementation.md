@@ -211,15 +211,17 @@ Receiver-observation heartbeat state is implemented as a pure caller-ticked rule
 with exact overdue equality, newer/historical ordering, recovery, revision
 recomputation and stable live/replay events. See the
 [heartbeat guide](../guides/heartbeat.md). The service atomically persists its
-canonical state, history and stable event intent with restart recovery. Host
-monotonic deadline scheduling remains subsequent work.
+canonical state, history and stable event intent with restart recovery. The
+explicit service host now rebuilds bounded monotonic deadlines and commits live
+ticks without dispatching physical Actions.
 
 Low-battery state is implemented over content-bound measurement samples with
 explicit kind/unit scope, freshness, future skew, suspect-quality policy and
 separate low/clear thresholds. It never derives percentage from voltage. See the
 [battery guide](../guides/battery.md). The service atomically persists its
-canonical state, history and stable event intent with restart recovery. Age
-scheduling and notification delivery remain subsequent work.
+canonical state, history and stable event intent with restart recovery. Bounded
+freshness/future-skew scheduling is implemented; notification delivery remains
+subsequent work.
 
 Suspicious movement is implemented as a pure three-valued conjunction over
 confirmed motion and content-bound armed/owner-presence facts. Unknown presence
@@ -235,8 +237,8 @@ degradation, recovery and rule-edit events have stable identities. See the
 [transport policy guide](../guides/transport-policy.md). The service now
 atomically persists this rule's canonical state, history and stable event intent
 with optimistic prior-state identity and restart recovery. Scheduling and
-notification delivery remain subsequent work, as does rule scheduling for
-geofence and suspicious-movement evaluation.
+notification delivery remain subsequent work for transport health, as does rule
+scheduling for geofence and suspicious-movement evaluation.
 
 Implement explicit time/freshness, quality selection, motion/trips/stops,
 geofence membership/transitions, heartbeat, suspicious movement, low-battery,

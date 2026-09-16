@@ -11,7 +11,7 @@ defmodule Wotex.Tracker.Service.HTTP.Server do
   use Supervisor
   alias Wotex.Tracker.Service
   alias Wotex.Tracker.Service.HTTP.{Capacity, Config, Router}
-  alias Wotex.Tracker.Service.{OperationalHistory, Store}
+  alias Wotex.Tracker.Service.{OperationalHistory, RuleScheduler, Store}
 
   @doc "Starts a fully explicit isolated service instance; invalid configuration starts nothing."
   @spec start_link(keyword()) :: Supervisor.on_start()
@@ -36,6 +36,12 @@ defmodule Wotex.Tracker.Service.HTTP.Server do
   def operational_history(server, options \\ []) do
     with {:ok, collector} <- child(server, :operational_history),
          do: OperationalHistory.snapshot(collector, options)
+  end
+
+  @doc "Returns bounded host-only rule deadline metadata."
+  def rule_schedule(server) do
+    with {:ok, scheduler} <- child(server, :rule_scheduler),
+         do: RuleScheduler.snapshot(scheduler)
   end
 
   @doc false
@@ -76,6 +82,14 @@ defmodule Wotex.Tracker.Service.HTTP.Server do
       ),
       Supervisor.child_spec({Capacity, config}, id: :capacity),
       Supervisor.child_spec({Store, store_options}, id: :store),
+      Supervisor.child_spec(
+        {RuleScheduler,
+         Keyword.merge(config.rule_scheduler,
+           store: {:supervisor, self()},
+           clock: config.clock
+         )},
+        id: :rule_scheduler
+      ),
       Supervisor.child_spec({Bandit, listener(config, self())}, id: :listener)
     ]
 

@@ -38,4 +38,13 @@ atoms. Policy/state restoration rechecks measurement scope, hysteresis status
 and content identities. `Store.commit_rule/2` writes canonical state, immutable
 history and any stable event intent at one scope generation, with restart,
 optimistic-writer, exact-retry and replay-prohibition semantics. Measurement
-ingestion, age scheduling and notification delivery remain caller-owned.
+ingestion and notification delivery remain caller-owned.
+
+The explicitly started service `RuleScheduler` also reconstructs battery time
+boundaries from durable state. A fresh normal/low sample is reconsidered at the
+first stale millisecond; an excessive-future sample is reconsidered when it enters
+the permitted future-skew window. These absolute receiver times are converted to
+local monotonic deadlines without serializing a monotonic value. Aging low state
+to unknown records no recovery event. A future sample that first becomes eligible
+may record the same deterministic low transition as direct live evaluation, but
+the resulting physical Action still requires separate authorization.

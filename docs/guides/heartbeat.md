@@ -27,7 +27,7 @@ bind both observation and policy identities and exclude live/replay mode.
 Caller-clock regression and observations beyond permitted future skew return
 unknown without changing canonical state. Replay returns the same state and event
 identity as live evaluation while prohibiting physical Action dispatch. A host
-must schedule monotonic deadlines separately.
+must schedule monotonic deadlines separately from receiver Unix time.
 
 The service package persists a changed heartbeat result through the same generic
 rule transaction used for transport health. Closed policy/state JSON restores
@@ -37,3 +37,15 @@ immutable history and any stable event intent at one scope generation. Restart,
 exact retry, stale-writer and replay-prohibition semantics are shared across the
 supported rule kinds. The host still owns monotonic timer scheduling and
 notification delivery.
+
+`Wotex.Tracker.Service.RuleScheduler` is the explicit host scheduler for this
+deadline. It reads at most 1,024 persisted heartbeat and battery states, converts
+the next absolute rule boundary once into a local monotonic deadline and replaces
+that timer only when the durable state identity changes. On restart it rebuilds
+the deadline from the current receiver clock; an elapsed deadline runs
+immediately. Before evaluation it rereads the exact durable state, then uses the
+pure live transition and `Store.commit_rule/2`. Stale timer tokens cannot update
+a newer state. The default explicit HTTP host supervises one scheduler, while
+package loading still starts nothing. An overdue intent retains
+`separate_authorization_required`; the scheduler never performs a notification or
+physical Action.

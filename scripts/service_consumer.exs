@@ -33,6 +33,7 @@ alias Wotex.Tracker.Service.{
   OperationalTelemetry,
   Projection,
   RuleEvent,
+  RuleScheduler,
   RuleTransition,
   Store,
   Update
@@ -711,6 +712,50 @@ true = restored_heartbeat === heartbeat_result["state"]
    "physical_action_dispatch" => "prohibited"
  }} = Store.rule_event(store, "archive-heartbeat", overdue_receipt["event_id"])
 
+{:ok, scheduled_policy} =
+  HeartbeatTransition.new(%{
+    id: "archive-scheduled-heartbeat",
+    revision: "archive-scheduled-heartbeat-v1",
+    maximum_silence_ms: 0,
+    future_skew_ms: 0
+  })
+
+{:ok, scheduled_baseline_result} =
+  HeartbeatTransition.evaluate(nil, observation, scheduled_policy, :live, update.now)
+
+{:ok, scheduled_baseline} =
+  RuleTransition.new("archive-scheduled", nil, scheduled_baseline_result)
+
+{:ok, %{"generation" => "1"}} = Store.commit_rule(store, scheduled_baseline)
+
+{:ok, scheduler} =
+  RuleScheduler.start_link(
+    store: store,
+    clock: fn -> update.now + 10 end,
+    refresh_interval: 1_000
+  )
+
+:ok = RuleScheduler.refresh(scheduler)
+
+wait_for_scheduled_rule = fn wait_for_scheduled_rule, attempts ->
+  case Store.rule_state(
+         store,
+         "archive-scheduled",
+         "heartbeat",
+         scheduled_policy.id
+       ) do
+    {:ok, %{"generation" => "2", "state" => %{"status" => "overdue"}}} ->
+      :ok
+
+    _ when attempts > 0 ->
+      Process.sleep(5)
+      wait_for_scheduled_rule.(wait_for_scheduled_rule, attempts - 1)
+  end
+end
+
+:ok = wait_for_scheduled_rule.(wait_for_scheduled_rule, 200)
+GenServer.stop(scheduler)
+
 {:ok, durable_battery} =
   Store.rule_state(store, "archive-battery", "battery", battery_policy.id)
 
@@ -1277,5 +1322,5 @@ retained = Process.list() |> MapSet.new() |> MapSet.difference(before_processes)
 0 = retained
 
 IO.puts(
-  "SERVICE_COHORT_PASS durable_restart=true durable_store_forward=true atomic_transport_health=true atomic_heartbeat=true atomic_battery=true atomic_motion=true atomic_geofence=true atomic_geofence_crossing=true atomic_suspicious_movement=true analytics=true analytics_pagination=true saved_queries=true operational_telemetry=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true explicit_association=true independent_http_sse=true actual_runtime_http_peer=true actual_runtime_sse=true retained_new_processes=#{retained}"
+  "SERVICE_COHORT_PASS durable_restart=true durable_store_forward=true atomic_transport_health=true atomic_heartbeat=true scheduled_rules=true atomic_battery=true atomic_motion=true atomic_geofence=true atomic_geofence_crossing=true atomic_suspicious_movement=true analytics=true analytics_pagination=true saved_queries=true operational_telemetry=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true explicit_association=true independent_http_sse=true actual_runtime_http_peer=true actual_runtime_sse=true retained_new_processes=#{retained}"
 )

@@ -258,6 +258,13 @@ defmodule Wotex.Tracker.Service.Store do
       else: {:error, :invalid_query}
   end
 
+  @doc "Reads the bounded heartbeat and battery states owned by a trusted scheduler."
+  @spec scheduled_rules(t(), pos_integer()) :: {:ok, [map()]} | {:error, atom()}
+  def scheduled_rules(store, limit) when is_integer(limit) and limit in 1..1_024,
+    do: StoreCall.run(store, {:scheduled_rules, limit})
+
+  def scheduled_rules(_, _), do: {:error, :invalid_query}
+
   @impl true
   def init(options) do
     with {:ok, options} <- options(options),
@@ -538,6 +545,9 @@ defmodule Wotex.Tracker.Service.Store do
 
   defp dispatch({:rule_event, scope, event_id}, state),
     do: RuleStore.event(state.db, scope, event_id)
+
+  defp dispatch({:scheduled_rules, limit}, state),
+    do: RuleStore.scheduled(state.db, limit)
 
   defp dispatch(:readiness, state) do
     SQL.execute!(state.db, "BEGIN IMMEDIATE")

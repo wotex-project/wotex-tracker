@@ -40,6 +40,9 @@ defmodule Wotex.Tracker.HTTPLifecycleTest do
     assert {:ok, config} = Config.new(options)
     assert {:ok, service} = Server.context(server, config)
     assert service.base_url == "https://localhost"
+
+    assert {:ok, %{"schema" => "wtr.rule-schedule.v1", "scheduled" => 0}} =
+             Server.rule_schedule(server)
   end
 
   test "shutdown closes an active stream and every owned process within the budget", context do
@@ -76,7 +79,8 @@ defmodule Wotex.Tracker.HTTPLifecycleTest do
     for change <- [
           [ip: {0, 0, 0, 0, 0, 0, 0, 1}],
           [public_origin: "http://127.0.0.1:43210/"],
-          [exposure: :proxy, public_origin: "https://tracker.example.test"]
+          [exposure: :proxy, public_origin: "https://tracker.example.test"],
+          [rule_scheduler: [max_rules: 32, refresh_interval: 100]]
         ] do
       assert {:ok, _} = Config.new(Keyword.merge(options(context), change))
     end
@@ -92,7 +96,9 @@ defmodule Wotex.Tracker.HTTPLifecycleTest do
             public_origin: "https://example.test",
             tls: %{certfile: "relative", keyfile: "relative"}
           ],
-          [exposure: :proxy, public_origin: "https://user:secret@example.test"]
+          [exposure: :proxy, public_origin: "https://user:secret@example.test"],
+          [rule_scheduler: [max_rules: 0]],
+          [rule_scheduler: [unknown: true]]
         ] do
       assert {:error, :invalid_configuration} =
                Config.new(Keyword.merge(options(context), change))

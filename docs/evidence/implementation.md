@@ -1355,3 +1355,38 @@ lock identities are recorded in `verification/source-consumer.json` and
 `verification/service-consumer.json`. Rolling windows, named display timezones,
 prompt translation and interactive graph/dashboard UI remain required analytics
 work.
+
+### Restart-safe rule deadlines — 2026-09-16
+
+The service now rebuilds bounded heartbeat and battery deadlines from canonical
+SQLite rule state. It converts each persisted receiver-time deadline once into a
+local monotonic deadline, replaces timers when their state identity changes and
+rejects stale timer tokens. A restart immediately re-evaluates elapsed deadlines;
+wall-clock movement after scheduling cannot delay or advance the local timer.
+The default explicit HTTP host supervises this scheduler beside its store.
+
+Heartbeat expiry, battery freshness expiry and future-skew eligibility reuse the
+existing pure live transition contracts. Each resulting state and stable event
+intent commits atomically before another deadline is loaded. Battery freshness
+expiry does not invent an alert, and scheduling never sends a notification or
+dispatches a physical Action. Capacity is limited to 1,024 persisted rules, the
+refresh interval is bounded and corrupt stored rule documents fail closed.
+
+Tests cover elapsed-deadline recovery after restart, wall-clock regression,
+battery staleness, future-skew reconsideration, changed-state timer replacement,
+early and stale timer messages, unavailable and unresponsive store supervisors,
+capacity, corrupt storage and store-owner loss. Both service runtime lanes passed
+the complete gate with 2 properties and 152 tests, no failures and 95.1% floor /
+95.2% current production line coverage. Both root runtime lanes remained green
+with 1 doctest, 19 properties and 158 tests, no failures and 95.4% coverage.
+Compiler, formatter, strict Credo, Dialyzer, ExDoc, dependency audit, licences,
+documentation contracts, generated/packaged OpenAPI equality and 63-member
+service / 93-member root archive inspection passed.
+
+Six root and six service production-archive modes pass in fresh, locked and
+minimum dependency configurations across both runtime lanes. The service
+consumer persists a heartbeat, restarts the store, runs the explicit scheduler
+and observes the committed overdue transition. Exact archive and lock identities
+are recorded in `verification/source-consumer.json` and
+`verification/service-consumer.json`. Geofence and suspicious-movement scheduling
+and notification delivery remain subsequent host work.

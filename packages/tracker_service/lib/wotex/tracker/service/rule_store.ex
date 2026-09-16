@@ -43,6 +43,33 @@ defmodule Wotex.Tracker.Service.RuleStore do
     end
   end
 
+  def scheduled(db, limit) when is_integer(limit) and limit in 1..1_024 do
+    rows =
+      SQL.rows!(
+        db,
+        "SELECT scope,kind,rule_id,state_identity,document FROM rule_states " <>
+          "WHERE kind IN ('heartbeat','battery') ORDER BY scope,kind,rule_id LIMIT ?",
+        [limit + 1]
+      )
+
+    if length(rows) > limit do
+      {:error, :capacity_exceeded}
+    else
+      {:ok,
+       Enum.map(rows, fn [scope, kind, rule_id, identity, document] ->
+         %{
+           "scope" => scope,
+           "kind" => kind,
+           "rule_id" => rule_id,
+           "state_identity" => identity,
+           "state" => Codec.decode!(document)
+         }
+       end)}
+    end
+  end
+
+  def scheduled(_, _), do: {:error, :invalid_query}
+
   def event(db, scope, id) do
     case event_row(db, scope, id) do
       nil -> {:error, :not_found}
