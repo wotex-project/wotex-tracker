@@ -89,8 +89,39 @@ defmodule Wotex.Tracker.HTTPConsumer do
       status: 400
     )
 
+    request(context, "import_observation", prefix <> "/observations",
+      body: import,
+      headers: [{"content-type", "text/plain"}],
+      status: 415
+    )
+
+    request(context, "import_observation", prefix <> "/observations",
+      body: import,
+      headers: [{"content-encoding", "gzip"}],
+      status: 415
+    )
+
+    request(context, "import_observation", prefix <> "/observations",
+      body: import,
+      headers: [{"accept", "application/xml"}],
+      status: 406
+    )
+
+    request(context, "list_state", prefix <> "/state",
+      headers: [{"accept", "application/json;q=0, */*;q=1"}],
+      status: 406
+    )
+
+    request(context, "list_state", prefix <> "/state",
+      headers: [{"accept", "text/plain, application/*;q=0.8"}]
+    )
+
+    request(context, "capabilities", prefix <> "/capabilities", method: :delete, status: 405)
     request(context, "list_state", prefix <> "/state?limit=101", status: 400)
+    request(context, "list_state", prefix <> "/state?limit=bad", status: 400)
     request(context, "list_state", prefix <> "/state?limit=1")
+    request(context, "get_state", prefix <> "/state/missing?extra=true", status: 400)
+    request(context, "stream_events", prefix <> "/events/stream", status: 400)
     request(context, "get_things", prefix <> "/things/missing", status: 404)
     operation = Identifier.uuid()
 
@@ -278,6 +309,25 @@ defmodule Wotex.Tracker.HTTPConsumer do
 
     :closed = await_close(resumed)
     request(context, "list_state", prefix <> "/state", who: :reader, status: 401)
+    request(context, "capabilities", "/api/v9/scopes/workshop/capabilities", status: 404)
+    request(context, "list_state", prefix <> "/state?limit=01", status: 400)
+    request(context, "list_state", prefix <> "/state?limit=1&limit=2", status: 400)
+    request(context, "list_state", prefix <> "/state?token=forbidden", status: 400)
+
+    request(context, "import_observation", prefix <> "/observations",
+      raw: ~s({"observation":{},"observation":{}}),
+      method: :post,
+      validate_body: false,
+      status: 400
+    )
+
+    request(context, "import_observation", prefix <> "/observations",
+      raw: :binary.copy(" ", 1_048_577),
+      method: :post,
+      validate_body: false,
+      status: 400
+    )
+
     true = td["properties"]["temperature"]["observable"]
   end
 
@@ -315,12 +365,46 @@ defmodule Wotex.Tracker.HTTPConsumer do
     history = data(context, "history_state", state_path <> "/history?limit=1")
     ["3"] = Enum.map(history["items"], & &1["generation"])
 
+    second_history =
+      data(
+        context,
+        "history_state",
+        state_path <> "/history?" <> URI.encode_query(%{"cursor" => history["cursor"]})
+      )
+
+    ["6"] = Enum.map(second_history["items"], & &1["generation"])
+
+    third_history =
+      data(
+        context,
+        "history_state",
+        state_path <> "/history?" <> URI.encode_query(%{"cursor" => second_history["cursor"]})
+      )
+
+    ["7"] = Enum.map(third_history["items"], & &1["generation"])
+
+    request(context, "history_state", state_path <> "/history", who: :reader, status: 401)
+    request(context, "history_state", state_path <> "/history?limit=101", status: 400)
+    request(context, "history_state", prefix <> "/state/missing/history", status: 404)
+
     data(context, "materialize", prefix <> "/materialisations",
       body: %{"thing_id" => thing, "expected_generation" => "7"}
     )
 
     observe_path =
       prefix <> "/things/" <> encode_segment(thing) <> "/properties/temperature/observe"
+
+    request(context, "observe_property", observe_path, who: nil, status: 401)
+    request(context, "observe_property", observe_path, who: :reader, status: 401)
+
+    request(
+      context,
+      "observe_property",
+      prefix <> "/things/" <> encode_segment(thing) <> "/properties/missing/observe",
+      status: 404
+    )
+
+    request(context, "observe_property", observe_path <> "?cursor=wtrc1.invalid", status: 400)
 
     property = open_stream(context, observe_path, :token)
     {first, property} = next_frame(property)
@@ -361,6 +445,13 @@ defmodule Wotex.Tracker.HTTPConsumer do
     saved_path = prefix <> "/saved_queries/" <> encode_segment(saved["id"])
     definition = data(context, "get_saved_queries", saved_path)["value"]
     true = saved["query"] == definition["query"]
+
+    [^definition] =
+      context
+      |> data("list_saved_queries", prefix <> "/saved_queries")
+      |> Map.fetch!("items")
+      |> Enum.map(& &1["value"])
+
     executed = data(context, "execute_saved_query", saved_path <> "/execute")
     true = saved["query"] == executed["spec"]
 
@@ -436,15 +527,22 @@ defmodule Wotex.Tracker.HTTPConsumer do
     body = Keyword.get(options, :body)
     validate? = Keyword.get(options, :validate, true)
     contract = contract!(context, operation)
-    validate_request_body!(context, contract, body, validate?)
+
+    validate_request_body!(
+      context,
+      contract,
+      body,
+      Keyword.get(options, :validate_body, validate?)
+    )
+
     method = Keyword.get(options, :method, request_method(body))
     bytes = request_bytes(body, Keyword.get(options, :raw))
 
     headers =
       context
       |> authorization(who)
-      |> put_headers(Keyword.get(options, :headers, []))
       |> request_headers(contract, bytes, Keyword.get(options, :operation))
+      |> put_headers(Keyword.get(options, :headers, []))
 
     {:ok, {{_version, status, _reason}, response_headers, response_body}} =
       send_request(method, context.base <> path, headers, bytes)
@@ -479,8 +577,16 @@ defmodule Wotex.Tracker.HTTPConsumer do
   end
 
   defp send_request(method, url, headers, bytes) do
+    media =
+      headers
+      |> Enum.find_value("application/json", fn {name, value} ->
+        if name == "content-type", do: value
+      end)
+
+    headers = Enum.reject(headers, fn {name, _value} -> name == "content-type" end)
+
     input =
-      {String.to_charlist(url), charlist_headers(headers), ~c"application/json", bytes}
+      {String.to_charlist(url), charlist_headers(headers), String.to_charlist(media), bytes}
 
     :httpc.request(method, input, [timeout: 5_000, autoredirect: false], body_format: :binary)
   end
