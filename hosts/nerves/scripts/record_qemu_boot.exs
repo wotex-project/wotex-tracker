@@ -140,8 +140,14 @@ defmodule Wotex.Tracker.Nerves.QemuBootRecord do
 
   defp source(path) do
     {head, 0} = System.cmd("git", ["rev-parse", "HEAD"], cd: path)
-    {status, 0} = System.cmd("git", ["status", "--porcelain", "--untracked-files=no"], cd: path)
-    %{"commit" => String.trim(head), "tracked_changes" => String.trim(status) != ""}
+    {changed, 0} = System.cmd("git", ["diff", "--name-only", "HEAD"], cd: path)
+
+    source_changes =
+      changed
+      |> String.split("\n", trim: true)
+      |> Enum.reject(&String.starts_with?(&1, "verification/"))
+
+    %{"commit" => String.trim(head), "tracked_changes" => source_changes != []}
   end
 end
 
