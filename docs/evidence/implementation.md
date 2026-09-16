@@ -1962,3 +1962,14 @@ credentials do not see the controls and the service denies a forged download
 request. The workflow test checks both exact service documents, denial on a
 later click and non-disclosure in rendered markup. Broader data deletion and
 access-management workflows remain open.
+
+### Current browser access inspection — 2026-09-16
+
+The shared browser has an authenticated `/access` view of the current principal,
+scope, credential expiry and read/import/enroll/raw/admin grant categories. It
+uses the authorized service facade to refresh the credential summary and the
+existing reauthorization hook for current permission flags. It displays no
+bearer or raw credential ID and explains that sign-out ends only the browser
+session. Workflow tests cover admin and read-only views, transient failure,
+denial and non-disclosure; the real loopback host serves the route. A historical
+access audit and revocation management remain open.

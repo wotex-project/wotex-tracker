@@ -17,8 +17,10 @@ changed snapshot or exceeded budget without a partial file. Larger history,
 route replay and deletion workflows remain open.
 The browser observation page can download native capture JSON and full evidence
 claims only for a current `raw` grant. It asks the authorized service again for
-each download and never places raw bytes in the ordinary page. Access review,
-revocation management and deletion remain open privacy workflows.
+each download and never places raw bytes in the ordinary page. A separate
+read-only access page now shows the current principal, scope, expiry and grant
+categories and explains the effect of browser sign-out. A full access audit and
+credential-revocation workflow remain open.
 Readers can move forward and revisit up to 32 earlier state-history pages;
 each move reloads that page under current read authority. Refresh starts again
 at the latest snapshot. Temporary failures keep the current page available;

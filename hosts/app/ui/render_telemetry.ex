@@ -19,7 +19,8 @@ defmodule Wotex.Tracker.Host.Browser.RenderTelemetry do
     Wotex.Tracker.UI.DashboardIndexLive,
     Wotex.Tracker.UI.DashboardLive,
     Wotex.Tracker.UI.ObservationLive,
-    Wotex.Tracker.UI.OperationalLive
+    Wotex.Tracker.UI.OperationalLive,
+    Wotex.Tracker.UI.AccessLive
   ]
 
   def start_link(options), do: GenServer.start_link(__MODULE__, options)

@@ -152,6 +152,14 @@ defmodule Wotex.Tracker.Host.BrowserTest do
     refute operations =~ c.token
     refute operations =~ browser.prompt.api_key
 
+    {200, _, access_page} =
+      request(:get, origin <> "/access", [{~c"cookie", browser_cookie}], nil)
+
+    assert access_page =~ "Access and session"
+    assert access_page =~ "owner"
+    refute access_page =~ c.token
+    refute access_page =~ browser.prompt.api_key
+
     host_client = {fn -> {:ok, service} end, fn -> {:ok, api} end}
 
     assert {:error, %{"code" => "forbidden"}} =

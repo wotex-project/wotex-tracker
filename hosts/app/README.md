@@ -199,6 +199,9 @@ on every page and produces no file if the traversal cannot finish.
 An observation review page offers separate native capture and full evidence
 downloads only to credentials with the `raw` grant. These private documents
 are fetched under current authorization on each click.
+The **Access** navigation shows the current principal, scope, expiry and grant
+categories. Signing out ends the browser session but does not revoke the service
+credential.
 
 Credentials stay in a bounded volatile server store. Encrypted HttpOnly,
 SameSite=Strict cookies and signed LiveView payloads carry only an opaque session

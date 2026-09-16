@@ -42,6 +42,21 @@ defmodule Wotex.Tracker.UI.Local do
     end
   end
 
+  defp dispatch(service, token, scope, :access, _, now) do
+    case Service.authorize(service, token, scope, "read", now) do
+      {:ok, access} ->
+        {:ok,
+         %{
+           "principal" => access.principal,
+           "scope" => access.scope,
+           "expires_at" => access.expires_at
+         }}
+
+      {:error, reason} ->
+        {:error, %{"code" => Atom.to_string(reason)}}
+    end
+  end
+
   defp dispatch(service, token, scope, :list, args, now),
     do: Service.list(service, token, scope, args["resource"], args["params"] || %{}, now)
 

@@ -399,6 +399,33 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
              Sessions.request(c.sessions, reader, :raw_observation, %{"id" => observation})
   end
 
+  test "the browser shows current access without exposing the bearer", c do
+    {:ok, view, html} = live(c.conn, "/access")
+    assert html =~ "Access and session"
+    assert html =~ "owner"
+    assert html =~ "workshop"
+    assert html =~ "Export raw evidence"
+    assert has_element?(view, "tbody tr:nth-child(4) td", "Allowed")
+    refute html =~ c.admin
+
+    Agent.update(c.faults, &Map.put(&1, :access, :unavailable))
+    view |> element("button", "Refresh access") |> render_click()
+    assert has_element?(view, "[role=alert]")
+    assert render(view) =~ "owner"
+
+    Agent.update(c.faults, &Map.put(&1, :access, {:deny, "forbidden"}))
+    view |> element("button", "Refresh access") |> render_click()
+    refute render(view) =~ "owner"
+    assert has_element?(view, "[role=alert]")
+
+    {:ok, %{"id" => reader}} = Sessions.login(c.sessions, c.reader, c.scope)
+    conn = build_conn() |> init_test_session(%{"browser_session" => reader})
+    {:ok, reader_view, _} = live(conn, "/access")
+    assert render(reader_view) =~ "viewer"
+    assert has_element?(reader_view, "tbody tr:nth-child(4) td", "Not allowed")
+    refute render(reader_view) =~ c.reader
+  end
+
   test "history pages can be revisited without losing the current page on failure", c do
     {thing, _} = enrolled(c)
 
