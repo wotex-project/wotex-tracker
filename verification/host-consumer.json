@@ -38,7 +38,7 @@
     "exqlite-0.40.0.tar": "f83350f2d29a38be1fd38f39081dd36f41fc51bbacf0f4c2927d01308ae331d0",
     "telemetry-1.4.2.tar": "928f6495066506077862c0d1646609eed891a4326bee3126ba54b60af61febb1",
     "jason-1.4.5.tar": "b0c823996102bcd0239b3c2444eb00409b72f6a140c1950bc8b457d836b30684",
-    "wotex_tracker-0.1.0.tar": "d23d052dc852a4f38540187da6b4a5e3daa3f8971ad75999d429fc8af3e181f6",
+    "wotex_tracker-0.1.0.tar": "1c32f992ad8d300833564634ebc919e3907359f098c9dd052164246b2dfb19f0",
     "credo-1.7.19.tar": "2d8bc95d5a7bb99dd2613621d4f08c6a3575c3fd4b62e6a2b48a100352a557b8",
     "bandit-1.12.5.tar": "c5684ca062fa407cac115aec3256383f3e2ec9fdced7904d59cf5a7bb7ed6181",
     "bunt-1.0.0.tar": "dc5f86aa08a5f6fa6b8096f0735c4e76d54ae5c9fa2c143e5a1fc7c1cd9bb6b5",
@@ -47,42 +47,42 @@
   "consumers": [
     {
       "elixir": "1.18.4-otp-27",
-      "lock_sha256": "95c2868e8ea6cf4a3d77b23358879e2ef0ed42be66a6956897175cd69362de4c",
+      "lock_sha256": "5df0645eaf4417a13d731683895a89af2ab4ba79fdf455d4a477af767dc0c11d",
       "mode": "fresh",
       "otp": "27.3.4.15",
       "result": "pass"
     },
     {
       "elixir": "1.18.4-otp-27",
-      "lock_sha256": "95c2868e8ea6cf4a3d77b23358879e2ef0ed42be66a6956897175cd69362de4c",
+      "lock_sha256": "5df0645eaf4417a13d731683895a89af2ab4ba79fdf455d4a477af767dc0c11d",
       "mode": "locked",
       "otp": "27.3.4.15",
       "result": "pass"
     },
     {
       "elixir": "1.18.4-otp-27",
-      "lock_sha256": "bd45e930d7c846773f25e6f3295208f54abfa11288ce694b47d6c8aed952402e",
+      "lock_sha256": "982212df0e46afea97ca60c1767e26b6b5260e3558f780666796b22046853779",
       "mode": "minimum",
       "otp": "27.3.4.15",
       "result": "pass"
     },
     {
       "elixir": "1.20.4-otp-29",
-      "lock_sha256": "95c2868e8ea6cf4a3d77b23358879e2ef0ed42be66a6956897175cd69362de4c",
+      "lock_sha256": "5df0645eaf4417a13d731683895a89af2ab4ba79fdf455d4a477af767dc0c11d",
       "mode": "fresh",
       "otp": "29.0.4",
       "result": "pass"
     },
     {
       "elixir": "1.20.4-otp-29",
-      "lock_sha256": "95c2868e8ea6cf4a3d77b23358879e2ef0ed42be66a6956897175cd69362de4c",
+      "lock_sha256": "5df0645eaf4417a13d731683895a89af2ab4ba79fdf455d4a477af767dc0c11d",
       "mode": "locked",
       "otp": "29.0.4",
       "result": "pass"
     },
     {
       "elixir": "1.20.4-otp-29",
-      "lock_sha256": "bd45e930d7c846773f25e6f3295208f54abfa11288ce694b47d6c8aed952402e",
+      "lock_sha256": "982212df0e46afea97ca60c1767e26b6b5260e3558f780666796b22046853779",
       "mode": "minimum",
       "otp": "29.0.4",
       "result": "pass"
@@ -90,7 +90,9 @@
   ],
   "host": {
     "darwin-arm64": {
-      "archive_sha256": "af3cdacf968f1431c583671062f7728a28873879dea7306d2b36da182d473366",
+      "archive_sha256": "48d4985e870c6743276b7c756b9491619b8076731178f6b22181acce882641ca",
+      "native_client_sha256": "9cd30931e1c3f89f1f7bce46bc87d6c1ca8be61a543c71d7cc3d80da0c3f678b",
+      "native_compiler": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
       "platform": "aarch64-apple-darwin",
       "result": {
         "cli_property_resume": "pass",
@@ -99,23 +101,24 @@
         "history": "pass",
         "http_openapi_sse": "pass",
         "invalid_storage_permissions": "pass",
+        "native_protocol_client": "pass",
         "property_observation": "pass",
         "readonly_filesystem": "not-executed",
         "restart_and_idempotency": "pass",
         "retained_revocation": "pass",
         "runtime_licenses": "pass",
-        "shutdown_seconds": 1.078,
+        "shutdown_seconds": 1.082,
         "sigkill_recovery": "pass",
         "sigterm_active_stream": "pass",
         "sqlite_full_rollback": "pass"
       },
-      "source_sha256": "c060d7ac54bdc2a6b08272cfedee5fd807f359153e2c575bdffeecf79cb98008"
+      "source_sha256": "3941b5bf3b3cfc093e675648d3eb7eaeb9acbce302c958f52b7d96b5b423bce2"
     },
     "linux-arm64": {
-      "archive_sha256": "74e9ee9994ad28dd29c2f9243d705ded892a8c6f3536a2cc633a55f1f06f3af4",
+      "archive_sha256": "41e0485fbf4d0a9b99d6b9090b16ae58de1fac7fae436744b087f8e3fd6e75f4",
       "base_builder": "hexpm/elixir@sha256:473f77ee88977dc8cc5d05fb91080a308be86be3fc27d50aef9a837d07c8268b",
       "base_runtime": "debian@sha256:88200866dfff7ea7f5cbcb6ec7c8a701889efe6fe859fe64d6990e4b07ea4171",
-      "builder_image_id": "sha256:1563c26e3c3f7b242ec0422d54aabf3fe4619ff19c31707b9ed757165b1d9349",
+      "builder_image_id": "sha256:6fa00cc5ffe15240c3e35fba0e28bf80673062a3a3b48495bdb3704d01b7a63a",
       "builder_packages": [
         "gcc\t4:12.2.0-3",
         "libc6:arm64\t2.36-9+deb12u14",
@@ -123,8 +126,11 @@
         "make\t4.3-4.1"
       ],
       "compiler": "gcc (Debian 12.2.0-14+deb12u1) 12.2.0",
-      "image_id": "sha256:dac1a36a6472774133e8a52dec040b005f027f99dd250e94c72dfa0f2459182c",
+      "image_id": "sha256:2808db8c30b1bac735bbd6416e7f0fcf904ff13acaeee54418579a460f351f5c",
       "image_tag": "wotex-tracker:0.1.0-linux-arm64-local",
+      "native_builder": "rust@sha256:2775a09d208ff0d7c1f50490c45b62db929e87ba1dcbc3f2132ac71a704bcdd3",
+      "native_client_sha256": "d6d599f13a314b5f43aec558fc3e3ce6c395b85dc70ce14273a0443daf38fc90",
+      "native_compiler": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
       "result": {
         "cli_property_resume": "pass",
         "external_beam_tools_absent": true,
@@ -132,17 +138,18 @@
         "history": "pass",
         "http_openapi_sse": "pass",
         "invalid_storage_permissions": "pass",
+        "native_protocol_client": "pass",
         "property_observation": "pass",
         "readonly_filesystem": "pass",
         "restart_and_idempotency": "pass",
         "retained_revocation": "pass",
         "runtime_licenses": "pass",
-        "shutdown_seconds": 1.091,
+        "shutdown_seconds": 1.077,
         "sigkill_recovery": "pass",
         "sigterm_active_stream": "pass",
         "sqlite_full_rollback": "pass"
       },
-      "source_sha256": "c060d7ac54bdc2a6b08272cfedee5fd807f359153e2c575bdffeecf79cb98008"
+      "source_sha256": "3941b5bf3b3cfc093e675648d3eb7eaeb9acbce302c958f52b7d96b5b423bce2"
     },
     "published": false
   },

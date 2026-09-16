@@ -37,7 +37,9 @@ and build surfaces. Historical specifications and this audit keep the word
 those descriptions are not executable dependencies.
 
 The separate-process Elixir HTTP client preserves wire/OpenAPI independence
-from service domain code. It does not satisfy the distinct product requirement
-for a non-Elixir client. That remaining cross-language acceptance should use a
-Rust or C++ client over the public protocol, without adding a scripting runtime
-to the release or verification image.
+from service domain code. An independent Rust client now also exercises the
+implemented observation, enrollment, materialisation, Property, history,
+operation-receipt, SSE-resume and revocation flow against both bundled releases.
+Full cross-language product acceptance still requires the remaining policies,
+analytics and authorized interactions as those surfaces are implemented. Neither
+client adds a scripting runtime to the release or verification image.

@@ -8,6 +8,8 @@ defmodule Wotex.Tracker.ReleaseQualifier do
   @image "wotex-tracker:0.1.0-linux-arm64-local"
   @builder_base "hexpm/elixir@sha256:473f77ee88977dc8cc5d05fb91080a308be86be3fc27d50aef9a837d07c8268b"
   @runtime_base "debian@sha256:88200866dfff7ea7f5cbcb6ec7c8a701889efe6fe859fe64d6990e4b07ea4171"
+  @rust_builder "rust@sha256:2775a09d208ff0d7c1f50490c45b62db929e87ba1dcbc3f2132ac71a704bcdd3"
+  @native_client "wotex-tracker-protocol-consumer"
 
   def verify(workspace, registry, url, environment) do
     workspace = Path.expand(workspace)
@@ -61,13 +63,21 @@ defmodule Wotex.Tracker.ReleaseQualifier do
 
     release = Path.join(source, "_build/prod/rel/wotex_tracker")
     fixtures = Path.join(workspace, "native-fixtures")
+    client = build_native_client(workspace)
     probe_environment = Map.put(environment, "PATH", "/usr/bin:/bin:/usr/sbin:/sbin")
     IO.puts("Host native: black-box HTTP/SSE, signal/restart, crash recovery and full storage")
 
     output =
       Command.plain!(
         Path.join(@root, "scripts/run_release_script"),
-        [release, Path.join(@root, "scripts/release_probe.exs"), release, fixtures],
+        [
+          release,
+          Path.join(@root, "scripts/release_probe.exs"),
+          release,
+          fixtures,
+          "--native-consumer",
+          client
+        ],
         env: probe_environment
       )
 
@@ -80,6 +90,8 @@ defmodule Wotex.Tracker.ReleaseQualifier do
     {%{
        "source_sha256" => digest,
        "platform" => :erlang.system_info(:system_architecture) |> to_string(),
+       "native_client_sha256" => file_digest(client),
+       "native_compiler" => Command.plain!("rustc", ["--version"]) |> String.trim(),
        "result" => fixtures |> Path.join("result.json") |> File.read!() |> Jason.decode!(),
        "archive_sha256" => file_digest(artifact)
      }, artifact}
@@ -98,6 +110,9 @@ defmodule Wotex.Tracker.ReleaseQualifier do
     end
 
     File.chmod!(Path.join(verification, "run_release_script"), 0o755)
+    client = build_linux_client(build)
+    File.cp!(client, Path.join(verification, @native_client))
+    File.chmod!(Path.join(verification, @native_client), 0o755)
     suffix = :crypto.strong_rand_bytes(12) |> Base.url_encode64(padding: false)
     container = "wtr-build-#{suffix}"
     probe = "wtr-probe-#{suffix}"
@@ -234,7 +249,9 @@ defmodule Wotex.Tracker.ReleaseQualifier do
           "/opt/wotex",
           "/fixtures",
           "--readonly-directory",
-          "/var/lib/wotex"
+          "/var/lib/wotex",
+          "--native-consumer",
+          "/verification/#{@native_client}"
         ])
 
       unless String.contains?(output, "RELEASE_PROBE_PASS"),
@@ -257,6 +274,19 @@ defmodule Wotex.Tracker.ReleaseQualifier do
          "image_id" => image_id,
          "image_tag" => @image,
          "compiler" => compiler,
+         "native_builder" => @rust_builder,
+         "native_compiler" =>
+           docker!([
+             "run",
+             "--rm",
+             "--platform",
+             "linux/arm64",
+             @rust_builder,
+             "rustc",
+             "--version"
+           ])
+           |> String.trim(),
+         "native_client_sha256" => file_digest(client),
          "builder_packages" => String.split(packages, "\n", trim: true),
          "result" => result,
          "archive_sha256" => file_digest(artifact)
@@ -293,6 +323,53 @@ defmodule Wotex.Tracker.ReleaseQualifier do
     end)
     |> :crypto.hash_final()
     |> Base.encode16(case: :lower)
+  end
+
+  defp build_native_client(workspace) do
+    source = Path.join(@root, "native/protocol_consumer")
+    target = Path.join(workspace, "native-client-target")
+    IO.puts("Host native: compiling independent Rust protocol consumer")
+
+    Command.plain!(
+      "cargo",
+      ["build", "--release", "--locked", "--manifest-path", Path.join(source, "Cargo.toml")],
+      env: %{"CARGO_TARGET_DIR" => target, "RUSTFLAGS" => "-Dwarnings"}
+    )
+
+    Path.join([target, "release", @native_client])
+  end
+
+  defp build_linux_client(build) do
+    source = Path.join(@root, "native/protocol_consumer")
+    target = Path.join(build, "native-client")
+    File.mkdir!(target)
+
+    for name <- ~w(Cargo.toml Cargo.lock) do
+      File.cp!(Path.join(source, name), Path.join(target, name))
+    end
+
+    {:ok, _files} = File.cp_r(Path.join(source, "src"), Path.join(target, "src"))
+    IO.puts("Host Linux ARM64: compiling independent Rust protocol consumer")
+
+    docker!([
+      "run",
+      "--rm",
+      "--platform",
+      "linux/arm64",
+      "-v",
+      "#{target}:/build",
+      "-w",
+      "/build",
+      "-e",
+      "RUSTFLAGS=-Dwarnings",
+      @rust_builder,
+      "cargo",
+      "build",
+      "--release",
+      "--locked"
+    ])
+
+    Path.join([target, "target", "release", @native_client])
   end
 
   defp docker!(arguments), do: Command.plain!("docker", arguments)

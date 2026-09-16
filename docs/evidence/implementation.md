@@ -1472,8 +1472,29 @@ Exact source, archive, dependency, image and result identities are recorded in
 `verification/host-consumer.json`. No release or image was published.
 
 The separate-process BEAM HTTP consumer imports no service domain code and checks
-actual wire exchanges against the served OpenAPI schemas. The distinct product
-gate for an independent non-Elixir client remains unpassed; it should be fulfilled
-with a Rust or C++ protocol client. The sibling repository language findings and
-migration targets are recorded in the
+actual wire exchanges against the served OpenAPI schemas. The sibling repository
+language findings and migration targets are recorded in the
 [stack language audit](../provenance/stack-language-audit.md).
+
+### Independent Rust HTTP/SSE consumer — 2026-09-16
+
+A Rust client now starts from a private descriptor and uses only raw loopback
+HTTP, SSE and JSON. It imports no Tracker modules. It checks the served OpenAPI
+version and public route, unauthorized and reader-denied requests, idempotent
+observation admission and receipt lookup, native integer/float/zero/false/null
+raw fidelity, enrollment, materialisation, a Property read, Thing history,
+three retained events, explicit cursor resume and reader revocation.
+
+The clean artifact harness compiles this client for Darwin ARM64 with a local
+Rust toolchain and for Linux ARM64 in a digest-pinned Rust 1.97.1 slim builder.
+The locked Cargo manifest and source stay outside the release. Both final bundled
+releases passed the native client in addition to the BEAM/OpenAPI consumer; the
+Linux binary ran in the read-only, non-root, network-isolated runtime container
+without installing Rust or a compiler there. The exact native binary hashes,
+compiler versions, release source hashes and lifecycle results are in
+`verification/host-consumer.json`.
+
+This establishes the implemented non-Elixir workflow slice. Complete product
+acceptance still requires policy operations, structured analytics and authorized
+interactions across this boundary when their owning features are available, plus
+the UI, mobile, Pi and physical gates. No image or release was published.

@@ -12,9 +12,8 @@
 **/deps/
 **/doc/
 **/cover/
+**/target/
 **/erl_crash.dump
 *.db
 *.db-wal
 *.db-shm
-__pycache__/
-*.pyc

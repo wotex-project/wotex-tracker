@@ -1,7 +1,7 @@
 defmodule Wotex.Tracker.StackLanguageCheck do
   @moduledoc false
 
-  @root_extensions ~w(.ex .exs .sh .bash .zsh .fish .mk .toml .yml .yaml)
+  @root_extensions ~w(.ex .exs .sh .bash .zsh .fish .mk .toml .yml .yaml .rs .c .h .cc .cpp .hpp)
   @python_manifests ~w(Pipfile Pipfile.lock pyproject.toml poetry.lock uv.lock pdm.lock .python-version)
   @excluded_content_paths MapSet.new(["scripts/check_stack_language.exs"])
 
@@ -47,7 +47,8 @@ defmodule Wotex.Tracker.StackLanguageCheck do
     basename = Path.basename(path)
 
     cond do
-      Path.extname(path) in ~w(.py .pyi .pyw) -> ["#{path}: Python source is forbidden"]
+      Path.extname(path) in ~w(.py .pyi .pyw .pyc) -> ["#{path}: Python source is forbidden"]
+      "__pycache__" in Path.split(path) -> ["#{path}: Python cache is forbidden"]
       requirements_manifest?(basename) -> ["#{path}: Python requirement manifests are forbidden"]
       basename in @python_manifests -> ["#{path}: Python environment manifests are forbidden"]
       true -> []

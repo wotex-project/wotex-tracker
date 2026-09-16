@@ -69,10 +69,15 @@ defmodule Wotex.Tracker.ReleaseProbe do
 
   def main(arguments) do
     {options, rest, invalid} =
-      OptionParser.parse(arguments, strict: [readonly_directory: :string])
+      OptionParser.parse(arguments,
+        strict: [readonly_directory: :string, native_consumer: :string]
+      )
 
     unless invalid == [] and length(rest) == 2,
-      do: raise("usage: release_probe.exs RELEASE FIXTURES [--readonly-directory PATH]")
+      do:
+        raise(
+          "usage: release_probe.exs RELEASE FIXTURES [--readonly-directory PATH] [--native-consumer PATH]"
+        )
 
     [release, fixtures] = Enum.map(rest, &Path.expand/1)
     assert_clean_path!()
@@ -92,6 +97,7 @@ defmodule Wotex.Tracker.ReleaseProbe do
       }
       |> Map.merge(lifecycle(release, Path.join(fixtures, "persistent")))
       |> Map.merge(failures(release, fixtures, options[:readonly_directory]))
+      |> Map.merge(native_consumer(release, fixtures, options[:native_consumer]))
 
     write_json(Path.join(fixtures, "result.json"), report)
     IO.puts("RELEASE_PROBE_PASS " <> Jason.encode!(report))
@@ -212,6 +218,29 @@ defmodule Wotex.Tracker.ReleaseProbe do
     instance = start(instance, true)
     assert_redacted!(instance)
     "pass"
+  end
+
+  defp native_consumer(_release, _fixtures, nil), do: %{}
+
+  defp native_consumer(release, fixtures, executable) do
+    instance = new_instance(release, Path.join(fixtures, "native-client"))
+
+    try do
+      instance = start(instance)
+
+      {output, status} =
+        System.cmd(executable, [instance.descriptor], stderr_to_stdout: true)
+
+      unless status == 0 and String.contains?(output, "NATIVE_PROTOCOL_PASS"),
+        do: raise("native protocol client failed: #{output}")
+
+      IO.puts(String.trim(output))
+      {instance, _elapsed} = stop(instance)
+      assert_redacted!(instance)
+      %{"native_protocol_client" => "pass"}
+    after
+      terminate(instance)
+    end
   end
 
   defp new_instance(release, directory) do
