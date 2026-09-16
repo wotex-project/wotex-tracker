@@ -196,7 +196,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     )?;
     assert_eq!(history["data"]["items"][0]["generation"], "3");
 
-    let mut query = json!({
+    let query = identify_query(json!({
         "schema": "wtr.query-spec.v1",
         "algorithm": "absolute-utc-buckets-v1",
         "id": "native-temperature-history",
@@ -215,13 +215,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "max_points": 1,
         "window_semantics": "from_inclusive_to_exclusive",
         "missing_values": "excluded_and_disclosed"
-    });
-    let digest = Sha256::digest(serde_json::to_vec(&query)?);
-    let hex = digest
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect::<String>();
-    query["identity"] = format!("wtr-json-v1:sha256:{hex}").into();
+    }))?;
     let analytics = client.call(
         "POST",
         &format!("{prefix}/analytics/query"),
@@ -244,6 +238,55 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             400
         )?["error"]["code"],
         "invalid_request"
+    );
+    let mut paged_query = query.clone();
+    paged_query
+        .as_object_mut()
+        .ok_or("query must be an object")?
+        .remove("identity");
+    paged_query["id"] = "native-temperature-pages".into();
+    paged_query["to_at"] = 1_700_000_000_002_i64.into();
+    paged_query["max_points"] = 2.into();
+    let page_request = json!({
+        "schema": "wtr.query-page-request.v1",
+        "query": identify_query(paged_query)?,
+        "page_size": 1,
+        "cursor": null
+    });
+    let page_path = format!("{prefix}/analytics/pages");
+    let first_page = client.call(
+        "POST",
+        &page_path,
+        Some(reader),
+        Some(&page_request),
+        None,
+        200,
+    )?;
+    let first = &first_page["data"];
+    assert_eq!(first["page"]["index"], 0);
+    assert_eq!(first["result"]["series"][0]["points"][0]["value"], 24.3);
+    let page_cursor = first["cursor"].as_str().ok_or("missing page cursor")?;
+    let mut continued = page_request.clone();
+    continued["cursor"] = page_cursor.into();
+    let second_page = client.call(
+        "POST",
+        &page_path,
+        Some(reader),
+        Some(&continued),
+        None,
+        200,
+    )?;
+    let second = &second_page["data"];
+    assert_eq!(second["page"]["index"], 1);
+    assert_eq!(second["generation"], first["generation"]);
+    assert_eq!(second["result"]["snapshot"], first["result"]["snapshot"]);
+    assert_eq!(second["result"]["series"][0]["points"], json!([]));
+    assert!(second["cursor"].is_null());
+    let mut altered = continued.clone();
+    altered["page_size"] = 2.into();
+    assert_eq!(
+        client.call("POST", &page_path, Some(reader), Some(&altered), None, 400)?["error"]["code"],
+        "invalid_cursor"
     );
 
     let events = client.stream(
@@ -270,31 +313,130 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         1,
     )?;
     assert_eq!(resumed[0]["id"], "3");
+
+    let saved_id = "native-temperature";
+    let saved_path = format!("{prefix}/saved_queries/{saved_id}");
+    let saved = json!({
+        "id": saved_id,
+        "title": "Native temperature",
+        "query": query,
+        "visualization": {"type": "line", "show_legend": true, "show_points": false},
+        "expected_generation": "3"
+    });
+    assert_eq!(
+        client.call(
+            "POST",
+            &format!("{prefix}/saved_queries"),
+            Some(reader),
+            Some(&saved),
+            Some("00000000-0000-4000-8000-000000000005"),
+            403
+        )?["error"]["code"],
+        "forbidden"
+    );
+    let saved_receipt = client.call(
+        "POST",
+        &format!("{prefix}/saved_queries"),
+        None,
+        Some(&saved),
+        Some("00000000-0000-4000-8000-000000000005"),
+        200,
+    )?;
+    assert_eq!(saved_receipt["data"]["generation"], "4");
+    let pinned_page = client.call(
+        "POST",
+        &page_path,
+        Some(reader),
+        Some(&continued),
+        None,
+        200,
+    )?;
+    assert_eq!(pinned_page["data"]["generation"], first["generation"]);
+    assert_eq!(
+        pinned_page["data"]["result"]["snapshot"],
+        first["result"]["snapshot"]
+    );
+    let definition = client.call("GET", &saved_path, None, None, None, 200)?;
+    assert_eq!(definition["data"]["value"]["query"], saved["query"]);
+    let executed = client.call(
+        "GET",
+        &format!("{saved_path}/execute"),
+        None,
+        None,
+        None,
+        200,
+    )?;
+    assert_eq!(executed["data"]["spec"], saved["query"]);
+    assert_eq!(executed["data"]["series"][0]["points"][0]["value"], 24.3);
+    let deleted = client.call(
+        "POST",
+        &format!("{prefix}/saved_query_deletions"),
+        None,
+        Some(&json!({"id": saved_id, "expected_generation": "4"})),
+        Some("00000000-0000-4000-8000-000000000006"),
+        200,
+    )?;
+    assert_eq!(deleted["data"]["generation"], "5");
+    client.call("GET", &saved_path, None, None, None, 404)?;
+    let history = client.call(
+        "GET",
+        &format!("{saved_path}/history"),
+        None,
+        None,
+        None,
+        200,
+    )?;
+    assert_eq!(history["data"]["items"][0]["deleted"], false);
+    assert_eq!(history["data"]["items"][1]["deleted"], true);
+    let latest = client.call(
+        "GET",
+        &format!("{prefix}/state"),
+        Some(reader),
+        None,
+        None,
+        200,
+    )?;
     let mut active = client.open_ready_stream(
         &format!("{prefix}/events/stream"),
         reader,
-        events[2]["cursor"].as_str().ok_or("missing final cursor")?,
+        latest["data"]["stream_cursor"]
+            .as_str()
+            .ok_or("missing final cursor")?,
     )?;
 
     let revoked = client.call(
         "POST",
         &format!("{prefix}/revocations"),
         None,
-        Some(&json!({"credential_id": "reader", "expected_generation": "3"})),
+        Some(&json!({"credential_id": "reader", "expected_generation": "5"})),
         Some("00000000-0000-4000-8000-000000000004"),
         200,
     )?;
-    assert_eq!(revoked["data"]["generation"], "4");
+    assert_eq!(revoked["data"]["generation"], "6");
+    assert_eq!(
+        client.call(
+            "POST",
+            &page_path,
+            Some(reader),
+            Some(&continued),
+            None,
+            401
+        )?["error"]["code"],
+        "unauthorized"
+    );
     let mut trailing = [0u8; 4096];
     let mut remaining: usize = 65_536;
     loop {
-        let size = active.read(&mut trailing)?;
-        if size == 0 {
-            break;
+        match active.read(&mut trailing) {
+            Ok(0) => break,
+            Ok(size) => {
+                remaining = remaining
+                    .checked_sub(size)
+                    .ok_or("revoked stream did not close")?;
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::ConnectionReset => break,
+            Err(error) => return Err(error.into()),
         }
-        remaining = remaining
-            .checked_sub(size)
-            .ok_or("revoked stream did not close")?;
     }
     assert_eq!(
         client.call(
@@ -308,8 +450,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "unauthorized"
     );
 
-    println!("NATIVE_PROTOCOL_PASS openapi=true version_rejection=true enrollment=true observation=true idempotency_conflict=true native_types=true property=true history=true analytics=true sse_resume=true active_stream_revocation=true");
+    println!("NATIVE_PROTOCOL_PASS openapi=true version_rejection=true enrollment=true observation=true idempotency_conflict=true native_types=true property=true history=true analytics=true analytics_pages=true saved_queries=true sse_resume=true active_stream_revocation=true");
     Ok(())
+}
+
+fn identify_query(mut query: Value) -> Result<Value, Box<dyn std::error::Error>> {
+    let digest = Sha256::digest(serde_json::to_vec(&query)?);
+    let hex = digest
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>();
+    query["identity"] = format!("wtr-json-v1:sha256:{hex}").into();
+    Ok(query)
 }
 
 struct Client<'a> {
@@ -381,7 +533,28 @@ impl Client<'_> {
         let credential = credential.or(Some(self.token));
         self.send(&mut stream, method, path, credential, body, operation, None)?;
         let mut bytes = Vec::new();
-        stream.take((LIMIT + 8192) as u64).read_to_end(&mut bytes)?;
+        let mut chunk = [0u8; 4096];
+        loop {
+            match stream.read(&mut chunk) {
+                Ok(0) => break,
+                Ok(size) => {
+                    if bytes.len() + size > LIMIT + 8192 {
+                        return Err("HTTP response exceeds limit".into());
+                    }
+                    bytes.extend_from_slice(&chunk[..size]);
+                    if response_complete(&bytes)? {
+                        break;
+                    }
+                }
+                Err(error)
+                    if error.kind() == std::io::ErrorKind::ConnectionReset
+                        && response_complete(&bytes)? =>
+                {
+                    break;
+                }
+                Err(error) => return Err(format!("{method} {path}: {error}").into()),
+            }
+        }
         let split = bytes
             .windows(4)
             .position(|part| part == b"\r\n\r\n")
@@ -439,7 +612,9 @@ impl Client<'_> {
         let mut headers = false;
         let mut chunked = false;
         loop {
-            let size = stream.read(&mut chunk)?;
+            let size = stream.read(&mut chunk).map_err(|error| {
+                format!("SSE {}: {error}", path.split('?').next().unwrap_or(""))
+            })?;
             if size == 0 || wire.len() + bytes.len() + size > 65_536 {
                 return Err("SSE stream closed or exceeded limit".into());
             }
@@ -506,11 +681,22 @@ impl Client<'_> {
         let mut chunk = [0u8; 4096];
 
         while !bytes.windows(12).any(|part| part == b"event: ready") {
-            let size = stream.read(&mut chunk)?;
+            let size = stream
+                .read(&mut chunk)
+                .map_err(|error| format!("active SSE {path}: {error}"))?;
             if size == 0 || bytes.len() + size > 32_768 {
                 return Err("active stream did not become ready".into());
             }
             bytes.extend_from_slice(&chunk[..size]);
+            if let Some(split) = bytes.windows(4).position(|part| part == b"\r\n\r\n") {
+                if !bytes.starts_with(b"HTTP/1.1 200 ") {
+                    let status = std::str::from_utf8(&bytes[..split])?
+                        .lines()
+                        .next()
+                        .unwrap_or("missing status");
+                    return Err(format!("active stream returned {status}").into());
+                }
+            }
         }
 
         if !bytes.starts_with(b"HTTP/1.1 200 ") {
@@ -518,6 +704,25 @@ impl Client<'_> {
         }
         Ok(stream)
     }
+}
+
+fn response_complete(bytes: &[u8]) -> Result<bool, Box<dyn std::error::Error>> {
+    let Some(split) = bytes.windows(4).position(|part| part == b"\r\n\r\n") else {
+        return Ok(false);
+    };
+    let head = std::str::from_utf8(&bytes[..split])?;
+    for line in head.lines() {
+        if let Some((name, value)) = line.split_once(':') {
+            if name.eq_ignore_ascii_case("Content-Length") {
+                let length: usize = value.trim().parse()?;
+                return Ok(length <= LIMIT && bytes.len() >= split + 4 + length);
+            }
+        }
+    }
+    Ok(head
+        .to_ascii_lowercase()
+        .contains("transfer-encoding: chunked")
+        && bytes[split + 4..].ends_with(b"0\r\n\r\n"))
 }
 
 fn drain_chunks(

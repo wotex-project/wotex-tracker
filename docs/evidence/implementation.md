@@ -1484,11 +1484,14 @@ version and public route, rejection of an unsupported API version, unauthorized
 and reader-denied requests, idempotent observation admission, conflict rejection
 for a reused key with a different body, and receipt lookup. It preserves native
 integer/float/zero/false/null raw values and checks enrollment, materialisation,
-a Property read, Thing history,
-a known-answer structured analytics query with a separately computed content
-identity, forged-identity rejection, three retained events, explicit cursor
-resume and reader revocation. It also holds an already-ready SSE connection open
-while the reader is revoked and verifies that the server closes it.
+a Property read, Thing history and a known-answer structured analytics query
+with a separately computed content identity. It checks forged-identity rejection,
+two snapshot-pinned analytics bucket pages, an altered-cursor rejection and
+continuation after an unrelated commit. It saves,
+executes and tombstones a query through public endpoints, checks its history,
+and verifies a reader cannot save it. It resumes retained events and holds an
+already-ready SSE connection open while the reader is revoked, verifying that
+the server closes it and denies the old page cursor.
 
 The clean artifact harness compiles this client for Darwin ARM64 with a local
 Rust toolchain and for Linux ARM64 in a digest-pinned Rust 1.97.1 slim builder.
