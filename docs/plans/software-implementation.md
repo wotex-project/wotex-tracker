@@ -338,9 +338,11 @@ content-identified rows, absolute UTC query/result values, bounded numeric bucke
 aggregation, stable last-observed ties, explicit missing/quality exclusions and
 preserved gaps. The service reauthorizes against a pinned SQLite snapshot,
 exposes the same closed documents to independent HTTP clients, bounds global and
-per-principal work, and cancels timed-out or abandoned scans. Query pagination,
-telemetry, rolling windows, saved dashboards, prompting and every UI acceptance
-gate remain.
+per-principal work, and cancels timed-out or abandoned scans. The transactional
+service now also saves, versions, executes and tombstones owned absolute-window
+query definitions with closed visualization options. Query pagination,
+telemetry, rolling windows, dashboard composition/sharing, prompting and every
+UI acceptance gate remain.
 
 Add an explicitly configured public model adapter for question-to-query translation:
 synthetic boundary tests plus a separately recorded real-provider execution.

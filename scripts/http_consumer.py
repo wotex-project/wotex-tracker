@@ -287,7 +287,24 @@ def main():
     request("observe_property", thing_path + "/properties/pressure/observe?" + urllib.parse.urlencode({"cursor": first["id"]}), status=400)
     request("observe_property", observe_path + "?" + urllib.parse.urlencode({"cursor": first["id"]}),
             extra_headers={"Last-Event-ID": first["id"]}, status=400)
-    print("HTTP_CONSUMER_PASS openapi=true enrollment=true materialisation=true native_types=true history=true replay=true revoked_stream_closed=true property_observation=true")
+    saved = {"id": "independent-temperature", "title": "Independent temperature",
+        "query": query, "visualization": {"type": "line", "show_legend": True,
+        "show_points": False}, "expected_generation": "9"}
+    receipt = data("save_query", prefix + "/saved_queries", saved)
+    assert receipt["generation"] == "10" and receipt["data"]["query_id"] == saved["id"]
+    saved_path = prefix + "/saved_queries/" + urllib.parse.quote(saved["id"], safe="")
+    definition = data("get_saved_queries", saved_path)["value"]
+    assert definition["query"] == query and definition["owner"].startswith("wtr1_")
+    assert data("list_saved_queries", prefix + "/saved_queries")["items"][0]["value"] == definition
+    executed = data("execute_saved_query", saved_path + "/execute")
+    assert executed["spec"] == query and executed["series"][0]["points"][0]["value"] == 24.3
+    deleted = data("delete_query", prefix + "/saved_query_deletions",
+                   {"id": saved["id"], "expected_generation": "10"})
+    assert deleted["generation"] == "11"
+    request("get_saved_queries", saved_path, status=404)
+    saved_history = data("history_saved_queries", saved_path + "/history")
+    assert [item["deleted"] for item in saved_history["items"]] == [False, True]
+    print("HTTP_CONSUMER_PASS openapi=true enrollment=true materialisation=true native_types=true history=true replay=true revoked_stream_closed=true property_observation=true saved_queries=true")
 
 
 

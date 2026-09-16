@@ -99,9 +99,18 @@ Analytics execution is capped at eight concurrent queries, two per principal and
 sixteen starts per principal in each one-second window. Caller loss, store
 shutdown or the configured timeout cancels the dedicated SQLite connection and
 retains no query reservation. These limits are independent of the serialized
-writer, so a canceled scan cannot leave the writer mailbox blocked. Pagination,
-saved queries, named display timezones, prompting, operational telemetry and
-graph rendering remain later contracts.
+writer, so a canceled scan cannot leave the writer mailbox blocked.
+
+Administrators can persist a `wtr.saved-query.v1` definition with one admitted
+absolute-window `QuerySpec` and closed line/area/points/table visualization
+options. Save, update and delete are idempotent generation-checked transactions;
+ownership is stored privately and projected as a scope pseudonym. Ordinary
+resource reads and history expose reviewed definitions and deletion tombstones.
+`GET …/saved_queries/{id}/execute` rechecks current `read` authority and runs the
+exact stored query through the same bounded engine. Possessing or sharing a
+definition grants no data access and does not call a model. Pagination, rolling
+windows, named display timezones, prompting, operational telemetry and graph
+rendering remain later contracts.
 
 ## Explicit HTTP instance
 
@@ -126,11 +135,13 @@ and key paths. Explicit `:proxy` mode requires an HTTPS public origin and a
 protected proxy-to-listener network; forwarded headers never supply authority or
 Forms. No remote exposure is inferred.
 
-OpenAPI **3.1.0**, contract revision **1.6.0**, is packaged at
+OpenAPI **3.1.0**, contract revision **1.7.0**, is packaged at
 `priv/openapi/v1.json` and served at `/api/v1/openapi.json`. Liveness is
 `/health/live`; authenticated resources are under `/api/v1/scopes/{scope}`.
 Use `Authorization: Bearer …`, and a UUIDv4 `Idempotency-Key` for POST mutations.
 The read-only analytics POST uses authorization without an idempotency key.
+Saved-query writes use the same mutation receipt/idempotency contract as other
+durable resources; saved-query execution is a read-only GET.
 API responses have `schema: wtr.response.v1` and `data` or `error`. Successful
 TD Property reads return the native JSON scalar with `X-Wotex-Generation`.
 Unknown

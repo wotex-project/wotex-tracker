@@ -93,7 +93,10 @@ count/min/max/mean/last series with snapshot binding, stable ties, preserved gap
 and disclosed exclusions. The service now authorizes those queries, extracts
 committed SQLite state history in one pinned snapshot and exposes the closed
 query/result contract over HTTP with bounded per-principal execution and
-cancellation. See the [analytics guide](docs/guides/analytics.md).
+cancellation. Administrators can also persist fixed-window query definitions
+and closed visualization options, retain their version/tombstone history and
+execute them later under current read authority. See the
+[analytics guide](docs/guides/analytics.md).
 
 Start with the [WTR specification index](docs/specs/WTR-index.md) and the [software implementation sequence](docs/plans/software-implementation.md).
 

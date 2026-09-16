@@ -992,21 +992,58 @@ association_request = %{
    "series" => [%{"points" => [%{"value" => 24.3}]}]
  }} = Service.analytics(service, token, "archive", query_document, update.now)
 
+save_operation = Identifier.uuid()
+
+save_request = %{
+  "id" => "archive-temperature",
+  "title" => "Archive temperature",
+  "query" => query_document,
+  "visualization" => %{
+    "type" => "line",
+    "show_legend" => true,
+    "show_points" => false
+  },
+  "expected_generation" => "7"
+}
+
+{:ok, %{"generation" => "8", "data" => %{"query_id" => "archive-temperature"}} = saved} =
+  Service.save_query(service, token, "archive", save_operation, save_request, update.now)
+
+{:ok, ^saved} =
+  Service.save_query(service, token, "archive", save_operation, save_request, update.now)
+
+{:ok, %{"value" => %{"query" => ^query_document, "owner" => "wtr1_" <> _}}} =
+  Service.get(service, token, "archive", "saved_queries", "archive-temperature", update.now)
+
+{:ok, %{"spec" => ^query_document, "series" => [%{"points" => [%{"value" => 24.3}]}]}} =
+  Service.execute_saved_query(service, token, "archive", "archive-temperature", update.now)
+
 {:ok, history} = Service.history(service, token, "archive", "enrollments", thing, %{}, update.now)
 ["3", "6"] = Enum.map(history["items"], & &1["generation"])
+
+{:ok, %{"items" => [%{"deleted" => false, "value" => %{"query" => ^query_document}}]}} =
+  Service.history(
+    service,
+    token,
+    "archive",
+    "saved_queries",
+    "archive-temperature",
+    %{},
+    update.now
+  )
 
 {:ok, revoke} =
   Update.new(%{
     Map.from_struct(update)
     | operation_id: "revoke",
-      expected_generation: "7",
+      expected_generation: "8",
       observation: nil,
       request: %{"operation" => "revoke"},
       records: [%{kind: "access", id: "archive-credential", value: %{"revoked" => true}}],
       events: [%{"type" => "access.revoked", "data" => %{}}]
   })
 
-{:ok, %{"generation" => "8"}} = Store.mutate(store, revoke)
+{:ok, %{"generation" => "9"}} = Store.mutate(store, revoke)
 {:error, :unauthorized} = Store.authorized(store, access, "read", update.now)
 {:error, :unauthorized} = Store.mutate(store, update)
 
@@ -1172,5 +1209,5 @@ retained = Process.list() |> MapSet.new() |> MapSet.difference(before_processes)
 0 = retained
 
 IO.puts(
-  "SERVICE_COHORT_PASS durable_restart=true durable_store_forward=true atomic_transport_health=true atomic_heartbeat=true atomic_battery=true atomic_motion=true atomic_geofence=true atomic_geofence_crossing=true atomic_suspicious_movement=true analytics=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true explicit_association=true independent_http_sse=true actual_runtime_http_peer=true actual_runtime_sse=true retained_new_processes=#{retained}"
+  "SERVICE_COHORT_PASS durable_restart=true durable_store_forward=true atomic_transport_health=true atomic_heartbeat=true atomic_battery=true atomic_motion=true atomic_geofence=true atomic_geofence_crossing=true atomic_suspicious_movement=true analytics=true saved_queries=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true explicit_association=true independent_http_sse=true actual_runtime_http_peer=true actual_runtime_sse=true retained_new_processes=#{retained}"
 )

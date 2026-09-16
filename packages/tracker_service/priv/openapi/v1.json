@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "WoTEx Tracker service",
-    "version": "1.6.0",
-    "description": "Authenticated imported-observation service with deterministic structured measurement queries. No scanner, rules or physical interaction is implied."
+    "version": "1.7.0",
+    "description": "Authenticated imported-observation service with deterministic structured and saved measurement queries. No scanner, rules or physical interaction is implied."
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "security": [
@@ -230,7 +230,7 @@
     "/api/v1/scopes/{scope}/analytics/query": {
       "post": {
         "operationId": "query_analytics",
-        "description": "Evaluate a closed numeric measurement query against one authorized committed SQLite snapshot. This read-only POST does not use an Idempotency-Key. At most eight queries execute at once, two per principal, with sixteen starts per principal per second. Caller loss, store shutdown or the configured deadline cancels the dedicated read connection. Pagination, saved queries and prompt translation are not provided by this operation.",
+        "description": "Evaluate a closed numeric measurement query against one authorized committed SQLite snapshot. This read-only POST does not use an Idempotency-Key. At most eight queries execute at once, two per principal, with sixteen starts per principal per second. Caller loss, store shutdown or the configured deadline cancels the dedicated read connection. Pagination and prompt translation are not provided by this operation.",
         "parameters": [
           {
             "$ref": "#/components/parameters/Scope"
@@ -2466,6 +2466,423 @@
         "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 3."
       }
     },
+    "/api/v1/scopes/{scope}/saved_queries": {
+      "get": {
+        "operationId": "list_saved_queries",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 256,
+                                "x-max-utf8-bytes": 256
+                              },
+                              "generation": {
+                                "type": "string",
+                                "pattern": "^(0|[1-9][0-9]{0,18})$",
+                                "description": "Canonical decimal integer below 9223372036854775807."
+                              },
+                              "value": {
+                                "$ref": "#/components/schemas/SavedQuery"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "generation",
+                              "value"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "maxItems": 100
+                        },
+                        "generation": {
+                          "type": "string",
+                          "pattern": "^(0|[1-9][0-9]{0,18})$",
+                          "description": "Canonical decimal integer below 9223372036854775807."
+                        },
+                        "cursor": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 4096,
+                              "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "stream_cursor": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 4096,
+                          "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "generation",
+                        "cursor",
+                        "stream_cursor"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "save_query",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Receipt"
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Receipt"
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveQueryRequest"
+              }
+            }
+          },
+          "description": "At most 1 MiB, UTF-8 JSON; duplicate keys and unknown fields are rejected."
+        }
+      }
+    },
+    "/api/v1/scopes/{scope}/saved_queries/{id}": {
+      "get": {
+        "operationId": "get_saved_queries",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 256,
+                          "x-max-utf8-bytes": 256
+                        },
+                        "generation": {
+                          "type": "string",
+                          "pattern": "^(0|[1-9][0-9]{0,18})$",
+                          "description": "Canonical decimal integer below 9223372036854775807."
+                        },
+                        "value": {
+                          "$ref": "#/components/schemas/SavedQuery"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "generation",
+                        "value"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scopes/{scope}/saved_queries/{id}/history": {
+      "get": {
+        "operationId": "history_saved_queries",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/ID"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 256,
+                                    "x-max-utf8-bytes": 256
+                                  },
+                                  "generation": {
+                                    "type": "string",
+                                    "pattern": "^(0|[1-9][0-9]{0,18})$",
+                                    "description": "Canonical decimal integer below 9223372036854775807."
+                                  },
+                                  "value": {
+                                    "$ref": "#/components/schemas/SavedQuery"
+                                  },
+                                  "deleted": {
+                                    "const": false
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "generation",
+                                  "value",
+                                  "deleted"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 256,
+                                    "x-max-utf8-bytes": 256
+                                  },
+                                  "generation": {
+                                    "type": "string",
+                                    "pattern": "^(0|[1-9][0-9]{0,18})$",
+                                    "description": "Canonical decimal integer below 9223372036854775807."
+                                  },
+                                  "deleted": {
+                                    "const": true
+                                  },
+                                  "value": {
+                                    "type": "null"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "generation",
+                                  "deleted",
+                                  "value"
+                                ],
+                                "additionalProperties": false
+                              }
+                            ]
+                          },
+                          "maxItems": 100
+                        },
+                        "generation": {
+                          "type": "string",
+                          "pattern": "^(0|[1-9][0-9]{0,18})$",
+                          "description": "Canonical decimal integer below 9223372036854775807."
+                        },
+                        "cursor": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 4096,
+                              "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "stream_cursor": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 4096,
+                          "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "generation",
+                        "cursor",
+                        "stream_cursor"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 3."
+      }
+    },
     "/api/v1/scopes/{scope}/things/{id}/properties/{property}": {
       "get": {
         "operationId": "read_property",
@@ -2807,6 +3224,137 @@
           },
           "description": "At most 1 MiB, UTF-8 JSON; duplicate keys and unknown fields are rejected."
         }
+      }
+    },
+    "/api/v1/scopes/{scope}/saved_query_deletions": {
+      "post": {
+        "operationId": "delete_query",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Receipt"
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Receipt"
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteQueryRequest"
+              }
+            }
+          },
+          "description": "At most 1 MiB, UTF-8 JSON; duplicate keys and unknown fields are rejected."
+        }
+      }
+    },
+    "/api/v1/scopes/{scope}/saved_queries/{id}/execute": {
+      "get": {
+        "operationId": "execute_saved_query",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/QueryResult"
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Execute the exact admitted QuerySpec in a saved absolute-window definition. Current read authority is checked again for the underlying dataset; possession or sharing of a definition grants no data access. The model is not called. Query concurrency, refresh-rate, deadline and cancellation limits still apply."
       }
     },
     "/api/v1/scopes/{scope}/operations/{operation}": {
@@ -3788,6 +4336,7 @@
                   "observation.admitted",
                   "enrollment.changed",
                   "thing.changed",
+                  "query.changed",
                   "access.revoked"
                 ]
               },
@@ -3805,6 +4354,12 @@
                       "resolved",
                       "unknown",
                       "ambiguous"
+                    ]
+                  },
+                  "action": {
+                    "enum": [
+                      "saved",
+                      "deleted"
                     ]
                   }
                 },
@@ -3935,6 +4490,21 @@
                     },
                     "required": [
                       "credential_id"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "query_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256,
+                        "x-max-utf8-bytes": 256
+                      }
+                    },
+                    "required": [
+                      "query_id"
                     ],
                     "additionalProperties": false
                   }
@@ -4321,6 +4891,88 @@
         ],
         "additionalProperties": false
       },
+      "Visualization": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "enum": [
+              "line",
+              "area",
+              "points",
+              "table"
+            ]
+          },
+          "show_legend": {
+            "type": "boolean"
+          },
+          "show_points": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "type",
+          "show_legend",
+          "show_points"
+        ],
+        "additionalProperties": false
+      },
+      "SavedQuery": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "wtr.saved-query.v1"
+          },
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          },
+          "owner": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          },
+          "created_at": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "updated_at": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "window": {
+            "const": "absolute"
+          },
+          "query": {
+            "$ref": "#/components/schemas/QuerySpec"
+          },
+          "visualization": {
+            "$ref": "#/components/schemas/Visualization"
+          }
+        },
+        "required": [
+          "schema",
+          "id",
+          "title",
+          "owner",
+          "created_at",
+          "updated_at",
+          "window",
+          "query",
+          "visualization"
+        ],
+        "additionalProperties": false
+      },
       "ImportRequest": {
         "type": "object",
         "properties": {
@@ -4437,6 +5089,63 @@
         },
         "required": [
           "credential_id",
+          "expected_generation"
+        ],
+        "additionalProperties": false
+      },
+      "SaveQueryRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          },
+          "query": {
+            "$ref": "#/components/schemas/QuerySpec"
+          },
+          "visualization": {
+            "$ref": "#/components/schemas/Visualization"
+          },
+          "expected_generation": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,18})$",
+            "description": "Canonical decimal integer below 9223372036854775807."
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "query",
+          "visualization",
+          "expected_generation"
+        ],
+        "additionalProperties": false
+      },
+      "DeleteQueryRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          },
+          "expected_generation": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,18})$",
+            "description": "Canonical decimal integer below 9223372036854775807."
+          }
+        },
+        "required": [
+          "id",
           "expected_generation"
         ],
         "additionalProperties": false

@@ -44,7 +44,7 @@ inside a SQLite read transaction and pins the current scope generation. For each
 explicit series it extracts matching measurements from committed state history,
 then passes admitted rows and a scope-generation snapshot identity to the pure
 evaluator. The same operation is available as the read-only
-`POST …/analytics/query` endpoint in service contract 1.6.0.
+`POST …/analytics/query` endpoint in service contract 1.7.0.
 
 The adapter admits at most 100,000 matching measurement rows across all series.
 Its `scanned_rows` value counts those extracted rows, rather than SQLite pages or
@@ -58,5 +58,19 @@ and sixteen starts per principal per second. Each accepted query uses its own
 read-only SQLite connection. Caller loss, store shutdown or the configured
 five-second deadline cancels the connection through its busy and progress
 handlers and releases the reservation. Query pagination, rolling windows, named
-display timezones, saved dashboards, prompt translation, operational telemetry
-and graph rendering remain required by the analytics target contract.
+display timezones, prompt translation, operational telemetry and graph rendering
+remain required by the analytics target contract.
+
+`Service.save_query/6` and `POST …/saved_queries` persist an admitted absolute
+query with closed visualization options, private ownership and a public owner
+pseudonym. Scope-generation checks serialize concurrent edits, operation IDs
+make retries idempotent, and history retains every definition version plus an
+explicit deletion tombstone. Only the owning administrator can update or delete
+the record.
+
+`GET …/saved_queries/{id}/execute` loads the exact structured query, validates it
+again and passes it to the normal analytics executor. The caller still needs
+current `read` authority; a copied definition is never an access grant. Execution
+does not invoke a model. This first saved-definition revision pins absolute
+incident bounds. Rolling windows, sharing policy and UI dashboard composition
+remain future contracts.

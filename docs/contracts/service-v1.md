@@ -243,12 +243,13 @@ No external publication intent is created without a configured destination.
 The current facade does not itself start a listener or prove endpoint reachability.
 
 Public resource names are `observations`, `resolutions`, `evidence`, `state`,
-`enrollments` and `things`. Lists accept only `limit` (default 25, maximum 100)
-and `cursor`. A page returns `items`, `generation`, nullable next-page `cursor`
-and a `stream_cursor` for its exact snapshot. Each item has `id`, `generation`
-and reviewed `value`. Observation/resolution pages cannot reuse each other's
-cursors even though they share a private storage index. Raw exports return
-native JSON bytes through `raw`, never the public tagged-scalar transformation.
+`enrollments`, `things` and `saved_queries`. Lists accept only `limit` (default
+25, maximum 100) and `cursor`. A page returns `items`, `generation`, nullable
+next-page `cursor` and a `stream_cursor` for its exact snapshot. Each item has
+`id`, `generation` and reviewed `value`. Observation/resolution pages cannot
+reuse each other's cursors even though they share a private storage index. Raw
+exports return native JSON bytes through `raw`, never the public tagged-scalar
+transformation.
 
 Event reads return `items` and a resume `cursor`. Each event has a stable decimal
 domain `id`, generation, versioned event schema and public event data. Its
@@ -256,7 +257,7 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
-## HTTP and stream contract 1.6.0
+## HTTP and stream contract 1.7.0
 
 The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
 2020-12. The independently maintained generator and validator check the packaged
@@ -279,9 +280,12 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | `/api/v1/scopes/{scope}/health/ready` | GET authenticated writable-store check |
 | `/api/v1/scopes/{scope}/capabilities` | GET explicit available/unsupported/unconfigured status |
 | `…/analytics/query` | POST one read-only structured measurement query against a committed snapshot |
-| `…/observations`, `…/resolutions`, `…/evidence`, `…/state`, `…/enrollments`, `…/things` | GET public snapshot pages |
+| `…/observations`, `…/resolutions`, `…/evidence`, `…/state`, `…/enrollments`, `…/things`, `…/saved_queries` | GET public snapshot pages |
 | `…/{resource}/{id}` | GET one public value |
 | `…/{resource}/{id}/history` | GET ascending committed public versions, including deletion records |
+| `…/saved_queries` | POST create or update an owned fixed-window query definition |
+| `…/saved_query_deletions` | POST delete an owned definition with a retained tombstone |
+| `…/saved_queries/{id}/execute` | GET execute the stored query under current read authority |
 | `…/things/{id}/properties/{property}` | GET authorized Runtime Property scalar |
 | `…/things/{id}/properties/{property}/observe` | GET committed Property values as resumable SSE |
 | `…/observations/{id}/raw`, `…/evidence/{id}/raw` | GET raw-permission native JSON downloads |
@@ -300,6 +304,15 @@ acknowledgement returns HTTP 202 with an `unknown` receipt. Unexpected programmi
 failures return a redacted 500 and conservatively report unknown mutation outcome.
 They are logged as a fixed failure message, never exception/request text.
 Self-revocation may commit its own receipt; subsequent requests are denied.
+
+Saved definitions use the same scope generation and idempotent receipt rules as
+other mutations. The record persists its admitted `QuerySpec`, closed
+visualization options, private owner and public owner pseudonym. Only the owner
+can update or delete it. Copying or reading a definition cannot widen authority:
+execution independently authenticates the caller, checks `read` inside the
+query snapshot and applies the normal concurrency, rate and deadline limits.
+This revision stores absolute incident windows. Rolling-window resolution and
+dashboard sharing policy remain outside this contract.
 
 API JSON replies use `application/json`. Raw downloads use
 `application/vnd.wotex.tracker.observation+json` or

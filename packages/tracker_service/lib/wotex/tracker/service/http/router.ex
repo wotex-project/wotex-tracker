@@ -13,7 +13,9 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
     "enrollments" => {:enroll, "enroll"},
     "associations" => {:associate, "enroll"},
     "materialisations" => {:materialize, "enroll"},
-    "revocations" => {:revoke, "admin"}
+    "revocations" => {:revoke, "admin"},
+    "saved_queries" => {:save_query, "admin"},
+    "saved_query_deletions" => {:delete_query, "admin"}
   }
 
   @impl true
@@ -165,6 +167,15 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
       error -> {conn, normalize(error)}
     end
   end
+
+  defp scoped(
+         %{method: "GET"} = conn,
+         ["saved_queries", id, "execute"],
+         params,
+         {service, token, scope, now}
+       )
+       when map_size(params) == 0,
+       do: {conn, Service.execute_saved_query(service, token, scope, id, now)}
 
   defp scoped(%{method: "POST"} = conn, [resource], params, context)
        when is_map_key(@mutations, resource) do

@@ -1236,3 +1236,37 @@ Compiler, formatter, strict Credo, Dialyzer, ExDoc, dependency audit, licences,
 generated/packaged OpenAPI 1.6.0 equality and archive inspection passed. The
 root implementation and its 158-test gate remain unchanged by this service-only
 execution slice.
+
+### Transactional saved query definitions — 2026-09-16
+
+The service now persists `wtr.saved-query.v1` definitions containing one
+previously admitted absolute-window query and closed line, area, points or table
+visualization options. Save, update and delete use the existing UUID operation
+identity, scope-generation compare-and-swap and atomic record/event/receipt
+transaction. Each version retains a private principal owner, projects only a
+scope pseudonym and emits `query.changed`; deletion retains an explicit history
+tombstone. A different administrator cannot replace or delete an owned
+definition.
+
+Current read authority remains the data boundary. Reading or copying a saved
+definition grants nothing, and `Service.execute_saved_query/5` plus the matching
+HTTP GET validate the stored document and pass it through the same snapshot,
+concurrency, refresh-rate, timeout and cancellation path as a direct structured
+query. No model call is involved. This revision deliberately stores fixed
+absolute incident windows; rolling resolution and dashboard sharing policy
+remain future contracts.
+
+Both service runtime lanes passed the complete gate with 2 properties and 131
+tests, no failures and 95.1% floor / 95.2% current production line coverage.
+Compiler, formatter, strict Credo, Dialyzer, ExDoc, dependency audit, licences,
+generated/packaged OpenAPI 1.7.0 equality and 59-member archive inspection
+passed. Tests cover create/update/replay/delete, immutable history, owner
+isolation, invalid definitions, stale generations, deterministic execution and
+the public HTTP lifecycle.
+
+The independent Python client validates the new request, resource, result,
+receipt, event and tombstone shapes against the packaged JSON Schema before
+exercising them. The production service archive consumer saves, replays, reads,
+executes and histories a definition through the installed facade. The remaining
+analytics work is query pagination, rolling windows, named display timezones,
+operational telemetry, prompt translation and interactive graph/dashboard UI.

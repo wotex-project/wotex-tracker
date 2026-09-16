@@ -24,12 +24,13 @@ defmodule Wotex.Tracker.Service do
     Materialize,
     Projection,
     Result,
+    SavedQuery,
     Snapshot,
     Store,
     Update
   }
 
-  @resources ~w(observations resolutions evidence state enrollments things)
+  @resources ~w(observations resolutions evidence state enrollments things saved_queries)
   @derive {Inspect, only: [:base_url]}
   @enforce_keys [:store, :credentials, :catalogue, :model, :base_url]
   defstruct @enforce_keys
@@ -209,6 +210,31 @@ defmodule Wotex.Tracker.Service do
     Result.normalize(result)
   end
 
+  @doc "Saves one admitted absolute-window query and its closed visualization options."
+  @spec save_query(t(), String.t(), String.t(), String.t(), map(), integer()) ::
+          {:ok, map()} | {:error, map()}
+  def save_query(service, token, scope, operation, request, now),
+    do: saved_query_mutation(service, token, scope, operation, request, now, :save)
+
+  @doc "Deletes one owned saved query through a retained transactional tombstone."
+  @spec delete_query(t(), String.t(), String.t(), String.t(), map(), integer()) ::
+          {:ok, map()} | {:error, map()}
+  def delete_query(service, token, scope, operation, request, now),
+    do: saved_query_mutation(service, token, scope, operation, request, now, :delete)
+
+  @doc "Executes the admitted query from a saved definition after current read authorization."
+  @spec execute_saved_query(t(), String.t(), String.t(), String.t(), integer()) ::
+          {:ok, map()} | {:error, map()}
+  def execute_saved_query(service, token, scope, id, now) do
+    result =
+      with {:ok, access} <- authorize(service, token, scope, "read", now),
+           {:ok, row} <- fetch(service, access, "saved_queries", id, nil, "read", now),
+           {:ok, spec} <- SavedQuery.query(row["value"], id),
+           do: Store.authorized_analytics(service.store, access, spec, now)
+
+    Result.normalize(result)
+  end
+
   @doc "Exports native observation JSON bytes only with the raw-evidence grant."
   @spec raw_observation(t(), String.t(), String.t(), String.t(), integer()) ::
           {:ok, binary()} | {:error, map()}
@@ -373,6 +399,38 @@ defmodule Wotex.Tracker.Service do
         result
     end
   end
+
+  defp saved_query_mutation(service, token, scope, operation, request, now, action) do
+    result =
+      with {:ok, access} <- authorize(service, token, scope, "admin", now),
+           true <- Identifier.operation?(operation),
+           :ok <- admit_saved_query(action, request) do
+        intent = %{
+          operation_id: operation,
+          request: %{"operation" => "#{action}_query", "body" => request},
+          expected_generation: request["expected_generation"],
+          observation_identity: nil
+        }
+
+        execute_new(service, access, "admin", intent, now, fn ->
+          prepare_saved_query(action, service, access, operation, request, now)
+        end)
+      else
+        false -> {:error, :invalid_request}
+        error -> error
+      end
+
+    Result.mutation(result, operation)
+  end
+
+  defp admit_saved_query(:save, request), do: SavedQuery.admit_save(request)
+  defp admit_saved_query(:delete, request), do: SavedQuery.admit_delete(request)
+
+  defp prepare_saved_query(:save, service, access, operation, request, now),
+    do: SavedQuery.prepare_save(service, access, operation, request, now)
+
+  defp prepare_saved_query(:delete, service, access, operation, request, now),
+    do: SavedQuery.prepare_delete(service, access, operation, request, now)
 
   defp storage_kind("observations"), do: "resolutions"
   defp storage_kind(resource), do: resource

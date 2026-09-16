@@ -80,14 +80,16 @@ def document():
             "confidence": enum("exact", "strong", "candidate", "unknown"), "reasons": array(identifier, 32),
             "association_id": {"anyOf": [identifier, {"type": "null"}]}}),
         "Event": obj({"schema": {"const": "wtr.event.v1"}, "id": generation, "generation": generation,
-            "cursor": cursor, "event": obj({"type": enum("observation.admitted", "enrollment.changed", "thing.changed", "access.revoked"),
-                "data": obj({"id": identifier, "status": enum("resolved", "unknown", "ambiguous")}, optional=("status",))})}),
+            "cursor": cursor, "event": obj({"type": enum("observation.admitted", "enrollment.changed", "thing.changed", "query.changed", "access.revoked"),
+                "data": obj({"id": identifier, "status": enum("resolved", "unknown", "ambiguous"),
+                             "action": enum("saved", "deleted")}, optional=("status", "action"))})}),
         "Receipt": {"oneOf": [
             obj({"outcome": {"const": "unknown"}, "operation_id": uuid}),
             obj({"outcome": {"const": "committed"}, "operation_id": uuid, "generation": generation,
                  "disposition": enum("accepted", "duplicate"), "publication": {"type": "null"},
                  "data": {"oneOf": [obj({"observation_id": identifier}), obj({"thing_id": thing}),
-                    obj({"thing_id": thing, "materialisation_id": identifier}), obj({"credential_id": identifier})]}})]},
+                    obj({"thing_id": thing, "materialisation_id": identifier}), obj({"credential_id": identifier}),
+                    obj({"query_id": identifier})]}})]},
         "Error": obj({"schema": {"const": "wtr.response.v1"}, "error": obj({
             "code": enum(*("unauthorized forbidden invalid_request invalid_observation invalid_cursor cursor_expired "
                 "operation_expired not_found conflict idempotency_conflict observation_conflict unsupported unresolved unavailable deadline_exceeded "
@@ -138,6 +140,14 @@ def document():
             "downsampling": {"const": "requested_bucket_aggregation"},
             "continuity": {"const": "gaps_preserved"},
             "identity": content_identity}),
+        "Visualization": obj({
+            "type": enum("line", "area", "points", "table"),
+            "show_legend": {"type": "boolean"}, "show_points": {"type": "boolean"}}),
+        "SavedQuery": obj({
+            "schema": {"const": "wtr.saved-query.v1"}, "id": identifier, "title": identifier,
+            "owner": identifier, "created_at": safe_time, "updated_at": safe_time,
+            "window": {"const": "absolute"}, "query": ref("QuerySpec"),
+            "visualization": ref("Visualization")}),
         "ImportRequest": obj({"observation": ref("ObservationEnvelope"), "expected_generation": generation}),
         "EnrollmentRequest": obj({"observation_id": identifier, "title": identifier,
                                    "owner_confirmed": {"const": True}, "expected_generation": generation}),
@@ -145,6 +155,9 @@ def document():
                                     "owner_confirmed": {"const": True}, "expected_generation": generation}),
         "MaterialisationRequest": obj({"thing_id": thing, "expected_generation": generation}),
         "RevocationRequest": obj({"credential_id": identifier, "expected_generation": generation}),
+        "SaveQueryRequest": obj({"id": identifier, "title": identifier, "query": ref("QuerySpec"),
+                                  "visualization": ref("Visualization"), "expected_generation": generation}),
+        "DeleteQueryRequest": obj({"id": identifier, "expected_generation": generation}),
     }
     parameters = {
         "Scope": {"name": "scope", "in": "path", "required": True, "schema": identifier},
@@ -187,8 +200,8 @@ def document():
         "description": "Evaluate a closed numeric measurement query against one authorized committed SQLite snapshot. "
                        "This read-only POST does not use an Idempotency-Key. At most eight queries execute at once, "
                        "two per principal, with sixteen starts per principal per second. Caller loss, store shutdown "
-                       "or the configured deadline cancels the dedicated read connection. Pagination, saved queries "
-                       "and prompt translation are not provided by this operation.",
+                       "or the configured deadline cancels the dedicated read connection. Pagination and prompt "
+                       "translation are not provided by this operation.",
         "parameters": [{"$ref": "#/components/parameters/Scope"}],
         "responses": {"200": response(envelope(ref("QueryResult"))),
                       "default": response(ref("Error"))},
@@ -197,7 +210,8 @@ def document():
                         "description": "At most 1 MiB, UTF-8 JSON; duplicate keys and unknown fields are rejected."}}}
     for resource, schema in [("observations", "Observation"), ("resolutions", "Resolution"),
                              ("evidence", "EvidenceSummary"), ("state", "State"),
-                             ("enrollments", "Enrollment"), ("things", "Thing")]:
+                             ("enrollments", "Enrollment"), ("things", "Thing"),
+                             ("saved_queries", "SavedQuery")]:
         item = obj({"id": identifier, "generation": generation, "value": ref(schema)})
         page = obj({"items": array(item), "generation": generation, "cursor": nullable_cursor, "stream_cursor": cursor})
         paths[base + "/" + resource] = {"get": operation("list_" + resource, envelope(page), ("Scope", "Limit", "Cursor"))}
@@ -237,8 +251,16 @@ def document():
                              ("enrollments", "enroll", "EnrollmentRequest"),
                              ("associations", "associate", "AssociationRequest"),
                              ("materialisations", "materialize", "MaterialisationRequest"),
-                             ("revocations", "revoke", "RevocationRequest")]:
+                             ("revocations", "revoke", "RevocationRequest"),
+                             ("saved_queries", "save_query", "SaveQueryRequest"),
+                             ("saved_query_deletions", "delete_query", "DeleteQueryRequest")]:
         paths.setdefault(base + "/" + path, {})["post"] = operation(name, envelope(ref("Receipt")), ("Scope", "Idempotency"), body)
+    paths[base + "/saved_queries/{id}/execute"] = {"get": operation(
+        "execute_saved_query", envelope(ref("QueryResult")), ("Scope", "ID"))}
+    paths[base + "/saved_queries/{id}/execute"]["get"]["description"] = (
+        "Execute the exact admitted QuerySpec in a saved absolute-window definition. Current read authority is "
+        "checked again for the underlying dataset; possession or sharing of a definition grants no data access. "
+        "The model is not called. Query concurrency, refresh-rate, deadline and cancellation limits still apply.")
     paths[base + "/operations/{operation}"] = {"get": operation("operation_status", envelope(ref("Receipt")), ("Scope", "Operation"))}
     paths[base + "/observations/{id}/raw"] = {"get": operation("export_observation", ref("ObservationEnvelope"),
         ("Scope", "ID"), media="application/vnd.wotex.tracker.observation+json")}
@@ -253,8 +275,8 @@ def document():
                        "Connection lifetime 300 s; idle reauthorization/poll 1 s; no unlimited queue."},
         ("Scope", "Cursor", "Resume"), media="text/event-stream")}
     paths["/api/v1/openapi.json"] = {"get": operation("openapi", {"type": "object"}, public=True)}
-    return {"openapi": "3.1.0", "info": {"title": "WoTEx Tracker service", "version": "1.6.0",
-        "description": "Authenticated imported-observation service with deterministic structured measurement queries. "
+    return {"openapi": "3.1.0", "info": {"title": "WoTEx Tracker service", "version": "1.7.0",
+        "description": "Authenticated imported-observation service with deterministic structured and saved measurement queries. "
                        "No scanner, rules or physical interaction is implied."},
         "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema", "security": [{"bearer": []}],
         "paths": paths, "components": {"securitySchemes": {"bearer": {"type": "http", "scheme": "bearer"}},
