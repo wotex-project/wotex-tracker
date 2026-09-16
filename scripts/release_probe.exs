@@ -444,6 +444,12 @@ defmodule Wotex.Tracker.ReleaseProbe do
     true = String.contains?(analytics, "Graph view")
     false = String.contains?(analytics, instance.token)
 
+    {200, _headers, dashboards} =
+      browser_request(:get, origin <> "/dashboards", [{~c"cookie", cookie}], nil)
+
+    true = String.contains?(dashboards, "Dashboards")
+    false = String.contains?(dashboards, instance.token)
+
     for path <-
           ~w(/assets/tracker.js /assets/tracker.css /assets/phoenix/phoenix.min.js /assets/liveview/phoenix_live_view.min.js) do
       {200, _headers, bytes} = browser_request(:get, origin <> path, [], nil)

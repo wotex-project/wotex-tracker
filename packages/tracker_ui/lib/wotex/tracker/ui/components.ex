@@ -58,4 +58,91 @@ defmodule Wotex.Tracker.UI.Components do
     </section>
     """
   end
+
+  attr(:result, :map, required: true)
+  attr(:chart, :any, required: true)
+  attr(:view, :string, required: true)
+
+  def query_result(assigns) do
+    ~H"""
+    <section class="panel" aria-labelledby="analytics-result-title">
+      <h2 id="analytics-result-title">Query result</h2>
+      <p>
+        {@result["spec"]["aggregation"]} of {Presenter.label(@result["spec"]["measurement"])} ({Presenter.unit(
+          @result["spec"]["unit"]
+        )}) · {@result["qualified_rows"]} qualified of {@result["selected_rows"]} selected readings.
+      </p>
+      <p class="muted">
+        {@result["excluded_unavailable"]} unavailable and {@result["excluded_quality"]} excluded by quality.
+        Buckets with no qualified reading are absent; no line or value is inferred across a gap.
+        Aggregation is at the requested bucket width.
+      </p>
+      <p class="identifier">Snapshot {@result["snapshot"]}</p>
+      <figure :if={@chart} class="history-chart">
+        <svg
+          viewBox="0 0 1000 300"
+          role="img"
+          aria-label={"#{@view} graph of qualified #{@result["spec"]["measurement"]} buckets; exact values follow in the table"}
+        >
+          <line x1="56" y1="260" x2="944" y2="260" class="chart-axis" />
+          <path
+            :for={segment <- @chart.segments}
+            :if={@view == "area"}
+            d={segment.area}
+            class="chart-area"
+          />
+          <path
+            :for={segment <- @chart.segments}
+            :if={@view in ~w(line area)}
+            d={segment.line}
+            class="chart-line"
+          />
+          <circle
+            :for={point <- @chart.points}
+            cx={point.x}
+            cy={point.y}
+            r="5"
+            class="chart-point"
+          >
+            <title>
+              {timestamp(point.start_at)} · {point.value} {Presenter.unit(@result["spec"]["unit"])} · {point.sample_count} samples
+            </title>
+          </circle>
+        </svg>
+        <figcaption>
+          {@view} view · range {@chart.minimum} to {@chart.maximum}
+          {Presenter.unit(@result["spec"]["unit"])}. Area fill extends to the chart floor.
+          Separate marks show gaps; use the table for exact values and times.
+        </figcaption>
+      </figure>
+      <div class="table-scroll" tabindex="0" role="region" aria-labelledby="analytics-result-title">
+        <table>
+          <caption>Qualified bucket values at the recorded snapshot</caption>
+          <thead>
+            <tr>
+              <th scope="col">Bucket start (UTC)</th><th scope="col">Bucket end (UTC)</th><th scope="col">
+                Value
+              </th><th scope="col">Samples</th><th scope="col">Last observed (UTC)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr :for={point <- points(@result)}>
+              <td>{timestamp(point["start_at"])}</td>
+              <td>{timestamp(point["end_at"])}</td>
+              <td>{point["value"]} {Presenter.unit(@result["spec"]["unit"])}</td>
+              <td>{point["sample_count"]}</td>
+              <td>{timestamp(point["last_event_at"])}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p :if={points(@result) == []}>No qualified readings in this window.</p>
+    </section>
+    """
+  end
+
+  defp timestamp(value), do: Presenter.timestamp(%{"value" => value})
+
+  defp points(%{"series" => [%{"points" => points}]}), do: points
+  defp points(_), do: []
 end

@@ -51,7 +51,7 @@ button + button { margin-left: .5rem; }
 
 .brand { font-size: 1.15rem; font-weight: 800; text-decoration: none; color: var(--ink); }
 .brand span { font-weight: 400; }
-.topbar nav { display: flex; align-items: center; gap: 1.2rem; }
+.topbar nav { display: flex; align-items: center; flex-wrap: wrap; gap: 1.2rem; }
 .topbar nav form, .topbar nav button { margin: 0; }
 .workspace { max-width: 1180px; margin: auto; padding: 2.5rem clamp(1rem, 4vw, 3rem) 5rem; }
 .narrow { max-width: 900px; }

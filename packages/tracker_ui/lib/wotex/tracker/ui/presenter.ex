@@ -53,6 +53,11 @@ defmodule Wotex.Tracker.UI.Presenter do
     do:
       path(:asset, thing) <> "/observations/" <> URI.encode(observation, &URI.char_unreserved?/1)
 
+  @doc "Builds the local path for one saved dashboard definition."
+  @spec dashboard_path(String.t()) :: String.t()
+  def dashboard_path(id) when is_binary(id),
+    do: "/dashboards/" <> URI.encode(id, &URI.char_unreserved?/1)
+
   @doc "Formats a tagged public scalar without converting unavailable values to zero."
   @spec scalar(term()) :: String.t()
   def scalar(%{"value" => nil}), do: "Unavailable"

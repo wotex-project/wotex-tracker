@@ -1680,3 +1680,20 @@ exercise all three views and time-window controls. Host HTTP tests and packaged
 Darwin/Linux browser probes check the graph selector in the actual application.
 This is historical exploration; scheduled refresh, direct pointer gestures,
 saved dashboards, model translation and physical surface acceptance remain open.
+
+### Saved-query browser inspection — 2026-09-16
+
+The shared browser now lists saved query definitions in bounded service pages
+and opens a definition under the user's current read grant. Running it calls
+`Service.execute_saved_query/5`, which reauthorizes and selects a new committed
+snapshot. The view displays the stored window policy and visualization type,
+uses the same graph and exact table for one series, and shows every series in
+separate tables when a saved definition contains several. Empty series remain
+visible. No browser state or shared link expands the service grant.
+
+LiveView tests exercise a rolling definition under a reader credential, an
+absolute multi-series table, absent definitions, a temporary query failure and
+mid-session revocation. The composed-host HTTP test checks saved listing and
+detail through its authenticated listener; bundled browser probes reach the
+listing. Browser save/edit/delete controls, dashboard composition and sharing,
+scheduled live refresh and physical surfaces remain unqualified.

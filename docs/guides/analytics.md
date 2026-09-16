@@ -57,6 +57,12 @@ browser route requires the same `read` grant as the service query. Line, area an
 point views project the returned points to SVG without introducing new values;
 each run of adjacent observed buckets has its own path. The table gives exact
 values and event times, and buttons shift or zoom the absolute UTC window.
+The Dashboards navigation lists retained saved definitions in bounded pages.
+Opening one shows its stored query and window policy; running it invokes
+`Service.execute_saved_query/5` after current authorization. A rolling
+definition resolves a new window on every run. One-series definitions use the
+shared graph/table component; multi-series definitions show each series in a
+separate exact table so none is silently omitted.
 
 `Service.analytics_page/5` and `POST …/analytics/pages` partition the admitted
 bucket window into pages of 1 to 1,000 buckets. The first request supplies the

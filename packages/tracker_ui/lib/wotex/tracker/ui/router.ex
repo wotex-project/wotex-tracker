@@ -28,6 +28,8 @@ defmodule Wotex.Tracker.UI.Router do
     live_session :tracker, on_mount: [{Wotex.Tracker.UI.Auth, :default}] do
       live("/", BrowseLive, :assets)
       live("/setup", BrowseLive, :observations)
+      live("/dashboards", DashboardIndexLive, :index)
+      live("/dashboards/:id", DashboardLive, :show)
       live("/observations/:id", ObservationLive, :show)
       live("/assets/:id/observations", AssociationSelectLive, :index)
       live("/assets/:thing_id/observations/:observation_id", AssociationLive, :show)

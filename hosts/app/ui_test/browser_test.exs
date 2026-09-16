@@ -1,6 +1,7 @@
 defmodule Wotex.Tracker.Host.BrowserTest do
   @moduledoc false
   use ExUnit.Case, async: false
+  alias Wotex.Tracker.QuerySpec
   alias Wotex.Tracker.Host.BrowserConfig
   alias Wotex.Tracker.Host.Supervisor, as: HostSupervisor
   alias Wotex.Tracker.Host.Browser.Endpoint
@@ -27,7 +28,7 @@ defmodule Wotex.Tracker.Host.BrowserTest do
             id: "owner",
             principal: "owner",
             token_sha256: digest,
-            grants: %{"workshop" => ~w(read ingest enroll)},
+            grants: %{"workshop" => ~w(read ingest enroll admin)},
             expires_at: System.system_time(:millisecond) + 60_000
           }
         ]
@@ -179,6 +180,64 @@ defmodule Wotex.Tracker.Host.BrowserTest do
     assert analytics =~ "Run query"
     assert analytics =~ "Graph view"
     refute analytics =~ c.token
+
+    {:ok, %{"value" => state}} =
+      Service.get(service, c.token, "workshop", "state", thing, System.system_time(:millisecond))
+
+    observed_at = state["observed_at"]["value"]
+
+    {:ok, spec} =
+      QuerySpec.new(%{
+        id: "browser-host-query",
+        revision: "service-query-v1",
+        dataset: :measurements,
+        measurement: "temperature",
+        unit: "Cel",
+        series: [thing],
+        qualities: [:valid],
+        from_at: observed_at - 3_600_000,
+        to_at: observed_at + 1,
+        timezone: "Etc/UTC",
+        bucket_ms: 3_600_000,
+        aggregation: :mean,
+        order: :ascending,
+        max_points: 2
+      })
+
+    {:ok, query} = QuerySpec.to_map(spec)
+
+    {:ok, _} =
+      Service.save_query(
+        service,
+        c.token,
+        "workshop",
+        Identifier.uuid(),
+        %{
+          "id" => "browser-host-dashboard",
+          "title" => "Host temperature",
+          "query" => query,
+          "visualization" => %{"type" => "line", "show_legend" => true, "show_points" => true},
+          "expected_generation" => "3"
+        },
+        System.system_time(:millisecond)
+      )
+
+    {200, _, dashboards} =
+      request(:get, origin <> "/dashboards", [{~c"cookie", browser_cookie}], nil)
+
+    assert dashboards =~ "Host temperature"
+    assert dashboards =~ Presenter.dashboard_path("browser-host-dashboard")
+
+    {200, _, dashboard} =
+      request(
+        :get,
+        origin <> Presenter.dashboard_path("browser-host-dashboard"),
+        [{~c"cookie", browser_cookie}],
+        nil
+      )
+
+    assert dashboard =~ "Run saved query"
+    refute dashboard =~ c.token
 
     for path <- [
           "/assets/tracker.js",

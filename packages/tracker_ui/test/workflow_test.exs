@@ -6,6 +6,7 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
   import Phoenix.LiveViewTest
   import Wotex.Tracker.Service.Fixtures
   alias Phoenix.LiveView.Static
+  alias Wotex.Tracker.QuerySpec
   alias Wotex.Tracker.Service
   alias Wotex.Tracker.Service.{Codec, Identifier}
   alias Wotex.Tracker.UI.{ErrorHTML, Presenter, Sessions, TestClient, TestEndpoint}
@@ -270,6 +271,137 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     render_click(view, "navigate", %{"direction" => "unknown"})
     assert has_element?(view, "[role=alert]")
     assert has_element?(view, "circle.chart-point")
+  end
+
+  test "saved dashboard lists and reruns an owned query under current reader access", c do
+    {thing, _} = enrolled(c)
+
+    {:ok, _} =
+      Service.materialize(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"thing_id" => thing, "expected_generation" => "2"},
+        c.now
+      )
+
+    query = dashboard_query(thing, c.now)
+    dashboard = "workshop-temperature-dashboard"
+
+    {:ok, _} =
+      Service.save_query(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{
+          "id" => dashboard,
+          "title" => "Workshop temperature",
+          "query" => query,
+          "window" => %{"kind" => "rolling", "duration_ms" => query["to_at"] - query["from_at"]},
+          "visualization" => %{"type" => "line", "show_legend" => true, "show_points" => true},
+          "expected_generation" => "3"
+        },
+        c.now
+      )
+
+    {:ok, %{"id" => reader}} = Sessions.login(c.sessions, c.reader, c.scope)
+    conn = build_conn() |> init_test_session(%{"browser_session" => reader})
+    {:ok, index, _} = live(conn, "/dashboards")
+    assert has_element?(index, "a[href='#{Presenter.dashboard_path(dashboard)}']")
+    assert render(index) =~ "Rolling window"
+
+    {:ok, detail, html} = live(conn, Presenter.dashboard_path(dashboard))
+    assert html =~ "Workshop temperature"
+    assert html =~ "Rolling"
+    detail |> element("button", "Run saved query") |> render_click()
+    assert has_element?(detail, "h2", "Query result")
+    assert has_element?(detail, "path.chart-line")
+    assert render(detail) =~ "24.3"
+    assert render(detail) =~ "Snapshot"
+
+    {:ok, history} =
+      Service.history(c.service, c.admin, c.scope, "saved_queries", dashboard, %{}, c.now)
+
+    assert length(history["items"]) == 1
+
+    {:ok, _} =
+      Service.revoke(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"credential_id" => "reader", "expected_generation" => "4"},
+        c.now
+      )
+
+    send(detail.pid, :check_authority)
+    assert_redirect(detail, "/sign-in")
+  end
+
+  test "missing and temporarily unavailable saved dashboards expose no result", c do
+    {:ok, missing, _} = live(c.conn, "/dashboards/missing")
+    assert has_element?(missing, "[role=alert]")
+    refute has_element?(missing, "button", "Run saved query")
+    render_click(missing, "run", %{})
+    refute has_element?(missing, "h2", "Query result")
+
+    {:ok, list, _} = live(c.conn, "/dashboards")
+    assert render(list) =~ "No saved dashboards on this page"
+    Agent.update(c.faults, &Map.put(&1, :list, :unavailable))
+    list |> element("button", "Refresh") |> render_click()
+    assert has_element?(list, "[role=alert]")
+    refute has_element?(list, "[aria-label='Saved dashboards']")
+  end
+
+  test "saved table dashboard keeps multiple series and exposes a failed rerun", c do
+    {thing, _} = enrolled(c)
+
+    {:ok, _} =
+      Service.materialize(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"thing_id" => thing, "expected_generation" => "2"},
+        c.now
+      )
+
+    dashboard = "two-series-dashboard"
+
+    {:ok, _} =
+      Service.save_query(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{
+          "id" => dashboard,
+          "title" => "Two series",
+          "query" => dashboard_query([thing, "unobserved-series"], c.now),
+          "visualization" => %{"type" => "table", "show_legend" => true, "show_points" => false},
+          "expected_generation" => "3"
+        },
+        c.now
+      )
+
+    {:ok, view, html} = live(c.conn, Presenter.dashboard_path(dashboard))
+    assert html =~ "Fixed absolute UTC bounds"
+    view |> element("button", "Run saved query") |> render_click()
+    assert render(view) =~ "24.3"
+    assert render(view) =~ "No qualified readings in this series"
+    assert has_element?(view, "caption", "Qualified buckets for #{thing}")
+    assert has_element?(view, "caption", "Qualified buckets for unobserved-series")
+    refute has_element?(view, "svg[role=img]")
+
+    Agent.update(c.faults, &Map.put(&1, :execute_saved_query, :unavailable))
+    view |> element("button", "Run saved query") |> render_click()
+    assert has_element?(view, "[role=alert]")
+    refute has_element?(view, "h2", "Query result")
+
+    view |> element("button", "Run saved query") |> render_click()
+    assert render(view) =~ "No qualified readings in this series"
   end
 
   test "associate a later observation and update the same Thing", c do
@@ -974,5 +1106,28 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
       )
 
     {result["data"]["thing_id"], operation}
+  end
+
+  defp dashboard_query(thing, now) do
+    {:ok, spec} =
+      QuerySpec.new(%{
+        id: "browser-saved-temperature",
+        revision: "service-query-v1",
+        dataset: :measurements,
+        measurement: "temperature",
+        unit: "Cel",
+        series: List.wrap(thing),
+        qualities: [:valid],
+        from_at: now - 3_600_000,
+        to_at: now + 1,
+        timezone: "Etc/UTC",
+        bucket_ms: 3_600_000,
+        aggregation: :mean,
+        order: :ascending,
+        max_points: 2
+      })
+
+    {:ok, document} = QuerySpec.to_map(spec)
+    document
   end
 end

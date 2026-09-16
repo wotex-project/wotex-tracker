@@ -9,6 +9,8 @@ single-file Observation JSON capture import in Setup, evidence inspection,
 confirmed enrollment, later observation association, explicit Thing updates,
 retained measurements, resource history and per-asset measurement graphs with
 an exact table. Unsupported positioning and Actions are identified honestly.
+Readers can list retained saved definitions and rerun them under current
+authorization; creating and editing them in the browser is still open.
 This is not full application, Pi or mobile acceptance.
 
 `Wotex.Tracker.UI.Local` calls only the public authorized service facade.
@@ -59,4 +61,4 @@ authorized service, and shows the snapshot, qualified/excluded counts and only
 observed buckets. Line, area and point views keep gaps separate, expose exact
 bucket details in the table and offer keyboard-accessible time-window controls.
 This is historical inspection with explicit refresh; scheduled live refresh,
-saved dashboards and prompted queries are still open.
+browser save/edit controls and prompted queries are still open.

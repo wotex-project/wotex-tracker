@@ -176,7 +176,8 @@ reconnecting can recover a retained receipt without repeating a mutation.
 
 Source tests cover the shared workflow and actual host HTTP authentication,
 static assets, cookie attributes and WebSocket-origin denial. Browser review
-includes desktop and narrow viewport layouts. The UI-enabled bundle passes its
+includes desktop and narrow viewport layouts. The composed host also checks
+saved-dashboard listing and detail routes. The UI-enabled bundle passes its
 local software lifecycle probe as described below. Remote-service presentation,
 complete accessibility and full product workflows remain unqualified.
 
