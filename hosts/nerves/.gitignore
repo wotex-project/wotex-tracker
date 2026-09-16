@@ -1,0 +1,6 @@
+/_build/
+/deps/
+/doc/
+/tmp/
+/*.fw
+erl_crash.dump

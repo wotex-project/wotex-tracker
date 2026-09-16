@@ -2,10 +2,14 @@
 
 ## Status
 
-Accepted target contract. No host, firmware image, UI or Pi hardware acceptance
-exists yet. Bootable headless and local-display profiles are required product
-deliverables and optional installations. They are consumers of the pure library,
-not additions to its startup or dependency contract. WTR.13 governs the root.
+Accepted target contract. A separate headless host and Pi 5 development
+cross-build now exist under `hosts/nerves/`; local startup tests and a resolved
+firmware manifest are software evidence only. The image has not booted on a Pi,
+and no UI-enabled image, device provisioning workflow, durable-storage policy or
+hardware acceptance exists yet. Bootable headless and local-display profiles
+remain required product deliverables and optional installations. They consume
+the pure library without changing its startup or dependency contract. WTR.13
+governs the root.
 
 ## Separate library and appliance
 
