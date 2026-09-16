@@ -30,11 +30,12 @@ not boot an unconfigured service. Production rejects the path-dependency switch.
 
 ## Command-line workflow
 
-`bin/trackerctl` is a Python 3.11+ POSIX client using only the standard library.
-It uses the authenticated HTTP API. Tokens are read from a private 0600 file;
-they never belong in command arguments, URLs or environment variables. The
-client ignores proxy environment variables, verifies HTTPS certificates, follows
-no redirects and retries no operation.
+`bin/trackerctl` is a POSIX launcher for the Elixir client. Source use loads the
+compiled Mix code paths; releases run it on their bundled ERTS. It uses the
+authenticated HTTP API. Tokens are read from a private 0600 file; they never
+belong in command arguments, URLs or environment variables. The client ignores
+proxy environment variables, verifies HTTPS certificates, follows no redirects
+and retries no operation.
 
 Create a new loopback configuration (the parent directory must already exist):
 
@@ -96,11 +97,10 @@ fixture data; it is not a live scan or trusted physical-device association.
 
 Finite requests have a five-second absolute deadline and a 4 MiB response limit.
 Streams have a 1–300 second deadline, 1–1000 event ceiling and 32 KiB frame limit;
-deadline expiry is explicit. Response headers are admitted at 32 fields/8 KiB
-after Python's finite HTTP parser ceiling of 100 fields/64 KiB per line. Compressed
-responses and undeclared media/version envelopes are rejected. Raw exports use
-their original response bytes; ordinary JSON output preserves native wide
-integers and `1` versus `1.0` through Python's numeric types.
+deadline expiry is explicit. Response headers are admitted at 32 fields/8 KiB.
+Compressed responses and undeclared media/version envelopes are rejected. Raw
+exports use their original response bytes; ordinary JSON output preserves native
+wide integers and `1` versus `1.0` through the WoTEx JSON boundary.
 
 `observe` emits one `wtr.property.v1` JSON object per sample: native `value`, stable
 `event`, decimal `generation` and opaque `cursor`. Save the cursor to resume after
@@ -128,9 +128,10 @@ The harness builds bundled ERTS releases under `_build/releases/` for Darwin
 ARM64 and Linux ARM64, plus the local image
 `wotex-tracker:0.1.0-linux-arm64-local`. Linux uses the pinned Debian Bookworm
 builder with Elixir 1.18.4 / OTP 27.3.4.15 and Hex 2.5.1. The runtime image is a
-separate pinned Debian base with runtime libraries and Python; it contains no
-installed Elixir, Mix or C compiler. Artifact, base-image, compiler and dependency
-identities are recorded in `_build/verification/host-consumer.json`. Runtime
+separate pinned Debian base with the libraries needed by the bundled ERTS; it
+contains no external Elixir, Erlang, Mix or C compiler. Artifact, base-image,
+compiler and dependency identities are recorded in
+`_build/verification/host-consumer.json`. Runtime
 license and notice files are retained under `licenses/` in each release. No command
 publishes an image or release. Artifacts are specific to their OS/architecture.
 
@@ -141,10 +142,10 @@ Extract a release on its declared platform, provision configuration using its
 WOTEX_TRACKER_CONFIG=/absolute/private/instance/config.json bin/wotex_tracker start
 ```
 
-ERTS is bundled; no system Elixir/Erlang installation is needed. The standalone
-CLI needs Python 3.11+ on Darwin; Python is included in the container. Distribution
-is disabled by the release environment template. Stop the foreground service
-with SIGTERM; retain its private data directory and instance key across restart.
+ERTS and the CLI implementation are bundled; no system language runtime is
+needed. Distribution is disabled by the release environment template. Stop the
+foreground service with SIGTERM; retain its private data directory and instance
+key across restart.
 
 For a local container sidecar, create a private host directory and provision it
 using the image's CLI. The example uses the current Unix UID/GID so mounted

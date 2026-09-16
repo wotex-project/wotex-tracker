@@ -1,395 +1,49 @@
-#!/usr/bin/env python3
-"""Tracker's bounded POSIX HTTP CLI. Python 3.11+; standard library only."""
-import argparse
-import base64
-import contextlib
-import hashlib
-import http.client
-import json
-import os
-from pathlib import Path
-import re
-import secrets
-import signal
-import ssl
-import stat
-import sys
-import time
-import urllib.parse
-import uuid
+#!/bin/sh
+set -eu
 
-RESOURCES = ("observations", "resolutions", "evidence", "enrollments", "things", "state")
-BODY_LIMIT = 4_194_304
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+source_script="$root/scripts/trackerctl.exs"
 
+if [ -f "$source_script" ]; then
+  build_path=${MIX_BUILD_PATH:-"$root/_build/${MIX_ENV:-dev}"}
+  set -- "$source_script" "$@"
 
-class Failure(Exception):
-    def __init__(self, code):
-        self.code = code
+  for ebin in "$build_path"/lib/*/ebin; do
+    if [ -d "$ebin" ]; then
+      set -- -pa "$ebin" "$@"
+    fi
+  done
 
+  exec elixir "$@"
+fi
 
-def emit(value, output=sys.stdout):
-    print(json.dumps(value, ensure_ascii=False, separators=(",", ":"), allow_nan=False), file=output, flush=True)
+release_script="$root/libexec/trackerctl.exs"
+if [ ! -f "$release_script" ]; then
+  printf '%s\n' '{"schema":"wtr.cli.v1","error":{"code":"cli_not_installed"}}' >&2
+  exit 1
+fi
 
+erl=
+for candidate in "$root"/erts-*/bin/erl; do
+  if [ -x "$candidate" ]; then
+    erl=$candidate
+    break
+  fi
+done
 
-def unique_object(pairs):
-    result = {}
-    for key, value in pairs:
-        if key in result:
-            raise Failure("duplicate_json_key")
-        result[key] = value
-    return result
+if [ -z "$erl" ]; then
+  printf '%s\n' '{"schema":"wtr.cli.v1","error":{"code":"erts_not_installed"}}' >&2
+  exit 1
+fi
 
+set -- -extra "$@"
+set -- -eval 'application:ensure_all_started(elixir), Args = [list_to_binary(Arg) || Arg <- init:get_plain_arguments()], '\''Elixir.System'\'':argv(Args), '\''Elixir.Code'\'':require_file(list_to_binary(os:getenv("WOTEX_TRACKER_CLI_SCRIPT"))).' "$@"
+set -- -noshell -noinput "$@"
+for ebin in "$root"/lib/*/ebin; do
+  if [ -d "$ebin" ]; then
+    set -- -pa "$ebin" "$@"
+  fi
+done
 
-def decode(bytes_):
-    def invalid_constant(_):
-        raise Failure("invalid_json")
-    try:
-        return json.loads(bytes_.decode("utf-8"), object_pairs_hook=unique_object, parse_constant=invalid_constant)
-    except (ValueError, UnicodeError, RecursionError) as error:
-        raise Failure("invalid_json") from error
-
-
-def bounded_file(path, limit):
-    with open(path, "rb") as source:
-        value = source.read(limit + 1)
-    if len(value) > limit:
-        raise Failure("input_too_large")
-    return value
-
-
-def private_directory(path):
-    if not path.is_absolute() or stat.S_IMODE(path.lstat().st_mode) != 0o700:
-        raise Failure("private_directory_required")
-    for ancestor in (path, *path.parents):
-        if not stat.S_ISDIR(ancestor.lstat().st_mode):
-            raise Failure("private_directory_required")
-
-
-def token_file(name):
-    path = Path(name)
-    private_directory(path.parent)
-    descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
-    with os.fdopen(descriptor, "rb") as source:
-        info = os.fstat(source.fileno())
-        if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or stat.S_IMODE(info.st_mode) != 0o600:
-            raise Failure("private_token_file_required")
-        value = source.read(45)
-    if value.endswith(b"\n"):
-        value = value[:-1]
-    if not re.fullmatch(rb"[A-Za-z0-9_-]{43}", value):
-        raise Failure("invalid_token")
-    decoded = base64.urlsafe_b64decode(value + b"=")
-    if base64.urlsafe_b64encode(decoded).rstrip(b"=") != value:
-        raise Failure("invalid_token")
-    return value.decode("ascii")
-
-
-def exclusive_write(path, value):
-    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    with os.fdopen(descriptor, "wb") as target:
-        target.write(value)
-        target.flush()
-        os.fsync(target.fileno())
-
-
-@contextlib.contextmanager
-def deadline(seconds):
-    def expired(_signum, _frame):
-        raise Failure("deadline_exceeded")
-    previous = signal.signal(signal.SIGALRM, expired)
-    signal.setitimer(signal.ITIMER_REAL, seconds)
-    try:
-        yield
-    finally:
-        signal.setitimer(signal.ITIMER_REAL, 0)
-        signal.signal(signal.SIGALRM, previous)
-
-
-def generation(value):
-    if not re.fullmatch(r"0|[1-9][0-9]{0,18}", value) or int(value) >= 9_223_372_036_854_775_807:
-        raise argparse.ArgumentTypeError("expected a canonical generation string")
-    return value
-
-
-def identifier(value):
-    if not value or len(value.encode("utf-8")) > 256 or any(ord(char) < 32 for char in value):
-        raise argparse.ArgumentTypeError("expected a nonempty identifier of at most 256 UTF-8 bytes")
-    return value
-
-
-def operation_id(value):
-    if not re.fullmatch(r"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}", value):
-        raise argparse.ArgumentTypeError("expected a lowercase UUIDv4")
-    return value
-
-
-def parser():
-    result = argparse.ArgumentParser(description=__doc__)
-    result.add_argument("--url", help="explicit HTTP loopback or HTTPS origin; no proxies or redirects")
-    result.add_argument("--scope", type=identifier)
-    result.add_argument("--token-file", help="absolute private bearer-token file; never a token argument")
-    result.add_argument("--ca-file", help="explicit additional TLS trust file")
-    commands = result.add_subparsers(dest="command", required=True)
-    init = commands.add_parser("init", help="create a new private loopback host configuration and operator token")
-    init.add_argument("--directory", required=True)
-    init.add_argument("--instance-id", required=True, type=identifier)
-    init.add_argument("--bind", required=True, choices=("127.0.0.1", "::1"))
-    init.add_argument("--port", required=True, type=int)
-    init.add_argument("--expires-in", type=int, default=86400, help="token lifetime in seconds, 1–604800")
-    commands.add_parser("capabilities")
-    commands.add_parser("ready")
-    for name in ("list", "inspect", "history", "raw"):
-        item = commands.add_parser(name)
-        item.add_argument("resource", choices=("observations", "evidence") if name == "raw" else RESOURCES)
-        if name != "list":
-            item.add_argument("id", type=identifier)
-        if name in ("list", "history"):
-            item.add_argument("--limit", type=int, default=None)
-            item.add_argument("--cursor")
-        if name == "raw":
-            item.add_argument("--output", help="write original bytes to a new 0600 file")
-    for name in ("import", "enroll", "associate", "materialize", "revoke"):
-        item = commands.add_parser(name)
-        item.add_argument("value", help="observation JSON file or operation target ID")
-        item.add_argument("--generation", type=generation, required=True)
-        item.add_argument("--operation", type=operation_id)
-        if name == "enroll":
-            item.add_argument("--title", required=True, type=identifier)
-        if name == "associate":
-            item.add_argument("observation", type=identifier)
-        if name in ("enroll", "associate"):
-            item.add_argument("--confirm", required=True, action="store_true", help="confirm ownership/authority for this association")
-    commands.add_parser("operation").add_argument("id", type=operation_id)
-    read = commands.add_parser("read")
-    read.add_argument("thing", type=identifier)
-    read.add_argument("property", type=identifier)
-    observe = commands.add_parser("observe", help="stream committed Property values; resume explicitly with a saved cursor")
-    observe.add_argument("thing", type=identifier)
-    observe.add_argument("property", type=identifier)
-    observe.add_argument("--cursor")
-    observe.add_argument("--seconds", type=int, default=30, help="stream window, 1–300 seconds")
-    observe.add_argument("--max-events", type=int, default=100, help="maximum delivered values, 1–1000")
-    events = commands.add_parser("events")
-    events.add_argument("--cursor", required=True)
-    events.add_argument("--stream", action="store_true")
-    events.add_argument("--seconds", type=int, default=30, help="stream window, 1–300 seconds")
-    events.add_argument("--max-events", type=int, default=100, help="maximum delivered events, 1–1000")
-    return result
-
-
-def initialize(args):
-    if not args.scope or not 1 <= args.port <= 65535 or not 1 <= args.expires_in <= 604800:
-        raise Failure("invalid_configuration")
-    directory = Path(args.directory)
-    if not directory.is_absolute():
-        raise Failure("private_directory_required")
-    directory.mkdir(mode=0o700, exist_ok=True)
-    private_directory(directory)
-    config, token_path, data = (directory / name for name in ("config.json", "operator.token", "data"))
-    if any(path.exists() or path.is_symlink() for path in (config, token_path, data)):
-        raise Failure("configuration_exists")
-    token = secrets.token_urlsafe(32)
-    document = {"schema": "wtr.host.v1", "instance_id": args.instance_id,
-        "secret_key": base64.b64encode(secrets.token_bytes(32)).decode("ascii"),
-        "data_directory": str(data), "listen": {"ip": args.bind, "port": args.port},
-        "exposure": "loopback", "public_origin": "listener", "credentials": [{
-            "id": "operator", "principal": "operator", "token_sha256": hashlib.sha256(token.encode("ascii")).hexdigest(),
-            "grants": {args.scope: ["read", "raw", "ingest", "enroll", "admin", "interact"]},
-            "expires_at": int(time.time() * 1000) + args.expires_in * 1000}]}
-    data.mkdir(mode=0o700)
-    exclusive_write(token_path, (token + "\n").encode("ascii"))
-    exclusive_write(config, (json.dumps(document, indent=2) + "\n").encode("utf-8"))
-    emit({"schema": "wtr.cli.v1", "config": str(config), "token_file": str(token_path), "data_directory": str(data)})
-
-
-def target(args):
-    quote = lambda value: urllib.parse.quote(value, safe="")
-    base = "/api/v1/scopes/" + quote(args.scope)
-    command = args.command
-    if command in ("capabilities", "ready"):
-        return base + ("/capabilities" if command == "capabilities" else "/health/ready"), None
-    if command in ("list", "inspect", "history", "raw"):
-        path = base + "/" + args.resource
-        if command != "list":
-            path += "/" + quote(args.id)
-        if command in ("history", "raw"):
-            path += "/" + command
-        if command in ("list", "history"):
-            params = {}
-            if args.limit is not None:
-                if not 1 <= args.limit <= 100:
-                    raise Failure("invalid_limit")
-                params["limit"] = args.limit
-            if args.cursor is not None:
-                params["cursor"] = args.cursor
-            if params:
-                path += "?" + urllib.parse.urlencode(params)
-        return path, None
-    if command == "operation":
-        return base + "/operations/" + args.id, None
-    if command in ("read", "observe"):
-        path = base + "/things/" + quote(args.thing) + "/properties/" + quote(args.property)
-        if command == "observe":
-            if not 1 <= args.seconds <= 300 or not 1 <= args.max_events <= 1000:
-                raise Failure("invalid_stream_limit")
-            path += "/observe"
-            if args.cursor is not None:
-                path += "?" + urllib.parse.urlencode({"cursor": args.cursor})
-        return path, None
-    if command == "events":
-        if not 1 <= args.seconds <= 300 or not 1 <= args.max_events <= 1000:
-            raise Failure("invalid_stream_limit")
-        suffix = "/events/stream" if args.stream else "/events"
-        return base + suffix + "?" + urllib.parse.urlencode({"cursor": args.cursor}), None
-    body = {"expected_generation": args.generation}
-    if command == "import":
-        body["observation"] = decode(bounded_file(args.value, 1_048_576))
-        resource = "observations"
-    elif command == "enroll":
-        body.update(observation_id=args.value, title=args.title, owner_confirmed=args.confirm)
-        resource = "enrollments"
-    elif command == "associate":
-        body.update(thing_id=args.value, observation_id=args.observation, owner_confirmed=args.confirm)
-        resource = "associations"
-    elif command == "materialize":
-        body["thing_id"] = args.value
-        resource = "materialisations"
-    else:
-        body["credential_id"] = args.value
-        resource = "revocations"
-    encoded = json.dumps(body, ensure_ascii=False, separators=(",", ":"), allow_nan=False).encode("utf-8")
-    if len(encoded) > 1_048_576:
-        raise Failure("input_too_large")
-    return base + "/" + resource, encoded
-
-
-def connection(args):
-    uri = urllib.parse.urlsplit(args.url)
-    if uri.scheme not in ("http", "https") or not uri.hostname or uri.username is not None or uri.password is not None:
-        raise Failure("invalid_origin")
-    if uri.path not in ("", "/") or uri.query or uri.fragment:
-        raise Failure("invalid_origin")
-    if uri.scheme == "http":
-        if uri.hostname not in ("127.0.0.1", "::1") or args.ca_file:
-            raise Failure("invalid_origin")
-        return http.client.HTTPConnection(uri.hostname, uri.port, timeout=5)
-    context = ssl.create_default_context(cafile=args.ca_file)
-    return http.client.HTTPSConnection(uri.hostname, uri.port, timeout=5, context=context)
-
-
-def property_event(fields):
-    event = fields.get(b"event", b"")
-    cursor = fields.get(b"id", b"")
-    if not re.fullmatch(rb"property:(snapshot|event):(0|[1-9][0-9]{0,18}):(0|[1-9][0-9]{0,18})", event):
-        raise Failure("invalid_event")
-    if len(cursor) > 4096 or not re.fullmatch(rb"wtrc1\.[A-Za-z0-9_-]+", cursor):
-        raise Failure("invalid_event")
-    value = decode(fields.get(b"data", b""))
-    if not isinstance(value, (int, float, bool)):
-        raise Failure("invalid_event")
-    return {"schema": "wtr.property.v1", "value": value, "event": event.decode("ascii"),
-            "generation": event.rsplit(b":", 1)[1].decode("ascii"), "cursor": cursor.decode("ascii")}
-
-
-def stream(response, maximum, property_values=False):
-    delivered, fields, size = 0, {}, 0
-    while delivered < maximum:
-        line = response.readline(32_769)
-        if not line:
-            return
-        size += len(line)
-        if len(line) > 32_768 or size > 32_768:
-            raise Failure("event_too_large")
-        line = line.rstrip(b"\r\n")
-        if not line:
-            if property_values and fields:
-                emit(property_event(fields))
-                delivered += 1
-            elif fields.get(b"event") == b"tracker":
-                event = decode(fields.get(b"data", b""))
-                if not isinstance(event, dict) or event.get("schema") != "wtr.event.v1":
-                    raise Failure("unsupported_version")
-                emit(event)
-                delivered += 1
-            fields, size = {}, 0
-        elif not line.startswith(b":"):
-            name, _, value = line.partition(b":")
-            if name in fields:
-                raise Failure("invalid_event")
-            fields[name] = value.removeprefix(b" ")
-
-
-def execute(args, path, body, operation, conn, token):
-    response = None
-    streaming = args.command == "observe" or (args.command == "events" and args.stream)
-    accept = "text/event-stream" if streaming else "application/json"
-    if args.command == "raw":
-        accept = "application/vnd.wotex.tracker." + ("observation" if args.resource == "observations" else "evidence") + "+json"
-    headers = {"Authorization": "Bearer " + token, "Accept": accept, "Accept-Encoding": "identity", "Connection": "close"}
-    if body is not None:
-        headers.update({"Content-Type": "application/json", "Idempotency-Key": operation})
-    try:
-        with deadline(args.seconds if streaming else 5):
-            conn.request("POST" if body is not None else "GET", path, body, headers)
-            response = conn.getresponse()
-            fields = response.getheaders()
-            if len(fields) > 32 or sum(len(key) + len(value) for key, value in fields) > 8192:
-                raise Failure("response_headers_too_large")
-            if response.getheader("Content-Encoding", "identity") != "identity":
-                raise Failure("unsupported_content_encoding")
-            media = response.getheader("Content-Type", "").split(";", 1)[0]
-            if media != (accept if response.status == 200 else "application/json"):
-                raise Failure("invalid_media_type")
-            if streaming and response.status == 200:
-                stream(response, args.max_events, property_values=args.command == "observe")
-                return 0
-            bytes_ = response.read(BODY_LIMIT + 1)
-            if len(bytes_) > BODY_LIMIT:
-                raise Failure("response_too_large")
-            value = decode(bytes_)
-            if not (args.command in ("raw", "read") and response.status == 200):
-                if not isinstance(value, dict) or value.get("schema") != "wtr.response.v1":
-                    raise Failure("unsupported_version")
-            if args.command == "raw" and response.status == 200 and args.output:
-                exclusive_write(args.output, bytes_)
-            else:
-                emit(value)
-            if response.status == 202:
-                return 3
-            return 0 if 200 <= response.status < 300 else 1
-    finally:
-        if response is not None:
-            response.close()
-        conn.close()
-
-
-def main():
-    args = parser().parse_args()
-    operation, attempted = None, False
-    try:
-        if args.command == "init":
-            initialize(args)
-            return 0
-        if not all((args.url, args.scope, args.token_file)):
-            raise Failure("url_scope_and_token_file_required")
-        path, body = target(args)
-        if len(path.encode("utf-8")) > 8192:
-            raise Failure("uri_too_large")
-        if body is not None:
-            operation = args.operation or str(uuid.uuid4())
-            emit({"schema": "wtr.cli.v1", "operation_id": operation}, sys.stderr)
-        token = token_file(args.token_file)
-        conn = connection(args)
-        attempted = True
-        return execute(args, path, body, operation, conn, token)
-    except (Failure, OSError, ValueError, UnicodeError, http.client.HTTPException, KeyboardInterrupt) as error:
-        code = error.code if isinstance(error, Failure) else "transport_unavailable" if attempted else "invalid_input"
-        result = {"code": code}
-        if operation:
-            result.update(operation_id=operation, outcome="unknown" if attempted else "not_committed")
-        emit({"schema": "wtr.cli.v1", "error": result}, sys.stderr)
-        return 3 if operation and attempted else 1
-
-
-if __name__ == "__main__":
-    sys.exit(main())
+export WOTEX_TRACKER_CLI_SCRIPT="$release_script"
+exec "$erl" "$@"
