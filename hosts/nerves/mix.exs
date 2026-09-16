@@ -89,7 +89,7 @@ defmodule WotexTrackerNerves.MixProject do
     if ui?() do
       [
         ui(),
-        {:muontrap, "~> 1.8", targets: :rpi5},
+        {:muontrap, "~> 1.8", targets: @device_targets},
         {:myelin, "~> 0.1.1", targets: :rpi5}
       ]
     else
