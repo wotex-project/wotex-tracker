@@ -17,6 +17,7 @@ alias Wotex.Tracker.{
   PositionMovement,
   PositionOrder,
   PositionSample,
+  SuspiciousMovement,
   TransportCandidate,
   TransportDegradation,
   TransportPolicy
@@ -520,6 +521,87 @@ crossing_to = motion_sample.("crossing-to", 0.002, update.now + 1)
 {:ok, %{"generation" => "1", "event_disposition" => "recorded"} = crossing_receipt} =
   Store.commit_rule_event(store, crossing_intent)
 
+third_motion_sample = motion_sample.("third", 0.0002, update.now + 2_000)
+
+{:ok, suspicious_motion_result} =
+  MotionTransition.evaluate(
+    motion_candidate_result["state"],
+    third_motion_sample,
+    motion_policy,
+    :replay,
+    update.now + 2_000
+  )
+
+suspicious_fact = fn id, predicate, status, kind ->
+  capture = %{
+    observation
+    | id: "archive-suspicious-capture-#{id}",
+      observed_at: update.now + 2_000
+  }
+
+  {:ok, evidence} =
+    Evidence.new(%{
+      id: id,
+      kind: kind,
+      claim: %{
+        "schema" => "wtr.policy-fact.v1",
+        "predicate" => predicate,
+        "status" => status,
+        "policy_revision" => "archive-suspicious-facts-v1",
+        "reason" => "archive_fixture"
+      },
+      source_observation_ids: [capture.id],
+      evidence_ids: [],
+      profile: {"archive-suspicious", "1"},
+      decoder: {"archive-suspicious", "1"},
+      confidence: :exact,
+      reasons: ["archive_fixture"],
+      association_id: nil
+    })
+
+  {:ok, bundle} = EvidenceBundle.new([capture], [evidence])
+  {:ok, fact} = PolicyFact.new(evidence.id, bundle)
+  fact
+end
+
+armed_fact = suspicious_fact.("archive-armed", "asset.armed", "true", :identity)
+owner_fact = suspicious_fact.("archive-owner", "owner.present", "false", :transport)
+
+{:ok, suspicious_policy} =
+  SuspiciousMovement.new(%{
+    id: "archive-suspicious",
+    revision: "archive-suspicious-v1",
+    motion_policy: motion_policy,
+    armed_predicate: "asset.armed",
+    owner_presence_predicate: "owner.present",
+    maximum_fact_age_ms: 1_000,
+    future_skew_ms: 0,
+    owner_unknown_as_absent: false
+  })
+
+{:ok, suspicious_result} =
+  SuspiciousMovement.evaluate(
+    suspicious_motion_result["state"],
+    armed_fact,
+    owner_fact,
+    suspicious_policy,
+    :replay,
+    update.now + 2_000
+  )
+
+{:ok, suspicious_intent} =
+  RuleEvent.suspicious_movement(
+    "archive-suspicious",
+    suspicious_motion_result["state"],
+    armed_fact,
+    owner_fact,
+    suspicious_policy,
+    suspicious_result
+  )
+
+{:ok, %{"generation" => "1", "event_disposition" => "recorded"} = suspicious_receipt} =
+  Store.commit_rule_event(store, suspicious_intent)
+
 {:ok, forward_item} =
   ForwardItem.new(%{
     scope: "archive",
@@ -656,7 +738,7 @@ true = restored_motion === motion_candidate_result["state"]
 {:ok, started_motion_result} =
   MotionTransition.evaluate(
     restored_motion,
-    motion_sample.("third", 0.0002, update.now + 2_000),
+    third_motion_sample,
     motion_policy,
     :replay,
     update.now + 2_000
@@ -719,6 +801,16 @@ true = restored_geofence === geofence_baseline_result["state"]
 
 {:ok, %{"generation" => "1", "disposition" => "duplicate"}} =
   Store.commit_rule_event(store, crossing_intent)
+
+{:ok,
+ %{
+   "event" => %{"kind" => "suspicious_movement"},
+   "mode" => "replay",
+   "physical_action_dispatch" => "prohibited"
+ }} = Store.rule_event(store, "archive-suspicious", suspicious_receipt["event_id"])
+
+{:ok, %{"generation" => "1", "disposition" => "duplicate"}} =
+  Store.commit_rule_event(store, suspicious_intent)
 
 {:ok, %{"status" => "pending"}} =
   Store.forward_status(store, "archive", forward_item.id)
@@ -1051,5 +1143,5 @@ retained = Process.list() |> MapSet.new() |> MapSet.difference(before_processes)
 0 = retained
 
 IO.puts(
-  "SERVICE_COHORT_PASS durable_restart=true durable_store_forward=true atomic_transport_health=true atomic_heartbeat=true atomic_battery=true atomic_motion=true atomic_geofence=true atomic_geofence_crossing=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true explicit_association=true independent_http_sse=true actual_runtime_http_peer=true actual_runtime_sse=true retained_new_processes=#{retained}"
+  "SERVICE_COHORT_PASS durable_restart=true durable_store_forward=true atomic_transport_health=true atomic_heartbeat=true atomic_battery=true atomic_motion=true atomic_geofence=true atomic_geofence_crossing=true atomic_suspicious_movement=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true explicit_association=true independent_http_sse=true actual_runtime_http_peer=true actual_runtime_sse=true retained_new_processes=#{retained}"
 )

@@ -45,6 +45,14 @@ defmodule Wotex.Tracker.SuspiciousMovementTest do
     assert live["event"]["armed_evidence_id"] == "armed"
     assert live["physical_action_dispatch"] == "separate_authorization_required"
 
+    assert {:ok, ^live} =
+             SuspiciousMovement.validate_result(motion, armed, absent, policy, live)
+
+    assert :ok = SuspiciousMovement.validate_event(live["event"])
+
+    assert {:ok, policy_document} = SuspiciousMovement.to_map(policy)
+    assert SuspiciousMovement.from_map(policy_document) == {:ok, policy}
+
     assert {:ok, replay} =
              SuspiciousMovement.evaluate(
                motion,
@@ -57,6 +65,40 @@ defmodule Wotex.Tracker.SuspiciousMovementTest do
 
     assert replay["event"] === live["event"]
     assert replay["physical_action_dispatch"] == "prohibited"
+
+    assert {:ok, ^replay} =
+             SuspiciousMovement.validate_result(motion, armed, absent, policy, replay)
+
+    for changed <- [
+          Map.put(policy_document, "identity", "forged"),
+          Map.put(policy_document, "maximum_fact_age_ms", 999),
+          put_in(policy_document, ["motion_policy", "identity"], "forged"),
+          Map.put(policy_document, "extra", true)
+        ] do
+      assert {:error, _} = SuspiciousMovement.from_map(changed)
+    end
+
+    for changed <- [
+          Map.put(live["event"], "id", "forged"),
+          Map.put(live["event"], "kind", "movement.guessed"),
+          Map.put(live["event"], "owner_unknown_interpretation", "unknown_retained"),
+          Map.put(live["event"], "extra", true)
+        ] do
+      assert {:error, _} = SuspiciousMovement.validate_event(changed)
+    end
+
+    assert {:error, _} =
+             SuspiciousMovement.validate_result(
+               motion,
+               armed,
+               absent,
+               policy,
+               Map.put(live, "reason", "changed")
+             )
+
+    assert {:error, _} = SuspiciousMovement.to_map(:invalid)
+    assert {:error, _} = SuspiciousMovement.from_map(nil)
+    assert {:error, _} = SuspiciousMovement.validate_event(nil)
   end
 
   test "any explicit false condition clears the rule without an event" do
@@ -80,6 +122,9 @@ defmodule Wotex.Tracker.SuspiciousMovementTest do
       assert result["truth"] == "false"
       assert result["event"] == nil
       assert result["physical_action_dispatch"] == "none"
+
+      assert {:ok, ^result} =
+               SuspiciousMovement.validate_result(motion, armed, owner, policy, result)
     end
   end
 
@@ -155,6 +200,16 @@ defmodule Wotex.Tracker.SuspiciousMovementTest do
     assert fact.observed_at == 1_001
     assert fact.observation_id == "latest"
     assert {:ok, ^fact} = PolicyFact.validate(fact)
+    assert {:ok, fact_document} = PolicyFact.to_map(fact)
+    assert PolicyFact.from_map(fact_document) == {:ok, fact}
+
+    for changed <- [
+          Map.put(fact_document, "identity", "forged"),
+          Map.put(fact_document, "observed_at", 0),
+          Map.put(fact_document, "extra", true)
+        ] do
+      assert {:error, _} = PolicyFact.from_map(changed)
+    end
 
     for change <- [
           %{"status" => "maybe"},
@@ -171,6 +226,8 @@ defmodule Wotex.Tracker.SuspiciousMovementTest do
     assert {:error, _} = PolicyFact.new(candidate.id, candidate_bundle)
     assert {:error, _} = PolicyFact.new("missing", bundle)
     assert {:error, _} = PolicyFact.validate(:invalid)
+    assert {:error, _} = PolicyFact.to_map(:invalid)
+    assert {:error, _} = PolicyFact.from_map(nil)
   end
 
   test "policy binds motion and fact scopes and rejects mismatched inputs" do

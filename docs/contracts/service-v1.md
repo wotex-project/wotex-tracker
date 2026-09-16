@@ -106,7 +106,8 @@ canonical state. The prepared host value retains complete closed inputs and the
 pure result, re-evaluates them during admission, and binds its own identity. A new
 event ID advances the scope and writes both rows atomically. An exact event retry
 with the same mode/effect returns the original generation; changed content or
-live/replay effect metadata conflicts.
+live/replay effect metadata conflicts. Inferred geofence crossings and suspicious
+movement alarms use this path.
 
 ## Finite budgets
 

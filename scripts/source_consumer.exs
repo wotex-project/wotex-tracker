@@ -572,7 +572,7 @@ owner_evidence = policy_fact.("archive-owner", "owner.present", "false", :transp
    "status" => "triggered",
    "event" => %{"kind" => "suspicious_movement"},
    "physical_action_dispatch" => "prohibited"
- }} =
+ } = suspicious_result} =
   Wotex.Tracker.SuspiciousMovement.evaluate(
     archive_motion_state,
     armed_fact,
@@ -581,6 +581,21 @@ owner_evidence = policy_fact.("archive-owner", "owner.present", "false", :transp
     :replay,
     1_002
   )
+
+{:ok, ^suspicious_result} =
+  Wotex.Tracker.SuspiciousMovement.validate_result(
+    archive_motion_state,
+    armed_fact,
+    owner_fact,
+    suspicious_policy,
+    suspicious_result
+  )
+
+:ok = Wotex.Tracker.SuspiciousMovement.validate_event(suspicious_result["event"])
+{:ok, suspicious_policy_document} = Wotex.Tracker.SuspiciousMovement.to_map(suspicious_policy)
+{:ok, ^suspicious_policy} = Wotex.Tracker.SuspiciousMovement.from_map(suspicious_policy_document)
+{:ok, armed_fact_document} = Wotex.Tracker.PolicyFact.to_map(armed_fact)
+{:ok, ^armed_fact} = Wotex.Tracker.PolicyFact.from_map(armed_fact_document)
 
 lorawan_capability =
   policy_fact.(

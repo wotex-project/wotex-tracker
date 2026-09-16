@@ -225,7 +225,8 @@ Suspicious movement is implemented as a pure three-valued conjunction over
 confirmed motion and content-bound armed/owner-presence facts. Unknown presence
 remains unknown unless the rule explicitly treats it as absence. See the
 [suspicious-movement guide](../guides/suspicious-movement.md). Atomic host
-deduplication and notification remain subsequent work.
+deduplication now restores all inputs, re-evaluates the rule and records its event
+intent without synthetic state. Notification delivery remains subsequent work.
 
 Transport degradation is implemented as pure state over content-validated
 transport decisions and a deployment-declared healthy candidate set. Fallback
@@ -234,8 +235,8 @@ degradation, recovery and rule-edit events have stable identities. See the
 [transport policy guide](../guides/transport-policy.md). The service now
 atomically persists this rule's canonical state, history and stable event intent
 with optimistic prior-state identity and restart recovery. Scheduling and
-notification delivery remain subsequent work, as does equivalent geofence and
-suspicious-movement integration.
+notification delivery remain subsequent work, as does rule scheduling for
+geofence and suspicious-movement evaluation.
 
 Implement explicit time/freshness, quality selection, motion/trips/stops,
 geofence membership/transitions, heartbeat, suspicious movement, low-battery,

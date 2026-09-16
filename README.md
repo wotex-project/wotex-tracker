@@ -61,7 +61,8 @@ membership. See the [position guide](docs/guides/positions.md) and
 and edit recomputation plus bounded sparse-crossing inference are implemented.
 Changed geofence state and stable event intent can be committed atomically and
 restored after restart; inferred-crossing event intents have an event-only atomic
-deduplication path;
+deduplication path, as do suspicious-movement alarms over durable motion state and
+evidence-backed armed/owner facts;
 two-fix movement/uncertainty classification is also implemented. See the
 [motion guide](docs/guides/motion.md). Consecutive-segment dwell now establishes
 stationary/moving state and stable trip start, stop and interruption events. Host

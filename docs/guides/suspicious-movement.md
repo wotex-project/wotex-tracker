@@ -24,5 +24,11 @@ policy.
 
 A true result emits a stable `suspicious_movement` event binding the active trip,
 motion state, both evidence facts and rule identity. Re-evaluation is idempotent;
-host persistence deduplicates the same event key in the atomic state transaction.
-Replay produces the same event identity and prohibits physical Action dispatch.
+replay produces the same event identity and prohibits physical Action dispatch.
+
+The service `RuleEvent` port retains closed motion-state, armed-fact,
+owner-presence-fact and rule-policy documents. It restores and re-evaluates those
+inputs before SQLite atomically records the stable intent and public event without
+manufacturing another canonical state. An exact retry after restart returns the
+original generation. A collision that attempts to change live/replay effect
+metadata conflicts.

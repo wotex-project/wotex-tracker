@@ -8,6 +8,7 @@ defmodule Wotex.Tracker.PolicyFact do
   alias Wotex.Tracker.{Admission, Error, EvidenceBundle, Limits}
 
   @claim_fields ~w(schema predicate status policy_revision reason)
+  @serialized_fields ~w(schema identity evidence_id bundle_identity predicate status policy_revision reason observed_at observation_id bundle)
   @type t :: %__MODULE__{}
   @enforce_keys [
     :evidence,
@@ -63,6 +64,44 @@ defmodule Wotex.Tracker.PolicyFact do
 
   def validate(_, _), do: Admission.fail(:invalid_input)
 
+  @doc "Exports the fact inputs and complete immutable evidence bundle to native JSON."
+  @spec to_map(term(), term()) :: {:ok, map()} | {:error, Error.t()}
+  def to_map(value, options \\ []) do
+    with {:ok, fact} <- validate(value, options),
+         {:ok, bundle} <- EvidenceBundle.to_map(fact.bundle, options) do
+      {:ok,
+       %{
+         "schema" => "wtr.policy-fact-sample.v1",
+         "identity" => fact.identity,
+         "evidence_id" => fact.evidence.id,
+         "bundle_identity" => fact.bundle.identity,
+         "predicate" => fact.predicate,
+         "status" => fact.status,
+         "policy_revision" => fact.policy_revision,
+         "reason" => fact.reason,
+         "observed_at" => fact.observed_at,
+         "observation_id" => fact.observation_id,
+         "bundle" => bundle
+       }}
+    end
+  end
+
+  @doc "Restores and revalidates an evidence-backed fact from closed native JSON."
+  @spec from_map(term(), term()) :: {:ok, t()} | {:error, Error.t()}
+  def from_map(document, options \\ []) do
+    with true <- exact_fields?(document, @serialized_fields),
+         true <- document["schema"] == "wtr.policy-fact-sample.v1",
+         {:ok, bundle} <- EvidenceBundle.from_map(document["bundle"], options),
+         {:ok, fact} <- new(document["evidence_id"], bundle, options),
+         {:ok, admitted} <- to_map(fact, options),
+         true <- admitted === document do
+      {:ok, fact}
+    else
+      false -> Admission.fail(:conflict)
+      error -> error
+    end
+  end
+
   defp fetch(bundle, evidence_id) do
     case Map.fetch(bundle.evidence, evidence_id) do
       {:ok, %{confidence: confidence} = evidence} when confidence in [:exact, :strong] ->
@@ -112,4 +151,9 @@ defmodule Wotex.Tracker.PolicyFact do
       "observation_id" => observation.id,
       "observed_at" => observation.observed_at
     }
+
+  defp exact_fields?(value, fields),
+    do:
+      is_map(value) and not is_struct(value) and
+        Enum.sort(Map.keys(value)) == Enum.sort(fields)
 end
