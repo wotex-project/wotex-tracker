@@ -1647,3 +1647,19 @@ identity proof, a qualified mobile/Pi interface and the remaining application
 workflows are still unpassed. Updated local package/release receipts are in
 `verification/ui-consumer.json` and `verification/host-consumer.json`; neither
 artifact was published.
+
+### Structured browser measurement queries — 2026-09-16
+
+The shared browser now offers a per-asset query screen over the public authorized
+`Service.analytics/5` facade. It selects a numeric measurement and its recorded
+unit from the current retained state, accepts explicit UTC bounds and finite
+bucket/aggregation options, then constructs the closed `QuerySpec` before service
+execution. A reader credential may query but cannot mutate the asset. The result
+shows the pinned snapshot, qualified and excluded row counts, only observed
+buckets, sample counts and event times. It explicitly says that absent buckets
+are gaps and does not present this historical view as a live connection.
+
+The LiveView cohort checks a known value, an empty later interval, injected
+measurement rejection and revocation; the host HTTP and bundled browser probes
+check the actual query form through the composed route. Live graphs, gestures,
+saved-dashboard controls, provider translation and hardware UI acceptance remain.

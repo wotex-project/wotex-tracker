@@ -7,7 +7,8 @@ Hosts own and explicitly supervise those resources.
 The first workflow covers sign-in, bounded asset and observation lists,
 single-file Observation JSON capture import in Setup, evidence inspection,
 confirmed enrollment, later observation association, explicit Thing updates,
-retained measurements and resource history. Unsupported positioning and Actions are identified honestly.
+retained measurements, resource history and a structured per-asset analytics
+table. Unsupported positioning and Actions are identified honestly.
 This is not full application, Pi or mobile acceptance.
 
 `Wotex.Tracker.UI.Local` calls only the public authorized service facade.
@@ -50,3 +51,10 @@ lists/history, CSRF protection and credential custody. Device discovery and
 capture, maps, trips, protection, interactions, privacy controls, analytics,
 remote adapters and cross-surface accessibility remain subsequent work. A
 responsive browser view does not qualify a mobile or Pi application.
+
+The analytics screen builds a closed absolute UTC query for one retained asset
+using a currently recorded numeric measurement and unit. It restricts the
+aggregation and bucket vocabulary, delegates validation and execution to the
+authorized service, and shows the snapshot, qualified/excluded counts and only
+observed buckets in a table. This is historical inspection with explicit refresh;
+live graphs, saved dashboards and prompted queries are still open.

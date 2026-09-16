@@ -77,6 +77,145 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert state["value"]["measurements"] != []
   end
 
+  test "structured analytics queries qualified buckets without inventing gaps", c do
+    {thing, _} = enrolled(c)
+
+    {:ok, _} =
+      Service.materialize(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"thing_id" => thing, "expected_generation" => "2"},
+        c.now
+      )
+
+    {:ok, view, html} = live(c.conn, Presenter.path(:asset, thing) <> "/analytics")
+    assert html =~ "Workshop sensor analytics"
+    assert has_element?(view, "#analytics-query")
+
+    view |> form("#analytics-query") |> render_submit()
+    assert has_element?(view, "h2", "Query result")
+    assert render(view) =~ "24.3"
+    assert render(view) =~ "1 qualified of"
+    assert has_element?(view, "tbody tr")
+    assert render(view) =~ "no line or value is inferred across a gap"
+
+    from_at = DateTime.from_unix!(c.now + 1, :millisecond) |> DateTime.to_iso8601()
+    to_at = DateTime.from_unix!(c.now + 86_400_001, :millisecond) |> DateTime.to_iso8601()
+
+    view
+    |> form("#analytics-query", query: %{from: from_at, to: to_at})
+    |> render_submit()
+
+    assert render(view) =~ "No qualified readings in this window"
+    refute has_element?(view, "tbody tr")
+  end
+
+  test "analytics rejects tampered filters and reader sessions can query but not mutate", c do
+    {thing, _} = enrolled(c)
+
+    {:ok, _} =
+      Service.materialize(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"thing_id" => thing, "expected_generation" => "2"},
+        c.now
+      )
+
+    {:ok, %{"id" => reader}} = Sessions.login(c.sessions, c.reader, c.scope)
+    conn = build_conn() |> init_test_session(%{"browser_session" => reader})
+    {:ok, view, _} = live(conn, Presenter.path(:asset, thing) <> "/analytics")
+    view |> form("#analytics-query") |> render_submit()
+    assert has_element?(view, "h2", "Query result")
+
+    render_submit(view, "run", %{
+      "query" => %{
+        "measurement" => "temperature; DROP TABLE records",
+        "aggregation" => "mean",
+        "from" => "2023-11-14T00:00:00Z",
+        "to" => "2023-11-15T00:00:00Z",
+        "bucket" => "hour"
+      }
+    })
+
+    assert has_element?(view, "[role=alert]")
+    refute has_element?(view, "h2", "Query result")
+
+    {:ok, _} =
+      Service.revoke(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"credential_id" => "reader", "expected_generation" => "3"},
+        c.now
+      )
+
+    send(view.pid, :check_authority)
+    assert_redirect(view, "/sign-in")
+  end
+
+  test "analytics explains unprovisioned and missing assets", c do
+    {thing, _} = enrolled(c)
+    {:ok, unprovisioned, html} = live(c.conn, Presenter.path(:asset, thing) <> "/analytics")
+    assert html =~ "record measurements before querying history"
+    refute has_element?(unprovisioned, "#analytics-query")
+    render_submit(unprovisioned, "run", %{"query" => %{}})
+    assert has_element?(unprovisioned, "[role=alert]")
+
+    {:ok, missing, _} = live(c.conn, "/assets/missing/analytics")
+    assert has_element?(missing, "[role=alert]")
+    refute has_element?(missing, "#analytics-query")
+  end
+
+  test "analytics rejects invalid UTC bounds and reports a temporary query failure", c do
+    {thing, _} = enrolled(c)
+
+    {:ok, _} =
+      Service.materialize(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"thing_id" => thing, "expected_generation" => "2"},
+        c.now
+      )
+
+    {:ok, view, _} = live(c.conn, Presenter.path(:asset, thing) <> "/analytics")
+
+    view
+    |> form("#analytics-query", query: %{from: "2023-11-14T00:00:00+02:00"})
+    |> render_submit()
+
+    assert has_element?(view, "[role=alert]")
+    refute has_element?(view, "h2", "Query result")
+
+    from_at = DateTime.from_unix!(c.now - 3_600_000, :millisecond) |> DateTime.to_iso8601()
+    to_at = DateTime.from_unix!(c.now + 1, :millisecond) |> DateTime.to_iso8601()
+
+    render_submit(view, "run", %{
+      "query" => %{
+        "measurement" => "movementCounter",
+        "aggregation" => "mean",
+        "from" => from_at,
+        "to" => to_at,
+        "bucket" => "hour"
+      }
+    })
+
+    assert has_element?(view, "[role=alert]")
+    refute has_element?(view, "h2", "Query result")
+
+    Agent.update(c.faults, &Map.put(&1, :analytics, :unavailable))
+    view |> element("button", "Refresh asset") |> render_click()
+    view |> form("#analytics-query") |> render_submit()
+    assert has_element?(view, "[role=alert]")
+    refute has_element?(view, "h2", "Query result")
+  end
+
   test "associate a later observation and update the same Thing", c do
     {thing, _} = enrolled(c)
 

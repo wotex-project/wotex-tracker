@@ -46,6 +46,15 @@ then passes admitted rows and a scope-generation snapshot identity to the pure
 evaluator. The same operation is available as the read-only
 `POST …/analytics/query` endpoint in service contract 1.9.0.
 
+The optional shared browser exposes the first structured query at an asset's
+**Explore measurement history** link. It uses the current retained numeric
+measurement and unit as its initial selection and defaults to the 24 hours
+ending just after that state's observation time. The operator can change the
+absolute UTC bounds, bucket width and aggregation. The resulting table shows
+only qualified buckets, with the committed snapshot and excluded-row counts;
+it does not infer values between buckets or claim live connectivity. The
+browser route requires the same `read` grant as the service query.
+
 `Service.analytics_page/5` and `POST …/analytics/pages` partition the admitted
 bucket window into pages of 1 to 1,000 buckets. The first request supplies the
 exact query, a page size and a null cursor. The response identifies its committed

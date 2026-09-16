@@ -53,7 +53,8 @@ intents, with restart recovery and retry deduplication. The
 standalone CLI and bundled Darwin/Linux ARM64 service artifacts pass local probes.
 See the [service contract](docs/contracts/service-v1.md). The first shared browser
 workflow now covers sign-in, bounded JSON capture import, evidence review,
-enrollment, later observation association, provisioning and retained measurements. Live scanning and the rest of the application remain
+enrollment, later observation association, provisioning, retained measurements
+and a structured per-asset analytics table. Live scanning and the rest of the application remain
 subsequent work.
 
 The WTR.05 pure foundation admits position evidence, freshness, deterministic
@@ -99,6 +100,9 @@ cancellation. Administrators can also persist fixed-window query definitions
 and closed visualization options, retain their version/tombstone history and
 execute them later under current read authority. See the
 [analytics guide](docs/guides/analytics.md).
+The shared browser can submit an absolute UTC numeric query for one provisioned
+asset and inspect qualified buckets, source gaps, counts and snapshot identity.
+Charts, saved dashboards and prompted queries remain to be built.
 
 The service package also defines closed `:telemetry` events for requests,
 queries, import stages, commits, forward queues, publication reconciliation and

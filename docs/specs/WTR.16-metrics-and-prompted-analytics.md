@@ -20,6 +20,9 @@ continuations reject restart, altered filters and expired samples.
 Encrypted analytics continuations now bind the exact query and first committed
 generation while reauthorizing every bucket page. Dashboard composition and
 sharing, prompt integration and graphs remain required product deliverables.
+The shared browser now submits a bounded structured numeric query for one asset
+and renders a snapshot-bound table with explicit gaps and exclusion counts; it
+does not yet implement live charts or saved dashboards.
 Model execution is explicitly configured and can be disabled; deterministic
 tracking and structured analytics MUST remain useful without AI or any external
 observability service.

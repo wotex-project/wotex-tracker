@@ -54,6 +54,9 @@ defmodule Wotex.Tracker.UI.Local do
         now
       )
 
+  defp dispatch(service, token, scope, :analytics, args, now),
+    do: Service.analytics(service, token, scope, args["query"], now)
+
   defp dispatch(service, token, scope, :enroll, args, now),
     do: Service.enroll(service, token, scope, args["operation"], args["request"], now)
 

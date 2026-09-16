@@ -370,8 +370,10 @@ default host restart-identified local operational history. Snapshot-pinned
 bucket pagination now excludes concurrent commits and reauthorizes every page.
 The explicit HTTP host now adds global BEAM memory/process/port samples to that
 collector. Host-only operational pages pin its epoch and high-water sequence.
-Reconnect/render/OS-native resource events, dashboard composition
-and sharing, prompting and every UI acceptance gate remain.
+The shared browser now executes a bounded per-asset structured query and shows
+its committed snapshot, bucket values and exclusions in an accessible table.
+Reconnect/render/OS-native resource events, live charts, dashboard composition
+and sharing, prompting and the physical UI acceptance gates remain.
 
 Add an explicitly configured public model adapter for question-to-query translation:
 synthetic boundary tests plus a separately recorded real-provider execution.

@@ -1,0 +1,261 @@
+defmodule Wotex.Tracker.UI.AnalyticsLive do
+  @moduledoc "Bounded structured measurement queries for one authorized asset."
+  use Phoenix.LiveView, log: false
+  import Wotex.Tracker.UI.Components
+  alias Wotex.Tracker.QuerySpec
+  alias Wotex.Tracker.UI.{Auth, Presenter}
+
+  @buckets %{"hour" => 3_600_000, "six_hours" => 21_600_000, "day" => 86_400_000}
+  @aggregations %{
+    "count" => :count,
+    "min" => :min,
+    "max" => :max,
+    "mean" => :mean,
+    "last" => :last
+  }
+  @counter_kinds ~w(movementCounter measurementSequence)
+
+  @impl true
+  def mount(_, _, socket) do
+    {:ok,
+     assign(socket,
+       id: nil,
+       asset: nil,
+       state: nil,
+       measurements: [],
+       query: %{},
+       result: nil,
+       error: nil
+     )}
+  end
+
+  @impl true
+  def handle_params(%{"id" => id}, _, socket),
+    do: {:noreply, socket |> assign(id: id, result: nil, error: nil) |> load()}
+
+  @impl true
+  def handle_event("refresh", _, socket),
+    do: {:noreply, socket |> assign(result: nil, error: nil) |> load()}
+
+  def handle_event("run", %{"query" => input}, %{assigns: %{state: %{}, asset: %{}}} = socket) do
+    socket = assign(socket, query: input, result: nil, error: nil)
+
+    with {:ok, document} <- document(socket, input),
+         {:ok, result} <- Auth.request(socket, :analytics, %{"query" => document}) do
+      {:noreply, assign(socket, result: result)}
+    else
+      {:error, %{"code" => _} = error} -> {:noreply, assign(socket, error: error)}
+      _ -> {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
+    end
+  end
+
+  def handle_event("run", _, socket),
+    do: {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
+
+  def handle_event(_, _, socket), do: {:noreply, socket}
+
+  @impl true
+  def render(assigns) do
+    ~H"""
+    <main id="main" class="workspace">
+      <a :if={@id} href={Presenter.path(:asset, @id)}>← Asset details</a>
+      <p class="eyebrow">Measurement history · structured query</p>
+      <div class="heading">
+        <div>
+          <h1>{if @asset, do: @asset["title"] <> " analytics", else: "Asset analytics"}</h1>
+          <p>Query qualified retained readings at one committed snapshot.</p>
+        </div>
+        <button class="secondary" phx-click="refresh">Refresh asset</button>
+      </div>
+      <.notice error={@error} />
+      <p :if={@asset && is_nil(@state)} class="notice">
+        Provision this asset's Thing to record measurements before querying history.
+      </p>
+      <p :if={@state && @measurements == []} class="notice">
+        This retained state has no numeric measurement available for a structured query.
+      </p>
+      <section :if={@asset && @measurements != []} class="panel">
+        <h2>Choose a query</h2>
+        <p>
+          The default window ends just after the latest retained observation. Times are UTC; the start is included and the end is excluded.
+        </p>
+        <.form for={%{}} id="analytics-query" phx-submit="run">
+          <label for="query-measurement">Measurement</label>
+          <select id="query-measurement" name="query[measurement]">
+            <option
+              :for={measurement <- @measurements}
+              value={measurement["kind"]}
+              selected={@query["measurement"] == measurement["kind"]}
+            >
+              {Presenter.label(measurement["kind"])} · {Presenter.unit(measurement["unit"])}
+            </option>
+          </select>
+          <label for="query-aggregation">Aggregation</label>
+          <select id="query-aggregation" name="query[aggregation]">
+            <option
+              :for={name <- ~w(last mean min max count)}
+              value={name}
+              selected={@query["aggregation"] == name}
+            >
+              {name}
+            </option>
+          </select>
+          <label for="query-from">From (UTC, inclusive)</label>
+          <input id="query-from" name="query[from]" type="text" value={@query["from"]} required />
+          <label for="query-to">To (UTC, exclusive)</label>
+          <input id="query-to" name="query[to]" type="text" value={@query["to"]} required />
+          <label for="query-bucket">Bucket width</label>
+          <select id="query-bucket" name="query[bucket]">
+            <option value="hour" selected={@query["bucket"] == "hour"}>1 hour</option>
+            <option value="six_hours" selected={@query["bucket"] == "six_hours"}>6 hours</option>
+            <option value="day" selected={@query["bucket"] == "day"}>1 day</option>
+          </select>
+          <button type="submit" phx-disable-with="Querying…">Run query</button>
+        </.form>
+        <p class="muted">
+          Queries are limited to 31 days and 1,000 requested buckets. Counter readings cannot be averaged.
+        </p>
+      </section>
+      <section :if={@result} class="panel" aria-labelledby="analytics-result-title">
+        <h2 id="analytics-result-title">Query result</h2>
+        <p>
+          {@result["spec"]["aggregation"]} of {Presenter.label(@result["spec"]["measurement"])} ({Presenter.unit(
+            @result["spec"]["unit"]
+          )}) · {@result["qualified_rows"]} qualified of {@result["selected_rows"]} selected readings.
+        </p>
+        <p class="muted">
+          {@result["excluded_unavailable"]} unavailable and {@result["excluded_quality"]} excluded by quality.
+          Buckets with no qualified reading are absent; no line or value is inferred across a gap.
+          Aggregation is at the requested bucket width.
+        </p>
+        <p class="identifier">Snapshot {@result["snapshot"]}</p>
+        <div class="table-scroll" tabindex="0" role="region" aria-labelledby="analytics-result-title">
+          <table>
+            <caption>Qualified bucket values at the recorded snapshot</caption>
+            <thead>
+              <tr>
+                <th scope="col">Bucket start (UTC)</th><th scope="col">Bucket end (UTC)</th><th scope="col">
+                  Value
+                </th><th scope="col">Samples</th><th scope="col">Last observed (UTC)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr :for={point <- points(@result)}>
+                <td>{timestamp(point["start_at"])}</td>
+                <td>{timestamp(point["end_at"])}</td>
+                <td>{point["value"]} {Presenter.unit(@result["spec"]["unit"])}</td>
+                <td>{point["sample_count"]}</td>
+                <td>{timestamp(point["last_event_at"])}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p :if={points(@result) == []}>No qualified readings in this window.</p>
+      </section>
+    </main>
+    """
+  end
+
+  defp load(socket) do
+    case Auth.request(socket, :get, %{
+           "resource" => "enrollments",
+           "id" => socket.assigns.id
+         }) do
+      {:ok, asset} ->
+        case Auth.request(socket, :get, %{"resource" => "state", "id" => socket.assigns.id}) do
+          {:ok, %{"value" => state}} ->
+            measurements = numeric_measurements(state)
+
+            assign(socket,
+              asset: asset["value"],
+              state: state,
+              measurements: measurements,
+              query: default_query(state, measurements),
+              error: nil
+            )
+
+          {:error, %{"code" => "not_found"}} ->
+            assign(socket, asset: asset["value"], state: nil, measurements: [], query: %{})
+
+          {:error, error} ->
+            assign(socket, asset: asset["value"], state: nil, measurements: [], error: error)
+        end
+
+      {:error, error} ->
+        assign(socket, asset: nil, state: nil, measurements: [], query: %{}, error: error)
+    end
+  end
+
+  defp numeric_measurements(state) do
+    state["measurements"]
+    |> Enum.filter(&is_number(get_in(&1, ["value", "value"])))
+    |> Enum.uniq_by(& &1["kind"])
+  end
+
+  defp default_query(state, [first | _]) do
+    end_at = state["observed_at"]["value"] + 1
+
+    %{
+      "measurement" => first["kind"],
+      "aggregation" => if(first["kind"] in @counter_kinds, do: "last", else: "mean"),
+      "from" => iso8601(max(0, end_at - 86_400_000)),
+      "to" => iso8601(end_at),
+      "bucket" => "hour"
+    }
+  end
+
+  defp default_query(_, []), do: %{}
+
+  defp document(socket, input) do
+    with %{"unit" => unit} = measurement <-
+           Enum.find(socket.assigns.measurements, &(&1["kind"] == input["measurement"])),
+         {:ok, aggregation} <- aggregation(input["aggregation"], measurement["kind"]),
+         {:ok, from_at} <- utc_milliseconds(input["from"]),
+         {:ok, to_at} <- utc_milliseconds(input["to"]),
+         bucket_ms when is_integer(bucket_ms) <- @buckets[input["bucket"]],
+         {:ok, spec} <-
+           QuerySpec.new(%{
+             id: "browser-measurement-history",
+             revision: "service-query-v1",
+             dataset: :measurements,
+             measurement: measurement["kind"],
+             unit: unit,
+             series: [socket.assigns.id],
+             qualities: [:valid],
+             from_at: from_at,
+             to_at: to_at,
+             timezone: "Etc/UTC",
+             bucket_ms: bucket_ms,
+             aggregation: aggregation,
+             order: :ascending,
+             max_points: 1_000
+           }),
+         {:ok, document} <- QuerySpec.to_map(spec) do
+      {:ok, document}
+    else
+      _ -> {:error, %{"code" => "invalid_request"}}
+    end
+  end
+
+  defp aggregation("mean", kind) when kind in @counter_kinds, do: :error
+  defp aggregation(value, _), do: Map.fetch(@aggregations, value)
+
+  defp utc_milliseconds(value) when is_binary(value) do
+    case DateTime.from_iso8601(value) do
+      {:ok, datetime, 0} -> {:ok, DateTime.to_unix(datetime, :millisecond)}
+      _ -> :error
+    end
+  end
+
+  defp utc_milliseconds(_), do: :error
+
+  defp iso8601(value) do
+    {:ok, datetime} = DateTime.from_unix(value, :millisecond)
+    DateTime.to_iso8601(datetime)
+  end
+
+  defp timestamp(value), do: Presenter.timestamp(%{"value" => value})
+
+  defp points(%{"series" => [%{"points" => points}]}), do: points
+  defp points(_), do: []
+end

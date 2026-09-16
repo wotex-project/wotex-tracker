@@ -432,6 +432,17 @@ defmodule Wotex.Tracker.ReleaseProbe do
     true = String.contains?(association, "Confirm association")
     false = String.contains?(association, instance.token)
 
+    {200, _headers, analytics} =
+      browser_request(
+        :get,
+        origin <> "/assets/" <> encode_segment(thing) <> "/analytics",
+        [{~c"cookie", cookie}],
+        nil
+      )
+
+    true = String.contains?(analytics, "Run query")
+    false = String.contains?(analytics, instance.token)
+
     for path <-
           ~w(/assets/tracker.js /assets/tracker.css /assets/phoenix/phoenix.min.js /assets/liveview/phoenix_live_view.min.js) do
       {200, _headers, bytes} = browser_request(:get, origin <> path, [], nil)

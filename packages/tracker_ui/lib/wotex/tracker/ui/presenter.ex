@@ -15,7 +15,8 @@ defmodule Wotex.Tracker.UI.Presenter do
     "operation_expired" =>
       "This operation's receipt has expired. Review existing assets before starting another enrollment.",
     "operation_mismatch" =>
-      "This operation reference belongs to a different workflow. No new operation was submitted."
+      "This operation reference belongs to a different workflow. No new operation was submitted.",
+    "overloaded" => "The query service is busy. Wait before running another query."
   }
   @unknown_error "The service could not complete this request. Keep the operation reference and check its outcome before retrying."
   @labels %{

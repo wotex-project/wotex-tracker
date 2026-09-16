@@ -102,6 +102,9 @@ defmodule Wotex.Tracker.UI.AssetLive do
         </p>
       </section>
       <.measurements :if={@state} state={@state} />
+      <a :if={@state} class="button" href={Presenter.path(:asset, @id) <> "/analytics"}>
+        Explore measurement history
+      </a>
       <section :if={@state} class="panel">
         <h2>Tracking capabilities</h2>
         <p>

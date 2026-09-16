@@ -157,6 +157,28 @@ defmodule Wotex.Tracker.Host.BrowserTest do
     assert association =~ "Confirm association"
     refute association =~ c.token
 
+    {:ok, _} =
+      Service.materialize(
+        service,
+        c.token,
+        "workshop",
+        Identifier.uuid(),
+        %{"thing_id" => thing, "expected_generation" => "2"},
+        System.system_time(:millisecond)
+      )
+
+    {200, _, analytics} =
+      request(
+        :get,
+        origin <> Presenter.path(:asset, thing) <> "/analytics",
+        [{~c"cookie", browser_cookie}],
+        nil
+      )
+
+    assert analytics =~ "Workshop sensor analytics"
+    assert analytics =~ "Run query"
+    refute analytics =~ c.token
+
     for path <- [
           "/assets/tracker.js",
           "/assets/tracker.css",

@@ -14,7 +14,7 @@
 * { box-sizing: border-box; }
 body { margin: 0; }
 a { color: #125e4c; text-underline-offset: .2em; }
-button, input { font: inherit; }
+button, input, select { font: inherit; }
 
 button, .button {
   display: inline-block;
@@ -112,7 +112,7 @@ h3 { text-transform: capitalize; font-size: .9rem; font-weight: 650; margin: 0; 
 #connection-status { margin: 0; }
 label { display: block; font-weight: 650; margin: 1rem 0 .4rem; }
 
-input:not([type=checkbox]) {
+input:not([type=checkbox]), select {
   width: 100%;
   padding: .7rem;
   border: 1px solid #7c9288;
