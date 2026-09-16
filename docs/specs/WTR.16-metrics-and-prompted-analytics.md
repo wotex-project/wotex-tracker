@@ -33,6 +33,8 @@ generation check and stable operation receipt, then edit its title/view or
 delete it with another checked operation. Ownership and query authority stay
 with the service. An open dashboard can also rerun automatically every 30
 seconds, distinguishing a temporary stale result from an invalidated read.
+The saved-dashboard list can revisit up to 32 earlier authorized pages; a
+changed list generation requires a new first-page refresh.
 The browser can combine two to eight compatible saved definitions with distinct
 series into one generation-checked multi-series exact-table dashboard. The
 stable operation reference permits receipt recovery without a duplicate write.

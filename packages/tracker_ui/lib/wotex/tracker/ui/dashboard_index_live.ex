@@ -4,18 +4,44 @@ defmodule Wotex.Tracker.UI.DashboardIndexLive do
   import Wotex.Tracker.UI.Components
   alias Wotex.Tracker.UI.{Auth, Presenter}
 
-  @impl true
-  def mount(_, _, socket), do: {:ok, assign(socket, page: nil, error: nil)}
+  @page_back_limit 32
 
   @impl true
-  def handle_params(_, _, socket), do: {:noreply, load(socket, %{})}
+  def mount(_, _, socket),
+    do: {:ok, assign(socket, page: nil, page_params: nil, page_back: [], error: nil)}
 
   @impl true
-  def handle_event("refresh", _, socket), do: {:noreply, load(socket, %{})}
+  def handle_params(_, _, socket), do: {:noreply, first_page(socket)}
+
+  @impl true
+  def handle_event("refresh", _, socket), do: {:noreply, first_page(socket)}
 
   def handle_event("next", _, %{assigns: %{page: %{"cursor" => cursor}}} = socket)
-      when is_binary(cursor),
-      do: {:noreply, load(socket, %{"cursor" => cursor})}
+      when is_binary(cursor) do
+    next = load(socket, %{"cursor" => cursor})
+
+    if next.assigns.page_params == %{"cursor" => cursor} do
+      back = [socket.assigns.page_params | socket.assigns.page_back]
+      {:noreply, assign(next, page_back: Enum.take(back, @page_back_limit))}
+    else
+      {:noreply, next}
+    end
+  end
+
+  def handle_event("previous", _, %{assigns: %{page_back: [params | rest]}} = socket) do
+    previous = load(socket, params)
+
+    cond do
+      previous.assigns.page_params != params ->
+        {:noreply, previous}
+
+      previous.assigns.page["generation"] != socket.assigns.page["generation"] ->
+        {:noreply, assign(socket, error: %{"code" => "conflict"})}
+
+      true ->
+        {:noreply, assign(previous, page_back: rest)}
+    end
+  end
 
   def handle_event(_, _, socket), do: {:noreply, socket}
 
@@ -53,6 +79,7 @@ defmodule Wotex.Tracker.UI.DashboardIndexLive do
             <p class="identifier">{row["id"]}</p>
           </article>
         </div>
+        <button :if={@page_back != []} class="secondary" phx-click="previous">Previous page</button>
         <button :if={@page["cursor"]} class="secondary" phx-click="next">Next page</button>
       </section>
     </main>
@@ -61,9 +88,20 @@ defmodule Wotex.Tracker.UI.DashboardIndexLive do
 
   defp load(socket, params) do
     case Auth.request(socket, :list, %{"resource" => "saved_queries", "params" => params}) do
-      {:ok, page} -> assign(socket, page: page, error: nil)
-      {:error, error} -> assign(socket, page: nil, error: error)
+      {:ok, page} ->
+        assign(socket, page: page, page_params: params, error: nil)
+
+      {:error, %{"code" => code} = error} when code in ~w(forbidden unauthorized not_found) ->
+        assign(socket, page: nil, page_params: nil, page_back: [], error: error)
+
+      {:error, error} ->
+        assign(socket, error: error)
     end
+  end
+
+  defp first_page(socket) do
+    first = load(socket, %{})
+    if first.assigns.page_params == %{}, do: assign(first, page_back: []), else: first
   end
 
   defp window_label("absolute"), do: "Fixed incident window"

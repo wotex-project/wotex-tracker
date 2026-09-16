@@ -354,32 +354,7 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
 
     {:ok, access} = Service.authorize(c.service, c.admin, c.scope, "ingest", c.now)
 
-    for step <- 1..25 do
-      {:ok, update} =
-        Update.new(%{
-          principal: access.principal,
-          scope: c.scope,
-          authority: access,
-          operation_id: Identifier.uuid(),
-          expected_generation: Integer.to_string(step + 2),
-          request: %{"operation" => "history-fixture", "step" => step},
-          now: c.now,
-          observation: nil,
-          records: [
-            %{
-              kind: "state",
-              id: thing,
-              value: %{
-                "public" => Map.put(state, "observed_at", Projection.scalar(c.now + step * 1_000))
-              }
-            }
-          ],
-          events: [],
-          publication: nil
-        })
-
-      assert {:ok, _} = Store.mutate(c.store, update)
-    end
+    for step <- 1..25, do: append_history_state(c, thing, state, access, step)
 
     {:ok, asset, _} =
       live(c.conn, Presenter.path(:asset, thing) <> "?operation=" <> Identifier.uuid())
@@ -402,6 +377,17 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert has_element?(asset, "tbody tr:first-child td:first-child", "3")
     refute has_element?(asset, "button", "Previous history page")
     assert has_element?(asset, "button", "Next history page")
+
+    asset |> element("button", "Next history page") |> render_click()
+    append_history_state(c, thing, state, access, 26)
+    asset |> element("button", "Previous history page") |> render_click()
+    assert has_element?(asset, "tbody tr:first-child td:first-child", "28")
+    assert has_element?(asset, "button", "Previous history page")
+    assert render(asset) =~ "changed since this page loaded"
+
+    asset |> element("button", "Refresh") |> render_click()
+    assert has_element?(asset, "tbody tr:first-child td:first-child", "3")
+    refute has_element?(asset, "button", "Previous history page")
 
     Agent.update(c.faults, &Map.put(&1, :history, {:deny, "forbidden"}))
     asset |> element("button", "Next history page") |> render_click()
@@ -1749,7 +1735,66 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     Agent.update(c.faults, &Map.put(&1, :list, :unavailable))
     list |> element("button", "Refresh") |> render_click()
     assert has_element?(list, "[role=alert]")
+    assert has_element?(list, "[aria-label='Saved dashboards']")
+  end
+
+  test "saved dashboard list pages can be revisited at one generation", c do
+    for index <- 0..25 do
+      assert {:ok, _} =
+               Service.save_query(
+                 c.service,
+                 c.admin,
+                 c.scope,
+                 Identifier.uuid(),
+                 dashboard_request(
+                   "page-dashboard-#{index}",
+                   "Dashboard #{index}",
+                   c,
+                   Integer.to_string(index)
+                 ),
+                 c.now
+               )
+    end
+
+    {:ok, list, _} = live(c.conn, "/dashboards")
+    assert has_element?(list, "button", "Next page")
+    refute has_element?(list, "button", "Previous page")
+    list |> element("button", "Next page") |> render_click()
+    assert has_element?(list, "button", "Previous page")
+    refute has_element?(list, "button", "Next page")
+
+    Agent.update(c.faults, &Map.put(&1, :list, :unavailable))
+    list |> element("button", "Previous page") |> render_click()
+    assert has_element?(list, "button", "Previous page")
+    assert has_element?(list, "[role=alert]")
+    list |> element("button", "Previous page") |> render_click()
+    assert has_element?(list, "button", "Next page")
+    refute has_element?(list, "button", "Previous page")
+
+    list |> element("button", "Next page") |> render_click()
+
+    assert {:ok, _} =
+             Service.save_query(
+               c.service,
+               c.admin,
+               c.scope,
+               Identifier.uuid(),
+               dashboard_request("page-dashboard-26", "Dashboard 26", c, "26"),
+               c.now
+             )
+
+    list |> element("button", "Previous page") |> render_click()
+    assert has_element?(list, "button", "Previous page")
+    assert render(list) =~ "changed since this page loaded"
+    list |> element("button", "Refresh") |> render_click()
+    refute has_element?(list, "button", "Previous page")
+    assert has_element?(list, "button", "Next page")
+
+    list |> element("button", "Next page") |> render_click()
+    Agent.update(c.faults, &Map.put(&1, :list, {:deny, "forbidden"}))
+    list |> element("button", "Previous page") |> render_click()
     refute has_element?(list, "[aria-label='Saved dashboards']")
+    assert has_element?(list, "[role=alert]")
   end
 
   test "saved table dashboard keeps multiple series and exposes a failed rerun", c do
@@ -2001,6 +2046,26 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert has_element?(picker, "button", "Next page")
     picker |> element("button", "Next page") |> render_click()
     refute has_element?(picker, "button", "Next page")
+    assert has_element?(picker, "button", "Previous page")
+    picker |> element("button", "Previous page") |> render_click()
+    assert has_element?(picker, "button", "Next page")
+    picker |> element("button", "Next page") |> render_click()
+
+    assert {:ok, _} =
+             Service.submit(
+               c.service,
+               c.admin,
+               c.scope,
+               Identifier.uuid(),
+               import_request(%{id: "later-27", observed_at: c.now + 27}, "27"),
+               c.now
+             )
+
+    picker |> element("button", "Previous page") |> render_click()
+    assert has_element?(picker, "button", "Previous page")
+    assert render(picker) =~ "changed since this page loaded"
+    picker |> element("button", "Refresh") |> render_click()
+    refute has_element?(picker, "button", "Previous page")
 
     {:ok, page} = Service.list(c.service, c.admin, c.scope, "observations", %{}, c.now)
     observation = hd(page["items"])["id"]
@@ -2175,13 +2240,51 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
 
     view |> element("button", "Next page") |> render_click()
     refute has_element?(view, "button", "Next page")
+    assert has_element?(view, "button", "Previous page")
     assert has_element?(view, "a", "Inspect observation")
+
+    Agent.update(c.faults, &Map.put(&1, :list, :unavailable))
+    view |> element("button", "Previous page") |> render_click()
+    assert has_element?(view, "button", "Previous page")
+    assert has_element?(view, "a", "Inspect observation")
+
+    view |> element("button", "Previous page") |> render_click()
+    assert has_element?(view, "button", "Next page")
+    refute has_element?(view, "button", "Previous page")
+
+    view |> element("button", "Next page") |> render_click()
+    assert has_element?(view, "button", "Previous page")
+
+    assert {:ok, _} =
+             Service.submit(
+               c.service,
+               c.admin,
+               c.scope,
+               Identifier.uuid(),
+               import_request(%{id: "observation-26", observed_at: c.now + 26}, "26"),
+               c.now
+             )
+
+    view |> element("button", "Previous page") |> render_click()
+    assert has_element?(view, "button", "Previous page")
+    assert render(view) =~ "changed since this page loaded"
+
     Agent.update(c.faults, &Map.put(&1, :list, :unavailable))
     view |> element("button", "Refresh") |> render_click()
     assert render(view) =~ "service could not complete"
     assert has_element?(view, "a", "Inspect observation")
+    assert has_element?(view, "button", "Previous page")
     view |> element("button", "Refresh") |> render_click()
     assert has_element?(view, "button", "Next page")
+    refute has_element?(view, "button", "Previous page")
+
+    view |> element("button", "Next page") |> render_click()
+    Agent.update(c.faults, &Map.put(&1, :list, {:deny, "forbidden"}))
+    view |> element("button", "Previous page") |> render_click()
+    refute has_element?(view, "button", "Previous page")
+    refute has_element?(view, "a", "Inspect observation")
+    assert has_element?(view, "[role=alert]")
+
     render_click(view, "unknown-event")
   end
 
@@ -2503,6 +2606,33 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
       )
 
     {result["data"]["thing_id"], operation}
+  end
+
+  defp append_history_state(c, thing, state, access, step) do
+    {:ok, update} =
+      Update.new(%{
+        principal: access.principal,
+        scope: c.scope,
+        authority: access,
+        operation_id: Identifier.uuid(),
+        expected_generation: Integer.to_string(step + 2),
+        request: %{"operation" => "history-fixture", "step" => step},
+        now: c.now,
+        observation: nil,
+        records: [
+          %{
+            kind: "state",
+            id: thing,
+            value: %{
+              "public" => Map.put(state, "observed_at", Projection.scalar(c.now + step * 1_000))
+            }
+          }
+        ],
+        events: [],
+        publication: nil
+      })
+
+    assert {:ok, _} = Store.mutate(c.store, update)
   end
 
   defp dashboard_query(thing, now) do

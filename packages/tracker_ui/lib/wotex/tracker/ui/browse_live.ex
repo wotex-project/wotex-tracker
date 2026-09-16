@@ -5,11 +5,21 @@ defmodule Wotex.Tracker.UI.BrowseLive do
   alias Wotex.Tracker.Service.{Codec, Identifier}
   alias Wotex.Tracker.UI.{Auth, Presenter}
 
+  @page_back_limit 32
+
   @impl true
   def mount(_, _, socket) do
     {:ok,
      socket
-     |> assign(page: nil, summaries: %{}, operation: nil, outcome: nil, error: nil)
+     |> assign(
+       page: nil,
+       page_params: nil,
+       page_back: [],
+       summaries: %{},
+       operation: nil,
+       outcome: nil,
+       error: nil
+     )
      |> allow_upload(:observation, accept: ~w(.json), max_entries: 1, max_file_size: 262_144)}
   end
 
@@ -20,13 +30,15 @@ defmodule Wotex.Tracker.UI.BrowseLive do
         %{assigns: %{live_action: :observations}} = socket
       ) do
     if Identifier.operation?(operation) do
-      {:noreply, socket |> activate_operation(operation) |> recover() |> load(%{})}
+      {:noreply, socket |> activate_operation(operation) |> recover() |> first_page()}
     else
       {:noreply,
        assign(socket,
          operation: nil,
          outcome: nil,
          page: nil,
+         page_params: nil,
+         page_back: [],
          summaries: %{},
          error: %{"code" => "invalid_request"}
        )}
@@ -36,10 +48,10 @@ defmodule Wotex.Tracker.UI.BrowseLive do
   def handle_params(_, _, %{assigns: %{live_action: :observations}} = socket),
     do: {:noreply, redirect(socket, to: "/setup?operation=" <> Identifier.uuid())}
 
-  def handle_params(_, _, socket), do: {:noreply, load(socket, %{})}
+  def handle_params(_, _, socket), do: {:noreply, first_page(socket)}
 
   @impl true
-  def handle_event("refresh", _, socket), do: {:noreply, socket |> recover() |> load(%{})}
+  def handle_event("refresh", _, socket), do: {:noreply, socket |> recover() |> first_page()}
 
   def handle_event("validate-import", _, socket), do: {:noreply, socket}
 
@@ -68,7 +80,7 @@ defmodule Wotex.Tracker.UI.BrowseLive do
             }
           })
 
-        {:noreply, socket |> outcome(result) |> load(%{})}
+        {:noreply, socket |> outcome(result) |> first_page()}
 
       :error ->
         {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
@@ -78,11 +90,34 @@ defmodule Wotex.Tracker.UI.BrowseLive do
   def handle_event("import", _, socket),
     do: {:noreply, assign(socket, error: %{"code" => "forbidden"})}
 
-  def handle_event("check-import", _, socket), do: {:noreply, socket |> recover() |> load(%{})}
+  def handle_event("check-import", _, socket), do: {:noreply, socket |> recover() |> first_page()}
 
   def handle_event("next", _, %{assigns: %{page: %{"cursor" => cursor}}} = socket)
-      when is_binary(cursor),
-      do: {:noreply, load(socket, %{"cursor" => cursor})}
+      when is_binary(cursor) do
+    next = load(socket, %{"cursor" => cursor})
+
+    if next.assigns.page_params == %{"cursor" => cursor} do
+      back = [socket.assigns.page_params | socket.assigns.page_back]
+      {:noreply, assign(next, page_back: Enum.take(back, @page_back_limit), error: nil)}
+    else
+      {:noreply, next}
+    end
+  end
+
+  def handle_event("previous", _, %{assigns: %{page_back: [params | rest]}} = socket) do
+    previous = load(socket, params)
+
+    cond do
+      previous.assigns.page_params != params ->
+        {:noreply, previous}
+
+      previous.assigns.page["generation"] != socket.assigns.page["generation"] ->
+        {:noreply, assign(socket, error: %{"code" => "conflict"})}
+
+      true ->
+        {:noreply, assign(previous, page_back: rest, error: nil)}
+    end
+  end
 
   def handle_event(_, _, socket), do: {:noreply, socket}
 
@@ -189,6 +224,7 @@ defmodule Wotex.Tracker.UI.BrowseLive do
             />
           </article>
         </div>
+        <button :if={@page_back != []} class="secondary" phx-click="previous">Previous page</button>
         <button :if={@page["cursor"]} class="secondary" phx-click="next">Next page</button>
       </section>
     </main>
@@ -201,16 +237,30 @@ defmodule Wotex.Tracker.UI.BrowseLive do
     case Auth.request(socket, :list, %{"resource" => resource, "params" => params}) do
       {:ok, page} ->
         case summaries(socket, page) do
-          {:ok, summaries} -> assign(socket, page: page, summaries: summaries)
-          {:error, error} -> assign(socket, page: nil, summaries: %{}, error: error)
+          {:ok, summaries} ->
+            assign(socket, page: page, page_params: params, summaries: summaries)
+
+          {:error, error} ->
+            assign(socket,
+              page: nil,
+              page_params: nil,
+              page_back: [],
+              summaries: %{},
+              error: error
+            )
         end
 
       {:error, %{"code" => code} = error} when code in ~w(forbidden unauthorized) ->
-        assign(socket, page: nil, summaries: %{}, error: error)
+        assign(socket, page: nil, page_params: nil, page_back: [], summaries: %{}, error: error)
 
       {:error, error} ->
         assign(socket, error: error)
     end
+  end
+
+  defp first_page(socket) do
+    first = load(socket, %{})
+    if first.assigns.page_params == %{}, do: assign(first, page_back: []), else: first
   end
 
   defp summaries(%{assigns: %{live_action: :assets}} = socket, %{"items" => rows}) do
@@ -300,7 +350,15 @@ defmodule Wotex.Tracker.UI.BrowseLive do
   defp activate_operation(socket, operation) do
     if socket.assigns.operation == operation,
       do: socket,
-      else: assign(socket, operation: operation, outcome: nil, page: nil, error: nil)
+      else:
+        assign(socket,
+          operation: operation,
+          outcome: nil,
+          page: nil,
+          page_params: nil,
+          page_back: [],
+          error: nil
+        )
   end
 
   defp recover(%{assigns: %{operation: nil}} = socket), do: assign(socket, error: nil)

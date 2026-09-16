@@ -101,10 +101,15 @@ defmodule Wotex.Tracker.UI.AssetLive do
   def handle_event("previous-history", _, %{assigns: %{history_back: [params | rest]}} = socket) do
     previous = history(socket, params)
 
-    if previous.assigns.history_params == params do
-      {:noreply, assign(previous, history_back: rest)}
-    else
-      {:noreply, previous}
+    cond do
+      previous.assigns.history_params != params ->
+        {:noreply, previous}
+
+      previous.assigns.history["generation"] != socket.assigns.history["generation"] ->
+        {:noreply, assign(socket, error: %{"code" => "conflict"})}
+
+      true ->
+        {:noreply, assign(previous, history_back: rest)}
     end
   end
 

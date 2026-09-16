@@ -4,19 +4,51 @@ defmodule Wotex.Tracker.UI.AssociationSelectLive do
   import Wotex.Tracker.UI.Components
   alias Wotex.Tracker.UI.{Auth, Presenter}
 
+  @page_back_limit 32
+
   @impl true
-  def mount(_, _, socket), do: {:ok, assign(socket, id: nil, asset: nil, page: nil, error: nil)}
+  def mount(_, _, socket),
+    do:
+      {:ok,
+       assign(socket, id: nil, asset: nil, page: nil, page_params: nil, page_back: [], error: nil)}
 
   @impl true
   def handle_params(%{"id" => id}, _, socket),
-    do: {:noreply, socket |> assign(id: id, asset: nil, page: nil) |> load(%{})}
+    do:
+      {:noreply,
+       socket
+       |> assign(id: id, asset: nil, page: nil, page_params: nil, page_back: [])
+       |> load(%{})}
 
   @impl true
-  def handle_event("refresh", _, socket), do: {:noreply, load(socket, %{})}
+  def handle_event("refresh", _, socket), do: {:noreply, first_page(socket)}
 
   def handle_event("next", _, %{assigns: %{page: %{"cursor" => cursor}}} = socket)
-      when is_binary(cursor),
-      do: {:noreply, load(socket, %{"cursor" => cursor})}
+      when is_binary(cursor) do
+    next = load(socket, %{"cursor" => cursor})
+
+    if next.assigns.page_params == %{"cursor" => cursor} do
+      back = [socket.assigns.page_params | socket.assigns.page_back]
+      {:noreply, assign(next, page_back: Enum.take(back, @page_back_limit))}
+    else
+      {:noreply, next}
+    end
+  end
+
+  def handle_event("previous", _, %{assigns: %{page_back: [params | rest]}} = socket) do
+    previous = load(socket, params)
+
+    cond do
+      previous.assigns.page_params != params ->
+        {:noreply, previous}
+
+      previous.assigns.page["generation"] != socket.assigns.page["generation"] ->
+        {:noreply, assign(socket, error: %{"code" => "conflict"})}
+
+      true ->
+        {:noreply, assign(previous, page_back: rest)}
+    end
+  end
 
   def handle_event(_, _, socket), do: {:noreply, socket}
 
@@ -57,6 +89,7 @@ defmodule Wotex.Tracker.UI.AssociationSelectLive do
             <p class="identifier">{row["id"]}</p>
           </article>
         </div>
+        <button :if={@page_back != []} class="secondary" phx-click="previous">Previous page</button>
         <button :if={@page["cursor"]} class="secondary" phx-click="next">Next page</button>
       </section>
     </main>
@@ -68,20 +101,28 @@ defmodule Wotex.Tracker.UI.AssociationSelectLive do
       {:ok, %{"value" => asset}} ->
         case Auth.request(socket, :list, %{"resource" => "observations", "params" => params}) do
           {:ok, page} ->
-            assign(socket, asset: asset, page: page, error: nil)
+            assign(socket, asset: asset, page: page, page_params: params, error: nil)
 
           {:error, %{"code" => code} = error} when code in ~w(forbidden unauthorized not_found) ->
-            assign(socket, asset: nil, page: nil, error: error)
+            clear_page(socket, error)
 
           {:error, error} ->
             assign(socket, asset: asset, error: error)
         end
 
       {:error, %{"code" => code} = error} when code in ~w(forbidden unauthorized not_found) ->
-        assign(socket, asset: nil, page: nil, error: error)
+        clear_page(socket, error)
 
       {:error, error} ->
         assign(socket, error: error)
     end
   end
+
+  defp first_page(socket) do
+    first = load(socket, %{})
+    if first.assigns.page_params == %{}, do: assign(first, page_back: []), else: first
+  end
+
+  defp clear_page(socket, error),
+    do: assign(socket, asset: nil, page: nil, page_params: nil, page_back: [], error: error)
 end

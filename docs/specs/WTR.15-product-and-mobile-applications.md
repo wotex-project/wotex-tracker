@@ -14,7 +14,12 @@ as JSON after reauthorizing and matching its committed snapshot. This is a
 page export, not the required complete history, route or deletion workflow.
 Readers can move forward and revisit up to 32 earlier state-history pages;
 each move reloads that page under current read authority. Refresh starts again
-at the latest snapshot. Temporary failures keep the current page available.
+at the latest snapshot. Temporary failures keep the current page available;
+an earlier page from a changed snapshot requires refresh.
+The asset overview, setup and association observation lists likewise retain up
+to 32 earlier page requests, reloading each page under current authority. A
+failed refresh keeps the current page and its back path until a new first page
+loads. Returning to a page from a changed list snapshot requires refresh.
 These are required product deliverables and optional installations for consumers
 of the library. An incomplete backend or UI framework cannot waive a product gate.
 

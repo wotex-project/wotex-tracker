@@ -1872,4 +1872,17 @@ page requests. Forward and backward navigation each fetch the page again under
 current read authority; a temporary failure retains the displayed page and its
 navigation state, while a terminal denial clears both. Refresh begins a new
 history snapshot at the first page. A browser workflow test exercises a real
-26-version store history across the page boundary, failure and denial.
+26-version store history across the page boundary, failure and denial. If a
+fresh earlier page belongs to a newer snapshot, the displayed page remains in
+place with a conflict until refresh starts a new history traversal.
+
+### Returning through browser lists — 2026-09-16
+
+The shared asset, setup, association-picker and saved-dashboard lists now keep
+at most 32 prior page requests.
+Each return fetches fresh authorized rows and requires the original list
+generation; a changed snapshot leaves the current page visible with a conflict.
+Transient list failures preserve navigation, while terminal denial clears the
+rows and back path. A successful refresh starts a new first-page traversal.
+The browser tests cover 26 committed observations and saved dashboards, both
+directions, later commits, transient failures and denial.
