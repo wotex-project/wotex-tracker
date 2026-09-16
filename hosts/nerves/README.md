@@ -108,3 +108,31 @@ artifact when generated. Raspberry Pi OS containers can exercise ARM64 userland
 but cannot boot this Nerves firmware or validate its board/display path; the
 [Nerves ARM64 QEMU system](https://github.com/nerves-project/nerves_system_qemu_aarch64)
 is the closer virtual boot candidate.
+
+## Virtual ARM64 boot lane
+
+`MIX_TARGET=qemu_aarch64` builds a separate headless software-test image with
+`nerves_system_qemu_aarch64` 0.4.2 and `mix.qemu.lock`. It is not a Pi artifact.
+This profile alone creates an unpredictable, inaccessible test credential on its
+first boot under the private `/root/tracker` mount. The listener remains guest
+loopback-only. It probes the private SQLite file and `/health/live`, reporting
+only pass or fail to the serial console. The Pi profiles never compile this
+fixture or turn on a serial logger.
+
+```sh
+WOTEX_PATH_DEPS=1 MIX_TARGET=qemu_aarch64 MIX_ENV=dev \
+  mise exec elixir@1.20.4-otp-29 erlang@29.0.4 -- mix deps.get
+WOTEX_PATH_DEPS=1 MIX_TARGET=qemu_aarch64 MIX_ENV=dev \
+  mise exec elixir@1.20.4-otp-29 erlang@29.0.4 -- mix firmware
+WOTEX_PATH_DEPS=1 MIX_TARGET=qemu_aarch64 MIX_ENV=dev \
+  mise exec elixir@1.20.4-otp-29 erlang@29.0.4 -- mix nerves.gen.qemu
+```
+
+The last task creates the ignored `virtual-disk.img` and prints a QEMU command
+for the current host. Run it, wait for `QEMU boot probe passed`, stop QEMU, and
+run the same command again without regenerating the disk. The second boot must
+pass without formatting the application partition. `record_qemu_boot.exs`
+verifies both serial logs and writes
+`../../verification/nerves-qemu-boot.json`. On this macOS host, QEMU 11.1.1
+uses Hypervisor Framework acceleration. The Nerves virtual system is new and
+does not replace Pi 5 board, display, radio, power or storage-failure tests.

@@ -5,7 +5,9 @@
 Accepted target contract. A separate headless host and Pi 5 development
 cross-build now exist under `hosts/nerves/`. A separately locked kiosk source
 profile reuses the shared LiveView package and has local endpoint/store-isolation
-tests. Cross-build manifests are software evidence only. Neither image has
+tests. A separate ARM64 QEMU image exercises first boot, an existing data
+partition, private SQLite startup and loopback HTTP through Nerves. This is
+virtual software evidence only. Neither Pi image has
 booted on a Pi, and no device provisioning workflow, durable-storage policy or
 hardware acceptance exists yet. Bootable headless and local-display profiles
 remain required product deliverables and optional installations. They consume

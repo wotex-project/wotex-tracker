@@ -2,6 +2,7 @@ defmodule WotexTrackerNerves.MixProject do
   use Mix.Project
 
   @app :wotex_tracker_nerves
+  @device_targets [:rpi5, :qemu_aarch64]
 
   def project do
     [
@@ -12,9 +13,9 @@ defmodule WotexTrackerNerves.MixProject do
       start_permanent: Mix.env() == :prod,
       elixirc_paths: code_paths(),
       test_paths: if(ui?(), do: ["test", "ui_test"], else: ["test"]),
-      lockfile: if(ui?(), do: "mix.ui.lock", else: "mix.lock"),
-      build_path: if(ui?(), do: "_build/ui", else: "_build"),
-      deps_path: if(ui?(), do: "_build/ui_deps", else: "deps"),
+      lockfile: profile_path("mix.lock", "mix.ui.lock", "mix.qemu.lock"),
+      build_path: profile_path("_build", "_build/ui", "_build/qemu"),
+      deps_path: profile_path("deps", "_build/ui_deps", "_build/qemu_deps"),
       deps: deps(),
       releases: [{@app, release()}]
     ]
@@ -33,12 +34,12 @@ defmodule WotexTrackerNerves.MixProject do
     [
       service(),
       {:nerves, "~> 1.15", runtime: false},
-      {:nerves_runtime, "~> 0.13.13", targets: :rpi5},
-      {:shoehorn, "~> 0.9.1", targets: :rpi5},
-      {:ring_logger, "~> 0.11.0", targets: :rpi5},
-      {:vintage_net, "~> 0.13.12", targets: :rpi5},
-      {:vintage_net_ethernet, "~> 0.11.2", targets: :rpi5},
-      {:nerves_time, "~> 0.4.12", targets: :rpi5},
+      {:nerves_runtime, "~> 0.13.13", targets: @device_targets},
+      {:shoehorn, "~> 0.9.1", targets: @device_targets},
+      {:ring_logger, "~> 0.11.0", targets: @device_targets},
+      {:vintage_net, "~> 0.13.12", targets: @device_targets},
+      {:vintage_net_ethernet, "~> 0.11.2", targets: @device_targets},
+      {:nerves_time, "~> 0.4.12", targets: @device_targets},
       system()
     ] ++ ui_deps()
   end
@@ -51,18 +52,37 @@ defmodule WotexTrackerNerves.MixProject do
     end
   end
 
+  defp profile_path(headless, ui, qemu) do
+    cond do
+      Mix.target() == :qemu_aarch64 -> qemu
+      ui?() -> ui
+      true -> headless
+    end
+  end
+
   defp code_paths do
     case {ui?(), Mix.target()} do
       {true, :rpi5} -> ["lib", "ui", "target_ui"]
+      {false, :qemu_aarch64} -> ["lib", "qemu"]
       {true, _} -> ["lib", "ui"]
       _ -> ["lib"]
     end
   end
 
   defp system do
-    if ui?(),
-      do: {:kiosk_system_rpi5, "== 2.1.2", runtime: false, targets: :rpi5},
-      else: {:nerves_system_rpi5, "== 2.1.2", runtime: false, targets: :rpi5}
+    case {Mix.target(), ui?()} do
+      {:qemu_aarch64, true} ->
+        raise "The QEMU software test target is headless only"
+
+      {:qemu_aarch64, false} ->
+        {:nerves_system_qemu_aarch64, "== 0.4.2", runtime: false, targets: :qemu_aarch64}
+
+      {_, true} ->
+        {:kiosk_system_rpi5, "== 2.1.2", runtime: false, targets: :rpi5}
+
+      _ ->
+        {:nerves_system_rpi5, "== 2.1.2", runtime: false, targets: :rpi5}
+    end
   end
 
   defp ui_deps do
@@ -108,7 +128,7 @@ defmodule WotexTrackerNerves.MixProject do
       overwrite: true,
       include_erts: &Nerves.Release.erts/0,
       steps: [&Nerves.Release.init/1, :assemble],
-      strip_beams: Mix.env() == :prod or [keep: ["Docs"]]
+      strip_beams: Mix.env() == :prod or Mix.target() == :qemu_aarch64 or [keep: ["Docs"]]
     ]
   end
 end

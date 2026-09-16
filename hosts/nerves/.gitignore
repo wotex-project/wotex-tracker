@@ -3,4 +3,5 @@
 /doc/
 /tmp/
 /*.fw
+/virtual-disk.img
 erl_crash.dump
