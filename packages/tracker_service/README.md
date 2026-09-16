@@ -41,6 +41,16 @@ not remove an item. Exact send or layered acknowledgement completion is
 idempotent, and terminal cleanup is explicit. This privileged API is not exposed
 as an unauthenticated HTTP queue.
 
+The privileged `Store` port can also atomically persist validated
+`TransportDegradation` transitions. `RuleTransition` rechecks the pure result;
+the SQLite commit compares the prior state identity and records canonical state,
+state history, a stable event intent and its event at one scope generation.
+Exact retries are idempotent, stale writers conflict, and restart recovery reads
+the native JSON state back through the pure constructor. Replay event intents
+retain prohibited dispatch, while live event intents retain the need for separate
+authorization. Scheduling, notification delivery and public HTTP rule management
+remain outside this host port.
+
 `GET …/{resource}/{id}/history` returns ascending public versions, including
 explicit deletion records, with `limit` and encrypted `cursor` pagination.
 Pages stay at one committed generation and provide an event cursor for the same
@@ -86,7 +96,7 @@ and key paths. Explicit `:proxy` mode requires an HTTPS public origin and a
 protected proxy-to-listener network; forwarded headers never supply authority or
 Forms. No remote exposure is inferred.
 
-OpenAPI **3.1.0**, contract revision **1.3.0**, is packaged at
+OpenAPI **3.1.0**, contract revision **1.4.0**, is packaged at
 `priv/openapi/v1.json` and served at `/api/v1/openapi.json`. Liveness is
 `/health/live`; authenticated resources are under `/api/v1/scopes/{scope}`.
 Use `Authorization: Bearer …`, and a UUIDv4 `Idempotency-Key` for POST mutations.

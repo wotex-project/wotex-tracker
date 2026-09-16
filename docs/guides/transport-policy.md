@@ -37,10 +37,9 @@ application effect, device identity or authorization for a physical Action.
 
 The pure library owns only this deterministic decision. A host owns bounded
 queue admission, bytes/count/age limits, durable commit, retries and publication.
-Tracker's service package already provides its SQLite transaction and commit-
-outcome foundation, but it does not yet persist these policy decisions. Continuum
-delivery and degradation values may carry later snapshots; they do not replace
-Tracker's domain policy or provide a transport engine.
+Tracker's service package provides a bounded store-and-forward queue for selected
+payloads. Continuum delivery and degradation values may carry later snapshots;
+they do not replace Tracker's domain policy or provide a transport engine.
 
 ## Transport health
 
@@ -61,3 +60,13 @@ degraded-to-healthy changes emit content-identified `transport.degraded` and
 and historical decisions cannot replace the canonical decision. Live and replay
 produce the same state and event identities; replay prohibits physical Action
 dispatch, and live results still require separate authorization.
+
+The service package provides the first durable host integration for this rule.
+`RuleTransition` revalidates a changed pure result and binds its expected prior
+state identity. `Store.commit_rule/2` atomically advances canonical state and
+immutable state history and, when present, records the stable event intent plus
+the public event. Independent writers serialize through SQLite; exact retries
+return the committed generation and stale writers fail without a partial event.
+State and event-intent reads support restart recovery. This privileged API does
+not schedule policy evaluation, send a notification or authorize a physical
+Action.

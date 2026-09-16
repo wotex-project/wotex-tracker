@@ -44,6 +44,11 @@ defmodule Wotex.Tracker.TransportDegradationTest do
     assert degraded["event"]["to_candidate_id"] == "cellular"
     assert degraded["physical_action_dispatch"] == "separate_authorization_required"
 
+    assert {:ok, ^degraded} =
+             TransportDegradation.validate_transition(baseline["state"], degraded)
+
+    assert :ok = TransportDegradation.validate_event(degraded["event"])
+
     assert {:ok, recovery} =
              TransportDegradation.evaluate(
                degraded["state"],
@@ -57,6 +62,12 @@ defmodule Wotex.Tracker.TransportDegradationTest do
     assert recovery["event"]["kind"] == "transport.recovered"
     assert recovery["event"]["from_candidate_id"] == "cellular"
     assert recovery["event"]["to_candidate_id"] == "lorawan"
+
+    assert {:ok, document} = TransportDegradation.state_to_map(recovery["state"])
+    assert {:ok, restored} = TransportDegradation.state_from_map(document)
+    assert restored === recovery["state"]
+    assert {:ok, transport_document} = TransportPolicy.to_map(policy)
+    assert TransportPolicy.from_map(transport_document) == {:ok, policy}
   end
 
   test "no route degrades while uncertain acknowledgement remains unknown" do
@@ -286,6 +297,39 @@ defmodule Wotex.Tracker.TransportDegradationTest do
 
     assert {:error, _} =
              TransportDegradation.evaluate(nil, decision, policy, :invalid, 1_000)
+
+    assert {:ok, document} = TransportDegradation.state_to_map(state)
+
+    for changed <- [
+          Map.put(document, "status", "degraded"),
+          Map.put(document, "identity", "changed"),
+          put_in(document, ["policy", "identity"], "changed"),
+          put_in(document, ["policy", "transport_policy", "identity"], "changed"),
+          Map.put(document, "extra", true)
+        ] do
+      assert {:error, _} = TransportDegradation.state_from_map(changed)
+    end
+
+    {:ok, fallback} =
+      TransportDegradation.evaluate(
+        state,
+        decision(transport, "fallback-validation", 1_001,
+          lorawan: "false",
+          cellular: "true"
+        ),
+        policy,
+        :live,
+        1_001
+      )
+
+    assert {:error, _} =
+             TransportDegradation.validate_transition(
+               state,
+               put_in(fallback, ["event", "reason"], "changed")
+             )
+
+    assert {:error, _} =
+             TransportDegradation.validate_event(Map.put(fallback["event"], "extra", true))
   end
 
   property "healthy classification is invariant across candidate input order" do

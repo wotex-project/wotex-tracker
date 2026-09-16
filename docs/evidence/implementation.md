@@ -966,3 +966,40 @@ lanes. Exact archive and lock identities are in
 `verification/source-consumer.json`. Atomic policy-state/event persistence,
 Continuum conversion, notifications and actual transport effects remain host
 integration work.
+
+## WTR.06 atomic transport-health persistence — 2026-09-16
+
+Transport policy and degradation policy/state values now have closed native-JSON
+serialization that reconstructs through their public constructors and verifies
+every content identity. `RuleTransition` accepts only a changed pure transition,
+re-evaluates its state, event and effect, and binds the expected prior-state
+identity before it reaches storage.
+
+SQLite schema 3 adds one canonical state row per scoped rule and a deduplicated
+stable event-intent table. A single `BEGIN IMMEDIATE` commit compares the expected
+state identity, advances scope generation, appends immutable state history and,
+when present, records both event intent and public domain event. Exact retries
+return the committed generation. Stale writers and reused event identities with
+changed content fail without a partial write. Pre-commit failure rolls back;
+after-commit uncertainty is resolved by the same transition identity after
+restart. Schema 1 upgrades through schema 2, and direct schema-2 upgrades retain
+existing scopes and queue support.
+
+Both required root runtime lanes passed the complete gate with 1 doctest,
+18 properties and 147 tests, no failures and 95.7% production line coverage.
+Both service runtime lanes passed with 2 properties and 103 tests, no failures
+and 95.3% floor / 95.5% current production line coverage. Cases cover state and
+policy round trips, changed documents and events, competing writers, exact retry,
+stale expectation, stable event deduplication, live/replay action metadata,
+restart recovery, both migration paths, storage capacity and failures on both
+sides of commit. Compiler, formatter, strict Credo, Dialyzer, ExDoc, dependency
+audit, licences, OpenAPI validation, documentation contracts and archive
+inspection passed.
+
+The production service consumer commits a healthy baseline from installed
+archives, restarts SQLite, restores the state through the pure constructor, then
+atomically commits a replay degradation event and proves exact retry and
+prohibited physical dispatch. Exact archive and lock identities are recorded in
+`verification/service-consumer.json`. Evaluation scheduling, notification
+delivery, public rule management and equivalent persistence for other rule types
+remain separate work.

@@ -1,6 +1,15 @@
 # Production archive consumer: no repository source imports and no host packages.
 alias Wotex.Tracker.Service
 
+alias Wotex.Tracker.{
+  Evidence,
+  EvidenceBundle,
+  PolicyFact,
+  TransportCandidate,
+  TransportDegradation,
+  TransportPolicy
+}
+
 alias Wotex.Tracker.Service.{
   Codec,
   Credentials,
@@ -8,6 +17,7 @@ alias Wotex.Tracker.Service.{
   ForwardItem,
   Identifier,
   Projection,
+  RuleTransition,
   Store,
   Update
 }
@@ -122,7 +132,110 @@ store = Store.handle(pid)
 {:ok, result} = Store.mutate(store, update)
 "committed" = result["outcome"]
 {:ok, ^result} = Store.mutate(store, update)
-{:ok, %{"schema" => "2", "sqlite" => "3.53.4"}} = Store.readiness(store)
+{:ok, %{"schema" => "3", "sqlite" => "3.53.4"}} = Store.readiness(store)
+
+transport_fact = fn id, predicate, kind ->
+  {:ok, evidence} =
+    Evidence.new(%{
+      id: id,
+      kind: kind,
+      claim: %{
+        "schema" => "wtr.policy-fact.v1",
+        "predicate" => predicate,
+        "status" => "true",
+        "policy_revision" => "archive-facts-v1",
+        "reason" => "archive_fixture"
+      },
+      source_observation_ids: [observation.id],
+      evidence_ids: [],
+      profile: {"archive-transport", "1"},
+      decoder: {"archive-transport", "1"},
+      confidence: :exact,
+      reasons: ["archive_fixture"],
+      association_id: nil
+    })
+
+  {:ok, bundle} = EvidenceBundle.new([observation], [evidence])
+  {:ok, fact} = PolicyFact.new(evidence.id, bundle)
+  fact
+end
+
+{:ok, route} =
+  TransportCandidate.new(%{
+    id: "lorawan",
+    bearer: "lorawan-eu868",
+    application_protocol: "fixture-protocol",
+    capability:
+      transport_fact.(
+        "archive-route-capability",
+        TransportCandidate.capability_predicate("lorawan"),
+        :capability
+      ),
+    connectivity:
+      transport_fact.(
+        "archive-route-connectivity",
+        TransportCandidate.connectivity_predicate("lorawan"),
+        :transport
+      ),
+    cost_class: 10,
+    power_class: 10,
+    acknowledgement_layers: []
+  })
+
+{:ok, transport_policy} =
+  TransportPolicy.new(%{
+    id: "archive-transport",
+    revision: "archive-transport-v1",
+    fact_policy_revision: "archive-facts-v1",
+    ordinary_order: ["lorawan"],
+    critical_order: ["lorawan"],
+    maximum_fact_age_ms: 1_000,
+    future_skew_ms: 0,
+    ordinary_max_cost_class: 100,
+    critical_max_cost_class: 100,
+    ordinary_max_power_class: 100,
+    critical_max_power_class: 100,
+    ordinary_acknowledgement: :none,
+    critical_acknowledgement: :none,
+    ordinary_no_route: :store_and_retry,
+    critical_no_route: :unavailable
+  })
+
+transport_request = %{
+  id: "archive-route-request",
+  severity: :critical,
+  purpose: :event,
+  maximum_cost_class: 100,
+  maximum_power_class: 100,
+  acknowledgement: nil
+}
+
+{:ok, transport_health_policy} =
+  TransportDegradation.new(%{
+    id: "archive-transport-health",
+    revision: "archive-health-v1",
+    transport_policy: transport_policy,
+    healthy_candidate_ids: ["lorawan"],
+    maximum_decision_age_ms: 1_000,
+    future_skew_ms: 0
+  })
+
+{:ok, healthy_decision} =
+  TransportPolicy.select([route], transport_request, transport_policy, update.now)
+
+{:ok, healthy_result} =
+  TransportDegradation.evaluate(
+    nil,
+    healthy_decision,
+    transport_health_policy,
+    :live,
+    update.now
+  )
+
+{:ok, healthy_transition} = RuleTransition.new("archive-rules", nil, healthy_result)
+
+{:ok, %{"generation" => "1", "event_disposition" => "none"}} =
+  Store.commit_rule(store, healthy_transition)
 
 {:ok, forward_item} =
   ForwardItem.new(%{
@@ -142,6 +255,50 @@ GenServer.stop(pid)
 {:ok, pid} = Store.start_link(directory: directory, credentials: credentials)
 store = Store.handle(pid)
 {:ok, ^result} = Store.operation(store, "archive", "consumer", "import-1", update.now)
+
+{:ok, durable_health} =
+  Store.rule_state(
+    store,
+    "archive-rules",
+    "transport_degradation",
+    transport_health_policy.id
+  )
+
+{:ok, restored_health} = TransportDegradation.state_from_map(durable_health["state"])
+true = restored_health === healthy_result["state"]
+
+{:ok, unavailable_decision} =
+  TransportPolicy.select(
+    [],
+    %{transport_request | id: "archive-route-unavailable"},
+    transport_policy,
+    update.now + 1
+  )
+
+{:ok, degraded_result} =
+  TransportDegradation.evaluate(
+    restored_health,
+    unavailable_decision,
+    transport_health_policy,
+    :replay,
+    update.now + 1
+  )
+
+{:ok, degraded_transition} =
+  RuleTransition.new("archive-rules", restored_health, degraded_result)
+
+{:ok, %{"generation" => "2", "event_disposition" => "recorded"} = degraded_receipt} =
+  Store.commit_rule(store, degraded_transition)
+
+{:ok, %{"disposition" => "duplicate", "generation" => "2"}} =
+  Store.commit_rule(store, degraded_transition)
+
+{:ok,
+ %{
+   "event" => %{"kind" => "transport.degraded"},
+   "mode" => "replay",
+   "physical_action_dispatch" => "prohibited"
+ }} = Store.rule_event(store, "archive-rules", degraded_receipt["event_id"])
 
 {:ok, %{"status" => "pending"}} =
   Store.forward_status(store, "archive", forward_item.id)
@@ -474,5 +631,5 @@ retained = Process.list() |> MapSet.new() |> MapSet.difference(before_processes)
 0 = retained
 
 IO.puts(
-  "SERVICE_COHORT_PASS durable_restart=true durable_store_forward=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true explicit_association=true independent_http_sse=true actual_runtime_http_peer=true actual_runtime_sse=true retained_new_processes=#{retained}"
+  "SERVICE_COHORT_PASS durable_restart=true durable_store_forward=true atomic_transport_health=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true explicit_association=true independent_http_sse=true actual_runtime_http_peer=true actual_runtime_sse=true retained_new_processes=#{retained}"
 )

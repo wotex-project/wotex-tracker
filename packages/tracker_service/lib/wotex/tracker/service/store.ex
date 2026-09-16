@@ -22,6 +22,8 @@ defmodule Wotex.Tracker.Service.Store do
     Operation,
     Publication,
     Read,
+    RuleStore,
+    RuleTransition,
     Schema,
     SQL,
     StoreCall,
@@ -190,6 +192,30 @@ defmodule Wotex.Tracker.Service.Store do
   def cleanup_forward(store, scope, before) do
     if Codec.id?(scope) and Codec.time?(before),
       do: StoreCall.run(store, {:cleanup_forward, scope, before}),
+      else: {:error, :invalid_query}
+  end
+
+  @doc "Atomically advances validated rule state and records its stable event intent."
+  @spec commit_rule(t(), RuleTransition.t()) :: {:ok, map()} | {:error, atom()}
+  def commit_rule(store, transition) do
+    with {:ok, admitted} <- RuleTransition.validate(transition),
+         do: StoreCall.run(store, {:commit_rule, admitted})
+  end
+
+  @doc "Reads one canonical durable rule state through the privileged host port."
+  @spec rule_state(t(), String.t(), String.t(), String.t()) ::
+          {:ok, map()} | {:error, atom()}
+  def rule_state(store, scope, kind, rule_id) do
+    if Enum.all?([scope, kind, rule_id], &Codec.id?/1),
+      do: StoreCall.run(store, {:rule_state, scope, kind, rule_id}),
+      else: {:error, :invalid_query}
+  end
+
+  @doc "Reads one deduplicated durable rule event intent."
+  @spec rule_event(t(), String.t(), String.t()) :: {:ok, map()} | {:error, atom()}
+  def rule_event(store, scope, event_id) do
+    if Codec.id?(scope) and Codec.id?(event_id),
+      do: StoreCall.run(store, {:rule_event, scope, event_id}),
       else: {:error, :invalid_query}
   end
 
@@ -436,13 +462,22 @@ defmodule Wotex.Tracker.Service.Store do
   defp dispatch({:cleanup_forward, scope, before}, state),
     do: ForwardQueue.cleanup(state.db, scope, before, state.options)
 
+  defp dispatch({:commit_rule, transition}, state),
+    do: RuleStore.commit(state.db, transition, state.options)
+
+  defp dispatch({:rule_state, scope, kind, rule_id}, state),
+    do: RuleStore.status(state.db, scope, kind, rule_id)
+
+  defp dispatch({:rule_event, scope, event_id}, state),
+    do: RuleStore.event(state.db, scope, event_id)
+
   defp dispatch(:readiness, state) do
     SQL.execute!(state.db, "BEGIN IMMEDIATE")
 
     try do
       SQL.rows!(state.db, "INSERT OR IGNORE INTO scopes VALUES('__readiness__',0)")
       [[version]] = SQL.rows!(state.db, "SELECT sqlite_version()")
-      {:ok, %{"writable" => true, "schema" => "2", "sqlite" => version}}
+      {:ok, %{"writable" => true, "schema" => "3", "sqlite" => version}}
     after
       SQL.rollback(state.db)
     end

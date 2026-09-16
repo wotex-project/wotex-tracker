@@ -22,10 +22,12 @@ a quiet scope's last event predates retention. Subsequent events still obey
 retention. The HTTP layer must bind this pair, principal, scope and issue/expiry
 time in its authenticated cursor; raw storage tokens do not grant authority.
 
-Schema version 2 is created transactionally using `PRAGMA user_version`.
-Version 1 upgrades in the same startup transaction by adding the forward queue;
-its existing scopes, operations, observations, records, events and publications
-remain unchanged. Unknown newer schemas fail startup. Migrations may never silently reset data.
+Schema version 3 is created transactionally using `PRAGMA user_version`.
+Version 1 upgrades through the forward-queue schema and then the rule-state
+schema in the same startup transaction; version 2 adds only the rule-state
+tables. Existing scopes, operations, observations, records, events,
+publications and queue items remain unchanged. Unknown newer schemas fail
+startup. Migrations may never silently reset data.
 WAL, `synchronous=FULL`, foreign keys, a 1,000 ms busy timeout, 1,000-page
 auto-checkpoint and a 262,144-page database ceiling are mandatory. Page size is
 4,096 bytes. Checkpoint is an explicit administrative operation. Backup uses
@@ -88,6 +90,16 @@ claim. Completion requires a prior claim, the exact item digest and either
 declared layer. A lower/different layer does not satisfy it. Terminal receipts
 remain until explicit scoped cleanup; cleanup never removes pending items.
 
+The same privileged store accepts a revalidated transport-health transition.
+It compares the expected prior state identity inside `BEGIN IMMEDIATE`, then
+writes the canonical rule state, immutable state history, deduplicated event
+intent and public event at one scope generation. An exact retry returns the
+original generation. A stale prior identity or a reused event ID with different
+content conflicts without a partial write. Live event intents retain that a
+physical Action still needs separate authorization; replay event intents retain
+that dispatch is prohibited. The current port does not schedule evaluation,
+deliver notifications or expose rule mutation over HTTP.
+
 ## Finite budgets
 
 These are service ceilings, not radio protocol maxima. Operator configuration
@@ -107,6 +119,7 @@ may lower them. Enlarging them requires a new qualified contract.
 | SSE write / connection lifetime | 5,000 ms / 300,000 ms; reconnect with cursor |
 | Shutdown | 10,000 ms; unacknowledged mutations remain unknown |
 | Retained operations / records / events | 100,000 each per database; reject at capacity |
+| Canonical rule states / rule event intents | 100,000 each per database; reject at capacity |
 | Main database | 1 GiB; WAL/temp files require additional free space |
 | Operation / replay retention | 7 days; expiry explicit; fail closed at row capacity |
 | Forward item payload | 256 KiB native JSON before queue framing |
@@ -234,7 +247,7 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
-## HTTP and stream contract 1.3.0
+## HTTP and stream contract 1.4.0
 
 The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
 2020-12. The independently maintained generator and validator check the packaged

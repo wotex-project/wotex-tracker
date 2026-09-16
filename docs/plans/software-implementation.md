@@ -224,8 +224,11 @@ Transport degradation is implemented as pure state over content-validated
 transport decisions and a deployment-declared healthy candidate set. Fallback
 and no-route outcomes are distinct from pending, unknown and stale decisions;
 degradation, recovery and rule-edit events have stable identities. See the
-[transport policy guide](../guides/transport-policy.md). Atomic host persistence
-and notification remain subsequent work.
+[transport policy guide](../guides/transport-policy.md). The service now
+atomically persists this rule's canonical state, history and stable event intent
+with optimistic prior-state identity and restart recovery. Scheduling and
+notification delivery remain subsequent work, as does equivalent integration
+for the other rule types.
 
 Implement explicit time/freshness, quality selection, motion/trips/stops,
 geofence membership/transitions, heartbeat, suspicious movement, low-battery,

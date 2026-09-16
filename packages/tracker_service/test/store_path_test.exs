@@ -53,7 +53,7 @@ defmodule Wotex.Tracker.Service.StorePathTest do
     path = directory()
     {:ok, db_path} = StorePath.database(path)
     {:ok, db} = Sqlite3.open(db_path)
-    :ok = Sqlite3.execute(db, "PRAGMA user_version=3")
+    :ok = Sqlite3.execute(db, "PRAGMA user_version=4")
     Sqlite3.close(db)
     assert {:error, {:unsupported_schema, _}} = start_supervised({Store, directory: path})
     {:ok, db} = Sqlite3.open(db_path)

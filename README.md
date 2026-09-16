@@ -46,7 +46,9 @@ The separate service package implements a bounded SQLite store with atomic
 admission, historical snapshots, durable event/publication intents and recovery
 tests, bounded durable store-and-forward, authenticated HTTP/OpenAPI/SSE
 workflows, and Runtime Property reads and
-committed-value subscriptions through actual local HTTP binding peers. The
+committed-value subscriptions through actual local HTTP binding peers. Its
+privileged host port also atomically persists transport-health state and stable
+event intents with restart recovery and retry deduplication. The
 standalone CLI and bundled Darwin/Linux ARM64 service artifacts pass local probes.
 See the [service contract](docs/contracts/service-v1.md). Live scanning and UI
 remain subsequent work.
@@ -72,7 +74,8 @@ Evidence-qualified transport selection keeps bearer, application protocol,
 budgets and acknowledgement layers explicit; see the
 [transport policy guide](docs/guides/transport-policy.md). A pure transport
 health rule classifies declared primary routes, fallbacks, no-route outcomes and
-uncertain acknowledgements, with stable degradation and recovery events.
+uncertain acknowledgements, with stable degradation and recovery events. Its
+first SQLite host integration persists those transitions atomically.
 [Implementation evidence](docs/evidence/implementation.md) records
 executed software checks and unpassed release, host and hardware gates.
 

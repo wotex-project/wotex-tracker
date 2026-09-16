@@ -10,6 +10,9 @@ defmodule Wotex.Tracker.TransportDegradation do
   alias Wotex.Tracker.{Admission, Error, Limits, TransportPolicy}
 
   @fields ~w(id revision transport_policy healthy_candidate_ids maximum_decision_age_ms future_skew_ms)a
+  @state_fields ~w(schema policy decision status evaluated_at identity)
+  @policy_fields ~w(schema algorithm id revision transport_policy healthy_candidate_ids maximum_decision_age_ms future_skew_ms identity)
+  @event_fields ~w(schema id algorithm rule_id previous_policy_identity policy_identity kind reason from_status to_status from_decision_identity to_decision_identity event_at rule_revision from_candidate_id to_candidate_id evaluated_at)
   @type t :: %__MODULE__{}
   @enforce_keys @fields ++ [:identity]
   defstruct @enforce_keys
@@ -91,6 +94,90 @@ defmodule Wotex.Tracker.TransportDegradation do
   end
 
   def validate_state(_, _), do: Admission.fail(:invalid_input)
+
+  @doc "Projects a validated state to closed native JSON for durable host storage."
+  @spec state_to_map(term(), term()) :: {:ok, map()} | {:error, Error.t()}
+  def state_to_map(state, options \\ []) do
+    with {:ok, state} <- validate_state(state, options),
+         {:ok, transport_policy} <- TransportPolicy.to_map(state.policy.transport_policy, options) do
+      {:ok,
+       %{
+         "schema" => "wtr.transport-degradation-state.v1",
+         "policy" => policy_document(state.policy, transport_policy),
+         "decision" => state.decision,
+         "status" => state.status,
+         "evaluated_at" => state.evaluated_at,
+         "identity" => state.identity
+       }}
+    end
+  end
+
+  @doc "Restores and revalidates a state from closed native JSON."
+  @spec state_from_map(term(), term()) :: {:ok, State.t()} | {:error, Error.t()}
+  def state_from_map(document, options \\ []) do
+    with true <- exact_fields?(document, @state_fields),
+         true <- document["schema"] == "wtr.transport-degradation-state.v1",
+         {:ok, policy} <- policy_from_document(document["policy"], options),
+         {:ok, decision} <-
+           TransportPolicy.validate_decision(
+             document["decision"],
+             policy.transport_policy,
+             options
+           ),
+         true <- document["status"] in ~w(healthy degraded unknown),
+         true <- is_integer(document["evaluated_at"]),
+         {:ok, state} <-
+           state(policy, decision, document["status"], document["evaluated_at"], options),
+         true <- state.identity == document["identity"] do
+      {:ok, state}
+    else
+      false -> Admission.fail(:conflict)
+      error -> error
+    end
+  end
+
+  @doc "Re-evaluates a transition result and rejects changed state, event or effect fields."
+  @spec validate_transition(term(), term(), term()) :: {:ok, map()} | {:error, Error.t()}
+  def validate_transition(previous, result, options \\ []) do
+    with {:ok, previous} <- previous(previous, options),
+         true <- is_map(result) and not is_struct(result),
+         %State{} = next_state <- result["state"],
+         {:ok, next_state} <- validate_state(next_state, options),
+         {:ok, mode} <- mode_atom(result["mode"]),
+         {:ok, expected} <-
+           evaluate(
+             previous,
+             next_state.decision,
+             next_state.policy,
+             mode,
+             next_state.evaluated_at,
+             options
+           ),
+         true <-
+           Map.put(expected, "decision_outcome", result["decision_outcome"]) === result,
+         :ok <- validate_optional_event(result["event"], options) do
+      {:ok, result}
+    else
+      false -> Admission.fail(:conflict)
+      error -> error
+    end
+  end
+
+  @doc "Revalidates a stable transport degradation event and its content identity."
+  @spec validate_event(term(), term()) :: :ok | {:error, Error.t()}
+  def validate_event(event, options \\ []) do
+    with {:ok, limits} <- Limits.new(options),
+         true <- exact_fields?(event, @event_fields),
+         :ok <- Admission.object(event, limits),
+         true <- event_shape?(event, limits),
+         {:ok, identity} <- Admission.digest(event_key(event), Limits.json(limits)),
+         true <- identity == event["id"] do
+      :ok
+    else
+      false -> Admission.fail(:conflict)
+      error -> error
+    end
+  end
 
   @doc "Evaluates a decision or explicit time tick in live/replay mode."
   @spec evaluate(term(), term(), term(), term(), term(), term()) ::
@@ -344,6 +431,98 @@ defmodule Wotex.Tracker.TransportDegradation do
   end
 
   defp duration?(value), do: is_integer(value) and value in 0..604_800_000
+
+  defp policy_document(policy, transport_policy),
+    do: %{
+      "schema" => "wtr.transport-degradation-policy.v1",
+      "algorithm" => "declared-healthy-candidate-v1",
+      "id" => policy.id,
+      "revision" => policy.revision,
+      "transport_policy" => transport_policy,
+      "healthy_candidate_ids" => policy.healthy_candidate_ids,
+      "maximum_decision_age_ms" => policy.maximum_decision_age_ms,
+      "future_skew_ms" => policy.future_skew_ms,
+      "identity" => policy.identity
+    }
+
+  defp policy_from_document(document, options) do
+    with true <- exact_fields?(document, @policy_fields),
+         true <-
+           document["schema"] == "wtr.transport-degradation-policy.v1" and
+             document["algorithm"] == "declared-healthy-candidate-v1",
+         {:ok, transport_policy} <-
+           TransportPolicy.from_map(document["transport_policy"], options),
+         {:ok, policy} <-
+           new(
+             %{
+               id: document["id"],
+               revision: document["revision"],
+               transport_policy: transport_policy,
+               healthy_candidate_ids: document["healthy_candidate_ids"],
+               maximum_decision_age_ms: document["maximum_decision_age_ms"],
+               future_skew_ms: document["future_skew_ms"]
+             },
+             options
+           ),
+         true <- policy.identity == document["identity"] do
+      {:ok, policy}
+    else
+      false -> Admission.fail(:conflict)
+      error -> error
+    end
+  end
+
+  defp validate_optional_event(nil, _options), do: :ok
+  defp validate_optional_event(event, options), do: validate_event(event, options)
+
+  defp event_shape?(event, limits) do
+    ids =
+      ~w(id rule_id previous_policy_identity policy_identity reason from_decision_identity to_decision_identity rule_revision)
+
+    event["schema"] == "wtr.transport-degradation-event.v1" and
+      event["algorithm"] == "declared-healthy-candidate-v1" and
+      Admission.each(Enum.map(ids, &event[&1]), &Admission.id(&1, limits)) == :ok and
+      event_labels?(event) and
+      optional_id?(event["from_candidate_id"], limits) and
+      optional_id?(event["to_candidate_id"], limits) and event_times?(event)
+  end
+
+  defp event_labels?(event),
+    do:
+      event["kind"] in ~w(transport.degraded transport.recovered transport.recomputed) and
+        event["from_status"] in ~w(healthy degraded unknown) and
+        event["to_status"] in ~w(healthy degraded unknown)
+
+  defp event_times?(event),
+    do: is_integer(event["event_at"]) and is_integer(event["evaluated_at"])
+
+  defp event_key(event),
+    do: %{
+      "schema" => "wtr.transport-degradation-event-key.v1",
+      "algorithm" => event["algorithm"],
+      "rule_id" => event["rule_id"],
+      "previous_policy_identity" => event["previous_policy_identity"],
+      "policy_identity" => event["policy_identity"],
+      "kind" => event["kind"],
+      "reason" => event["reason"],
+      "from_status" => event["from_status"],
+      "to_status" => event["to_status"],
+      "from_decision_identity" => event["from_decision_identity"],
+      "to_decision_identity" => event["to_decision_identity"],
+      "event_at" => event["event_at"]
+    }
+
+  defp optional_id?(nil, _limits), do: true
+  defp optional_id?(value, limits), do: Admission.id(value, limits) == :ok
+
+  defp mode_atom("live"), do: {:ok, :live}
+  defp mode_atom("replay"), do: {:ok, :replay}
+  defp mode_atom(_), do: Admission.fail(:invalid_input)
+
+  defp exact_fields?(value, fields),
+    do:
+      is_map(value) and not is_struct(value) and
+        Enum.sort(Map.keys(value)) == Enum.sort(fields)
 
   defp policy_map(input, transport_policy),
     do: %{

@@ -15,6 +15,7 @@ defmodule Wotex.Tracker.TransportPolicy do
   @request_fields ~w(id severity purpose maximum_cost_class maximum_power_class acknowledgement)a
   @acknowledgement_fields ~w(delivery_id candidate_id layer status)a
   @decision_fields ~w(schema request_id severity purpose maximum_cost_class maximum_power_class required_acknowledgement acknowledgement selected qualified_count candidates policy_revision policy_identity evaluated_at status reason action decision_identity)
+  @serialized_policy_fields ~w(schema algorithm id revision fact_policy_revision ordinary_order critical_order maximum_fact_age_ms future_skew_ms ordinary_max_cost_class critical_max_cost_class ordinary_max_power_class critical_max_power_class ordinary_acknowledgement critical_acknowledgement ordinary_no_route critical_no_route identity)
   @type t :: %__MODULE__{}
   @enforce_keys @fields ++ [:identity]
   defstruct @enforce_keys
@@ -65,6 +66,58 @@ defmodule Wotex.Tracker.TransportPolicy do
   end
 
   def validate(_, _), do: Admission.fail(:invalid_input)
+
+  @doc "Projects a validated policy to its closed native-JSON representation."
+  @spec to_map(term(), term()) :: {:ok, map()} | {:error, Error.t()}
+  def to_map(policy, options \\ []) do
+    with {:ok, policy} <- validate(policy, options) do
+      {:ok, Map.put(policy_map(policy), "identity", policy.identity)}
+    end
+  end
+
+  @doc "Restores and revalidates a policy from its closed native-JSON representation."
+  @spec from_map(term(), term()) :: {:ok, t()} | {:error, Error.t()}
+  def from_map(document, options \\ []) do
+    with true <-
+           is_map(document) and not is_struct(document) and
+             Enum.sort(Map.keys(document)) == Enum.sort(@serialized_policy_fields),
+         true <-
+           document["schema"] == "wtr.transport-policy.v1" and
+             document["algorithm"] == "evidence-budget-ack-preference-v1",
+         {:ok, ordinary_acknowledgement} <-
+           acknowledgement_atom(document["ordinary_acknowledgement"]),
+         {:ok, critical_acknowledgement} <-
+           acknowledgement_atom(document["critical_acknowledgement"]),
+         {:ok, ordinary_no_route} <- no_route_atom(document["ordinary_no_route"]),
+         {:ok, critical_no_route} <- no_route_atom(document["critical_no_route"]),
+         {:ok, policy} <-
+           new(
+             %{
+               id: document["id"],
+               revision: document["revision"],
+               fact_policy_revision: document["fact_policy_revision"],
+               ordinary_order: document["ordinary_order"],
+               critical_order: document["critical_order"],
+               maximum_fact_age_ms: document["maximum_fact_age_ms"],
+               future_skew_ms: document["future_skew_ms"],
+               ordinary_max_cost_class: document["ordinary_max_cost_class"],
+               critical_max_cost_class: document["critical_max_cost_class"],
+               ordinary_max_power_class: document["ordinary_max_power_class"],
+               critical_max_power_class: document["critical_max_power_class"],
+               ordinary_acknowledgement: ordinary_acknowledgement,
+               critical_acknowledgement: critical_acknowledgement,
+               ordinary_no_route: ordinary_no_route,
+               critical_no_route: critical_no_route
+             },
+             options
+           ),
+         true <- policy.identity == document["identity"] do
+      {:ok, policy}
+    else
+      false -> Admission.fail(:conflict)
+      error -> error
+    end
+  end
 
   @doc "Revalidates a closed decision, its policy binding and content identity."
   @spec validate_decision(term(), term(), term()) :: {:ok, map()} | {:error, Error.t()}
@@ -621,6 +674,18 @@ defmodule Wotex.Tracker.TransportPolicy do
   defp decision_route_order(policy, "ordinary"), do: policy.ordinary_order
   defp decision_route_order(policy, "critical"), do: policy.critical_order
   defp decision_route_order(_policy, _severity), do: []
+
+  defp acknowledgement_atom("none"), do: {:ok, :none}
+  defp acknowledgement_atom("radio"), do: {:ok, :radio}
+  defp acknowledgement_atom("network"), do: {:ok, :network}
+  defp acknowledgement_atom("transport"), do: {:ok, :transport}
+  defp acknowledgement_atom("application"), do: {:ok, :application}
+  defp acknowledgement_atom("durable_admission"), do: {:ok, :durable_admission}
+  defp acknowledgement_atom(_), do: Admission.fail(:invalid_input)
+
+  defp no_route_atom("store_and_retry"), do: {:ok, :store_and_retry}
+  defp no_route_atom("unavailable"), do: {:ok, :unavailable}
+  defp no_route_atom(_), do: Admission.fail(:invalid_input)
 
   defp policy_budgets(policy, :ordinary),
     do: {policy.ordinary_max_cost_class, policy.ordinary_max_power_class}

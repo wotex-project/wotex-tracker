@@ -19,8 +19,13 @@ defmodule Wotex.Tracker.Service.Schema do
         [[1]] ->
           require_value!(SQL.rows!(db, "PRAGMA application_id"), [[1_465_143_857]])
           migrate(db, "1-to-2.sql")
+          migrate(db, "2-to-3.sql")
 
         [[2]] ->
+          require_value!(SQL.rows!(db, "PRAGMA application_id"), [[1_465_143_857]])
+          migrate(db, "2-to-3.sql")
+
+        [[3]] ->
           require_value!(SQL.rows!(db, "PRAGMA application_id"), [[1_465_143_857]])
 
         _ ->
@@ -44,7 +49,7 @@ defmodule Wotex.Tracker.Service.Schema do
 
     :wotex_tracker_service
     |> :code.priv_dir()
-    |> Path.join("schema/2.sql")
+    |> Path.join("schema/3.sql")
     |> File.read!()
     |> then(&SQL.execute!(db, &1))
   end
@@ -66,7 +71,11 @@ defmodule Wotex.Tracker.Service.Schema do
           {"events", "sequence,scope,generation,created_at,document"},
           {"publications", "scope,thing_id,generation,operation_id,document,status,cleanup"},
           {"forward_queue",
-           "scope,id,digest,document,size_bytes,admitted_at,expires_at,attempts,next_attempt_at,max_attempts,status,outcome,settled_at"}
+           "scope,id,digest,document,size_bytes,admitted_at,expires_at,attempts,next_attempt_at,max_attempts,status,outcome,settled_at"},
+          {"rule_states",
+           "scope,kind,rule_id,state_identity,document,generation,evaluated_at,transition_identity"},
+          {"rule_event_intents",
+           "scope,id,digest,kind,rule_id,generation,created_at,document,mode,action"}
         ] do
       SQL.rows!(db, "SELECT #{columns} FROM #{table} LIMIT 0")
     end
