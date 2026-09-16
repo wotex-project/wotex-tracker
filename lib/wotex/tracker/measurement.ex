@@ -40,10 +40,47 @@ defmodule Wotex.Tracker.Measurement do
     end
   end
 
+  @doc "Admits the exact string-keyed evidence claim produced by `to_map/2`."
+  @spec from_map(term(), term()) :: {:ok, t()} | {:error, Error.t()}
+  def from_map(map, options \\ []) do
+    expected = Enum.map(@fields, &Atom.to_string/1)
+
+    with true <-
+           is_map(map) and map_size(map) == length(expected) and
+             Enum.all?(expected, &Map.has_key?(map, &1)),
+         {:ok, availability} <- availability(map["availability"]),
+         {:ok, quality} <- quality(map["quality"]) do
+      new(
+        %{
+          kind: map["kind"],
+          value: map["value"],
+          unit: map["unit"],
+          availability: availability,
+          quality: quality,
+          raw: map["raw"],
+          reason: map["reason"]
+        },
+        options
+      )
+    else
+      false -> Admission.fail(:invalid_decoder_result)
+      error -> error
+    end
+  end
+
   defp availability?(%{availability: :unavailable, quality: :unavailable, value: nil}), do: true
 
   defp availability?(%{availability: :available, quality: quality, value: value}),
     do: quality in [:valid, :suspect] and (is_number(value) or is_boolean(value))
 
   defp availability?(_), do: false
+
+  defp availability("available"), do: {:ok, :available}
+  defp availability("unavailable"), do: {:ok, :unavailable}
+  defp availability(_), do: Admission.fail(:invalid_decoder_result)
+
+  defp quality("valid"), do: {:ok, :valid}
+  defp quality("suspect"), do: {:ok, :suspect}
+  defp quality("unavailable"), do: {:ok, :unavailable}
+  defp quality(_), do: Admission.fail(:invalid_decoder_result)
 end

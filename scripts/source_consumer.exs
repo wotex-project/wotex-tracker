@@ -49,6 +49,43 @@ before_processes = MapSet.new(Process.list())
     {RuuviRawV2.revision(), &RuuviRawV2.decode/1}
   )
 
+battery_evidence =
+  Enum.find(Map.values(imported.decoded.bundle.evidence), fn evidence ->
+    evidence.kind == :measurement and evidence.claim["kind"] == "batteryVoltage"
+  end)
+
+{:ok, battery_sample} =
+  Wotex.Tracker.MeasurementSample.new(battery_evidence.id, imported.decoded.bundle)
+
+{:ok, battery_policy} =
+  Wotex.Tracker.BatteryTransition.new(%{
+    id: "archive-battery",
+    revision: "archive-battery-v1",
+    measurement_kind: "batteryVoltage",
+    unit: "V",
+    low_threshold: 3.0,
+    clear_threshold: 3.1,
+    maximum_age_ms: 1_000,
+    future_skew_ms: 0,
+    accept_suspect: false
+  })
+
+{:ok,
+ %{
+   "status" => "baseline",
+   "battery_status" => "low",
+   "value" => 2.977,
+   "unit" => "V",
+   "event" => nil
+ }} =
+  Wotex.Tracker.BatteryTransition.evaluate(
+    nil,
+    battery_sample,
+    battery_policy,
+    :replay,
+    observation.observed_at
+  )
+
 {:ok, heartbeat_policy} =
   Wotex.Tracker.HeartbeatTransition.new(%{
     id: "archive-heartbeat",
@@ -457,5 +494,5 @@ true = archive_distance["center_distance_m"] > 0
 true = MapSet.subset?(MapSet.new(Process.list()), before_processes)
 
 IO.puts(
-  "SOURCE_COHORT_PASS Elixir=#{System.version()} OTP=#{System.otp_release()} properties=10 position_freshness=true position_selection=true position_order=true movement=true motion_transition=true trip_distance=true heartbeat=true geofence=true geofence_transition=true geofence_crossing=true no_new_processes=true optional_hosts_absent=true"
+  "SOURCE_COHORT_PASS Elixir=#{System.version()} OTP=#{System.otp_release()} properties=10 position_freshness=true position_selection=true position_order=true movement=true motion_transition=true trip_distance=true heartbeat=true battery=true geofence=true geofence_transition=true geofence_crossing=true no_new_processes=true optional_hosts_absent=true"
 )

@@ -784,3 +784,38 @@ The final six fresh, locked and minimum archive consumers execute a replay
 deadline transition on both runtime lanes and record exact identities in
 `verification/source-consumer.json`. Host monotonic scheduling and atomic state/
 event-intent persistence remain separate work.
+
+## WTR.05 evidence-backed low-battery state — 2026-09-16
+
+`MeasurementSample` now revalidates a measurement evidence record and its closed
+bundle, reconstructs the exact native `Measurement` claim and selects the latest
+named receiver observation by a deterministic total order. Its identity binds the
+evidence, bundle, receiver capture and receiver time. The generic measurement map
+import is closed and rejects unknown enum strings or fields.
+
+The pure `BatteryTransition` policy names the exact measurement kind and unit,
+distinct low and clear thresholds, maximum age, future skew and suspect-quality
+treatment. Equality is included at each threshold. The band between thresholds
+retains established normal/low state and is unknown without a baseline.
+Unavailable, stale, excessive-future and rejected suspect measurements remain
+reasoned unknown results. Voltage is never converted into battery percentage.
+
+Initial evaluation establishes a baseline. A transition to low emits
+`battery.low`; low-to-normal emits `battery.recovered`. Aging a low sample to stale
+changes state to unknown without inventing recovery. Historical and duplicate
+samples cannot replace the canonical sample, same-ID changed evidence conflicts,
+and rule edits emit `battery.recomputed`. Live/replay state and event identities
+match; replay prohibits physical Action dispatch.
+
+Both required runtime lanes passed the complete root gate with 1 doctest,
+15 properties and 127 tests, no failures and 96.7% production line coverage.
+Cases include both threshold equalities, hysteresis, initial low/unknown baselines,
+availability, quality, freshness/future skew, clock regression, history,
+duplicates/conflicts, rule revision, multi-source receiver ordering, claim/state
+mutation and generated numeric classifications. Strict analysis, documentation,
+dependency, license and archive checks passed.
+
+The final six archive consumers select the Ruuvi voltage evidence and evaluate an
+explicit voltage policy on both supported runtime lanes; exact identities are in
+`verification/source-consumer.json`. Hardware-specific thresholds, persistent
+state/event intent and any physical notification remain deployment concerns.

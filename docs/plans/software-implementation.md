@@ -208,6 +208,12 @@ recomputation and stable live/replay events. See the
 [heartbeat guide](../guides/heartbeat.md). Host deadline scheduling and atomic
 persistence remain subsequent work.
 
+Low-battery state is implemented over content-bound measurement samples with
+explicit kind/unit scope, freshness, future skew, suspect-quality policy and
+separate low/clear thresholds. It never derives percentage from voltage. See the
+[battery guide](../guides/battery.md). Host transaction integration remains
+subsequent work.
+
 Implement explicit time/freshness, quality selection, motion/trips/stops,
 geofence membership/transitions, heartbeat, suspicious movement, low-battery,
 late-data handling, deduplication and transport-policy values under WTR.05/06.

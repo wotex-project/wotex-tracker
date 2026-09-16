@@ -62,6 +62,8 @@ transactional rule persistence remains subsequent work. Bounded trip-distance
 reconstruction includes only adjacent segments proved moving and reports every
 exclusion. Evidence-backed heartbeat state and overdue/recovery events are also
 implemented; see the [heartbeat guide](docs/guides/heartbeat.md).
+Evidence-backed low-battery state uses explicit measurement kind, unit, freshness,
+quality and hysteresis; see the [battery guide](docs/guides/battery.md).
 [Implementation evidence](docs/evidence/implementation.md) records
 executed software checks and unpassed release, host and hardware gates.
 
