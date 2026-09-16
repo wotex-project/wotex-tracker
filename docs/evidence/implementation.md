@@ -1927,4 +1927,14 @@ high-water mark. A transient read failure keeps the prior page with an error;
 revocation, expired cursors and malformed pages clear it. The route is disabled
 for generic UI consumers and absent from headless host artifacts. UI workflow
 and real loopback-browser tests cover paging, filter, failure, denial and
-non-disclosure of credentials. Operational graphing remains open.
+non-disclosure of credentials. Time-windowed operational graphing remains open.
+
+### Discrete operational sample plot — 2026-09-16
+
+The browser operational page can plot one closed telemetry measurement from
+its current 25-sample page. Its scatter marks follow collector record order
+and are never joined or spaced as an elapsed-time series. The exact table and
+UTC timestamps remain visible. The selected measurement is checked against
+the documented event contracts; missing values yield an explicit empty plot.
+Pure projection and LiveView tests cover sparse, constant, absent and switched
+measurements. A larger time-windowed operational view remains open.

@@ -548,16 +548,32 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert html =~ "Operational history"
     assert html =~ "query.stop"
     assert html =~ "duration_us: 123"
+    assert has_element?(view, "circle.chart-point")
+    refute has_element?(view, "path.chart-line")
     assert has_element?(view, "button", "Next page")
+
+    view
+    |> form("#operational-metric", metric: %{name: "scanned_rows"})
+    |> render_change()
+
+    assert has_element?(view, "#metric-name option[value='scanned_rows'][selected]")
+    assert has_element?(view, "circle.chart-point")
 
     Agent.update(c.faults, &Map.put(&1, :operational_history, {:page, second}))
     view |> element("button", "Next page") |> render_click()
     assert render(view) =~ "render.stop"
+    assert render(view) =~ "No retained values for this measurement on this page"
+    refute has_element?(view, "circle.chart-point")
     assert has_element?(view, "button", "Previous page")
 
     Agent.update(c.faults, &Map.put(&1, :operational_history, {:page, first}))
     view |> element("button", "Previous page") |> render_click()
     assert render(view) =~ "query.stop"
+    assert has_element?(view, "circle.chart-point")
+
+    render_hook(view, "metric", %{"metric" => %{"name" => "invented"}})
+    assert has_element?(view, "[role=alert]")
+    assert has_element?(view, "circle.chart-point")
 
     Agent.update(c.faults, &Map.put(&1, :operational_history, :unavailable))
     view |> element("button", "Refresh") |> render_click()

@@ -3,9 +3,10 @@ defmodule Wotex.Tracker.UI.OperationalLive do
   use Phoenix.LiveView, log: false
   import Wotex.Tracker.UI.Components
   alias Wotex.Tracker.Service.OperationalTelemetry
-  alias Wotex.Tracker.UI.{Auth, Presenter}
+  alias Wotex.Tracker.UI.{Auth, OperationalChart, Presenter}
 
-  @events OperationalTelemetry.contracts() |> Enum.map(& &1.name)
+  @contracts OperationalTelemetry.contracts()
+  @events Enum.map(@contracts, & &1.name)
   @back_limit 32
 
   @impl true
@@ -15,6 +16,9 @@ defmodule Wotex.Tracker.UI.OperationalLive do
        enabled: socket.endpoint.config(:tracker_ui)[:operational_history] == true,
        events: @events,
        event: nil,
+       metric: nil,
+       metric_choices: [],
+       chart: nil,
        page: nil,
        page_request: nil,
        page_back: [],
@@ -41,6 +45,26 @@ defmodule Wotex.Tracker.UI.OperationalLive do
 
   def handle_event("filter", _, socket),
     do: {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
+
+  def handle_event("metric", %{"metric" => %{"name" => name}}, socket) do
+    choices = socket.assigns.metric_choices
+
+    cond do
+      not socket.assigns.identity["can_manage_queries"] ->
+        {:noreply, load(socket, socket.assigns.page_request)}
+
+      socket.assigns.page && Enum.any?(choices, fn {key, _} -> key == name end) ->
+        {:noreply,
+         assign(socket,
+           metric: name,
+           chart: OperationalChart.project(socket.assigns.page, name),
+           error: nil
+         )}
+
+      true ->
+        {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
+    end
+  end
 
   def handle_event("next", _, %{assigns: %{page: %{"cursor" => cursor}}} = socket)
       when is_map(cursor) do
@@ -104,6 +128,42 @@ defmodule Wotex.Tracker.UI.OperationalLive do
           · captured {Presenter.timestamp(%{"value" => @page["captured_at"]})}.
           Page ends at sequence {@page["through"]}; later samples require Refresh.
         </p>
+        <div :if={@page}>
+          <.form for={%{}} id="operational-metric" phx-change="metric">
+            <label for="metric-name">Plot measurement</label>
+            <select id="metric-name" name="metric[name]">
+              <option :for={{name, unit} <- @metric_choices} value={name} selected={name == @metric}>
+                {name} ({unit})
+              </option>
+            </select>
+          </.form>
+          <figure :if={@chart} class="history-chart">
+            <svg
+              viewBox="0 0 1000 300"
+              role="img"
+              aria-label={"Discrete #{@metric} samples on this operational page; exact values follow in the table"}
+            >
+              <line x1="56" y1="260" x2="944" y2="260" class="chart-axis" />
+              <circle
+                :for={point <- @chart.points}
+                cx={point.x}
+                cy={point.y}
+                r="5"
+                class="chart-point"
+              >
+                <title>
+                  {point.event} · {Presenter.timestamp(%{"value" => point.observed_at})} · {point.value}
+                </title>
+              </circle>
+            </svg>
+            <figcaption>
+              {@metric} ranges from {@chart.minimum} to {@chart.maximum} on this page.
+              Marks follow record order, not elapsed-time spacing. No values are inferred between samples.
+              Use the table for exact values and times.
+            </figcaption>
+          </figure>
+          <p :if={is_nil(@chart)}>No retained values for this measurement on this page.</p>
+        </div>
         <p :if={@page && @page["samples"] == []}>No retained samples on this page.</p>
         <div :if={@page && @page["samples"] != []} class="table-scroll">
           <table>
@@ -147,19 +207,31 @@ defmodule Wotex.Tracker.UI.OperationalLive do
   end
 
   defp load(%{assigns: %{enabled: false}} = socket, _),
-    do: assign(socket, page: nil, page_request: nil, error: %{"code" => "unsupported"})
+    do:
+      assign(socket, page: nil, chart: nil, page_request: nil, error: %{"code" => "unsupported"})
 
   defp load(%{assigns: %{identity: %{"can_manage_queries" => false}}} = socket, _),
-    do: assign(socket, page: nil, page_request: nil, error: %{"code" => "forbidden"})
+    do: assign(socket, page: nil, chart: nil, page_request: nil, error: %{"code" => "forbidden"})
 
   defp load(socket, request) do
     case Auth.request(socket, :operational_history, request) do
       {:ok, page} ->
         if valid_page?(page) do
-          assign(socket, page: page, page_request: request, error: nil)
+          choices = metric_choices(socket.assigns.event)
+          metric = choose_metric(socket.assigns.metric, choices, page)
+
+          assign(socket,
+            page: page,
+            page_request: request,
+            metric_choices: choices,
+            metric: metric,
+            chart: OperationalChart.project(page, metric),
+            error: nil
+          )
         else
           assign(socket,
             page: nil,
+            chart: nil,
             page_request: nil,
             page_back: [],
             error: %{"code" => "storage_unavailable"}
@@ -168,7 +240,7 @@ defmodule Wotex.Tracker.UI.OperationalLive do
 
       {:error, %{"code" => code} = error}
       when code in ~w(forbidden unauthorized invalid_cursor cursor_expired) ->
-        assign(socket, page: nil, page_request: nil, page_back: [], error: error)
+        assign(socket, page: nil, chart: nil, page_request: nil, page_back: [], error: error)
 
       {:error, error} ->
         assign(socket, error: error)
@@ -203,4 +275,28 @@ defmodule Wotex.Tracker.UI.OperationalLive do
 
   defp same_snapshot?(left, right),
     do: left["epoch"] == right["epoch"] and left["through"] == right["through"]
+
+  defp metric_choices(event) do
+    @contracts
+    |> Enum.filter(&(is_nil(event) or &1.name == event))
+    |> Enum.flat_map(fn contract ->
+      Enum.map(contract.measurements, fn {name, unit} ->
+        {Atom.to_string(name), Atom.to_string(unit)}
+      end)
+    end)
+    |> Enum.uniq()
+    |> Enum.sort()
+  end
+
+  defp choose_metric(current, choices, page) do
+    names = Enum.map(choices, &elem(&1, 0))
+
+    if current in names do
+      current
+    else
+      Enum.find(names, fn name ->
+        Enum.any?(page["samples"], &is_integer(&1["measurements"][name]))
+      end) || hd(names)
+    end
+  end
 end
