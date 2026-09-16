@@ -11,6 +11,9 @@ defmodule Wotex.Tracker.UI.TestClient do
       :unavailable ->
         {:error, %{"code" => "storage_unavailable"}}
 
+      {:deny, code} when code in ~w(forbidden unauthorized) ->
+        {:error, %{"code" => code}}
+
       :lost_reply ->
         {:ok, _} = Local.request(provider, token, scope, action, args, now)
         {:ok, %{"outcome" => "unknown", "operation_id" => args["operation"]}}

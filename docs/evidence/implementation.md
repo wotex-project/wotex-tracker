@@ -1820,3 +1820,16 @@ and does not rerun the service query or edit the saved definition. The selected
 control exposes its state through `aria-pressed`. A LiveView test switches each
 view, checks that the result identity remains visible, rejects an unrecognized
 view and confirms that the stored visualization is unchanged.
+
+### Asset overview summaries — 2026-09-16
+
+The browser overview now reads the current authorized state for each asset on
+its bounded enrollment page and shows retained observation time, typed
+measurement values, units, availability and quality. It distinguishes an asset
+without committed state from a temporary state-read failure and warns when the
+readings came from an earlier associated observation. The cards say that device
+connectivity is unknown; their separately fetched values are not presented as
+one shared snapshot. A denied read clears the whole page instead of retaining
+older card contents. LiveView tests cover provisioning, refresh, failed reads,
+denial and reader access. Position, map, protection and physical surface
+workflows remain open.

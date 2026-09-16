@@ -11,6 +11,9 @@ retained measurements, resource history and per-asset measurement graphs with
 an exact table. Unsupported positioning and Actions are identified honestly.
 The asset page reads declared scalar Properties from the authorized committed
 service snapshot, with no physical-device freshness claim.
+Asset cards now read each latest committed state separately. They show retained
+measurement values and provenance, distinguish unprovisioned from temporarily
+unavailable summaries, and make no live-connectivity claim.
 Readers can list retained saved definitions and rerun them under current
 authorization. An administrator can save a displayed query with a fixed or
 rolling window, edit or delete it, and combine compatible saved series into a

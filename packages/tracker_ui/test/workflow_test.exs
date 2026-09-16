@@ -78,6 +78,81 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert state["value"]["measurements"] != []
   end
 
+  test "asset overview distinguishes unprovisioned, retained and unavailable readings", c do
+    {thing, _} = enrolled(c)
+    {:ok, view, _} = live(c.conn, "/")
+    assert has_element?(view, ".card", "No committed measurements yet")
+    refute render(view) =~ "24.3"
+
+    {:ok, _} =
+      Service.materialize(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"thing_id" => thing, "expected_generation" => "2"},
+        c.now
+      )
+
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, ".card .summary-values li", "Temperature: 24.3 °C")
+    assert render(view) =~ "current device connectivity is unknown"
+    assert render(view) =~ "Last recorded"
+
+    Agent.update(c.faults, &Map.put(&1, :get, :unavailable))
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, ".card [role=status]", "Measurement summary unavailable")
+    refute render(view) =~ "24.3"
+
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, ".card .summary-values li", "Temperature: 24.3 °C")
+
+    Agent.update(c.faults, &Map.put(&1, :get, {:deny, "forbidden"}))
+    view |> element("button", "Refresh") |> render_click()
+    refute has_element?(view, ".card")
+    assert has_element?(view, "[role=alert]")
+
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, ".card .summary-values li", "Temperature: 24.3 °C")
+
+    {:ok, current} = Service.list(c.service, c.admin, c.scope, "observations", %{}, c.now)
+
+    {:ok, imported} =
+      Service.submit(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        import_request(%{id: "later-overview", observed_at: c.now + 1}, current["generation"]),
+        c.now
+      )
+
+    {:ok, current} = Service.list(c.service, c.admin, c.scope, "enrollments", %{}, c.now)
+
+    {:ok, _} =
+      Service.associate(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{
+          "thing_id" => thing,
+          "observation_id" => imported["data"]["observation_id"],
+          "owner_confirmed" => true,
+          "expected_generation" => current["generation"]
+        },
+        c.now
+      )
+
+    view |> element("button", "Refresh") |> render_click()
+    assert render(view) =~ "prior associated observation"
+
+    {:ok, %{"id" => reader}} = Sessions.login(c.sessions, c.reader, c.scope)
+    conn = build_conn() |> init_test_session(%{"browser_session" => reader})
+    {:ok, reader_view, _} = live(conn, "/")
+    assert has_element?(reader_view, ".card .summary-values li", "Temperature: 24.3 °C")
+  end
+
   test "a reader sees only declared Property controls and a committed read result", c do
     {thing, _} = enrolled(c)
 

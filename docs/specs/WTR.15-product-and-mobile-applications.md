@@ -6,6 +6,9 @@ Accepted target contract. A partial shared browser workflow exists; no complete
 application, mobile build or device acceptance exists.
 The asset page can read declared scalar Properties from the authorized committed
 service snapshot and discloses that the read does not contact the device.
+The browser overview now reads each asset's latest authorized committed state
+separately, showing retained measurements and their provenance or an explicit
+unprovisioned/unavailable state. It does not claim live connectivity.
 These are required product deliverables and optional installations for consumers
 of the library. An incomplete backend or UI framework cannot waive a product gate.
 

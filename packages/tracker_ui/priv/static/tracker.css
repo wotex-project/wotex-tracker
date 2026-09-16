@@ -94,6 +94,8 @@ h3 { text-transform: capitalize; font-size: .9rem; font-weight: 650; margin: 0; 
 .panel { margin: 1.5rem 0; }
 .card h2 { margin: .5rem 0; }
 .card .eyebrow { margin: 0; }
+.summary-values { padding-left: 1.2rem; margin: .6rem 0; font-size: .9rem; }
+.summary-values li + li { margin-top: .3rem; }
 .reading { font-size: 2rem; line-height: 1.3; margin: .6rem 0; }
 .reading span { font-size: 1rem; }
 .muted { font-size: .88rem; color: var(--muted); }

@@ -9,7 +9,7 @@ defmodule Wotex.Tracker.UI.BrowseLive do
   def mount(_, _, socket) do
     {:ok,
      socket
-     |> assign(page: nil, operation: nil, outcome: nil, error: nil)
+     |> assign(page: nil, summaries: %{}, operation: nil, outcome: nil, error: nil)
      |> allow_upload(:observation, accept: ~w(.json), max_entries: 1, max_file_size: 262_144)}
   end
 
@@ -27,6 +27,7 @@ defmodule Wotex.Tracker.UI.BrowseLive do
          operation: nil,
          outcome: nil,
          page: nil,
+         summaries: %{},
          error: %{"code" => "invalid_request"}
        )}
     end
@@ -159,6 +160,9 @@ defmodule Wotex.Tracker.UI.BrowseLive do
           </p>
           <a :if={@live_action == :assets} class="button" href="/setup">Open setup</a>
         </div>
+        <p :if={@live_action == :assets && @page["items"] != []} class="muted">
+          Each asset summary is a separate authorized read. Refresh to check the latest committed readings.
+        </p>
         <div class="cards">
           <article :for={row <- @page["items"]} class="card">
             <p class="eyebrow">
@@ -178,6 +182,11 @@ defmodule Wotex.Tracker.UI.BrowseLive do
             <p :if={@live_action == :assets} class="muted">
               Ownership confirmed · open for measurements and provisioning
             </p>
+            <.asset_summary
+              :if={@live_action == :assets}
+              summary={Map.fetch!(@summaries, row["id"])}
+              enrollment={row["value"]}
+            />
           </article>
         </div>
         <button :if={@page["cursor"]} class="secondary" phx-click="next">Next page</button>
@@ -190,9 +199,71 @@ defmodule Wotex.Tracker.UI.BrowseLive do
     resource = if socket.assigns.live_action == :assets, do: "enrollments", else: "observations"
 
     case Auth.request(socket, :list, %{"resource" => resource, "params" => params}) do
-      {:ok, page} -> assign(socket, page: page)
-      {:error, error} -> assign(socket, error: error)
+      {:ok, page} ->
+        case summaries(socket, page) do
+          {:ok, summaries} -> assign(socket, page: page, summaries: summaries)
+          {:error, error} -> assign(socket, page: nil, summaries: %{}, error: error)
+        end
+
+      {:error, error} ->
+        assign(socket, error: error)
     end
+  end
+
+  defp summaries(%{assigns: %{live_action: :assets}} = socket, %{"items" => rows}) do
+    Enum.reduce_while(rows, {:ok, %{}}, fn row, {:ok, summaries} ->
+      summary =
+        case Auth.request(socket, :get, %{"resource" => "state", "id" => row["id"]}) do
+          {:ok, %{"value" => state}} ->
+            %{status: :recorded, state: state}
+
+          {:error, %{"code" => "not_found"}} ->
+            %{status: :unprovisioned, state: nil}
+
+          {:error, %{"code" => code} = error} when code in ~w(forbidden unauthorized) ->
+            {:error, error}
+
+          _ ->
+            %{status: :unavailable, state: nil}
+        end
+
+      case summary do
+        {:error, error} -> {:halt, {:error, error}}
+        value -> {:cont, {:ok, Map.put(summaries, row["id"], value)}}
+      end
+    end)
+  end
+
+  defp summaries(_, _), do: {:ok, %{}}
+
+  attr(:summary, :map, required: true)
+  attr(:enrollment, :map, required: true)
+
+  defp asset_summary(assigns) do
+    ~H"""
+    <div class="asset-summary">
+      <p :if={@summary.status == :unprovisioned}>
+        No committed measurements yet. Provision this asset to inspect its readings.
+      </p>
+      <p :if={@summary.status == :unavailable} role="status">
+        Measurement summary unavailable. Refresh or open the asset for details.
+      </p>
+      <div :if={@summary.status == :recorded}>
+        <p>Last recorded {Presenter.timestamp(@summary.state["observed_at"])}.</p>
+        <p :if={@summary.state["observation_id"] != @enrollment["observation_id"]}>
+          These readings came from the prior associated observation. Update the Thing to publish the new source.
+        </p>
+        <ul class="summary-values">
+          <li :for={measurement <- @summary.state["measurements"]}>
+            {Presenter.label(measurement["kind"])}: {Presenter.scalar(measurement["value"])} {Presenter.unit(
+              measurement["unit"]
+            )} · {measurement["availability"]}, {measurement["quality"]}
+          </li>
+        </ul>
+        <p class="muted">Retained readings; current device connectivity is unknown.</p>
+      </div>
+    </div>
+    """
   end
 
   defp capture(socket) do
