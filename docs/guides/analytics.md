@@ -57,6 +57,15 @@ browser route requires the same `read` grant as the service query. Line, area an
 point views project the returned points to SVG without introducing new values;
 each run of adjacent observed buckets has its own path. The table gives exact
 values and event times, and buttons shift or zoom the absolute UTC window.
+When a host explicitly installs a prompt adapter, the same page also accepts a
+bounded natural-language question. The adapter receives only that question,
+the currently permitted measurement names and units, the closed query choices
+and current UTC time. It receives no asset identifier, reading, service bearer
+or evidence. It may return a clarification or a proposed set of form fields;
+extra fields, invented measurements and invalid choices are rejected. A proposal
+still goes through the ordinary `QuerySpec` constructor and authorized service
+query. The displayed explanation and selected fields let the reader inspect the
+interpretation. Without an adapter, the structured query remains available.
 The quality selector admits valid readings, suspect readings, or both. Invalid
 readings remain excluded. The selected quality set is part of the closed query
 identity and persists with a saved dashboard; an unrecognized selection is

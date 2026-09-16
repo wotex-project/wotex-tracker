@@ -49,6 +49,11 @@ The browser can export the currently displayed closed query result as JSON with
 its source snapshot, result identity, bounds, units, exclusions and gap policy.
 Export rechecks current read authority and the exact result identity; saved
 dashboard export also verifies its definition is still accessible and unchanged.
+The shared browser has an optional bounded question-to-form boundary. It sends
+only the question, permitted measurement names and units, closed choices and
+UTC time to a configured host adapter; it rejects invented fields and reruns
+the normal authorized service query. Host provider wiring, bounded transport
+and a real public-provider acceptance run remain open.
 Model execution is explicitly configured and can be disabled; deterministic
 tracking and structured analytics MUST remain useful without AI or any external
 observability service.

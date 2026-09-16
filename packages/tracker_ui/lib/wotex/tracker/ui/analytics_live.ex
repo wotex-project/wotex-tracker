@@ -4,7 +4,7 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
   import Wotex.Tracker.UI.Components
   alias Wotex.Tracker.QuerySpec
   alias Wotex.Tracker.Service.Identifier
-  alias Wotex.Tracker.UI.{Auth, Chart, Presenter, QueryExport, QueryWindow}
+  alias Wotex.Tracker.UI.{Auth, Chart, Presenter, Prompt, QueryExport, QueryWindow}
 
   @buckets %{"hour" => 3_600_000, "six_hours" => 21_600_000, "day" => 86_400_000}
   @aggregations %{
@@ -37,6 +37,11 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
        save_title: nil,
        save_outcome: nil,
        save_error: nil,
+       prompt_enabled: Prompt.configured?(socket),
+       prompt_question: "",
+       prompt_explanation: nil,
+       prompt_clarification: nil,
+       prompt_error: nil,
        error: nil
      )}
   end
@@ -61,7 +66,39 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
 
   def handle_event("run", %{"query" => input}, %{assigns: %{state: %{}, asset: %{}}} = socket)
       when is_map(input) do
-    {:noreply, run_query(socket, input)}
+    {:noreply,
+     socket |> assign(prompt_explanation: nil, prompt_clarification: nil) |> run_query(input)}
+  end
+
+  def handle_event("ask", %{"prompt" => %{"question" => question}}, socket)
+      when is_binary(question) do
+    socket =
+      assign(socket,
+        prompt_question: question,
+        prompt_error: nil,
+        prompt_clarification: nil,
+        prompt_explanation: nil
+      )
+
+    if socket.assigns.asset && socket.assigns.measurements != [] do
+      case Prompt.propose(
+             socket,
+             question,
+             socket.assigns.measurements,
+             System.system_time(:millisecond)
+           ) do
+        {:query, input, explanation} ->
+          {:noreply, prompt_query(socket, input, explanation)}
+
+        {:clarify, clarification} ->
+          {:noreply, assign(socket, prompt_clarification: clarification)}
+
+        {:error, error} ->
+          {:noreply, assign(socket, prompt_error: error)}
+      end
+    else
+      {:noreply, socket}
+    end
   end
 
   def handle_event("navigate", %{"direction" => direction}, %{assigns: %{result: %{}}} = socket) do
@@ -195,6 +232,27 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
       <p :if={@state && @measurements == []} class="notice">
         This retained state has no numeric measurement available for a structured query.
       </p>
+      <section :if={@asset && @measurements != [] && @prompt_enabled} class="panel">
+        <h2>Ask for a graph</h2>
+        <p>
+          The configured provider receives your question, measurement names and units, and current UTC time. It does not receive readings or your service credential. Review the interpreted query below.
+        </p>
+        <.form for={%{}} id="analytics-prompt" phx-submit="ask">
+          <label for="prompt-question">Question</label>
+          <input
+            id="prompt-question"
+            name="prompt[question]"
+            type="text"
+            value={@prompt_question}
+            maxlength="512"
+            required
+          />
+          <button type="submit" phx-disable-with="Interpreting…">Ask</button>
+        </.form>
+        <.notice error={@prompt_error} />
+        <p :if={@prompt_clarification} role="status">{@prompt_clarification}</p>
+        <p :if={@prompt_explanation} role="status">{@prompt_explanation}</p>
+      </section>
       <section :if={@asset && @measurements != []} class="panel">
         <h2>Choose a query</h2>
         <p>
@@ -538,6 +596,20 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
     else
       {:error, %{"code" => _} = error} -> assign(socket, error: error)
       _ -> assign(socket, error: %{"code" => "invalid_request"})
+    end
+  end
+
+  defp prompt_query(socket, input, explanation) do
+    case document(socket, input) do
+      {:ok, _} ->
+        socket = run_query(socket, input)
+
+        if socket.assigns.result,
+          do: assign(socket, prompt_explanation: explanation),
+          else: socket
+
+      _ ->
+        assign(socket, prompt_error: %{"code" => "prompt_invalid"})
     end
   end
 

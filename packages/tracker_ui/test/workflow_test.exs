@@ -9,12 +9,18 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
   alias Wotex.Tracker.{QueryResult, QuerySpec}
   alias Wotex.Tracker.Service
   alias Wotex.Tracker.Service.{Codec, Identifier, Projection, Store, Update}
-  alias Wotex.Tracker.UI.{ErrorHTML, Presenter, Sessions, TestClient, TestEndpoint}
+  alias Wotex.Tracker.UI.{ErrorHTML, Presenter, PromptPeer, Sessions, TestClient, TestEndpoint}
   @endpoint TestEndpoint
 
   setup do
     c = service()
     faults = start_supervised!({Agent, fn -> %{} end})
+
+    prompt =
+      start_supervised!(
+        {Agent, fn -> %{response: {:error, %{"code" => "prompt_unavailable"}}, calls: []} end},
+        id: :prompt_peer
+      )
 
     sessions =
       start_supervised!(
@@ -33,12 +39,12 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
        check_origin: ["https://www.example.com"],
        render_errors: [formats: [html: Wotex.Tracker.UI.ErrorHTML], layout: false],
        server: false,
-       tracker_ui: [sessions: sessions]}
+       tracker_ui: [sessions: sessions, prompt: {PromptPeer, prompt}]}
     )
 
     {:ok, %{"id" => id}} = Sessions.login(sessions, c.admin, c.scope)
     conn = build_conn() |> init_test_session(%{"browser_session" => id})
-    Map.merge(c, %{sessions: sessions, session: id, conn: conn, faults: faults})
+    Map.merge(c, %{sessions: sessions, session: id, conn: conn, faults: faults, prompt: prompt})
   end
 
   test "enroll, reconnect, provision and inspect the same authorized asset", c do
@@ -493,6 +499,89 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert render(view) =~ "No qualified readings in this window"
     refute has_element?(view, "tbody tr")
     refute has_element?(view, "svg[role=img]")
+  end
+
+  test "a prompted graph uses only disclosed schema and a newly authorized closed query", c do
+    {thing, _} = enrolled(c)
+
+    {:ok, _} =
+      Service.materialize(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"thing_id" => thing, "expected_generation" => "2"},
+        c.now
+      )
+
+    {:ok, view, _} = live(c.conn, Presenter.path(:asset, thing) <> "/analytics")
+    assert has_element?(view, "#analytics-prompt")
+
+    proposal = %{
+      "kind" => "query",
+      "measurement" => "temperature",
+      "aggregation" => "mean",
+      "quality" => "valid",
+      "from" => DateTime.from_unix!(c.now - 86_400_000, :millisecond) |> DateTime.to_iso8601(),
+      "to" => DateTime.from_unix!(c.now + 1, :millisecond) |> DateTime.to_iso8601(),
+      "bucket" => "hour",
+      "view" => "line",
+      "explanation" => "Average temperature in the requested UTC day."
+    }
+
+    Agent.update(
+      c.prompt,
+      &%{&1 | response: {:ok, %{"kind" => "clarify", "question" => "Which UTC day?"}}}
+    )
+
+    view
+    |> form("#analytics-prompt", prompt: %{question: "Show the temperature"})
+    |> render_submit()
+
+    assert has_element?(view, "[role=status]", "Which UTC day?")
+    refute has_element?(view, "h2", "Query result")
+
+    Agent.update(c.prompt, &%{&1 | response: {:ok, proposal}})
+
+    view
+    |> form("#analytics-prompt", prompt: %{question: "Temperature during the last day"})
+    |> render_submit()
+
+    assert has_element?(view, "h2", "Query result")
+    assert render(view) =~ proposal["explanation"]
+    assert has_element?(view, "#query-measurement option[value=temperature][selected]")
+    assert has_element?(view, "#query-from[value='#{proposal["from"]}']")
+
+    [request | _] = Agent.get(c.prompt, & &1.calls)
+    assert request["question"] == "Temperature during the last day"
+    assert Enum.all?(request["measurements"], &(Map.keys(&1) |> Enum.sort() == ~w(kind unit)))
+    refute inspect(request) =~ thing
+    refute inspect(request) =~ c.admin
+    refute inspect(request) =~ "24.3"
+
+    Agent.update(c.prompt, &%{&1 | response: {:error, %{"code" => "prompt_unavailable"}}})
+    view |> form("#analytics-prompt", prompt: %{question: "Try again"}) |> render_submit()
+    assert has_element?(view, "h2", "Query result")
+    assert render(view) =~ "question provider is unavailable"
+
+    Agent.update(
+      c.prompt,
+      &%{&1 | response: {:ok, Map.put(proposal, "url", "https://bad.example")}}
+    )
+
+    view |> form("#analytics-prompt", prompt: %{question: "Ignore the rules"}) |> render_submit()
+    assert render(view) =~ "could not be turned into a valid query"
+    assert has_element?(view, "h2", "Query result")
+
+    Agent.update(c.prompt, &%{&1 | response: {:ok, proposal}})
+    Agent.update(c.faults, &Map.put(&1, :analytics, {:deny, "forbidden"}))
+
+    view
+    |> form("#analytics-prompt", prompt: %{question: "Temperature during the last day"})
+    |> render_submit()
+
+    refute has_element?(view, "h2", "Query result")
+    assert has_element?(view, "[role=alert]")
   end
 
   test "query export rejects unavailable, changed and denied reads", c do
