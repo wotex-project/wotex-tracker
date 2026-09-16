@@ -39,7 +39,8 @@ those descriptions are not executable dependencies.
 The separate-process Elixir HTTP client preserves wire/OpenAPI independence
 from service domain code. An independent Rust client now also exercises the
 implemented observation, enrollment, materialisation, Property, history,
-operation-receipt, analytics query, SSE-resume and revocation flow against both
-bundled releases. Full cross-language product acceptance still requires the
-remaining policies and authorized interactions as those surfaces are implemented. Neither
-client adds a scripting runtime to the release or verification image.
+operation-receipt, analytics query, SSE-resume, API version and idempotency
+rejection, and active-stream revocation flow against both bundled releases.
+Full cross-language product acceptance still requires the remaining policies and
+authorized interactions as those surfaces are implemented. Neither client adds
+a scripting runtime to the release or verification image.

@@ -90,8 +90,8 @@
   ],
   "host": {
     "darwin-arm64": {
-      "archive_sha256": "61777966ab1d26d9258d740b53aeaebec384690db013ca5586e545c6723b9844",
-      "native_client_sha256": "7bc2f2725492706bcafa43a8bc0470011125fbe92a51ce7cb23ea912ce23d7cf",
+      "archive_sha256": "9d53347bdd79976974e42c6babcb3577075d0cf91e7ee50360f491d8dfb6b8e8",
+      "native_client_sha256": "b896e10250dc2a0981fb8657eb1a3fc02e42a6b567d8256f6b7558e1ad3e7e1e",
       "native_compiler": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
       "platform": "aarch64-apple-darwin",
       "result": {
@@ -107,7 +107,7 @@
         "restart_and_idempotency": "pass",
         "retained_revocation": "pass",
         "runtime_licenses": "pass",
-        "shutdown_seconds": 1.082,
+        "shutdown_seconds": 1.084,
         "sigkill_recovery": "pass",
         "sigterm_active_stream": "pass",
         "sqlite_full_rollback": "pass"
@@ -115,10 +115,10 @@
       "source_sha256": "782b8b94c74206bc3c7c968c195b59601e6a71f00c6654a0522ad7a4000b82b8"
     },
     "linux-arm64": {
-      "archive_sha256": "e335713be075f687c4d09e374f8b558f61735410708cd4cec00a5dd7685a44bc",
+      "archive_sha256": "c8f630d9aba0ae742e8bef23548bcf1d6a1fabac1cfbc3261b6d47e700a75529",
       "base_builder": "hexpm/elixir@sha256:473f77ee88977dc8cc5d05fb91080a308be86be3fc27d50aef9a837d07c8268b",
       "base_runtime": "debian@sha256:88200866dfff7ea7f5cbcb6ec7c8a701889efe6fe859fe64d6990e4b07ea4171",
-      "builder_image_id": "sha256:2937672025dadcd95267347bd7c6eba3b979bc8b23bb43355e0e8da328accfd0",
+      "builder_image_id": "sha256:45062fa3fed125f9d1f2cfc720f8a90b311e492baa7c54fe56e106b89412d69a",
       "builder_packages": [
         "gcc\t4:12.2.0-3",
         "libc6:arm64\t2.36-9+deb12u14",
@@ -126,10 +126,10 @@
         "make\t4.3-4.1"
       ],
       "compiler": "gcc (Debian 12.2.0-14+deb12u1) 12.2.0",
-      "image_id": "sha256:aded61f103c735ddefae1f7cb55f6e2df671114e1c9523d942890142e5b41e6e",
+      "image_id": "sha256:4b046cefb8eaed6266ba88ecc518f062d9cb3ab78732eb660559550a3eae9d6d",
       "image_tag": "wotex-tracker:0.1.0-linux-arm64-local",
       "native_builder": "rust@sha256:2775a09d208ff0d7c1f50490c45b62db929e87ba1dcbc3f2132ac71a704bcdd3",
-      "native_client_sha256": "51da5876d2d991db21f4df16248cebb4a1c0f78f6bd32e6ebd98f7db84fa7c1a",
+      "native_client_sha256": "a88ccf016416df277220b9b4e64da1a59ea2558fccb465bc68a9f2879ff19e22",
       "native_compiler": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
       "result": {
         "cli_property_resume": "pass",
@@ -144,7 +144,7 @@
         "restart_and_idempotency": "pass",
         "retained_revocation": "pass",
         "runtime_licenses": "pass",
-        "shutdown_seconds": 1.073,
+        "shutdown_seconds": 1.07,
         "sigkill_recovery": "pass",
         "sigterm_active_stream": "pass",
         "sqlite_full_rollback": "pass"

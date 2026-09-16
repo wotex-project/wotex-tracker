@@ -1480,12 +1480,15 @@ language findings and migration targets are recorded in the
 
 A Rust client now starts from a private descriptor and uses only raw loopback
 HTTP, SSE and JSON. It imports no Tracker modules. It checks the served OpenAPI
-version and public route, unauthorized and reader-denied requests, idempotent
-observation admission and receipt lookup, native integer/float/zero/false/null
-raw fidelity, enrollment, materialisation, a Property read, Thing history,
+version and public route, rejection of an unsupported API version, unauthorized
+and reader-denied requests, idempotent observation admission, conflict rejection
+for a reused key with a different body, and receipt lookup. It preserves native
+integer/float/zero/false/null raw values and checks enrollment, materialisation,
+a Property read, Thing history,
 a known-answer structured analytics query with a separately computed content
 identity, forged-identity rejection, three retained events, explicit cursor
-resume and reader revocation.
+resume and reader revocation. It also holds an already-ready SSE connection open
+while the reader is revoked and verifies that the server closes it.
 
 The clean artifact harness compiles this client for Darwin ARM64 with a local
 Rust toolchain and for Linux ARM64 in a digest-pinned Rust 1.97.1 slim builder.

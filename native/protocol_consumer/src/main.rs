@@ -56,6 +56,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         200,
     )?;
     assert_eq!(initial["data"]["generation"], "0");
+    client.call(
+        "GET",
+        &format!("/api/v9/scopes/{scope}/state"),
+        Some(reader),
+        None,
+        None,
+        404,
+    )?;
     let cursor = initial["data"]["stream_cursor"]
         .as_str()
         .ok_or("missing cursor")?;
@@ -107,6 +115,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         )?,
         imported
     );
+    let conflicting_import = json!({"observation": observation, "expected_generation": "1"});
+    let conflict = client.call(
+        "POST",
+        &import_path,
+        None,
+        Some(&conflicting_import),
+        Some(import_key),
+        409,
+    )?;
+    assert_eq!(conflict["error"]["outcome"], "not_committed");
     assert_eq!(
         client.call(
             "GET",
@@ -252,6 +270,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         1,
     )?;
     assert_eq!(resumed[0]["id"], "3");
+    let mut active = client.open_ready_stream(
+        &format!("{prefix}/events/stream"),
+        reader,
+        events[2]["cursor"].as_str().ok_or("missing final cursor")?,
+    )?;
 
     let revoked = client.call(
         "POST",
@@ -262,6 +285,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         200,
     )?;
     assert_eq!(revoked["data"]["generation"], "4");
+    let mut trailing = [0u8; 4096];
+    let mut remaining: usize = 65_536;
+    loop {
+        let size = active.read(&mut trailing)?;
+        if size == 0 {
+            break;
+        }
+        remaining = remaining
+            .checked_sub(size)
+            .ok_or("revoked stream did not close")?;
+    }
     assert_eq!(
         client.call(
             "GET",
@@ -274,7 +308,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "unauthorized"
     );
 
-    println!("NATIVE_PROTOCOL_PASS openapi=true enrollment=true observation=true native_types=true property=true history=true analytics=true sse_resume=true revocation=true");
+    println!("NATIVE_PROTOCOL_PASS openapi=true version_rejection=true enrollment=true observation=true idempotency_conflict=true native_types=true property=true history=true analytics=true sse_resume=true active_stream_revocation=true");
     Ok(())
 }
 
@@ -450,6 +484,39 @@ impl Client<'_> {
                 }
             }
         }
+    }
+
+    fn open_ready_stream(
+        &self,
+        path: &str,
+        credential: &str,
+        cursor: &str,
+    ) -> Result<TcpStream, Box<dyn std::error::Error>> {
+        let mut stream = self.connect()?;
+        self.send(
+            &mut stream,
+            "GET",
+            path,
+            Some(credential),
+            None,
+            None,
+            Some(("Last-Event-ID", cursor)),
+        )?;
+        let mut bytes = Vec::new();
+        let mut chunk = [0u8; 4096];
+
+        while !bytes.windows(12).any(|part| part == b"event: ready") {
+            let size = stream.read(&mut chunk)?;
+            if size == 0 || bytes.len() + size > 32_768 {
+                return Err("active stream did not become ready".into());
+            }
+            bytes.extend_from_slice(&chunk[..size]);
+        }
+
+        if !bytes.starts_with(b"HTTP/1.1 200 ") {
+            return Err("active stream returned an unexpected status".into());
+        }
+        Ok(stream)
     }
 }
 
