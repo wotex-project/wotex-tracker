@@ -3,7 +3,7 @@ defmodule Wotex.Tracker.Service.AnalyticsCall do
 
   alias Exqlite.Sqlite3
   alias Wotex.Tracker.QuerySpec
-  alias Wotex.Tracker.Service.{Access, Analytics, Authority, SQL}
+  alias Wotex.Tracker.Service.{Access, Analytics, Authority, OperationalTelemetry, SQL}
 
   @global_limit 8
   @principal_limit 2
@@ -11,26 +11,32 @@ defmodule Wotex.Tracker.Service.AnalyticsCall do
   @rate_window_ms 1_000
 
   def run(config, %Access{} = access, %QuerySpec{} = spec, now) do
-    if valid?(config) do
-      deadline = System.monotonic_time(:millisecond) + config.timeout
-      recipient = Process.alias()
-      caller = self()
-      control = :atomics.new(1, [])
+    started = System.monotonic_time()
 
-      {worker, monitor} =
-        spawn_monitor(fn ->
-          worker(caller, recipient, control, config, access, spec, now, deadline)
-        end)
+    result =
+      if valid?(config) do
+        deadline = System.monotonic_time(:millisecond) + config.timeout
+        recipient = Process.alias()
+        caller = self()
+        control = :atomics.new(1, [])
 
-      try do
-        await(worker, monitor, recipient, control, nil, deadline)
-      after
-        Process.unalias(recipient)
-        Process.demonitor(monitor, [:flush])
+        {worker, monitor} =
+          spawn_monitor(fn ->
+            worker(caller, recipient, control, config, access, spec, now, deadline)
+          end)
+
+        try do
+          await(worker, monitor, recipient, control, nil, deadline)
+        after
+          Process.unalias(recipient)
+          Process.demonitor(monitor, [:flush])
+        end
+      else
+        {:error, :invalid_query}
       end
-    else
-      {:error, :invalid_query}
-    end
+
+    OperationalTelemetry.query(spec.aggregation, result, started)
+    result
   end
 
   def run(_, _, _, _), do: {:error, :invalid_query}

@@ -58,8 +58,18 @@ and sixteen starts per principal per second. Each accepted query uses its own
 read-only SQLite connection. Caller loss, store shutdown or the configured
 five-second deadline cancels the connection through its busy and progress
 handlers and releases the reservation. Query pagination, rolling windows, named
-display timezones, prompt translation, operational telemetry and graph rendering
-remain required by the analytics target contract.
+display timezones, prompt translation and graph rendering remain required by the
+analytics target contract.
+
+The service emits closed `request.stop` and `query.stop` telemetry with
+microsecond durations, scanned-row counts and bounded operation/outcome/
+aggregation metadata. An explicitly started `OperationalHistory` collector
+retains volatile ETS samples under a unique restart epoch. The default HTTP host
+supervises that collector and host code reads it through
+`Server.operational_history/2`. Package loading remains inert, and collector
+failure cannot affect a committed observation or rule decision. Operational
+events for ingestion stages, queues, publications, reconnects and native
+resources remain required before the full instrumentation contract is complete.
 
 `Service.save_query/6` and `POST …/saved_queries` persist an admitted absolute
 query with closed visualization options, private ownership and a public owner

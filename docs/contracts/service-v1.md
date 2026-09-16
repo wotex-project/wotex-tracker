@@ -388,9 +388,21 @@ until the worker exits, then releases its reservation. Analytics connections are
 separate from the serialized writer connection and open the already admitted
 private database read-only.
 
-This revision does not page query input, save a query, translate prompts, emit
-operational analytics telemetry or render graphs. Those limits remain visible
-product work rather than implied endpoint behavior.
+This revision does not page query input, translate prompts or render graphs.
+Saved absolute-window queries are part of this contract. Rolling query
+resolution and the remaining operational event families remain visible product
+work rather than implied endpoint behavior.
+
+The HTTP host supervises one volatile `OperationalHistory` collector by default.
+It records the closed `request.stop` and `query.stop` events documented by
+`OperationalTelemetry.contracts/0`, with integer microsecond durations, query
+row counts and bounded operation/outcome/aggregation metadata. No raw scope,
+principal, record, position, prompt or payload becomes a metric label. Host code
+can read a coherent retained snapshot through `Server.operational_history/2`;
+the snapshot carries a restart epoch, expires samples after 15 minutes and is
+bounded to 2,048 entries unless the host chooses smaller or explicitly admitted
+finite limits. This is an in-process host contract, not an HTTP operation or a
+durable history promise. Loading the package attaches no telemetry handler.
 
 ## Runtime Property read contract
 

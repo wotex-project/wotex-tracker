@@ -112,6 +112,25 @@ definition grants no data access and does not call a model. Pagination, rolling
 windows, named display timezones, prompting, operational telemetry and graph
 rendering remain later contracts.
 
+## Bounded operational history
+
+`OperationalTelemetry.contracts/0` documents the closed
+`[:wotex, :tracker, :service, …]` request/query event names, integer microsecond
+durations, row counts and allowed metadata atoms. Labels contain only operation,
+outcome and aggregation categories; they never contain scope, principal, record
+ID, position, prompt or payload values. The service depends directly on
+`:telemetry`, but package loading attaches no handler.
+
+`OperationalHistory` is an explicitly started collector backed by owner-held
+ETS. It retains at most 2,048 samples for 15 minutes by default (configurable up
+to 10,000 samples and 24 hours), returns coherent snapshots with an epoch and
+clears everything on restart. Invalid external events are ignored. Collector
+loss cannot change durable tracking or alarm decisions. The explicit HTTP
+`Server` supervises one collector by default and exposes it to host code through
+`Server.operational_history/2`; no metrics server or exporter is required.
+Ingestion/decoder, queue, publication, reconnect and native-resource event
+coverage remains to be added to this vocabulary.
+
 ## Explicit HTTP instance
 
 The package includes a caller-started Bandit/Plug listener. It has no application

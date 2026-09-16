@@ -1270,3 +1270,29 @@ exercising them. The production service archive consumer saves, replays, reads,
 executes and histories a definition through the installed facade. The remaining
 analytics work is query pagination, rolling windows, named display timezones,
 operational telemetry, prompt translation and interactive graph/dashboard UI.
+
+### Bounded local operational history — 2026-09-16
+
+The service now emits closed `request.stop` and `query.stop` telemetry with
+integer microsecond durations, query row counts and bounded operation, outcome
+and aggregation categories. The vocabulary excludes scope, principal, record,
+position, prompt and payload values. Loading the package attaches no handler and
+starts no process.
+
+An explicitly supervised `OperationalHistory` owner attaches only those events
+and stores valid samples in protected ETS. It retains at most 2,048 samples for
+15 minutes by default, admits only finite configured bounds, exposes coherent
+snapshots under a unique collector epoch and clears history on restart. The
+default explicit HTTP host owns one collector and exposes it only to host code;
+no metrics server or exporter is required. Invalid external telemetry and a
+failed host clock are ignored or reported unavailable without affecting durable
+tracking or alarm decisions.
+
+Both service runtime lanes passed the complete gate with 2 properties and 135
+tests, no failures and 95.1% floor / 95.2% current production line coverage.
+Compiler, formatter, strict Credo, Dialyzer, ExDoc, dependency audit, licences,
+generated/packaged OpenAPI 1.7.0 equality and 61-member archive inspection
+passed. Tests cover the exact vocabulary, capacity and expiry boundaries,
+malformed events, filtered snapshots, restart epochs and real HTTP request
+capture. Ingestion, decoding, admission, queue, publication, reconnect and
+native-resource events remain required instrumentation work.

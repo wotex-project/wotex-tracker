@@ -3,7 +3,7 @@ defmodule Wotex.Tracker.Service.HTTP.Config do
   alias Wotex.Tracker.Service.Credentials
 
   @required ~w(directory credentials ip port public_origin exposure)a
-  @optional ~w(tls clock request_timeout stream_lifetime poll_interval store_options)a
+  @optional ~w(tls clock request_timeout stream_lifetime poll_interval store_options operational_history)a
 
   def new(options) when is_list(options) do
     if Keyword.keyword?(options) and length(options) == map_size(Map.new(options)),
@@ -22,7 +22,8 @@ defmodule Wotex.Tracker.Service.HTTP.Config do
           request_timeout: 5000,
           stream_lifetime: 300_000,
           poll_interval: 1000,
-          store_options: []
+          store_options: [],
+          operational_history: []
         },
         input
       )
@@ -34,11 +35,19 @@ defmodule Wotex.Tracker.Service.HTTP.Config do
   end
 
   defp valid?(value) do
-    is_binary(value.directory) and match?({:ok, _}, Credentials.validate(value.credentials)) and
-      address?(value.ip) and is_integer(value.port) and value.port in 0..65_535 and
-      is_function(value.clock, 0) and store_options?(value.store_options) and
+    identity?(value) and options?(value) and
       budgets?(value) and exposure?(value)
   end
+
+  defp identity?(value),
+    do:
+      is_binary(value.directory) and match?({:ok, _}, Credentials.validate(value.credentials)) and
+        address?(value.ip) and is_integer(value.port) and value.port in 0..65_535
+
+  defp options?(value),
+    do:
+      is_function(value.clock, 0) and store_options?(value.store_options) and
+        history_options?(value.operational_history)
 
   defp budgets?(value),
     do:
@@ -49,6 +58,11 @@ defmodule Wotex.Tracker.Service.HTTP.Config do
     do:
       is_list(options) and Keyword.keyword?(options) and
         Enum.all?(Keyword.keys(options), &(&1 in ~w(max_rows max_pages busy_timeout timeout)a))
+
+  defp history_options?(options),
+    do:
+      is_list(options) and Keyword.keyword?(options) and
+        Enum.all?(Keyword.keys(options), &(&1 in [:max_samples, :retention_ms]))
 
   defp budget?(value, max), do: is_integer(value) and value in 1..max
 

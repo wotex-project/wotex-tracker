@@ -8,9 +8,10 @@ bounded count/min/max/mean/last aggregation. The first service adapter adds
 authorized committed SQLite snapshots, a versioned HTTP operation, bounded
 global/per-principal execution and cancellation. The transactional service also
 persists, versions, executes and tombstones owned fixed-window query definitions
-with closed visualization options. It does not yet provide telemetry collection,
-rolling dashboards, prompt integration or graphs. Interactive analytics and the
-prompted-query capability remain required product deliverables.
+with closed visualization options. A first closed request/query telemetry
+vocabulary and explicitly supervised bounded volatile collector are present;
+the other required operational event families are not. Rolling dashboards,
+prompt integration and graphs remain required product deliverables.
 Model execution is explicitly configured and can be disabled; deterministic
 tracking and structured analytics MUST remain useful without AI or any external
 observability service.

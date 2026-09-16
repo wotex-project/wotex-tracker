@@ -5,7 +5,16 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
   require Logger
   alias Wotex.Runtime.Context
   alias Wotex.Tracker.Service
-  alias Wotex.Tracker.Service.{Events, Identifier, PropertyObservation, Result, Store}
+
+  alias Wotex.Tracker.Service.{
+    Events,
+    Identifier,
+    OperationalTelemetry,
+    PropertyObservation,
+    Result,
+    Store
+  }
+
   alias Wotex.Tracker.Service.HTTP.{Capacity, PropertyStream, Server, Stream, Wire}
 
   @mutations %{
@@ -23,19 +32,58 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
 
   @impl true
   def call(conn, {server, config}) do
-    with {:ok, capacity} <- Server.child(server, :capacity),
-         {:ok, lease} <- Capacity.acquire(capacity) do
-      try do
-        conn |> prepare(server, config) |> respond(capacity, lease, config)
-      after
-        Capacity.release(capacity, lease)
+    started = System.monotonic_time()
+
+    response =
+      with {:ok, capacity} <- Server.child(server, :capacity),
+           {:ok, lease} <- Capacity.acquire(capacity) do
+        try do
+          conn |> prepare(server, config) |> respond(capacity, lease, config)
+        after
+          Capacity.release(capacity, lease)
+        end
+      else
+        {:error, code} ->
+          {conn, error} = uncommitted({conn, Wire.error(code)})
+          Wire.send_result(conn, error)
       end
-    else
-      {:error, code} ->
-        {conn, error} = uncommitted({conn, Wire.error(code)})
-        Wire.send_result(conn, error)
-    end
+
+    OperationalTelemetry.request(request_operation(conn), response.status, started)
+    response
   end
+
+  defp request_operation(%{path_info: ["health", "live"]}), do: :health
+  defp request_operation(%{path_info: ["api", "v1", "openapi.json"]}), do: :contract
+  defp request_operation(%{path_info: ["api", "v1", "scopes", _, "health", "ready"]}), do: :health
+
+  defp request_operation(%{path_info: ["api", "v1", "scopes", _, "capabilities"]}),
+    do: :capabilities
+
+  defp request_operation(%{path_info: ["api", "v1", "scopes", _, "analytics", "query"]}),
+    do: :analytics
+
+  defp request_operation(%{
+         path_info: ["api", "v1", "scopes", _, "saved_queries", _, "execute"]
+       }),
+       do: :saved_query
+
+  defp request_operation(%{path_info: ["api", "v1", "scopes", _, "events", "stream"]}),
+    do: :stream
+
+  defp request_operation(%{path_info: ["api", "v1", "scopes", _, "events"]}), do: :events
+
+  defp request_operation(%{
+         path_info: ["api", "v1", "scopes", _, "things", _, "properties", _ | _]
+       }),
+       do: :property
+
+  defp request_operation(%{method: "POST", path_info: ["api", "v1", "scopes", _ | _]}),
+    do: :mutation
+
+  defp request_operation(%{method: "GET", path_info: ["api", "v1", "scopes", _ | _]}),
+    do: :resource
+
+  defp request_operation(_), do: :unknown
 
   defp prepare(conn, server, config) do
     result =

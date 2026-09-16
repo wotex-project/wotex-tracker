@@ -32,6 +32,7 @@ defmodule WotexTrackerService.MixProject do
       {:plug, "== 1.20.3"},
       {:mint, "== 1.10.0"},
       {:exqlite, "== 0.40.0"},
+      {:telemetry, "== 1.4.2"},
       {:stream_data, "~> 1.3", only: :test},
       {:excoveralls, "~> 0.18", only: :test},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},

@@ -11,7 +11,7 @@ defmodule Wotex.Tracker.Service.HTTP.Server do
   use Supervisor
   alias Wotex.Tracker.Service
   alias Wotex.Tracker.Service.HTTP.{Capacity, Config, Router}
-  alias Wotex.Tracker.Service.Store
+  alias Wotex.Tracker.Service.{OperationalHistory, Store}
 
   @doc "Starts a fully explicit isolated service instance; invalid configuration starts nothing."
   @spec start_link(keyword()) :: Supervisor.on_start()
@@ -30,6 +30,12 @@ defmodule Wotex.Tracker.Service.HTTP.Server do
     end
   catch
     :exit, _ -> {:error, :storage_unavailable}
+  end
+
+  @doc "Returns a bounded volatile operational snapshot from this host instance."
+  def operational_history(server, options \\ []) do
+    with {:ok, collector} <- child(server, :operational_history),
+         do: OperationalHistory.snapshot(collector, options)
   end
 
   @doc false
@@ -64,6 +70,10 @@ defmodule Wotex.Tracker.Service.HTTP.Server do
       )
 
     children = [
+      Supervisor.child_spec(
+        {OperationalHistory, Keyword.put(config.operational_history, :clock, config.clock)},
+        id: :operational_history
+      ),
       Supervisor.child_spec({Capacity, config}, id: :capacity),
       Supervisor.child_spec({Store, store_options}, id: :store),
       Supervisor.child_spec({Bandit, listener(config, self())}, id: :listener)
