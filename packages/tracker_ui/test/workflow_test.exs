@@ -435,6 +435,56 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     refute has_element?(view, "svg[role=img]")
   end
 
+  test "query export rejects unavailable, changed and denied reads", c do
+    {thing, _} = enrolled(c)
+
+    {:ok, _} =
+      Service.materialize(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"thing_id" => thing, "expected_generation" => "2"},
+        c.now
+      )
+
+    {:ok, view, _} = live(c.conn, Presenter.path(:asset, thing) <> "/analytics")
+    view |> form("#analytics-query") |> render_submit()
+    assert has_element?(view, "h2", "Query result")
+
+    Agent.update(c.faults, &Map.put(&1, :analytics, :unavailable))
+    view |> element("button", "Export result JSON") |> render_click()
+    refute_push_event(view, "download-query-result", %{"content" => _})
+    assert has_element?(view, "h2", "Query result")
+    assert has_element?(view, "[role=alert]")
+    view |> element("button", "Export result JSON") |> render_click()
+    assert has_element?(view, "h2", "Query result"), render(view)
+    assert_push_event(view, "download-query-result", %{"content" => _})
+
+    {:ok, _} =
+      Service.submit(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        import_request(%{id: "later", observed_at: c.now + 1}, "3"),
+        c.now
+      )
+
+    view |> element("button", "Export result JSON") |> render_click()
+    refute_push_event(view, "download-query-result", %{"content" => _})
+    refute has_element?(view, "h2", "Query result")
+    assert render(view) =~ "changed since this page loaded"
+
+    view |> form("#analytics-query") |> render_submit()
+    assert has_element?(view, "h2", "Query result")
+    Agent.update(c.faults, &Map.put(&1, :analytics, {:deny, "forbidden"}))
+    view |> element("button", "Export result JSON") |> render_click()
+    refute_push_event(view, "download-query-result", %{"content" => _})
+    refute has_element?(view, "h2", "Query result")
+    assert has_element?(view, "[role=alert]")
+  end
+
   test "quality filters preserve exclusions, reject tampering and persist in a saved query", c do
     {thing, _} = enrolled(c)
 
@@ -727,6 +777,9 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
 
     {:ok, uncertain, _} = live(c.conn, Presenter.path(:asset, thing) <> "/analytics")
     uncertain |> form("#analytics-query") |> render_submit()
+
+    assert has_element?(uncertain, "h2", "Query result")
+
     uncertain |> element("button", "Prepare save") |> render_click()
     uncertain_path = assert_patch(uncertain)
     Agent.update(c.faults, &Map.put(&1, :save_query, :lost_reply))
@@ -927,6 +980,12 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     {:ok, unchanged} = Service.get(c.service, c.admin, c.scope, "saved_queries", dashboard, c.now)
     assert unchanged["value"]["visualization"]["type"] == "line"
 
+    Agent.update(c.faults, &Map.put(&1, :get, {:deny, "forbidden"}))
+    detail |> element("button", "Export result JSON") |> render_click()
+    refute_push_event(detail, "download-query-result", %{"content" => _})
+    refute has_element?(detail, "h2", "Query result")
+    assert has_element?(detail, "[role=alert]")
+
     {:ok, history} =
       Service.history(c.service, c.admin, c.scope, "saved_queries", dashboard, %{}, c.now)
 
@@ -944,6 +1003,50 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
 
     send(detail.pid, :check_authority)
     assert_redirect(detail, "/sign-in")
+  end
+
+  test "saved dashboard export rejects changed definitions and lost data authority", c do
+    {dashboard, _} = saved_dashboard(c)
+    path = Presenter.dashboard_path(dashboard)
+    {:ok, detail, _} = live(c.conn, path)
+    detail |> element("button", "Run saved query") |> render_click()
+    assert has_element?(detail, "h2", "Query result")
+
+    Agent.update(c.faults, &Map.put(&1, :get, :unavailable))
+    detail |> element("button", "Export result JSON") |> render_click()
+    refute_push_event(detail, "download-query-result", %{"content" => _})
+    assert has_element?(detail, "h2", "Query result")
+    detail |> element("button", "Export result JSON") |> render_click()
+    assert has_element?(detail, "h2", "Query result"), render(detail)
+    assert_push_event(detail, "download-query-result", %{"content" => _})
+
+    {:ok, page} = Service.list(c.service, c.admin, c.scope, "saved_queries", %{}, c.now)
+
+    {:ok, _} =
+      Service.save_query(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        dashboard_request(dashboard, "Updated dashboard", c, page["generation"]),
+        c.now
+      )
+
+    detail |> element("button", "Export result JSON") |> render_click()
+    refute_push_event(detail, "download-query-result", %{"content" => _})
+    refute has_element?(detail, "h2", "Query result")
+    assert render(detail) =~ "changed since this page loaded"
+
+    {:ok, current, _} = live(c.conn, path)
+    current |> element("button", "Run saved query") |> render_click()
+
+    assert has_element?(current, "h2", "Query result")
+
+    Agent.update(c.faults, &Map.put(&1, :analytics, {:deny, "forbidden"}))
+    current |> element("button", "Export result JSON") |> render_click()
+    refute_push_event(current, "download-query-result", %{"content" => _})
+    refute has_element?(current, "h2", "Query result")
+    assert has_element?(current, "[role=alert]")
   end
 
   test "an administrator saves two compatible series as a comparison dashboard", c do

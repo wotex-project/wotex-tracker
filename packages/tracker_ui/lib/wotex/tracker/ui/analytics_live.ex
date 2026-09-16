@@ -154,8 +154,19 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
   def handle_event("check-save", _, socket), do: {:noreply, recover_save(socket)}
 
   def handle_event("export-result", _, %{assigns: %{result: result}} = socket)
-      when is_map(result),
-      do: {:noreply, QueryExport.push(socket, result)}
+      when is_map(result) do
+    case QueryExport.verify(socket, result) do
+      :ok ->
+        {:noreply, QueryExport.push(socket, result)}
+
+      {:error, %{"code" => code} = error}
+      when code in ~w(forbidden unauthorized not_found conflict) ->
+        {:noreply, assign(socket, result: nil, chart: nil, error: error)}
+
+      {:error, error} ->
+        {:noreply, assign(socket, error: error)}
+    end
+  end
 
   def handle_event("export-result", _, socket),
     do: {:noreply, assign(socket, error: %{"code" => "invalid_request"})}

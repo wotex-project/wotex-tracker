@@ -42,6 +42,8 @@ Readers can switch a currently displayed saved result among those views and a
 table without changing its admitted query, snapshot or stored definition.
 The browser can export the currently displayed closed query result as JSON with
 its source snapshot, result identity, bounds, units, exclusions and gap policy.
+Export rechecks current read authority and the exact result identity; saved
+dashboard export also verifies its definition is still accessible and unchanged.
 Model execution is explicitly configured and can be disabled; deterministic
 tracking and structured analytics MUST remain useful without AI or any external
 observability service.

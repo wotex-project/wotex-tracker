@@ -91,12 +91,15 @@ An edited saved view appears on the next successful refresh unless the reader
 has chosen a temporary view for this page; that choice stays in place while
 refresh continues.
 Manual runs, definition refreshes and navigation stop the timer.
-After a query runs, **Export result JSON** downloads that exact closed result
-from the current page state without rerunning it. The file includes the result
+After a query runs, **Export result JSON** rechecks current read authority and
+reruns the same closed query before downloading the result shown on the page.
+The download proceeds only if the result identity is unchanged; a saved
+dashboard also requires its stored definition to remain accessible and unchanged.
+The file includes the result
 identity shown beside the snapshot, admitted query and resolved time bounds,
 units, qualified buckets, exclusion counts and gap policy. If automatic refresh
-is marked stale, the export contains the last successful result shown on the
-page. A new run creates a new exportable result.
+is marked stale, export succeeds only if the last successful result still matches
+the current authorized query. A new run creates a new exportable result.
 An administrator can use **Compare saved queries** from the Dashboards page to
 select two to eight definitions on one bounded list page. The browser accepts
 only distinct series with identical measurement, unit, query settings and

@@ -1854,3 +1854,13 @@ failure retains the page for retry. The exported public projection includes
 commit order and a `has_more` indicator but omits session-bound history and
 event cursors. The LiveView test checks exact rows, conflict, failure and denial.
 Route replay, full-range export and mobile sharing remain open.
+
+### Reauthorized query downloads — 2026-09-16
+
+Structured analytics and saved-dashboard JSON downloads now rerun the displayed
+absolute query under current service read authority and require the same result
+identity before emitting the existing file event. The saved dashboard first
+checks that its definition is still accessible and unchanged. A changed
+snapshot or terminal denial clears the displayed result; a temporary service
+failure keeps it visible with an error for retry. Workflow tests cover exact
+downloads, changed snapshots, transient failure and denied reads.

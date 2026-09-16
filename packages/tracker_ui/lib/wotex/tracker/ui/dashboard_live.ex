@@ -64,8 +64,26 @@ defmodule Wotex.Tracker.UI.DashboardLive do
   def handle_event("stop-auto-refresh", _, socket), do: {:noreply, stop_refresh(socket)}
 
   def handle_event("export-result", _, %{assigns: %{result: result}} = socket)
-      when is_map(result),
-      do: {:noreply, QueryExport.push(socket, result)}
+      when is_map(result) do
+    case Auth.request(socket, :get, %{"resource" => "saved_queries", "id" => socket.assigns.id}) do
+      {:ok, %{"value" => definition}} when definition == socket.assigns.definition ->
+        export_current_result(socket, result)
+
+      {:ok, _} ->
+        {:noreply,
+         assign(socket, definition: nil, result: nil, chart: nil, error: %{"code" => "conflict"})}
+
+      {:error, %{"code" => code} = error}
+      when code in ~w(forbidden unauthorized not_found) ->
+        {:noreply,
+         socket
+         |> stop_refresh()
+         |> assign(definition: nil, result: nil, chart: nil, error: error)}
+
+      {:error, error} ->
+        {:noreply, assign(socket, error: error)}
+    end
+  end
 
   def handle_event("export-result", _, socket),
     do: {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
@@ -399,6 +417,20 @@ defmodule Wotex.Tracker.UI.DashboardLive do
       </section>
     </main>
     """
+  end
+
+  defp export_current_result(socket, result) do
+    case QueryExport.verify(socket, result) do
+      :ok ->
+        {:noreply, QueryExport.push(socket, result)}
+
+      {:error, %{"code" => code} = error}
+      when code in ~w(forbidden unauthorized not_found conflict) ->
+        {:noreply, assign(socket, result: nil, chart: nil, error: error)}
+
+      {:error, error} ->
+        {:noreply, assign(socket, error: error)}
+    end
   end
 
   defp load(socket) do
