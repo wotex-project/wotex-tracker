@@ -1,4 +1,5 @@
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 use std::env;
 use std::fs;
 use std::io::{Read, Write};
@@ -177,6 +178,56 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     )?;
     assert_eq!(history["data"]["items"][0]["generation"], "3");
 
+    let mut query = json!({
+        "schema": "wtr.query-spec.v1",
+        "algorithm": "absolute-utc-buckets-v1",
+        "id": "native-temperature-history",
+        "revision": "native-query-v1",
+        "dataset": "measurements",
+        "measurement": "temperature",
+        "unit": "Cel",
+        "series": [thing],
+        "qualities": ["valid"],
+        "from_at": 1_700_000_000_000_i64,
+        "to_at": 1_700_000_000_001_i64,
+        "timezone": "Etc/UTC",
+        "bucket_ms": 1,
+        "aggregation": "last",
+        "order": "ascending",
+        "max_points": 1,
+        "window_semantics": "from_inclusive_to_exclusive",
+        "missing_values": "excluded_and_disclosed"
+    });
+    let digest = Sha256::digest(serde_json::to_vec(&query)?);
+    let hex = digest
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>();
+    query["identity"] = format!("wtr-json-v1:sha256:{hex}").into();
+    let analytics = client.call(
+        "POST",
+        &format!("{prefix}/analytics/query"),
+        Some(reader),
+        Some(&query),
+        None,
+        200,
+    )?;
+    assert_eq!(analytics["data"]["qualified_rows"], 1);
+    assert_eq!(analytics["data"]["series"][0]["points"][0]["value"], 24.3);
+    let mut forged = query.clone();
+    forged["identity"] = format!("wtr-json-v1:sha256:{}", "0".repeat(64)).into();
+    assert_eq!(
+        client.call(
+            "POST",
+            &format!("{prefix}/analytics/query"),
+            Some(reader),
+            Some(&forged),
+            None,
+            400
+        )?["error"]["code"],
+        "invalid_request"
+    );
+
     let events = client.stream(
         &format!("{prefix}/events/stream?cursor={cursor}"),
         reader,
@@ -223,7 +274,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "unauthorized"
     );
 
-    println!("NATIVE_PROTOCOL_PASS openapi=true enrollment=true observation=true native_types=true property=true history=true sse_resume=true revocation=true");
+    println!("NATIVE_PROTOCOL_PASS openapi=true enrollment=true observation=true native_types=true property=true history=true analytics=true sse_resume=true revocation=true");
     Ok(())
 }
 

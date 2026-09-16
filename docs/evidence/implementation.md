@@ -1483,7 +1483,9 @@ HTTP, SSE and JSON. It imports no Tracker modules. It checks the served OpenAPI
 version and public route, unauthorized and reader-denied requests, idempotent
 observation admission and receipt lookup, native integer/float/zero/false/null
 raw fidelity, enrollment, materialisation, a Property read, Thing history,
-three retained events, explicit cursor resume and reader revocation.
+a known-answer structured analytics query with a separately computed content
+identity, forged-identity rejection, three retained events, explicit cursor
+resume and reader revocation.
 
 The clean artifact harness compiles this client for Darwin ARM64 with a local
 Rust toolchain and for Linux ARM64 in a digest-pinned Rust 1.97.1 slim builder.
@@ -1495,6 +1497,6 @@ compiler versions, release source hashes and lifecycle results are in
 `verification/host-consumer.json`.
 
 This establishes the implemented non-Elixir workflow slice. Complete product
-acceptance still requires policy operations, structured analytics and authorized
+acceptance still requires policy operations and authorized
 interactions across this boundary when their owning features are available, plus
 the UI, mobile, Pi and physical gates. No image or release was published.
