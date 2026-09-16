@@ -1,0 +1,105 @@
+{
+  "checks": {
+    "no_active_iex_or_distribution": true,
+    "no_browser_or_ssh_applications": true,
+    "no_credentials_in_runtime_config": true,
+    "required_service_network_time_storage": true,
+    "sqlite_nif_aarch64": true
+  },
+  "firmware": {
+    "bytes": 86411031,
+    "metadata": {
+      "meta-architecture": "aarch64",
+      "meta-author": "The Nerves Team",
+      "meta-creation-date": "2026-09-16T21:42:20Z",
+      "meta-nickname": "exist-crucial",
+      "meta-platform": "rpi5",
+      "meta-product": "wotex_tracker_nerves",
+      "meta-uuid": "523b19e2-94d8-5713-f776-a90c8e07bb26",
+      "meta-version": "0.1.0"
+    },
+    "sha256": "6c14321c421be9bcc6dc275920f24e984076d6a01b424512f6a9c0583d415cd4",
+    "sqlite_nif": "ELF 64-bit LSB shared object, ARM aarch64, version 1 (SYSV), dynamically linked, BuildID[sha1]=a3dc0ce06a84ffe46914bb4a81e11c04c5f811c6, not stripped",
+    "target_elixir": "1.20.4",
+    "target_erts": "17.0.6"
+  },
+  "hardware_acceptance": "not_executed",
+  "kind": "development_cross_build",
+  "physical_boot": "not_executed",
+  "release_applications": [
+    "asn1",
+    "bandit",
+    "beam_notify",
+    "circular_buffer",
+    "compiler",
+    "crypto",
+    "db_connection",
+    "decimal",
+    "eex",
+    "elixir",
+    "ex_json_schema",
+    "exqlite",
+    "hpax",
+    "iex",
+    "inets",
+    "jason",
+    "kernel",
+    "logger",
+    "mime",
+    "mint",
+    "muontrap",
+    "nerves_logging",
+    "nerves_runtime",
+    "nerves_time",
+    "nerves_uevent",
+    "plug",
+    "plug_crypto",
+    "property_table",
+    "public_key",
+    "ring_logger",
+    "sasl",
+    "shoehorn",
+    "ssl",
+    "stdlib",
+    "telemetry",
+    "thousand_island",
+    "uboot_env",
+    "vintage_net",
+    "vintage_net_ethernet",
+    "websock",
+    "wotex",
+    "wotex_binding_http",
+    "wotex_runtime",
+    "wotex_tracker",
+    "wotex_tracker_nerves",
+    "wotex_tracker_service"
+  ],
+  "resolved": {
+    "nerves": "1.15.0",
+    "nerves_runtime": "0.13.13",
+    "nerves_system_rpi5": "2.1.2",
+    "nerves_time": "0.4.12",
+    "nerves_toolchain_aarch64_nerves_linux_gnu": "15.3.1",
+    "vintage_net": "0.13.12",
+    "vintage_net_ethernet": "0.11.2"
+  },
+  "schema": "wtr.nerves-headless-build.v1",
+  "sources": {
+    "wotex": {
+      "commit": "eadc6c9f9c285faf9324b8a7396a001381098b6c",
+      "tracked_changes": false
+    },
+    "wotex_binding_http": {
+      "commit": "c150da67867933eb3fb040cc5049d11eb75d3f6a",
+      "tracked_changes": false
+    },
+    "wotex_runtime": {
+      "commit": "65d0b521ccb6b7838fe37bf26bf9dac65b40cc68",
+      "tracked_changes": false
+    },
+    "wotex_tracker": {
+      "commit": "ffeaf8f02085233f02db84ae653aaa9545a12ba0",
+      "tracked_changes": false
+    }
+  }
+}
