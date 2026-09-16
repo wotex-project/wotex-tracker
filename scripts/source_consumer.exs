@@ -554,8 +554,132 @@ owner_evidence = policy_fact.("archive-owner", "owner.present", "false", :transp
     1_002
   )
 
+lorawan_capability =
+  policy_fact.(
+    "archive-lorawan-capability",
+    "transport.lorawan.capable",
+    "true",
+    :capability
+  )
+
+lorawan_connectivity =
+  policy_fact.(
+    "archive-lorawan-connectivity",
+    "transport.lorawan.available",
+    "false",
+    :transport
+  )
+
+cellular_capability =
+  policy_fact.(
+    "archive-cellular-capability",
+    "transport.cellular.capable",
+    "true",
+    :capability
+  )
+
+cellular_connectivity =
+  policy_fact.(
+    "archive-cellular-connectivity",
+    "transport.cellular.available",
+    "true",
+    :transport
+  )
+
+{:ok, transport_bundle} =
+  EvidenceBundle.new(
+    [fact_capture],
+    [
+      lorawan_capability,
+      lorawan_connectivity,
+      cellular_capability,
+      cellular_connectivity
+    ]
+  )
+
+{:ok, lorawan_capability_fact} =
+  Wotex.Tracker.PolicyFact.new(lorawan_capability.id, transport_bundle)
+
+{:ok, lorawan_connectivity_fact} =
+  Wotex.Tracker.PolicyFact.new(lorawan_connectivity.id, transport_bundle)
+
+{:ok, cellular_capability_fact} =
+  Wotex.Tracker.PolicyFact.new(cellular_capability.id, transport_bundle)
+
+{:ok, cellular_connectivity_fact} =
+  Wotex.Tracker.PolicyFact.new(cellular_connectivity.id, transport_bundle)
+
+{:ok, lorawan_route} =
+  Wotex.Tracker.TransportCandidate.new(%{
+    id: "lorawan",
+    bearer: "lorawan-eu868",
+    application_protocol: "lorawan-uplink",
+    capability: lorawan_capability_fact,
+    connectivity: lorawan_connectivity_fact,
+    cost_class: 10,
+    power_class: 10,
+    acknowledgement_layers: [:network]
+  })
+
+{:ok, cellular_route} =
+  Wotex.Tracker.TransportCandidate.new(%{
+    id: "cellular",
+    bearer: "lte-m",
+    application_protocol: "teltonika-codec8e",
+    capability: cellular_capability_fact,
+    connectivity: cellular_connectivity_fact,
+    cost_class: 80,
+    power_class: 80,
+    acknowledgement_layers: [:durable_admission]
+  })
+
+{:ok, transport_policy} =
+  Wotex.Tracker.TransportPolicy.new(%{
+    id: "archive-bike-transport",
+    revision: "archive-transport-v1",
+    fact_policy_revision: "archive-fact-v1",
+    ordinary_order: ["lorawan"],
+    critical_order: ["lorawan", "cellular"],
+    maximum_fact_age_ms: 1_000,
+    future_skew_ms: 0,
+    ordinary_max_cost_class: 50,
+    critical_max_cost_class: 100,
+    ordinary_max_power_class: 50,
+    critical_max_power_class: 100,
+    ordinary_acknowledgement: :network,
+    critical_acknowledgement: :durable_admission,
+    ordinary_no_route: :store_and_retry,
+    critical_no_route: :unavailable
+  })
+
+transport_request = %{
+  id: "archive-transport-request",
+  severity: :critical,
+  purpose: :event,
+  maximum_cost_class: 100,
+  maximum_power_class: 100,
+  acknowledgement: nil
+}
+
+{:ok,
+ %{
+   "status" => "selected",
+   "selected" => %{
+     "candidate_id" => "cellular",
+     "bearer" => "lte-m",
+     "application_protocol" => "teltonika-codec8e"
+   },
+   "required_acknowledgement" => "durable_admission"
+ }} =
+  Wotex.Tracker.TransportPolicy.select(
+    [cellular_route, lorawan_route],
+    transport_request,
+    transport_policy,
+    1_002
+  )
+
 true = MapSet.subset?(MapSet.new(Process.list()), before_processes)
 
 IO.puts(
-  "SOURCE_COHORT_PASS Elixir=#{System.version()} OTP=#{System.otp_release()} properties=10 position_freshness=true position_selection=true position_order=true movement=true motion_transition=true trip_distance=true heartbeat=true battery=true suspicious_movement=true geofence=true geofence_transition=true geofence_crossing=true no_new_processes=true optional_hosts_absent=true"
+  "SOURCE_COHORT_PASS Elixir=#{System.version()} OTP=#{System.otp_release()} properties=10 position_freshness=true position_selection=true position_order=true movement=true motion_transition=true trip_distance=true heartbeat=true battery=true suspicious_movement=true transport_policy=true geofence=true geofence_transition=true geofence_crossing=true no_new_processes=true optional_hosts_absent=true"
 )

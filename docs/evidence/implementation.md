@@ -853,3 +853,40 @@ The final six archive consumers build explicit armed and owner-absence evidence
 and evaluate the rule against a confirmed replay trip on both runtime lanes.
 Exact identities are in `verification/source-consumer.json`. Enrollment authority,
 fact production, atomic event intent and notifications remain host responsibilities.
+
+## WTR.06 evidence-qualified transport selection — 2026-09-16
+
+`TransportCandidate` now binds separate bearer and application-protocol names to
+exact capability and connectivity facts, cost and power classes, supported
+acknowledgement layers and a stable content identity. Capability evidence uses
+the closed `transport.<candidate>.capable` predicate and connectivity evidence
+uses `transport.<candidate>.available`; neither a profile name nor receipt of a
+radio frame is silently promoted to availability.
+
+The pure `TransportPolicy` declares deployment-specific ordinary and critical
+route order, fact-policy revision and freshness, policy budget ceilings, exact
+acknowledgement requirements and the no-route outcome. Request-specific cost and
+power budgets apply in addition to policy ceilings. Every candidate is reported
+in a deterministic ledger, including missing, unlisted, stale, unknown,
+over-budget, unconfirmed and wrong-revision routes. Input enumeration cannot
+change selection.
+
+Acknowledgement observations name the delivery, candidate, layer and state.
+Pending and unknown outcomes hold without retry. An acknowledgement from a
+different layer cannot satisfy the policy, while a definite failure can exclude
+that route and admit the next qualified fallback. The decision does not claim a
+remote application or physical Action effect.
+
+Both required runtime lanes passed the complete root gate with 1 doctest,
+17 properties and 140 tests, no failures and 96.6% production line coverage.
+Cases cover independent bearer/protocol values, ordinary store-and-retry,
+critical cellular fallback, fact truth/revision/freshness, dual budget ceilings,
+acknowledgement support and outcomes, content mutation, list bounds, duplicate
+IDs and generated candidate-order invariance. Strict analysis, documentation,
+dependency, license and archive checks passed.
+
+The six final archive consumers select the cellular fallback from an unavailable
+LoRaWAN route on both supported runtime lanes; exact archive and lock identities
+are in `verification/source-consumer.json`. The policy remains pure. Durable
+queueing, policy-state persistence, Continuum snapshot conversion and actual
+radio/network delivery remain host integration work.
