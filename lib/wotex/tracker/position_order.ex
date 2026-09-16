@@ -9,6 +9,7 @@ defmodule Wotex.Tracker.PositionOrder do
   alias Wotex.Tracker.{Admission, Error, Limits, PositionSample}
 
   @fields ~w(revision event_time future_skew_ms late_window_ms sequence)a
+  @serialized_fields ~w(schema algorithm revision event_time future_skew_ms late_window_ms sequence identity)
   @type t :: %__MODULE__{}
   @enforce_keys @fields ++ [:identity]
   defstruct @enforce_keys
@@ -42,6 +43,42 @@ defmodule Wotex.Tracker.PositionOrder do
   end
 
   def validate(_, _), do: Admission.fail(:invalid_input)
+
+  @doc "Projects a validated ordering policy to closed native JSON."
+  @spec to_map(term(), term()) :: {:ok, map()} | {:error, Error.t()}
+  def to_map(policy, options \\ []) do
+    with {:ok, policy} <- validate(policy, options) do
+      {:ok, Map.put(policy_map(policy), "identity", policy.identity)}
+    end
+  end
+
+  @doc "Restores and revalidates an ordering policy from closed native JSON."
+  @spec from_map(term(), term()) :: {:ok, t()} | {:error, Error.t()}
+  def from_map(document, options \\ []) do
+    with true <- exact_fields?(document, @serialized_fields),
+         true <-
+           document["schema"] == "wtr.position-order-policy.v1" and
+             document["algorithm"] == "event-time-sequence-order-v1",
+         {:ok, event_time} <- event_time(document["event_time"]),
+         {:ok, sequence} <- sequence(document["sequence"]),
+         {:ok, policy} <-
+           new(
+             %{
+               revision: document["revision"],
+               event_time: event_time,
+               future_skew_ms: document["future_skew_ms"],
+               late_window_ms: document["late_window_ms"],
+               sequence: sequence
+             },
+             options
+           ),
+         true <- policy.identity == document["identity"] do
+      {:ok, policy}
+    else
+      false -> Admission.fail(:conflict)
+      error -> error
+    end
+  end
 
   @doc "Classifies one sample relative to an optional previously accepted head."
   @spec evaluate(term(), term(), term(), term(), term()) :: {:ok, map()} | {:error, Error.t()}
@@ -323,4 +360,18 @@ defmodule Wotex.Tracker.PositionOrder do
       "late_window_ms" => input.late_window_ms,
       "sequence" => Atom.to_string(input.sequence)
     }
+
+  defp event_time("trusted_fix"), do: {:ok, :trusted_fix}
+  defp event_time("trusted_fix_or_receiver"), do: {:ok, :trusted_fix_or_receiver}
+  defp event_time(_), do: Admission.fail(:invalid_input)
+
+  defp sequence("none"), do: {:ok, :none}
+  defp sequence("optional"), do: {:ok, :optional}
+  defp sequence("required"), do: {:ok, :required}
+  defp sequence(_), do: Admission.fail(:invalid_input)
+
+  defp exact_fields?(value, fields),
+    do:
+      is_map(value) and not is_struct(value) and
+        Enum.sort(Map.keys(value)) == Enum.sort(fields)
 end

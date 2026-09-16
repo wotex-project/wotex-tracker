@@ -9,6 +9,10 @@ defmodule Wotex.Tracker.MotionTransition do
   alias Wotex.Tracker.{Admission, Error, Limits, PositionMovement, PositionOrder, PositionSample}
 
   @fields ~w(id revision movement_policy minimum_movement_ms minimum_stop_ms)a
+  @serialized_policy_fields ~w(schema algorithm id revision movement_policy movement_policy_identity minimum_movement_ms minimum_stop_ms single_segment_transition gap_semantics event_idempotency identity)
+  @state_fields ~w(schema algorithm policy samples order_sample_identity last_received_sample_identity last_received_outcome segment_sample_identity motion_status candidate_status candidate_since candidate_sample_identity active_trip identity)
+  @trip_fields ~w(id policy_identity started_at confirmed_at start_sample_identity confirmation_sample_identity)
+  @event_fields ~w(schema id algorithm rule_id policy_identity kind reason trip_id from_sample_identity to_sample_identity effective_at confirmed_at rule_revision from_position_evidence_id from_position_bundle_identity to_position_evidence_id to_position_bundle_identity)
   @type t :: %__MODULE__{}
   @enforce_keys @fields ++ [:identity]
   defstruct @enforce_keys
@@ -84,6 +88,51 @@ defmodule Wotex.Tracker.MotionTransition do
 
   def validate(_, _), do: Admission.fail(:invalid_input)
 
+  @doc "Projects a validated motion policy and nested movement policy to closed native JSON."
+  @spec to_map(term(), term()) :: {:ok, map()} | {:error, Error.t()}
+  def to_map(policy, options \\ []) do
+    with {:ok, policy} <- validate(policy, options),
+         {:ok, movement_policy} <- PositionMovement.to_map(policy.movement_policy, options) do
+      {:ok,
+       policy
+       |> policy_map(policy.movement_policy)
+       |> Map.put("movement_policy", movement_policy)
+       |> Map.put("identity", policy.identity)}
+    end
+  end
+
+  @doc "Restores and revalidates a motion policy from closed native JSON."
+  @spec from_map(term(), term()) :: {:ok, t()} | {:error, Error.t()}
+  def from_map(document, options \\ []) do
+    with true <- exact_fields?(document, @serialized_policy_fields),
+         true <-
+           document["schema"] == "wtr.motion-transition-policy.v1" and
+             document["algorithm"] == "consecutive-segment-dwell-v1" and
+             document["single_segment_transition"] == "prohibited" and
+             document["gap_semantics"] == "interrupt_active_trip" and
+             document["event_idempotency"] == "trip-event-key-v1",
+         {:ok, movement_policy} <-
+           PositionMovement.from_map(document["movement_policy"], options),
+         true <- movement_policy.identity == document["movement_policy_identity"],
+         {:ok, policy} <-
+           new(
+             %{
+               id: document["id"],
+               revision: document["revision"],
+               movement_policy: movement_policy,
+               minimum_movement_ms: document["minimum_movement_ms"],
+               minimum_stop_ms: document["minimum_stop_ms"]
+             },
+             options
+           ),
+         true <- policy.identity == document["identity"] do
+      {:ok, policy}
+    else
+      false -> Admission.fail(:conflict)
+      error -> error
+    end
+  end
+
   @doc "Revalidates the policy, samples, candidate, active trip and state identity."
   @spec validate_state(term(), term()) :: {:ok, State.t()} | {:error, Error.t()}
   def validate_state(value, options \\ [])
@@ -133,11 +182,128 @@ defmodule Wotex.Tracker.MotionTransition do
 
   def validate_state(_, _), do: Admission.fail(:invalid_input)
 
+  @doc "Projects a validated motion state with a deduplicated complete sample registry."
+  @spec state_to_map(term(), term()) :: {:ok, map()} | {:error, Error.t()}
+  def state_to_map(state, options \\ []) do
+    with {:ok, state} <- validate_state(state, options),
+         {:ok, policy} <- to_map(state.policy, options),
+         {:ok, samples} <- sample_documents(state, options) do
+      {:ok,
+       %{
+         "schema" => "wtr.motion-state.v1",
+         "algorithm" => "consecutive-segment-dwell-v1",
+         "policy" => policy,
+         "samples" => samples,
+         "order_sample_identity" => state.order_sample.identity,
+         "last_received_sample_identity" => state.last_received_sample.identity,
+         "last_received_outcome" => state.last_received_outcome,
+         "segment_sample_identity" => sample_identity(state.segment_sample),
+         "motion_status" => state.motion_status,
+         "candidate_status" => state.candidate_status,
+         "candidate_since" => state.candidate_since,
+         "candidate_sample_identity" => sample_identity(state.candidate_sample),
+         "active_trip" => trip_map(state.active_trip),
+         "identity" => state.identity
+       }}
+    end
+  end
+
+  @doc "Restores and revalidates motion state from closed native JSON."
+  @spec state_from_map(term(), term()) :: {:ok, State.t()} | {:error, Error.t()}
+  def state_from_map(document, options \\ []) do
+    with true <- exact_fields?(document, @state_fields),
+         true <-
+           document["schema"] == "wtr.motion-state.v1" and
+             document["algorithm"] == "consecutive-segment-dwell-v1",
+         {:ok, policy} <- from_map(document["policy"], options),
+         {:ok, samples} <- restore_samples(document["samples"], options),
+         {:ok, order_sample} <- fetch_sample(samples, document["order_sample_identity"]),
+         {:ok, received_sample} <-
+           fetch_sample(samples, document["last_received_sample_identity"]),
+         {:ok, segment_sample} <-
+           optional_restored_sample(samples, document["segment_sample_identity"]),
+         {:ok, candidate_sample} <-
+           optional_restored_sample(samples, document["candidate_sample_identity"]),
+         {:ok, active_trip} <-
+           restore_trip(document["active_trip"], policy, samples, options),
+         {:ok, state} <-
+           state(
+             state_values(
+               policy,
+               order_sample,
+               received_sample,
+               document["last_received_outcome"],
+               segment_sample,
+               document["motion_status"],
+               {
+                 document["candidate_status"],
+                 document["candidate_since"],
+                 candidate_sample
+               },
+               active_trip
+             ),
+             options
+           ),
+         true <- state.identity == document["identity"],
+         {:ok, state} <- validate_state(state, options),
+         {:ok, admitted} <- state_to_map(state, options),
+         true <- admitted === document do
+      {:ok, state}
+    else
+      false -> Admission.fail(:conflict)
+      error -> error
+    end
+  end
+
   @doc "Revalidates an active trip against its complete motion policy."
   @spec validate_trip(term(), term(), term()) :: {:ok, Trip.t()} | {:error, Error.t()}
   def validate_trip(value, policy, options \\ []) do
     with {:ok, policy} <- validate(policy, options) do
       active_trip(value, policy, options)
+    end
+  end
+
+  @doc "Re-evaluates a changed transition and rejects altered state, event or effect fields."
+  @spec validate_transition(term(), term(), term()) :: {:ok, map()} | {:error, Error.t()}
+  def validate_transition(previous, result, options \\ []) do
+    with {:ok, previous} <- previous(previous, options),
+         true <- is_map(result) and not is_struct(result),
+         true <- result["schema"] == "wtr.motion-transition.v1" and result["state_changed"],
+         %State{} = next_state <- result["state"],
+         {:ok, next_state} <- validate_state(next_state, options),
+         {:ok, mode} <- mode_atom(result["mode"]),
+         true <- is_integer(result["evaluated_at"]),
+         {:ok, expected} <-
+           evaluate(
+             previous,
+             next_state.last_received_sample,
+             next_state.policy,
+             mode,
+             result["evaluated_at"],
+             options
+           ),
+         true <- expected === result,
+         :ok <- validate_optional_event(result["event"], options) do
+      {:ok, result}
+    else
+      false -> Admission.fail(:conflict)
+      error -> error
+    end
+  end
+
+  @doc "Revalidates a stable trip event and its content identity."
+  @spec validate_event(term(), term()) :: :ok | {:error, Error.t()}
+  def validate_event(event, options \\ []) do
+    with {:ok, limits} <- Limits.new(options),
+         true <- exact_fields?(event, @event_fields),
+         :ok <- Admission.object(event, limits),
+         true <- event_shape?(event, limits),
+         {:ok, identity} <- Admission.digest(event_key(event), Limits.json(limits)),
+         true <- identity == event["id"] do
+      :ok
+    else
+      false -> Admission.fail(:conflict)
+      error -> error
     end
   end
 
@@ -245,6 +411,7 @@ defmodule Wotex.Tracker.MotionTransition do
       sample: sample,
       policy: policy,
       mode: mode,
+      now: now,
       order: order,
       options: options
     } =
@@ -266,7 +433,7 @@ defmodule Wotex.Tracker.MotionTransition do
              ),
              options
            ) do
-      result(previous, next_state, order, nil, nil, mode, {"baseline", reason})
+      result(previous, next_state, order, nil, nil, mode, now, {"baseline", reason})
     end
   end
 
@@ -276,6 +443,7 @@ defmodule Wotex.Tracker.MotionTransition do
       sample: sample,
       policy: policy,
       mode: mode,
+      now: now,
       order: order,
       options: options
     } =
@@ -298,7 +466,10 @@ defmodule Wotex.Tracker.MotionTransition do
              options
            ),
          {:ok, event} <- revision_event(previous, next_state, options) do
-      result(previous, next_state, order, nil, event, mode, {"recomputed", "rule_revised"})
+      result(previous, next_state, order, nil, event, mode, now, {
+        "recomputed",
+        "rule_revised"
+      })
     end
   end
 
@@ -396,6 +567,7 @@ defmodule Wotex.Tracker.MotionTransition do
       sample: sample,
       policy: policy,
       mode: mode,
+      now: now,
       order: order,
       classification: classification,
       options: options
@@ -415,7 +587,7 @@ defmodule Wotex.Tracker.MotionTransition do
              ),
              options
            ) do
-      result(previous, next_state, order, classification, event, mode, outcome)
+      result(previous, next_state, order, classification, event, mode, now, outcome)
     end
   end
 
@@ -425,6 +597,7 @@ defmodule Wotex.Tracker.MotionTransition do
       sample: sample,
       policy: policy,
       mode: mode,
+      now: now,
       order: order,
       classification: classification,
       options: options
@@ -458,7 +631,7 @@ defmodule Wotex.Tracker.MotionTransition do
            ) do
       status = if event, do: "transition", else: classification["status"]
 
-      result(previous, next_state, order, classification, event, mode, {
+      result(previous, next_state, order, classification, event, mode, now, {
         status,
         classification["reason"]
       })
@@ -471,6 +644,7 @@ defmodule Wotex.Tracker.MotionTransition do
       sample: sample,
       policy: policy,
       mode: mode,
+      now: now,
       order: order,
       classification: classification,
       options: options
@@ -490,7 +664,7 @@ defmodule Wotex.Tracker.MotionTransition do
              ),
              options
            ) do
-      result(previous, next_state, order, classification, nil, mode, {
+      result(previous, next_state, order, classification, nil, mode, now, {
         classification["status"],
         classification["reason"]
       })
@@ -536,10 +710,13 @@ defmodule Wotex.Tracker.MotionTransition do
         previous
       end
 
-    result(previous, next_state, order, nil, nil, mode, {order["status"], order["reason"]})
+    result(previous, next_state, order, nil, nil, mode, now, {
+      order["status"],
+      order["reason"]
+    })
   end
 
-  defp result(previous, next_state, order, classification, event, mode, {status, reason}) do
+  defp result(previous, next_state, order, classification, event, mode, now, {status, reason}) do
     %{
       "schema" => "wtr.motion-transition.v1",
       "status" => status,
@@ -553,7 +730,8 @@ defmodule Wotex.Tracker.MotionTransition do
       "order" => order,
       "classification" => classification,
       "event" => event,
-      "physical_action_dispatch" => action_effect(mode, event)
+      "physical_action_dispatch" => action_effect(mode, event),
+      "evaluated_at" => now
     }
   end
 
@@ -772,6 +950,96 @@ defmodule Wotex.Tracker.MotionTransition do
   defp optional_sample(nil, _), do: {:ok, nil}
   defp optional_sample(sample, options), do: PositionSample.validate(sample, options)
 
+  defp sample_documents(state, options) do
+    state
+    |> state_samples()
+    |> Enum.reduce_while({:ok, %{}}, &serialize_sample(&1, &2, options))
+    |> then(fn
+      {:ok, documents} ->
+        {:ok, documents |> Map.values() |> Enum.sort_by(& &1["identity"])}
+
+      error ->
+        error
+    end)
+  end
+
+  defp state_samples(state) do
+    trip_samples =
+      if state.active_trip,
+        do: [state.active_trip.start_sample, state.active_trip.confirmation_sample],
+        else: []
+
+    [
+      state.order_sample,
+      state.last_received_sample,
+      state.segment_sample,
+      state.candidate_sample
+      | trip_samples
+    ]
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp serialize_sample(sample, {:ok, documents}, options) do
+    case PositionSample.to_map(sample, options) do
+      {:ok, document} -> insert_sample_document(documents, sample.identity, document)
+      error -> {:halt, error}
+    end
+  end
+
+  defp insert_sample_document(documents, identity, document) do
+    case Map.fetch(documents, identity) do
+      :error -> {:cont, {:ok, Map.put(documents, identity, document)}}
+      {:ok, ^document} -> {:cont, {:ok, documents}}
+      {:ok, _other} -> {:halt, Admission.fail(:conflict)}
+    end
+  end
+
+  defp restore_samples(documents, options) when is_list(documents) and length(documents) <= 6 do
+    Enum.reduce_while(documents, {:ok, %{}}, &restore_sample(&1, &2, options))
+  end
+
+  defp restore_samples(_, _), do: Admission.fail(:invalid_input)
+
+  defp restore_sample(document, {:ok, samples}, options) do
+    case PositionSample.from_map(document, options) do
+      {:ok, sample} -> restore_unique_sample(samples, sample)
+      error -> {:halt, error}
+    end
+  end
+
+  defp restore_unique_sample(samples, sample) do
+    if Map.has_key?(samples, sample.identity),
+      do: {:halt, Admission.fail(:conflict)},
+      else: {:cont, {:ok, Map.put(samples, sample.identity, sample)}}
+  end
+
+  defp fetch_sample(samples, identity) when is_binary(identity) do
+    case Map.fetch(samples, identity) do
+      {:ok, sample} -> {:ok, sample}
+      :error -> Admission.fail(:dangling_reference)
+    end
+  end
+
+  defp fetch_sample(_, _), do: Admission.fail(:invalid_input)
+  defp optional_restored_sample(_samples, nil), do: {:ok, nil}
+  defp optional_restored_sample(samples, identity), do: fetch_sample(samples, identity)
+
+  defp restore_trip(nil, _policy, _samples, _options), do: {:ok, nil}
+
+  defp restore_trip(document, policy, samples, options) do
+    with true <- exact_fields?(document, @trip_fields),
+         {:ok, start_sample} <- fetch_sample(samples, document["start_sample_identity"]),
+         {:ok, confirmation_sample} <-
+           fetch_sample(samples, document["confirmation_sample_identity"]),
+         {:ok, admitted} <- trip(policy, start_sample, confirmation_sample, options),
+         true <- trip_map(admitted) === document do
+      {:ok, admitted}
+    else
+      false -> Admission.fail(:conflict)
+      error -> error
+    end
+  end
+
   defp trip_matches_motion?(nil, status), do: status != "moving"
   defp trip_matches_motion?(%Trip{}, status), do: status == "moving"
 
@@ -822,6 +1090,40 @@ defmodule Wotex.Tracker.MotionTransition do
   defp action_effect(:live, nil), do: "none"
   defp action_effect(:live, _), do: "separate_authorization_required"
 
+  defp validate_optional_event(nil, _options), do: :ok
+  defp validate_optional_event(event, options), do: validate_event(event, options)
+
+  defp event_shape?(event, limits) do
+    ids =
+      ~w(id rule_id policy_identity reason trip_id from_sample_identity to_sample_identity rule_revision from_position_evidence_id from_position_bundle_identity to_position_evidence_id to_position_bundle_identity)
+
+    event["schema"] == "wtr.trip-event.v1" and
+      event["algorithm"] == "consecutive-segment-dwell-v1" and
+      Admission.each(Enum.map(ids, &event[&1]), &Admission.id(&1, limits)) == :ok and
+      event["kind"] in ~w(trip.started trip.stopped trip.interrupted) and
+      is_integer(event["effective_at"]) and is_integer(event["confirmed_at"]) and
+      event["confirmed_at"] >= event["effective_at"]
+  end
+
+  defp event_key(event),
+    do: %{
+      "schema" => "wtr.trip-event-key.v1",
+      "algorithm" => event["algorithm"],
+      "rule_id" => event["rule_id"],
+      "policy_identity" => event["policy_identity"],
+      "kind" => event["kind"],
+      "reason" => event["reason"],
+      "trip_id" => event["trip_id"],
+      "from_sample_identity" => event["from_sample_identity"],
+      "to_sample_identity" => event["to_sample_identity"],
+      "effective_at" => event["effective_at"],
+      "confirmed_at" => event["confirmed_at"]
+    }
+
+  defp mode_atom("live"), do: {:ok, :live}
+  defp mode_atom("replay"), do: {:ok, :replay}
+  defp mode_atom(_), do: Admission.fail(:invalid_input)
+
   defp received_admissible?(sample, policy, now),
     do:
       sample.position.claim["received_at"] <=
@@ -850,4 +1152,9 @@ defmodule Wotex.Tracker.MotionTransition do
       "gap_semantics" => "interrupt_active_trip",
       "event_idempotency" => "trip-event-key-v1"
     }
+
+  defp exact_fields?(value, fields),
+    do:
+      is_map(value) and not is_struct(value) and
+        Enum.sort(Map.keys(value)) == Enum.sort(fields)
 end

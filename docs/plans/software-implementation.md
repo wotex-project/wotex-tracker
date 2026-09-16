@@ -199,8 +199,9 @@ bounded distance/speed uncertainty, hysteresis, impossible-speed rejection and
 gap handling. Consecutive-segment dwell establishes stationary/moving state and
 stable trip start, stop and interruption events without treating one segment as
 a trip. Bounded trip-distance reconstruction sums only adjacent segments proved
-moving and retains explicit exclusions. Atomic host persistence remains subsequent
-work. See the [motion guide](../guides/motion.md).
+moving and retains explicit exclusions. The service atomically persists pending
+dwell, active-trip state and stable trip event intent with restart recovery. See
+the [motion guide](../guides/motion.md).
 
 Receiver-observation heartbeat state is implemented as a pure caller-ticked rule
 with exact overdue equality, newer/historical ordering, recovery, revision
@@ -229,8 +230,8 @@ degradation, recovery and rule-edit events have stable identities. See the
 [transport policy guide](../guides/transport-policy.md). The service now
 atomically persists this rule's canonical state, history and stable event intent
 with optimistic prior-state identity and restart recovery. Scheduling and
-notification delivery remain subsequent work, as does equivalent integration
-for the other rule types.
+notification delivery remain subsequent work, as does equivalent geofence and
+suspicious-movement integration.
 
 Implement explicit time/freshness, quality selection, motion/trips/stops,
 geofence membership/transitions, heartbeat, suspicious movement, low-battery,

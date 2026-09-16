@@ -88,6 +88,129 @@ defmodule Wotex.Tracker.MotionTransitionTest do
     assert changed_again["event"] == nil
   end
 
+  test "closed policy, sample, state and event documents restore exact motion content" do
+    policy = policy()
+    first = sample("serialized-first", 0, 0, 0)
+    second = sample("serialized-second", 0, 0.0001, 1_000)
+    third = sample("serialized-third", 0, 0.0002, 2_000)
+
+    {:ok, baseline} = MotionTransition.evaluate(nil, first, policy, :live, 0)
+
+    {:ok, candidate} =
+      MotionTransition.evaluate(baseline["state"], second, policy, :live, 1_000)
+
+    {:ok, started} =
+      MotionTransition.evaluate(candidate["state"], third, policy, :live, 2_000)
+
+    {:ok, replay_started} =
+      MotionTransition.evaluate(candidate["state"], third, policy, :replay, 2_000)
+
+    assert {:ok, ^started} =
+             MotionTransition.validate_transition(candidate["state"], started)
+
+    assert {:ok, ^replay_started} =
+             MotionTransition.validate_transition(candidate["state"], replay_started)
+
+    assert {:ok, ^candidate} =
+             MotionTransition.validate_transition(baseline["state"], candidate)
+
+    assert :ok = MotionTransition.validate_event(started["event"])
+    assert {:ok, policy_document} = MotionTransition.to_map(policy)
+    assert MotionTransition.from_map(policy_document) == {:ok, policy}
+    assert {:ok, sample_document} = PositionSample.to_map(third)
+    assert PositionSample.from_map(sample_document) == {:ok, third}
+    assert {:ok, candidate_document} = MotionTransition.state_to_map(candidate["state"])
+
+    assert MotionTransition.state_from_map(candidate_document) ==
+             {:ok, candidate["state"]}
+
+    assert {:ok, state_document} = MotionTransition.state_to_map(started["state"])
+    assert length(state_document["samples"]) == 2
+    assert MotionTransition.state_from_map(state_document) == {:ok, started["state"]}
+
+    for changed <- [
+          Map.put(state_document, "identity", "forged"),
+          put_in(state_document, ["policy", "identity"], "forged"),
+          put_in(state_document, ["samples", Access.at(0), "identity"], "forged"),
+          put_in(state_document, ["active_trip", "trip_id"], "forged"),
+          Map.put(state_document, "order_sample_identity", "missing"),
+          Map.put(state_document, "order_sample_identity", nil),
+          Map.update!(state_document, "samples", &(&1 ++ &1)),
+          Map.put(state_document, "samples", List.duplicate(sample_document, 7)),
+          Map.put(state_document, "schema", "wtr.motion-state.v2"),
+          Map.put(state_document, "extra", true)
+        ] do
+      assert {:error, _} = MotionTransition.state_from_map(changed)
+    end
+
+    order_document = policy_document["movement_policy"]["order_policy"]
+    movement_document = policy_document["movement_policy"]
+
+    for changed <- [
+          Map.put(policy_document, "schema", "wtr.motion-transition-policy.v2"),
+          put_in(policy_document, ["movement_policy", "identity"], "forged"),
+          Map.put(policy_document, "identity", "forged"),
+          Map.put(policy_document, "extra", true)
+        ] do
+      assert {:error, _} = MotionTransition.from_map(changed)
+    end
+
+    for changed <- [
+          Map.put(movement_document, "uncertainty", "guessed"),
+          Map.put(movement_document, "uncertainty", "require_bound"),
+          Map.put(movement_document, "order_policy_identity", "forged"),
+          Map.put(movement_document, "extra", true)
+        ] do
+      assert {:error, _} = PositionMovement.from_map(changed)
+    end
+
+    for changed <- [
+          Map.put(order_document, "event_time", "receiver_only"),
+          Map.put(order_document, "event_time", "trusted_fix_or_receiver"),
+          Map.put(order_document, "sequence", "invented"),
+          Map.put(order_document, "sequence", "optional"),
+          Map.put(order_document, "sequence", "required"),
+          Map.put(order_document, "identity", "forged"),
+          Map.put(order_document, "extra", true)
+        ] do
+      assert {:error, _} = PositionOrder.from_map(changed)
+    end
+
+    for changed <- [
+          Map.put(sample_document, "schema", "wtr.position-sample.v2"),
+          Map.put(sample_document, "received_at", -1),
+          Map.put(sample_document, "extra", true)
+        ] do
+      assert {:error, _} = PositionSample.from_map(changed)
+    end
+
+    assert {:error, _} =
+             MotionTransition.validate_transition(
+               candidate["state"],
+               put_in(started, ["event", "reason"], "changed")
+             )
+
+    assert {:error, _} =
+             MotionTransition.validate_event(Map.put(started["event"], "extra", true))
+
+    for changed <- [
+          Map.put(started["event"], "schema", "wtr.trip-event.v2"),
+          Map.put(started["event"], "kind", "trip.guessed"),
+          Map.put(started["event"], "confirmed_at", 0),
+          Map.put(started["event"], "id", "forged")
+        ] do
+      assert {:error, _} = MotionTransition.validate_event(changed)
+    end
+
+    assert {:error, _} = MotionTransition.validate_transition(nil, nil)
+
+    assert {:error, _} =
+             MotionTransition.validate_transition(
+               candidate["state"],
+               Map.put(started, "mode", "invented")
+             )
+  end
+
   test "initial stationary evidence becomes a baseline without inventing a stop event" do
     policy = policy()
     first = sample("first", 1, 1, 0)

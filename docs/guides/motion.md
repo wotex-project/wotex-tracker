@@ -73,7 +73,16 @@ implausible endpoint cannot.
 Late samples can advance last-received status without rewinding the canonical
 motion head. Replay produces the same state, trip and event identities as live
 evaluation while marking physical Action dispatch prohibited. State transitions
-remain pure and caller-owned; transactional persistence belongs to a later layer.
+remain pure and caller-owned.
+
+The service package serializes nested ordering/movement policies and complete
+position samples without atom creation. Durable motion state stores one copy of
+each referenced sample in a closed identity-keyed registry. Its generic rule
+transaction restores pending dwell and active-trip state across restart, compares
+the expected prior identity, and commits changed state, immutable history and any
+stable trip event intent at one generation. Exact retries deduplicate; replay
+intents retain prohibited physical dispatch. Position ingestion, trip-summary
+materialization and notification delivery remain caller-owned.
 
 ## Bounded trip distance
 

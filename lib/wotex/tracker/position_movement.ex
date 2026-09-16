@@ -9,6 +9,7 @@ defmodule Wotex.Tracker.PositionMovement do
   alias Wotex.Tracker.{Admission, Error, Limits, PositionOrder, PositionSample}
 
   @fields ~w(id revision order_policy moving_speed_m_s stationary_speed_m_s moving_distance_m stationary_distance_m max_plausible_speed_m_s max_gap_ms uncertainty)a
+  @serialized_fields ~w(schema algorithm id revision order_policy order_policy_identity moving_speed_m_s stationary_speed_m_s moving_distance_m stationary_distance_m max_plausible_speed_m_s max_gap_ms uncertainty identity)
   @authalic_radius_m 6_371_007.180918475
   @type t :: %__MODULE__{}
   @enforce_keys @fields ++ [:identity]
@@ -55,6 +56,53 @@ defmodule Wotex.Tracker.PositionMovement do
   end
 
   def validate(_, _), do: Admission.fail(:invalid_input)
+
+  @doc "Projects a validated movement policy and ordering policy to closed native JSON."
+  @spec to_map(term(), term()) :: {:ok, map()} | {:error, Error.t()}
+  def to_map(policy, options \\ []) do
+    with {:ok, policy} <- validate(policy, options),
+         {:ok, order_policy} <- PositionOrder.to_map(policy.order_policy, options) do
+      {:ok,
+       policy
+       |> policy_map(policy.order_policy)
+       |> Map.put("order_policy", order_policy)
+       |> Map.put("identity", policy.identity)}
+    end
+  end
+
+  @doc "Restores and revalidates a movement policy from closed native JSON."
+  @spec from_map(term(), term()) :: {:ok, t()} | {:error, Error.t()}
+  def from_map(document, options \\ []) do
+    with true <- exact_fields?(document, @serialized_fields),
+         true <-
+           document["schema"] == "wtr.position-movement-policy.v1" and
+             document["algorithm"] == "wgs84-authalic-bounded-segment-v1",
+         {:ok, order_policy} <- PositionOrder.from_map(document["order_policy"], options),
+         true <- order_policy.identity == document["order_policy_identity"],
+         {:ok, uncertainty} <- uncertainty(document["uncertainty"]),
+         {:ok, policy} <-
+           new(
+             %{
+               id: document["id"],
+               revision: document["revision"],
+               order_policy: order_policy,
+               moving_speed_m_s: document["moving_speed_m_s"],
+               stationary_speed_m_s: document["stationary_speed_m_s"],
+               moving_distance_m: document["moving_distance_m"],
+               stationary_distance_m: document["stationary_distance_m"],
+               max_plausible_speed_m_s: document["max_plausible_speed_m_s"],
+               max_gap_ms: document["max_gap_ms"],
+               uncertainty: uncertainty
+             },
+             options
+           ),
+         true <- policy.identity == document["identity"] do
+      {:ok, policy}
+    else
+      false -> Admission.fail(:conflict)
+      error -> error
+    end
+  end
 
   @doc "Classifies one ordered segment without retaining state or reading a clock."
   @spec evaluate(term(), term(), term(), term(), term()) :: {:ok, map()} | {:error, Error.t()}
@@ -237,4 +285,13 @@ defmodule Wotex.Tracker.PositionMovement do
       "max_gap_ms" => input.max_gap_ms,
       "uncertainty" => Atom.to_string(input.uncertainty)
     }
+
+  defp uncertainty("require_bound"), do: {:ok, :require_bound}
+  defp uncertainty("coordinate_only"), do: {:ok, :coordinate_only}
+  defp uncertainty(_), do: Admission.fail(:invalid_input)
+
+  defp exact_fields?(value, fields),
+    do:
+      is_map(value) and not is_struct(value) and
+        Enum.sort(Map.keys(value)) == Enum.sort(fields)
 end

@@ -48,8 +48,8 @@ tests, bounded durable store-and-forward, authenticated HTTP/OpenAPI/SSE
 workflows, and Runtime Property reads and
 committed-value subscriptions through actual local HTTP binding peers. Its
 privileged host port also atomically persists transport-health state and stable
-event intents plus heartbeat state and overdue/recovery intents, with restart
-recovery and retry deduplication. The
+event intents plus heartbeat, low-battery and motion/trip state and intents, with
+restart recovery and retry deduplication. The
 standalone CLI and bundled Darwin/Linux ARM64 service artifacts pass local probes.
 See the [service contract](docs/contracts/service-v1.md). Live scanning and UI
 remain subsequent work.
@@ -62,9 +62,9 @@ and edit recomputation plus bounded sparse-crossing inference are implemented;
 two-fix movement/uncertainty classification is also implemented. See the
 [motion guide](docs/guides/motion.md). Consecutive-segment dwell now establishes
 stationary/moving state and stable trip start, stop and interruption events. Host
-transactional rule persistence remains subsequent work. Bounded trip-distance
-reconstruction includes only adjacent segments proved moving and reports every
-exclusion. Evidence-backed heartbeat state and overdue/recovery events are also
+transactions now persist changed motion state and stable trip event intent
+atomically. Bounded trip-distance reconstruction includes only adjacent segments
+proved moving and reports every exclusion. Evidence-backed heartbeat state and overdue/recovery events are also
 implemented; see the [heartbeat guide](docs/guides/heartbeat.md).
 Its SQLite host integration persists changed heartbeat state and event intent
 atomically; deadline scheduling remains explicit host work.

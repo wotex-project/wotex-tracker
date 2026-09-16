@@ -1071,3 +1071,39 @@ low threshold in replay, and proves atomic event intent plus retry deduplication
 Exact archive and lock identities are recorded in
 `verification/service-consumer.json`. Measurement ingestion, age scheduling and
 notification delivery remain host work.
+
+## WTR.05/06 atomic motion and trip persistence — 2026-09-16
+
+Ordering, movement and dwell policies now have closed native-JSON forms that
+restore nested policy identities without atom creation. Complete position samples
+restore through their evidence bundles. Durable motion state stores a sorted,
+deduplicated registry containing only samples still referenced by the canonical
+head, last reception, segment baseline, pending dwell or active trip. Restoration
+reconstructs every reference and rejects duplicates, unused samples, dangling
+identities and changed nested content.
+
+Motion transition admission re-evaluates changed results and validates stable
+trip event identities before storage. The schema-3 generic transaction now admits
+`motion`, compares the expected prior state identity, and atomically advances
+canonical state, immutable history and any trip-start, stop or interruption
+intent. Pending dwell and active-trip state survive restart. Exact retry returns
+the committed generation, stale or changed transitions conflict, and replay
+intent retains prohibited physical dispatch. The generic tables require no
+migration.
+
+Both required root runtime lanes passed the complete gate with 1 doctest,
+18 properties and 148 tests, no failures and 95.1% production line coverage.
+Both service runtime lanes passed with 2 properties and 109 tests, no failures
+and 95.6% floor / 95.7% current production line coverage. Cases cover nested
+policy/sample/state round trips, malformed registries and references, policy enum
+rejection, live/replay transition validation, restart restoration of pending
+dwell, trip-start intent commit, exact retry and stable-result rejection.
+Compiler, formatter, strict Credo, Dialyzer, ExDoc, dependency audit, licences,
+OpenAPI validation, documentation contracts and archive inspection passed.
+
+The production service consumer commits an installed-archive baseline and
+pending movement dwell, restarts SQLite, reconstructs the exact state, confirms
+the trip in replay, and proves atomic `trip.started` intent plus retry
+deduplication. Exact archive and lock identities are recorded in
+`verification/service-consumer.json`. Position ingestion, trip-summary
+materialization and notification delivery remain host work.

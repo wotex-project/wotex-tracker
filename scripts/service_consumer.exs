@@ -8,7 +8,12 @@ alias Wotex.Tracker.{
   HeartbeatTransition,
   Measurement,
   MeasurementSample,
+  MotionTransition,
   PolicyFact,
+  Position,
+  PositionMovement,
+  PositionOrder,
+  PositionSample,
   TransportCandidate,
   TransportDegradation,
   TransportPolicy
@@ -320,6 +325,120 @@ end
 {:ok, %{"generation" => "1", "event_disposition" => "none"}} =
   Store.commit_rule(store, battery_transition)
 
+motion_sample = fn id, longitude, event_at ->
+  capture = %{observation | id: "archive-motion-capture-#{id}", observed_at: event_at}
+
+  {:ok, evidence} =
+    Evidence.new(%{
+      id: "archive-position-#{id}",
+      kind: :position,
+      claim: %{
+        "schema" => "wtr.position.v1",
+        "latitude" => 0,
+        "longitude" => longitude,
+        "altitude_m" => nil,
+        "speed_m_s" => nil,
+        "horizontal_accuracy_m" => nil,
+        "accuracy_kind" => "unknown",
+        "source" => "gnss",
+        "fix_at" => event_at,
+        "device_at" => nil,
+        "received_at" => event_at,
+        "fix_clock" => "trusted",
+        "device_clock" => "unknown",
+        "availability" => "available",
+        "quality" => "valid",
+        "source_units" => %{
+          "latitude" => "degree",
+          "longitude" => "degree",
+          "altitude" => nil,
+          "speed" => nil,
+          "accuracy" => nil,
+          "fix_time" => "unix-ms",
+          "device_time" => nil,
+          "receiver_time" => "unix-ms"
+        },
+        "conversion_revision" => "archive-v1",
+        "receiver_observation_id" => capture.id,
+        "raw" => %{}
+      },
+      source_observation_ids: [capture.id],
+      evidence_ids: [],
+      profile: {"archive-position", "1"},
+      decoder: {"archive-position", "1"},
+      confidence: :exact,
+      reasons: ["archive_fixture"],
+      association_id: nil
+    })
+
+  {:ok, bundle} = EvidenceBundle.new([capture], [evidence])
+  {:ok, position} = Position.new(evidence.id, bundle)
+  {:ok, sample} = PositionSample.new(position, bundle)
+  sample
+end
+
+{:ok, motion_order_policy} =
+  PositionOrder.new(%{
+    revision: "archive-motion-order-v1",
+    event_time: :trusted_fix,
+    future_skew_ms: 0,
+    late_window_ms: 10_000,
+    sequence: :none
+  })
+
+{:ok, motion_movement_policy} =
+  PositionMovement.new(%{
+    id: "archive-movement",
+    revision: "archive-movement-v1",
+    order_policy: motion_order_policy,
+    moving_speed_m_s: 1.0,
+    stationary_speed_m_s: 0.1,
+    moving_distance_m: 1.0,
+    stationary_distance_m: 0.5,
+    max_plausible_speed_m_s: 10_000.0,
+    max_gap_ms: 10_000,
+    uncertainty: :coordinate_only
+  })
+
+{:ok, motion_policy} =
+  MotionTransition.new(%{
+    id: "archive-motion",
+    revision: "archive-motion-v1",
+    movement_policy: motion_movement_policy,
+    minimum_movement_ms: 1_000,
+    minimum_stop_ms: 1_000
+  })
+
+{:ok, motion_baseline_result} =
+  MotionTransition.evaluate(
+    nil,
+    motion_sample.("first", 0, update.now),
+    motion_policy,
+    :live,
+    update.now
+  )
+
+{:ok, motion_baseline_transition} =
+  RuleTransition.new("archive-motion", nil, motion_baseline_result)
+
+{:ok, %{"generation" => "1", "event_disposition" => "none"}} =
+  Store.commit_rule(store, motion_baseline_transition)
+
+{:ok, motion_candidate_result} =
+  MotionTransition.evaluate(
+    motion_baseline_result["state"],
+    motion_sample.("second", 0.0001, update.now + 1_000),
+    motion_policy,
+    :live,
+    update.now + 1_000
+  )
+
+{:ok, motion_candidate_transition} =
+  RuleTransition.new("archive-motion", motion_baseline_result["state"], motion_candidate_result)
+
+{:ok, %{"generation" => "2", "event_disposition" => "none"}} =
+  Store.commit_rule(store, motion_candidate_transition)
+
 {:ok, forward_item} =
   ForwardItem.new(%{
     scope: "archive",
@@ -446,6 +565,37 @@ true = restored_battery === battery_result["state"]
    "mode" => "replay",
    "physical_action_dispatch" => "prohibited"
  }} = Store.rule_event(store, "archive-battery", battery_receipt["event_id"])
+
+{:ok, durable_motion} =
+  Store.rule_state(store, "archive-motion", "motion", motion_policy.id)
+
+{:ok, restored_motion} = MotionTransition.state_from_map(durable_motion["state"])
+true = restored_motion === motion_candidate_result["state"]
+
+{:ok, started_motion_result} =
+  MotionTransition.evaluate(
+    restored_motion,
+    motion_sample.("third", 0.0002, update.now + 2_000),
+    motion_policy,
+    :replay,
+    update.now + 2_000
+  )
+
+{:ok, started_motion_transition} =
+  RuleTransition.new("archive-motion", restored_motion, started_motion_result)
+
+{:ok, %{"generation" => "3", "event_disposition" => "recorded"} = motion_receipt} =
+  Store.commit_rule(store, started_motion_transition)
+
+{:ok, %{"disposition" => "duplicate", "generation" => "3"}} =
+  Store.commit_rule(store, started_motion_transition)
+
+{:ok,
+ %{
+   "event" => %{"kind" => "trip.started"},
+   "mode" => "replay",
+   "physical_action_dispatch" => "prohibited"
+ }} = Store.rule_event(store, "archive-motion", motion_receipt["event_id"])
 
 {:ok, %{"status" => "pending"}} =
   Store.forward_status(store, "archive", forward_item.id)
@@ -778,5 +928,5 @@ retained = Process.list() |> MapSet.new() |> MapSet.difference(before_processes)
 0 = retained
 
 IO.puts(
-  "SERVICE_COHORT_PASS durable_restart=true durable_store_forward=true atomic_transport_health=true atomic_heartbeat=true atomic_battery=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true explicit_association=true independent_http_sse=true actual_runtime_http_peer=true actual_runtime_sse=true retained_new_processes=#{retained}"
+  "SERVICE_COHORT_PASS durable_restart=true durable_store_forward=true atomic_transport_health=true atomic_heartbeat=true atomic_battery=true atomic_motion=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true explicit_association=true independent_http_sse=true actual_runtime_http_peer=true actual_runtime_sse=true retained_new_processes=#{retained}"
 )

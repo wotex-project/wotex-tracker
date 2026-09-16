@@ -9,6 +9,7 @@ defmodule Wotex.Tracker.PositionSample do
   alias Wotex.Tracker.{Admission, Error, EvidenceBundle, Limits, Position}
 
   @sequence_fields ~w(schema scope_id session_id value modulus receiver_observation_id)
+  @serialized_fields ~w(schema identity position_evidence_id position_bundle_identity received_at sequence_evidence_id sequence bundle)
   @type t :: %__MODULE__{}
   @enforce_keys [:position, :bundle, :sequence_evidence_id, :sequence, :identity]
   defstruct @enforce_keys
@@ -46,10 +47,11 @@ defmodule Wotex.Tracker.PositionSample do
 
   def validate(_, _), do: Admission.fail(:invalid_input)
 
-  @doc "Exports the ordering inputs while retaining the immutable evidence identities."
+  @doc "Exports the ordering inputs and complete immutable evidence bundle to native JSON."
   @spec to_map(term(), term()) :: {:ok, map()} | {:error, Error.t()}
   def to_map(sample, options \\ []) do
-    with {:ok, sample} <- validate(sample, options) do
+    with {:ok, sample} <- validate(sample, options),
+         {:ok, bundle} <- EvidenceBundle.to_map(sample.bundle, options) do
       {:ok,
        %{
          "schema" => "wtr.position-sample.v1",
@@ -58,8 +60,27 @@ defmodule Wotex.Tracker.PositionSample do
          "position_bundle_identity" => sample.position.bundle_identity,
          "received_at" => sample.position.claim["received_at"],
          "sequence_evidence_id" => sample.sequence_evidence_id,
-         "sequence" => sample.sequence
+         "sequence" => sample.sequence,
+         "bundle" => bundle
        }}
+    end
+  end
+
+  @doc "Restores and revalidates a position sample from closed native JSON."
+  @spec from_map(term(), term()) :: {:ok, t()} | {:error, Error.t()}
+  def from_map(document, options \\ []) do
+    with true <- exact_fields?(document, @serialized_fields),
+         true <- document["schema"] == "wtr.position-sample.v1",
+         {:ok, bundle} <- EvidenceBundle.from_map(document["bundle"], options),
+         {:ok, position} <- Position.new(document["position_evidence_id"], bundle, options),
+         {:ok, sample} <-
+           new(position, bundle, document["sequence_evidence_id"], options),
+         {:ok, admitted} <- to_map(sample, options),
+         true <- admitted === document do
+      {:ok, sample}
+    else
+      false -> Admission.fail(:conflict)
+      error -> error
     end
   end
 
@@ -108,4 +129,9 @@ defmodule Wotex.Tracker.PositionSample do
       "position_bundle_identity" => position.bundle_identity,
       "sequence" => sequence
     }
+
+  defp exact_fields?(value, fields),
+    do:
+      is_map(value) and not is_struct(value) and
+        Enum.sort(Map.keys(value)) == Enum.sort(fields)
 end
