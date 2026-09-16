@@ -214,6 +214,12 @@ separate low/clear thresholds. It never derives percentage from voltage. See the
 [battery guide](../guides/battery.md). Host transaction integration remains
 subsequent work.
 
+Suspicious movement is implemented as a pure three-valued conjunction over
+confirmed motion and content-bound armed/owner-presence facts. Unknown presence
+remains unknown unless the rule explicitly treats it as absence. See the
+[suspicious-movement guide](../guides/suspicious-movement.md). Atomic host
+deduplication and notification remain subsequent work.
+
 Implement explicit time/freshness, quality selection, motion/trips/stops,
 geofence membership/transitions, heartbeat, suspicious movement, low-battery,
 late-data handling, deduplication and transport-policy values under WTR.05/06.

@@ -64,6 +64,9 @@ exclusion. Evidence-backed heartbeat state and overdue/recovery events are also
 implemented; see the [heartbeat guide](docs/guides/heartbeat.md).
 Evidence-backed low-battery state uses explicit measurement kind, unit, freshness,
 quality and hysteresis; see the [battery guide](docs/guides/battery.md).
+The suspicious-movement rule combines confirmed motion, armed state and explicit
+owner-presence facts with three-valued logic; see the
+[policy guide](docs/guides/suspicious-movement.md).
 [Implementation evidence](docs/evidence/implementation.md) records
 executed software checks and unpassed release, host and hardware gates.
 

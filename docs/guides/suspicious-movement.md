@@ -1,0 +1,28 @@
+# Three-valued suspicious movement
+
+`Wotex.Tracker.PolicyFact` represents a true, false or unknown policy fact backed
+by a retained evidence record and closed bundle. Its claim names the predicate,
+derivation-policy revision and reason. Exact or strong evidence is required.
+Missing evidence and radio silence do not automatically create a false fact.
+
+`Wotex.Tracker.SuspiciousMovement` evaluates the rule:
+
+```text
+confirmed moving AND armed true AND owner-present false
+```
+
+The rule policy binds the complete motion policy, exact armed and owner-presence
+predicate names, fact age/future-skew limits, and whether unknown owner presence
+is explicitly treated as absence. That last choice defaults to false. Armed
+unknown always remains unknown.
+
+The evaluator uses three-valued conjunction: any false condition clears the rule,
+all true conditions trigger it, and every other combination is unknown. This
+means a disarmed asset or a present owner clears the rule even when another input
+is unknown, while absent BLE evidence cannot trigger an alarm under the default
+policy.
+
+A true result emits a stable `suspicious_movement` event binding the active trip,
+motion state, both evidence facts and rule identity. Re-evaluation is idempotent;
+host persistence deduplicates the same event key in the atomic state transaction.
+Replay produces the same event identity and prohibits physical Action dispatch.

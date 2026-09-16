@@ -819,3 +819,37 @@ The final six archive consumers select the Ruuvi voltage evidence and evaluate a
 explicit voltage policy on both supported runtime lanes; exact identities are in
 `verification/source-consumer.json`. Hardware-specific thresholds, persistent
 state/event intent and any physical notification remain deployment concerns.
+
+## WTR.05 three-valued suspicious movement — 2026-09-16
+
+`PolicyFact` introduces a closed true/false/unknown claim bound to exact or strong
+retained evidence, its full bundle, derivation-policy revision, reason and latest
+named receiver observation. It does not derive false from missing evidence or
+radio silence. Candidate-confidence evidence and malformed/extended claims fail
+closed.
+
+The pure `SuspiciousMovement` policy binds a complete motion policy, exact armed
+and owner-presence predicates, fact freshness/future skew and an explicit choice
+for interpreting unknown owner presence. Three-valued conjunction clears when
+any condition is false, triggers only when every condition is true, and otherwise
+returns unknown. By default, missing or stale owner presence remains unknown.
+Only a policy that expressly elects `owner_unknown_as_absent` can reinterpret it.
+Armed unknown always remains unknown.
+
+A true result emits a stable `suspicious_movement` event binding the active trip,
+motion state, armed fact, owner fact and rule identity. Live and replay produce
+the same event; replay prohibits physical Action dispatch. Re-evaluation returns
+the same idempotency key for atomic host deduplication.
+
+Both required runtime lanes passed the complete root gate with 1 doctest,
+16 properties and 133 tests, no failures and 96.7% production line coverage.
+Cases include all explicit false conditions, retained versus explicitly converted
+unknown presence, unknown/stale/future armed facts, closed fact claims,
+multi-source observation order, predicate and nested-policy mismatch, mutation,
+live/replay identity and generated freshness equality. Strict analysis,
+documentation, dependency, license and archive checks passed.
+
+The final six archive consumers build explicit armed and owner-absence evidence
+and evaluate the rule against a confirmed replay trip on both runtime lanes.
+Exact identities are in `verification/source-consumer.json`. Enrollment authority,
+fact production, atomic event intent and notifications remain host responsibilities.

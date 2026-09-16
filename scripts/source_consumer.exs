@@ -457,6 +457,7 @@ crossing_after = crossing_sample.("after", 0.0002, 1_002)
    "status" => "transition",
    "motion_status" => "moving",
    "active_trip" => archive_trip,
+   "state" => archive_motion_state,
    "event" => %{"kind" => "trip.started"},
    "physical_action_dispatch" => "prohibited"
  }} =
@@ -491,8 +492,70 @@ crossing_after = crossing_sample.("after", 0.0002, 1_002)
 
 true = archive_distance["center_distance_m"] > 0
 
+fact_capture = Map.fetch!(crossing_after.bundle.observations, "crossing-capture-after")
+
+policy_fact = fn id, predicate, status, kind ->
+  {:ok, evidence} =
+    Evidence.new(%{
+      id: id,
+      kind: kind,
+      source_observation_ids: [fact_capture.id],
+      evidence_ids: [],
+      profile: {"synthetic-position", "1"},
+      decoder: {"synthetic-position", "1"},
+      confidence: :exact,
+      reasons: ["synthetic_fixture"],
+      association_id: nil,
+      claim: %{
+        "schema" => "wtr.policy-fact.v1",
+        "predicate" => predicate,
+        "status" => status,
+        "policy_revision" => "archive-fact-v1",
+        "reason" => "synthetic_fixture"
+      }
+    })
+
+  evidence
+end
+
+armed_evidence = policy_fact.("archive-armed", "asset.armed", "true", :identity)
+owner_evidence = policy_fact.("archive-owner", "owner.present", "false", :transport)
+
+{:ok, fact_bundle} =
+  EvidenceBundle.new([fact_capture], [armed_evidence, owner_evidence])
+
+{:ok, armed_fact} = Wotex.Tracker.PolicyFact.new(armed_evidence.id, fact_bundle)
+{:ok, owner_fact} = Wotex.Tracker.PolicyFact.new(owner_evidence.id, fact_bundle)
+
+{:ok, suspicious_policy} =
+  Wotex.Tracker.SuspiciousMovement.new(%{
+    id: "archive-suspicious",
+    revision: "archive-suspicious-v1",
+    motion_policy: motion_policy,
+    armed_predicate: "asset.armed",
+    owner_presence_predicate: "owner.present",
+    maximum_fact_age_ms: 1_000,
+    future_skew_ms: 0,
+    owner_unknown_as_absent: false
+  })
+
+{:ok,
+ %{
+   "status" => "triggered",
+   "event" => %{"kind" => "suspicious_movement"},
+   "physical_action_dispatch" => "prohibited"
+ }} =
+  Wotex.Tracker.SuspiciousMovement.evaluate(
+    archive_motion_state,
+    armed_fact,
+    owner_fact,
+    suspicious_policy,
+    :replay,
+    1_002
+  )
+
 true = MapSet.subset?(MapSet.new(Process.list()), before_processes)
 
 IO.puts(
-  "SOURCE_COHORT_PASS Elixir=#{System.version()} OTP=#{System.otp_release()} properties=10 position_freshness=true position_selection=true position_order=true movement=true motion_transition=true trip_distance=true heartbeat=true battery=true geofence=true geofence_transition=true geofence_crossing=true no_new_processes=true optional_hosts_absent=true"
+  "SOURCE_COHORT_PASS Elixir=#{System.version()} OTP=#{System.otp_release()} properties=10 position_freshness=true position_selection=true position_order=true movement=true motion_transition=true trip_distance=true heartbeat=true battery=true suspicious_movement=true geofence=true geofence_transition=true geofence_crossing=true no_new_processes=true optional_hosts_absent=true"
 )
