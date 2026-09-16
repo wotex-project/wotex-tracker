@@ -6,7 +6,9 @@ defmodule Wotex.Tracker.Service.Store do
   authenticated client capability. Use the service API at untrusted boundaries.
   Calls reserve one of 32 slots before putting a prepared payload in the writer
   mailbox. A timed-out or dead caller does not cancel a possibly committed write;
-  its bounded helper retains the slot until the store replies or dies.
+  its bounded helper retains the slot until the store replies or dies. Analytics
+  uses separate cancellable read-only connections with tighter concurrency and
+  per-principal start budgets.
   """
   use GenServer
 
@@ -15,7 +17,7 @@ defmodule Wotex.Tracker.Service.Store do
 
   alias Wotex.Tracker.Service.{
     Access,
-    Analytics,
+    AnalyticsCall,
     Authority,
     Codec,
     Credentials,
@@ -35,9 +37,16 @@ defmodule Wotex.Tracker.Service.Store do
     Update
   }
 
+  @derive {Inspect, only: [:pid, :timeout]}
   @enforce_keys [:pid, :slots, :timeout]
-  defstruct [:pid, :slots, :timeout]
-  @type t :: %__MODULE__{pid: pid(), slots: :ets.tid(), timeout: pos_integer()}
+  defstruct [:pid, :slots, :timeout, :analytics]
+
+  @type t :: %__MODULE__{
+          pid: pid(),
+          slots: :ets.tid(),
+          timeout: pos_integer(),
+          analytics: map() | nil
+        }
 
   @doc "Starts a caller-owned store in an existing private absolute directory."
   @spec start_link(keyword()) :: GenServer.on_start()
@@ -114,7 +123,7 @@ defmodule Wotex.Tracker.Service.Store do
           {:ok, map()} | {:error, atom()}
   def authorized_analytics(store, access, spec, now) do
     with {:ok, admitted} <- QuerySpec.validate(spec),
-         do: StoreCall.run(store, {:authorized_analytics, access, admitted, now})
+         do: AnalyticsCall.run(store.analytics, access, admitted, now)
   end
 
   @doc "Reads bounded ascending record versions, retaining explicit deletion tombstones."
@@ -249,7 +258,24 @@ defmodule Wotex.Tracker.Service.Store do
 
   @impl true
   def handle_call(:handle, _from, state) do
-    {:reply, %__MODULE__{pid: self(), slots: state.slots, timeout: state.options.timeout}, state}
+    analytics = %{
+      path: state.path,
+      store: self(),
+      slots: state.analytics_slots,
+      timeout: state.options.timeout,
+      busy_timeout: state.options.busy_timeout,
+      credentials: state.options.credentials,
+      clock: state.options.clock,
+      fault: state.options.fault
+    }
+
+    {:reply,
+     %__MODULE__{
+       pid: self(),
+       slots: state.slots,
+       timeout: state.options.timeout,
+       analytics: analytics
+     }, state}
   end
 
   def handle_call(message, _from, state) do
@@ -267,17 +293,24 @@ defmodule Wotex.Tracker.Service.Store do
   defp open(path, options) do
     case Sqlite3.open(path, mode: :readwrite) do
       {:ok, db} ->
-        initialize(db, options)
+        initialize(db, path, options)
 
       {:error, _} ->
         {:stop, :storage_unavailable}
     end
   end
 
-  defp initialize(db, options) do
+  defp initialize(db, path, options) do
     case SQL.boundary(fn -> Schema.initialize(db, options) end) do
       :ok ->
-        {:ok, %{db: db, options: options, slots: :ets.new(__MODULE__, [:public, :set])}}
+        {:ok,
+         %{
+           db: db,
+           path: path,
+           options: options,
+           slots: :ets.new(__MODULE__, [:public, :set]),
+           analytics_slots: :ets.new(AnalyticsCall, [:public, :set, write_concurrency: true])
+         }}
 
       {:error, reason} ->
         Sqlite3.close(db)
@@ -439,19 +472,6 @@ defmodule Wotex.Tracker.Service.Store do
           access,
           query.scope,
           permission,
-          Authority.now(state.options, now)
-        )
-      end)
-
-  defp dispatch({:authorized_analytics, access, spec, now}, state),
-    do:
-      Analytics.query(state.db, access_scope(access), spec, fn ->
-        Authority.check!(
-          state.db,
-          state.options.credentials,
-          access,
-          access_scope(access),
-          "read",
           Authority.now(state.options, now)
         )
       end)

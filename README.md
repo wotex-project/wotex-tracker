@@ -92,7 +92,8 @@ absolute-UTC queries, then deterministically returns bounded bucketed
 count/min/max/mean/last series with snapshot binding, stable ties, preserved gaps
 and disclosed exclusions. The service now authorizes those queries, extracts
 committed SQLite state history in one pinned snapshot and exposes the closed
-query/result contract over HTTP. See the [analytics guide](docs/guides/analytics.md).
+query/result contract over HTTP with bounded per-principal execution and
+cancellation. See the [analytics guide](docs/guides/analytics.md).
 
 Start with the [WTR specification index](docs/specs/WTR-index.md) and the [software implementation sequence](docs/plans/software-implementation.md).
 

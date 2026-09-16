@@ -256,7 +256,7 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
-## HTTP and stream contract 1.5.0
+## HTTP and stream contract 1.6.0
 
 The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
 2020-12. The independently maintained generator and validator check the packaged
@@ -348,9 +348,9 @@ minimum, maximum, mean or last aggregation. Windows are limited to 31 days and
 1,000 points per series. Unknown fields, changed content identities, named
 timezones and rolling windows fail before storage access.
 
-The store opens a read transaction, rechecks current authority inside that
-transaction and pins the current scope generation. Each requested series uses
-the indexed state-history prefix and extracts matching committed
+The service opens a dedicated read-only connection and transaction, rechecks
+current authority inside that transaction and pins the current scope generation.
+Each requested series uses the indexed state-history prefix and extracts matching committed
 `public.measurements` rows whose integer `observed_at` lies in the window. At
 most 100,000 matching measurement rows are admitted across all series. A state
 version containing the same requested measurement more than once, malformed
@@ -367,10 +367,17 @@ Empty buckets stay absent, which requires clients to render gaps. The core
 result material is limited to 256 KiB and HTTP keeps its existing 4 MiB response
 ceiling.
 
-The caller waits at most the configured five-second store timeout. This revision
-does not interrupt SQLite after an expired wait, page query input, save a query,
-translate prompts, emit operational analytics telemetry or render graphs. Those
-limits remain visible product work rather than implied endpoint behavior.
+At most eight analytics queries execute concurrently, with two per principal and
+sixteen starts per principal in each one-second window. Admission happens before
+opening a query connection. Caller loss, store shutdown or the configured
+five-second deadline repeatedly interrupts the SQLite progress/busy handlers
+until the worker exits, then releases its reservation. Analytics connections are
+separate from the serialized writer connection and open the already admitted
+private database read-only.
+
+This revision does not page query input, save a query, translate prompts, emit
+operational analytics telemetry or render graphs. Those limits remain visible
+product work rather than implied endpoint behavior.
 
 ## Runtime Property read contract
 

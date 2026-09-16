@@ -44,7 +44,7 @@ inside a SQLite read transaction and pins the current scope generation. For each
 explicit series it extracts matching measurements from committed state history,
 then passes admitted rows and a scope-generation snapshot identity to the pure
 evaluator. The same operation is available as the read-only
-`POST …/analytics/query` endpoint in service contract 1.5.0.
+`POST …/analytics/query` endpoint in service contract 1.6.0.
 
 The adapter admits at most 100,000 matching measurement rows across all series.
 Its `scanned_rows` value counts those extracted rows, rather than SQLite pages or
@@ -53,8 +53,10 @@ malformed committed scalars and invented quality values fail closed. The endpoin
 uses scope-level `read` authority, produces no mutation receipt and requires no
 idempotency key.
 
-The caller stops waiting at the configured five-second service timeout, but this
-revision does not cancel SQLite work after that timeout. Query pagination,
-rolling windows, named display timezones, saved dashboards, prompt translation,
-operational telemetry and graph rendering remain required by the analytics
-target contract.
+The service admits at most eight simultaneous queries, two from one principal,
+and sixteen starts per principal per second. Each accepted query uses its own
+read-only SQLite connection. Caller loss, store shutdown or the configured
+five-second deadline cancels the connection through its busy and progress
+handlers and releases the reservation. Query pagination, rolling windows, named
+display timezones, saved dashboards, prompt translation, operational telemetry
+and graph rendering remain required by the analytics target contract.

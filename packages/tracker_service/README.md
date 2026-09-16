@@ -88,15 +88,20 @@ reported as `structured_queries`.
 
 `Service.analytics/5` and `POST …/analytics/query` accept the closed
 `wtr.query-spec.v1` document. The service rechecks `read` authority inside a
-SQLite read transaction, pins the current scope generation and extracts numeric
-measurement rows from committed state history. It scans at most 100,000 matching
-rows across one to eight explicit series and returns a content-identified
-`wtr.query-result.v1` with disclosure counts and preserved gaps. The operation is
-read-only, so it does not use mutation receipts or `Idempotency-Key`. Callers wait
-at most the configured five-second store timeout, but an expired wait does not
-cancel SQLite work in this revision. Pagination, saved queries, named display
-timezones, prompting, operational telemetry and graph rendering remain later
-contracts.
+dedicated read-only SQLite transaction, pins the current scope generation and
+extracts numeric measurement rows from committed state history. It scans at most
+100,000 matching rows across one to eight explicit series and returns a
+content-identified `wtr.query-result.v1` with disclosure counts and preserved
+gaps. The operation is read-only, so it does not use mutation receipts or
+`Idempotency-Key`.
+
+Analytics execution is capped at eight concurrent queries, two per principal and
+sixteen starts per principal in each one-second window. Caller loss, store
+shutdown or the configured timeout cancels the dedicated SQLite connection and
+retains no query reservation. These limits are independent of the serialized
+writer, so a canceled scan cannot leave the writer mailbox blocked. Pagination,
+saved queries, named display timezones, prompting, operational telemetry and
+graph rendering remain later contracts.
 
 ## Explicit HTTP instance
 
@@ -121,7 +126,7 @@ and key paths. Explicit `:proxy` mode requires an HTTPS public origin and a
 protected proxy-to-listener network; forwarded headers never supply authority or
 Forms. No remote exposure is inferred.
 
-OpenAPI **3.1.0**, contract revision **1.5.0**, is packaged at
+OpenAPI **3.1.0**, contract revision **1.6.0**, is packaged at
 `priv/openapi/v1.json` and served at `/api/v1/openapi.json`. Liveness is
 `/health/live`; authenticated resources are under `/api/v1/scopes/{scope}`.
 Use `Authorization: Bearer …`, and a UUIDv4 `Idempotency-Key` for POST mutations.

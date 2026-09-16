@@ -185,9 +185,10 @@ def document():
     paths[base + "/analytics/query"] = {"post": {
         "operationId": "query_analytics",
         "description": "Evaluate a closed numeric measurement query against one authorized committed SQLite snapshot. "
-                       "This read-only POST does not use an Idempotency-Key. The caller waits at most the configured "
-                       "service timeout; SQLite cancellation after an expired wait, pagination, saved queries and "
-                       "prompt translation are not provided by this operation.",
+                       "This read-only POST does not use an Idempotency-Key. At most eight queries execute at once, "
+                       "two per principal, with sixteen starts per principal per second. Caller loss, store shutdown "
+                       "or the configured deadline cancels the dedicated read connection. Pagination, saved queries "
+                       "and prompt translation are not provided by this operation.",
         "parameters": [{"$ref": "#/components/parameters/Scope"}],
         "responses": {"200": response(envelope(ref("QueryResult"))),
                       "default": response(ref("Error"))},
@@ -252,7 +253,7 @@ def document():
                        "Connection lifetime 300 s; idle reauthorization/poll 1 s; no unlimited queue."},
         ("Scope", "Cursor", "Resume"), media="text/event-stream")}
     paths["/api/v1/openapi.json"] = {"get": operation("openapi", {"type": "object"}, public=True)}
-    return {"openapi": "3.1.0", "info": {"title": "WoTEx Tracker service", "version": "1.5.0",
+    return {"openapi": "3.1.0", "info": {"title": "WoTEx Tracker service", "version": "1.6.0",
         "description": "Authenticated imported-observation service with deterministic structured measurement queries. "
                        "No scanner, rules or physical interaction is implied."},
         "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema", "security": [{"bearer": []}],

@@ -1178,9 +1178,8 @@ and result codecs plus a known-answer aggregation on both runtime lanes in fresh
 locked and minimum dependency modes, while retaining zero new Tracker processes.
 Exact archive and lock identities are recorded in
 `verification/source-consumer.json` and `verification/service-consumer.json`.
-SQL cancellation after a timed-out wait, query pagination, operational telemetry,
-named display timezones, saved dashboards, prompting and dynamic graphs remain
-required host and product work.
+Query pagination, operational telemetry, named display timezones, saved
+dashboards, prompting and dynamic graphs remain required host and product work.
 
 ### Service-backed structured queries — 2026-09-16
 
@@ -1213,3 +1212,27 @@ The root archive consumer continues to exercise the pure known-answer query on
 both runtime lanes in fresh, locked and minimum dependency modes. Exact archive
 and lock identities are recorded in `verification/source-consumer.json` and
 `verification/service-consumer.json`.
+
+### Cancellable bounded query execution — 2026-09-16
+
+Structured analytics now runs on dedicated read-only SQLite connections rather
+than in the serialized writer. Admission permits eight concurrent queries,
+two per principal and sixteen starts per principal in each one-second window.
+Every accepted connection retains the existing in-transaction authorization and
+generation snapshot. Opening a query never creates or migrates storage.
+
+A watchdog monitors the caller, store and deadline. Any one ending repeatedly
+cancels the Exqlite busy/progress handlers until the query worker exits, and the
+worker owns release of both global and principal reservations. Tests exercise
+both a real 100,000-row JSON history scan canceled at a ten-millisecond store
+deadline, a caller killed before its connection opens and store shutdown after
+a connection opens. The writer remains writable after cancellation, abandoned
+replies cannot reach a later call, and admission boundaries reject explicitly
+as overloaded.
+
+Both service runtime lanes passed the complete gate with 2 properties and
+127 tests, no failures and 95.2% floor / 95.3% current production line coverage.
+Compiler, formatter, strict Credo, Dialyzer, ExDoc, dependency audit, licences,
+generated/packaged OpenAPI 1.6.0 equality and archive inspection passed. The
+root implementation and its 158-test gate remain unchanged by this service-only
+execution slice.

@@ -3,9 +3,10 @@ defmodule Wotex.Tracker.Service.AnalyticsTest do
 
   import Wotex.Tracker.Service.Fixtures
 
+  alias Exqlite.Sqlite3
   alias Wotex.Tracker.QuerySpec
   alias Wotex.Tracker.Service
-  alias Wotex.Tracker.Service.{Identifier, Projection, Store, Update}
+  alias Wotex.Tracker.Service.{Codec, Identifier, Projection, SQL, Store, Update}
 
   test "materialized state history is queried at one restart-stable committed snapshot" do
     c = service()
@@ -164,6 +165,84 @@ defmodule Wotex.Tracker.Service.AnalyticsTest do
     end
   end
 
+  test "query admission bounds global, per-principal and refresh starts" do
+    c = service()
+    {:ok, access} = Service.authorize(c.service, c.reader, c.scope, "read", c.now)
+    {:ok, spec} = QuerySpec.from_map(query_document("sensor", c.now, c.now + 1, 1))
+    table = c.store.analytics.slots
+
+    for slot <- 1..2 do
+      true = :ets.insert_new(table, {{:active, {:principal, access.principal}, slot}, self()})
+    end
+
+    assert {:error, :overloaded} = Store.authorized_analytics(c.store, access, spec, c.now)
+    :ets.match_delete(table, {{:active, {:principal, access.principal}, :_}, :_})
+
+    for slot <- 1..8 do
+      true = :ets.insert_new(table, {{:active, :global, slot}, self()})
+    end
+
+    assert {:error, :overloaded} = Store.authorized_analytics(c.store, access, spec, c.now)
+    :ets.match_delete(table, {{:active, :global, :_}, :_})
+
+    window = div(System.monotonic_time(:millisecond), 1_000)
+    :ets.insert(table, {{:rate, access.principal}, window, 15})
+    assert {:ok, _} = Store.authorized_analytics(c.store, access, spec, c.now)
+    assert {:error, :overloaded} = Store.authorized_analytics(c.store, access, spec, c.now)
+  end
+
+  test "a timed-out SQLite scan is cancelled and releases its query reservation" do
+    c = service()
+    {:ok, access} = Service.authorize(c.service, c.reader, c.scope, "read", c.now)
+    GenServer.stop(c.store.pid)
+    bulk_history(c.directory, c.scope, c.now, 100_000)
+
+    {store, _} =
+      store(directory: c.directory, credentials: c.credentials, timeout: 10, busy_timeout: 10)
+
+    {:ok, spec} = QuerySpec.from_map(query_document("sensor", c.now, c.now + 1, 1))
+    assert {:error, :deadline_exceeded} = Store.authorized_analytics(store, access, spec, c.now)
+    eventually(fn -> active_queries(store) == 0 end)
+    assert {:ok, %{"writable" => true}} = Store.readiness(store)
+  end
+
+  test "an abandoned caller cannot retain a query reservation" do
+    parent = self()
+    c = service(fault: blocking_analytics_fault(parent))
+    {:ok, access} = Service.authorize(c.service, c.reader, c.scope, "read", c.now)
+    {:ok, spec} = QuerySpec.from_map(query_document("sensor", c.now, c.now + 1, 1))
+
+    caller =
+      spawn(fn ->
+        result = Store.authorized_analytics(c.store, access, spec, c.now)
+        send(parent, {:abandoned_result, result})
+      end)
+
+    assert_receive {:analytics_blocked, worker}
+    assert active_queries(c.store) == 1
+    Process.exit(caller, :kill)
+    send(worker, :continue)
+    eventually(fn -> active_queries(c.store) == 0 end)
+    refute_received {:abandoned_result, _}
+  end
+
+  test "store shutdown cancels an opened query connection" do
+    parent = self()
+    c = service(fault: blocking_analytics_fault(parent, :analytics_opened))
+    {:ok, access} = Service.authorize(c.service, c.reader, c.scope, "read", c.now)
+    {:ok, spec} = QuerySpec.from_map(query_document("sensor", c.now, c.now + 1, 1))
+
+    spawn(fn ->
+      result = Store.authorized_analytics(c.store, access, spec, c.now)
+      send(parent, {:shutdown_result, result})
+    end)
+
+    assert_receive {:analytics_blocked, worker}
+    GenServer.stop(c.store.pid)
+    send(worker, :continue)
+    assert_receive {:shutdown_result, {:error, :deadline_exceeded}}
+  end
+
   defp query_document(series, from_at, to_at, bucket_ms, options \\ []) do
     {:ok, spec} =
       QuerySpec.new(%{
@@ -232,4 +311,72 @@ defmodule Wotex.Tracker.Service.AnalyticsTest do
       "availability" => availability,
       "quality" => quality
     }
+
+  defp bulk_history(directory, scope, event_at, count) do
+    document = %{
+      "public" => %{
+        "observed_at" => Projection.scalar(event_at),
+        "measurements" => [measurement(1, "available", "valid")]
+      }
+    }
+
+    {:ok, db} = Sqlite3.open(Path.join(directory, "tracker.db"), mode: :readwrite)
+
+    try do
+      SQL.execute!(db, "BEGIN IMMEDIATE")
+      SQL.rows!(db, "INSERT OR REPLACE INTO scopes VALUES(?,?)", [scope, count])
+
+      SQL.rows!(
+        db,
+        """
+        WITH RECURSIVE sequence(value) AS (
+          SELECT 1 UNION ALL SELECT value + 1 FROM sequence WHERE value < ?
+        )
+        INSERT INTO records(scope,kind,id,generation,document)
+        SELECT ?,'state','sensor',value,? FROM sequence
+        """,
+        [count, scope, Codec.encode!(document)]
+      )
+
+      SQL.execute!(db, "COMMIT")
+    after
+      SQL.rollback(db)
+      Sqlite3.close(db)
+    end
+  end
+
+  defp active_queries(store) do
+    store.analytics.slots
+    |> :ets.tab2list()
+    |> Enum.count(fn
+      {{:active, :global, _}, _} -> true
+      _ -> false
+    end)
+  end
+
+  defp blocking_analytics_fault(receiver, blocked_phase \\ :before_analytics) do
+    fn phase ->
+      if phase == blocked_phase do
+        send(receiver, {:analytics_blocked, self()})
+
+        receive do
+          :continue -> :ok
+        after
+          1_000 -> :ok
+        end
+      else
+        :ok
+      end
+    end
+  end
+
+  defp eventually(check, attempts \\ 200)
+  defp eventually(check, 0), do: assert(check.())
+
+  defp eventually(check, attempts) do
+    unless check.() do
+      Process.sleep(5)
+      eventually(check, attempts - 1)
+    end
+  end
 end

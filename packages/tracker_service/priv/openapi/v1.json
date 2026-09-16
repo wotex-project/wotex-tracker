@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "WoTEx Tracker service",
-    "version": "1.5.0",
+    "version": "1.6.0",
     "description": "Authenticated imported-observation service with deterministic structured measurement queries. No scanner, rules or physical interaction is implied."
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
@@ -230,7 +230,7 @@
     "/api/v1/scopes/{scope}/analytics/query": {
       "post": {
         "operationId": "query_analytics",
-        "description": "Evaluate a closed numeric measurement query against one authorized committed SQLite snapshot. This read-only POST does not use an Idempotency-Key. The caller waits at most the configured service timeout; SQLite cancellation after an expired wait, pagination, saved queries and prompt translation are not provided by this operation.",
+        "description": "Evaluate a closed numeric measurement query against one authorized committed SQLite snapshot. This read-only POST does not use an Idempotency-Key. At most eight queries execute at once, two per principal, with sixteen starts per principal per second. Caller loss, store shutdown or the configured deadline cancels the dedicated read connection. Pagination, saved queries and prompt translation are not provided by this operation.",
         "parameters": [
           {
             "$ref": "#/components/parameters/Scope"
