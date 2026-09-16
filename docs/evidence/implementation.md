@@ -1417,3 +1417,36 @@ installed scheduler. Exact archive and lock identities are recorded in
 `verification/source-consumer.json` and `verification/service-consumer.json`.
 Input-triggered rule orchestration and notification delivery remain subsequent
 host work.
+
+### Rolling saved query windows — 2026-09-16
+
+Saved query requests can now add the exact rolling-window object with a positive
+duration matching the admitted absolute query template. The service persists
+these definitions as `wtr.saved-query.v2` while retaining the existing
+`wtr.saved-query.v1` representation and execution behavior for requests without
+window metadata. Each authorized rolling execution replaces the template bounds
+with a fresh from-inclusive/to-exclusive interval ending one millisecond after
+the supplied host time, re-admits the resulting query and exposes its exact
+bounds and content identity in the result.
+
+Tests prove that a current-millisecond sample is included, a later execution
+moves the interval and excludes the old sample, malformed or inconsistent window
+metadata fails before storage, and legacy definitions remain unchanged. Current
+read authority, committed snapshot selection, query concurrency, rate limits,
+deadline cancellation and ownership rules continue to apply independently on
+every execution. A live HTTP test validates a rolling save, resource and result
+against OpenAPI contract 1.9.0. The installed service archive consumer exercises
+the same versioned definition through the public facade.
+
+Both service runtime lanes passed the complete gate with 2 properties and 155
+tests, no failures and 95.0% floor / 95.1% current production line coverage.
+Compiler, formatter, strict Credo, Dialyzer, ExDoc, dependency audit, licences,
+the OpenAPI structure/reference audit and 63-member service archive inspection
+passed. The separate BEAM HTTP/SSE process validates live exchanges against the
+served schemas and retains the prior negative protocol coverage.
+
+Production-archive consumers require requalification after their orchestration
+is migrated off the removed secondary language environment; no earlier report
+is treated as evidence for this final tree. Named display timezones, dashboard
+composition and sharing, prompt translation, interactive graphs, input-triggered
+rule orchestration and notification delivery remain subsequent work.

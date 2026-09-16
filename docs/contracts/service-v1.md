@@ -257,13 +257,13 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
-## HTTP and stream contract 1.8.0
+## HTTP and stream contract 1.9.0
 
 The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
-2020-12. The independently maintained generator and validator check the packaged
-document; the non-Elixir client validates actual request/response bodies against
-it. Validator/client dependencies, including openapi-spec-validator 0.9.0 and
-jsonschema 4.26.0, are pinned in `scripts/requirements-openapi.txt`.
+2020-12. The independently maintained Elixir audit checks document shape,
+operations, parameters, responses, schemas and internal references. A separate
+BEAM process validates actual request/response bodies against the packaged
+schemas while exercising HTTP and SSE directly.
 
 The listener uses Bandit **1.12.5**, Plug **1.20.3** and Thousand Island **1.5.0**.
 Start `Wotex.Tracker.Service.HTTP.Server` explicitly with a private directory,
@@ -284,7 +284,7 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | `…/observations`, `…/resolutions`, `…/evidence`, `…/state`, `…/enrollments`, `…/things`, `…/saved_queries` | GET public snapshot pages |
 | `…/{resource}/{id}` | GET one public value |
 | `…/{resource}/{id}/history` | GET ascending committed public versions, including deletion records |
-| `…/saved_queries` | POST create or update an owned fixed-window query definition |
+| `…/saved_queries` | POST create or update an owned absolute or rolling query definition |
 | `…/saved_query_deletions` | POST delete an owned definition with a retained tombstone |
 | `…/saved_queries/{id}/execute` | GET execute the stored query under current read authority |
 | `…/things/{id}/properties/{property}` | GET authorized Runtime Property scalar |
@@ -309,11 +309,16 @@ Self-revocation may commit its own receipt; subsequent requests are denied.
 Saved definitions use the same scope generation and idempotent receipt rules as
 other mutations. The record persists its admitted `QuerySpec`, closed
 visualization options, private owner and public owner pseudonym. Only the owner
-can update or delete it. Copying or reading a definition cannot widen authority:
-execution independently authenticates the caller, checks `read` inside the
-query snapshot and applies the normal concurrency, rate and deadline limits.
-This revision stores absolute incident windows. Rolling-window resolution and
-dashboard sharing policy remain outside this contract.
+can update or delete it. An absolute definition keeps schema
+`wtr.saved-query.v1`. Supplying the exact rolling-window object produces schema
+`wtr.saved-query.v2`; its positive duration is capped at 31 days and must equal
+the stored template query range. Each execution replaces the template bounds
+with `[host_now + 1 - duration, host_now + 1)`, re-admits the query and returns
+those resolved bounds and their content identity. Copying or reading a
+definition cannot widen authority: execution independently authenticates the
+caller, checks `read` inside the query snapshot and applies the normal
+concurrency, rate and deadline limits. Dashboard sharing policy remains outside
+this contract.
 
 API JSON replies use `application/json`. Raw downloads use
 `application/vnd.wotex.tracker.observation+json` or
@@ -408,9 +413,9 @@ separate from the serialized writer connection and open the already admitted
 private database read-only.
 
 This revision does not page query input, translate prompts or render graphs.
-Saved absolute-window queries are part of this contract. Rolling query
-resolution and reconnect/render/native host-resource event families remain
-visible product work rather than implied endpoint behavior.
+Saved absolute and rolling queries are part of this contract.
+Reconnect/render/native host-resource event families remain visible product
+work rather than implied endpoint behavior.
 
 The HTTP host supervises one volatile `OperationalHistory` collector by default.
 It records the closed request, query, import-stage, store, forward-queue,
@@ -541,5 +546,5 @@ The listener options follow the pinned
 [Bandit source contract](https://hex.pm/packages/bandit/1.12.5/files/lib/bandit.ex),
 [Plug connection contract](https://hex.pm/packages/plug/1.20.3/files/lib/plug/conn.ex)
 and [Thousand Island connection limits](https://thousand-island.hexdocs.pm/1.5.0/ThousandIsland.html).
-The [OpenAPI validator](https://pypi.org/project/openapi-spec-validator/0.9.0/)
-is a development verification tool, not a service runtime dependency.
+The OpenAPI audit and exchange validator are development tools, not service
+runtime processes.

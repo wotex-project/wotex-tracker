@@ -148,9 +148,12 @@ teardown. Directory registration is a separately configured integration.
 Additionally test snapshot-to-stream continuity, cursor expiry, re-authorization,
 scoped idempotency, operation-status lookup, conditional writes and failure
 injection across commit/publication/cleanup. Build a bundled release and OCI image
-for declared architectures; exercise them with an independent non-Elixir client
-in a clean environment without a BEAM toolchain. No external database server,
-AI provider, Lab or UI is required for this service gate.
+for declared architectures; exercise them with an independently executed
+protocol client that imports no production domain modules. The bundled host may
+use its own ERTS and must require no external BEAM toolchain. Repository clients,
+generators, consumers, build orchestration and images contain no Python. No
+external database server, AI provider, Lab or UI is required for this service
+gate.
 
 ## Phase 4 — passive BLE hardware proof
 
@@ -341,15 +344,16 @@ aggregation, stable last-observed ties, explicit missing/quality exclusions and
 preserved gaps. The service reauthorizes against a pinned SQLite snapshot,
 exposes the same closed documents to independent HTTP clients, bounds global and
 per-principal work, and cancels timed-out or abandoned scans. The transactional
-service now also saves, versions, executes and tombstones owned absolute-window
-query definitions with closed visualization options. A closed telemetry
+service now also saves, versions, executes and tombstones owned absolute and
+rolling query definitions with closed visualization options; each rolling
+execution resolves and returns fresh absolute bounds. A closed telemetry
 vocabulary now covers requests, queries, import admission/decoding, transactional
 commits, forward-queue depth and overflow, publication reconciliation and store
 resource checks. The explicitly supervised bounded ETS collector gives the
 default host restart-identified local operational history. Snapshot-pinned
 bucket pagination now excludes concurrent commits and reauthorizes every page.
-Reconnect/render/native-resource events, rolling windows, dashboard
-composition/sharing, prompting and every UI acceptance gate remain.
+Reconnect/render/native-resource events, dashboard composition/sharing,
+prompting and every UI acceptance gate remain.
 
 Add an explicitly configured public model adapter for question-to-query translation:
 synthetic boundary tests plus a separately recorded real-provider execution.

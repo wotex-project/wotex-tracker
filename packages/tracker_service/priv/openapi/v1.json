@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "WoTEx Tracker service",
-    "version": "1.8.0",
+    "version": "1.9.0",
     "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries. No scanner, rules or physical interaction is implied."
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
@@ -3411,7 +3411,7 @@
             }
           }
         },
-        "description": "Execute the exact admitted QuerySpec in a saved absolute-window definition. Current read authority is checked again for the underlying dataset; possession or sharing of a definition grants no data access. The model is not called. Query concurrency, refresh-rate, deadline and cancellation limits still apply."
+        "description": "Execute an absolute definition exactly, or resolve a rolling definition to an admitted absolute from-inclusive/to-exclusive window ending one millisecond after the current host time. The returned QueryResult records the resolved bounds and identity. Current read authority is checked again for the underlying dataset; possession or sharing of a definition grants no data access. The model is not called. Query concurrency, refresh-rate, deadline and cancellation limits still apply."
       }
     },
     "/api/v1/scopes/{scope}/operations/{operation}": {
@@ -5088,62 +5088,142 @@
         ],
         "additionalProperties": false
       },
-      "SavedQuery": {
+      "RollingWindow": {
         "type": "object",
         "properties": {
-          "schema": {
-            "const": "wtr.saved-query.v1"
+          "kind": {
+            "const": "rolling"
           },
-          "id": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 256,
-            "x-max-utf8-bytes": 256
-          },
-          "title": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 256,
-            "x-max-utf8-bytes": 256
-          },
-          "owner": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 256,
-            "x-max-utf8-bytes": 256
-          },
-          "created_at": {
+          "duration_ms": {
             "type": "integer",
-            "minimum": 0,
-            "maximum": 9007199254740991
-          },
-          "updated_at": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 9007199254740991
-          },
-          "window": {
-            "const": "absolute"
-          },
-          "query": {
-            "$ref": "#/components/schemas/QuerySpec"
-          },
-          "visualization": {
-            "$ref": "#/components/schemas/Visualization"
+            "minimum": 1,
+            "maximum": 2678400000,
+            "description": "Must equal query.to_at minus query.from_at."
           }
         },
         "required": [
-          "schema",
-          "id",
-          "title",
-          "owner",
-          "created_at",
-          "updated_at",
-          "window",
-          "query",
-          "visualization"
+          "kind",
+          "duration_ms"
         ],
         "additionalProperties": false
+      },
+      "SavedQuery": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "schema": {
+                "const": "wtr.saved-query.v1"
+              },
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "x-max-utf8-bytes": 256
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "x-max-utf8-bytes": 256
+              },
+              "owner": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "x-max-utf8-bytes": 256
+              },
+              "created_at": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "updated_at": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "window": {
+                "const": "absolute"
+              },
+              "query": {
+                "$ref": "#/components/schemas/QuerySpec"
+              },
+              "visualization": {
+                "$ref": "#/components/schemas/Visualization"
+              }
+            },
+            "required": [
+              "schema",
+              "id",
+              "title",
+              "owner",
+              "created_at",
+              "updated_at",
+              "window",
+              "query",
+              "visualization"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "schema": {
+                "const": "wtr.saved-query.v2"
+              },
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "x-max-utf8-bytes": 256
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "x-max-utf8-bytes": 256
+              },
+              "owner": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "x-max-utf8-bytes": 256
+              },
+              "created_at": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "updated_at": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "window": {
+                "$ref": "#/components/schemas/RollingWindow"
+              },
+              "query": {
+                "$ref": "#/components/schemas/QuerySpec"
+              },
+              "visualization": {
+                "$ref": "#/components/schemas/Visualization"
+              }
+            },
+            "required": [
+              "schema",
+              "id",
+              "title",
+              "owner",
+              "created_at",
+              "updated_at",
+              "window",
+              "query",
+              "visualization"
+            ],
+            "additionalProperties": false
+          }
+        ]
       },
       "ImportRequest": {
         "type": "object",
@@ -5266,40 +5346,84 @@
         "additionalProperties": false
       },
       "SaveQueryRequest": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 256,
-            "x-max-utf8-bytes": 256
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "x-max-utf8-bytes": 256
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "x-max-utf8-bytes": 256
+              },
+              "query": {
+                "$ref": "#/components/schemas/QuerySpec"
+              },
+              "visualization": {
+                "$ref": "#/components/schemas/Visualization"
+              },
+              "expected_generation": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]{0,18})$",
+                "description": "Canonical decimal integer below 9223372036854775807."
+              }
+            },
+            "required": [
+              "id",
+              "title",
+              "query",
+              "visualization",
+              "expected_generation"
+            ],
+            "additionalProperties": false
           },
-          "title": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 256,
-            "x-max-utf8-bytes": 256
-          },
-          "query": {
-            "$ref": "#/components/schemas/QuerySpec"
-          },
-          "visualization": {
-            "$ref": "#/components/schemas/Visualization"
-          },
-          "expected_generation": {
-            "type": "string",
-            "pattern": "^(0|[1-9][0-9]{0,18})$",
-            "description": "Canonical decimal integer below 9223372036854775807."
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "x-max-utf8-bytes": 256
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "x-max-utf8-bytes": 256
+              },
+              "window": {
+                "$ref": "#/components/schemas/RollingWindow"
+              },
+              "query": {
+                "$ref": "#/components/schemas/QuerySpec"
+              },
+              "visualization": {
+                "$ref": "#/components/schemas/Visualization"
+              },
+              "expected_generation": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]{0,18})$",
+                "description": "Canonical decimal integer below 9223372036854775807."
+              }
+            },
+            "required": [
+              "id",
+              "title",
+              "window",
+              "query",
+              "visualization",
+              "expected_generation"
+            ],
+            "additionalProperties": false
           }
-        },
-        "required": [
-          "id",
-          "title",
-          "query",
-          "visualization",
-          "expected_generation"
-        ],
-        "additionalProperties": false
+        ]
       },
       "DeleteQueryRequest": {
         "type": "object",

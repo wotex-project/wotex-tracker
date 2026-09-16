@@ -5,16 +5,21 @@ defmodule Wotex.Tracker.Service.SavedQuery do
   alias Wotex.Tracker.Service.{Codec, Projection, Store, Update}
 
   @save_fields ~w(id title query visualization expected_generation)
+  @rolling_save_fields ~w(id title window query visualization expected_generation)
   @delete_fields ~w(id expected_generation)
+  @public_fields ~w(schema id title owner created_at updated_at window query visualization)
+  @rolling_window_fields ~w(kind duration_ms)
   @visualization_fields ~w(type show_legend show_points)
   @visualization_types ~w(line area points table)
+  @maximum_window_ms 2_678_400_000
 
   def admit_save(request) do
-    with true <- exact?(request, @save_fields),
+    with true <- exact?(request, @save_fields) or exact?(request, @rolling_save_fields),
          true <- Codec.id?(request["id"]) and Codec.id?(request["title"]),
          {:ok, _} <- Codec.generation(request["expected_generation"]),
          :ok <- visualization(request["visualization"]),
-         {:ok, _} <- QuerySpec.from_map(request["query"]) do
+         {:ok, spec} <- QuerySpec.from_map(request["query"]),
+         :ok <- request_window(request, spec) do
       :ok
     else
       _ -> {:error, :invalid_request}
@@ -64,32 +69,39 @@ defmodule Wotex.Tracker.Service.SavedQuery do
     end
   end
 
-  def query(%{"owner" => owner, "public" => public} = record, id)
-      when map_size(record) == 2 and is_binary(owner) do
-    with true <-
-           exact?(
-             public,
-             ~w(schema id title owner created_at updated_at window query visualization)
-           ),
-         true <- public["schema"] == "wtr.saved-query.v1" and public["window"] == "absolute",
+  def query(record, id, now) do
+    with {:ok, spec, window} <- definition(record, id),
+         do: resolve(spec, window, now)
+  end
+
+  defp definition(%{"owner" => owner, "public" => public} = record, id)
+       when map_size(record) == 2 and is_binary(owner) do
+    with true <- exact?(public, @public_fields),
          true <-
            public["id"] == id and Codec.id?(id) and Codec.id?(public["title"]) and
              Codec.id?(public["owner"]),
          true <- Codec.time?(public["created_at"]) and Codec.time?(public["updated_at"]),
          true <- public["updated_at"] >= public["created_at"],
          :ok <- visualization(public["visualization"]),
-         {:ok, spec} <- QuerySpec.from_map(public["query"]) do
-      {:ok, spec}
+         {:ok, spec} <- QuerySpec.from_map(public["query"]),
+         {:ok, window} <- stored_window(public, spec) do
+      {:ok, spec, window}
     else
       _ -> {:error, :storage_unavailable}
     end
   end
 
-  def query(_, _), do: {:error, :storage_unavailable}
+  defp definition(_, _), do: {:error, :storage_unavailable}
 
   defp save_update(service, access, operation, request, created_at, now) do
+    {schema, window} =
+      case request do
+        %{"window" => rolling} -> {"wtr.saved-query.v2", rolling}
+        _ -> {"wtr.saved-query.v1", "absolute"}
+      end
+
     public = %{
-      "schema" => "wtr.saved-query.v1",
+      "schema" => schema,
       "id" => request["id"],
       "title" => request["title"],
       "owner" =>
@@ -101,7 +113,7 @@ defmodule Wotex.Tracker.Service.SavedQuery do
         ),
       "created_at" => created_at,
       "updated_at" => now,
-      "window" => "absolute",
+      "window" => window,
       "query" => request["query"],
       "visualization" => request["visualization"]
     }
@@ -174,7 +186,7 @@ defmodule Wotex.Tracker.Service.SavedQuery do
     cond do
       owner != principal -> {:error, :forbidden}
       not Codec.time?(created_at) -> {:error, :storage_unavailable}
-      match?({:ok, _}, query(row["value"], id)) -> {:ok, created_at}
+      match?({:ok, _, _}, definition(row["value"], id)) -> {:ok, created_at}
       true -> {:error, :storage_unavailable}
     end
   end
@@ -187,6 +199,56 @@ defmodule Wotex.Tracker.Service.SavedQuery do
        do: :ok,
        else: {:error, :invalid_request}
   end
+
+  defp request_window(request, spec) do
+    case request do
+      %{"window" => window} ->
+        case rolling_window(window, spec) do
+          {:ok, _duration} -> :ok
+          _ -> {:error, :invalid_request}
+        end
+
+      _ ->
+        :ok
+    end
+  end
+
+  defp stored_window(%{"schema" => "wtr.saved-query.v1", "window" => "absolute"}, _spec),
+    do: {:ok, :absolute}
+
+  defp stored_window(%{"schema" => "wtr.saved-query.v2", "window" => window}, spec),
+    do: rolling_window(window, spec)
+
+  defp stored_window(_, _), do: {:error, :storage_unavailable}
+
+  defp rolling_window(window, spec) do
+    duration = if is_map(window), do: window["duration_ms"]
+
+    if exact?(window, @rolling_window_fields) and window["kind"] == "rolling" and
+         is_integer(duration) and duration in 1..@maximum_window_ms and
+         duration == spec.to_at - spec.from_at do
+      {:ok, {:rolling, duration}}
+    else
+      {:error, :invalid_window}
+    end
+  end
+
+  defp resolve(spec, :absolute, _now), do: {:ok, spec}
+
+  defp resolve(spec, {:rolling, duration}, now) when is_integer(now) do
+    input =
+      spec
+      |> Map.from_struct()
+      |> Map.delete(:identity)
+      |> Map.merge(%{from_at: now + 1 - duration, to_at: now + 1})
+
+    case QuerySpec.new(input) do
+      {:ok, resolved} -> {:ok, resolved}
+      _ -> {:error, :invalid_query}
+    end
+  end
+
+  defp resolve(_spec, {:rolling, _duration}, _now), do: {:error, :invalid_query}
 
   defp exact?(value, fields),
     do:

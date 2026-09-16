@@ -185,6 +185,13 @@ defmodule Wotex.Tracker.Service.SavedQueryTest do
           put_in(request, ["query", "identity"], "forged"),
           put_in(request, ["visualization", "type"], "script"),
           put_in(request, ["visualization", "extra"], true),
+          Map.put(request, "window", "rolling"),
+          Map.put(request, "window", %{"kind" => "rolling", "duration_ms" => 999}),
+          Map.put(request, "window", %{
+            "kind" => "rolling",
+            "duration_ms" => 1_000,
+            "extra" => true
+          }),
           Map.put(request, "expected_generation", "00")
         ] do
       assert {:error, %{"code" => "invalid_request"}} =
@@ -326,10 +333,86 @@ defmodule Wotex.Tracker.Service.SavedQueryTest do
              )
   end
 
+  test "rolling definitions resolve fresh absolute bounds for every authorized execution",
+       context do
+    put_state(context, "sensor", context.now, 12.5)
+
+    request =
+      context.now
+      |> query_document()
+      |> save_request("1")
+      |> Map.put("window", %{"kind" => "rolling", "duration_ms" => 1_000})
+
+    assert {:ok, _} =
+             Service.save_query(
+               context.service,
+               context.admin,
+               context.scope,
+               Identifier.uuid(),
+               request,
+               context.now
+             )
+
+    assert {:ok, %{"value" => definition}} =
+             Service.get(
+               context.service,
+               context.reader,
+               context.scope,
+               "saved_queries",
+               "workshop-temperature",
+               context.now
+             )
+
+    assert definition["schema"] == "wtr.saved-query.v2"
+    assert definition["window"] == %{"kind" => "rolling", "duration_ms" => 1_000}
+    assert definition["query"] == request["query"]
+
+    assert {:ok, first} =
+             Service.execute_saved_query(
+               context.service,
+               context.reader,
+               context.scope,
+               "workshop-temperature",
+               context.now
+             )
+
+    assert first["spec"]["from_at"] == context.now - 999
+    assert first["spec"]["to_at"] == context.now + 1
+    refute first["spec"]["identity"] == request["query"]["identity"]
+    assert get_in(first, ["series", Access.at(0), "points", Access.at(0), "value"]) === 12.5
+
+    assert {:ok, later} =
+             Service.execute_saved_query(
+               context.service,
+               context.reader,
+               context.scope,
+               "workshop-temperature",
+               context.now + 2_000
+             )
+
+    assert later["spec"]["from_at"] == context.now + 1_001
+    assert later["spec"]["to_at"] == context.now + 2_001
+
+    assert later["series"] == [
+             %{
+               "schema" => "wtr.query-series.v1",
+               "id" => "sensor",
+               "unit" => "Cel",
+               "points" => []
+             }
+           ]
+  end
+
   test "HTTP exposes saved definitions and executes them without another model step", context do
     Application.ensure_all_started(:inets)
     server = start_supervised!({Server, server_options(context)})
-    request = save_request(query_document(context.now), "0")
+
+    request =
+      context.now
+      |> query_document()
+      |> save_request("0")
+      |> Map.put("window", %{"kind" => "rolling", "duration_ms" => 1_000})
+
     operation = Identifier.uuid()
 
     assert {200, %{"data" => %{"data" => %{"query_id" => "workshop-temperature"}}}} =
@@ -345,12 +428,16 @@ defmodule Wotex.Tracker.Service.SavedQueryTest do
     assert {200, %{"data" => %{"items" => [%{"value" => definition}]}}} =
              http(server, context, :get, "/saved_queries")
 
+    assert definition["schema"] == "wtr.saved-query.v2"
+    assert definition["window"] == request["window"]
     assert definition["query"] == request["query"]
 
     assert {200, %{"data" => result}} =
              http(server, context, :get, "/saved_queries/workshop-temperature/execute")
 
-    assert result["spec"] == request["query"]
+    assert result["spec"]["from_at"] == context.now - 999
+    assert result["spec"]["to_at"] == context.now + 1
+    refute result["spec"]["identity"] == request["query"]["identity"]
 
     assert result["series"] == [
              %{

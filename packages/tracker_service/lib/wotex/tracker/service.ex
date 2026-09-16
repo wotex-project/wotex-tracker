@@ -222,7 +222,7 @@ defmodule Wotex.Tracker.Service do
     Result.normalize(result)
   end
 
-  @doc "Saves one admitted absolute-window query and its closed visualization options."
+  @doc "Saves one admitted absolute or rolling query and its closed visualization options."
   @spec save_query(t(), String.t(), String.t(), String.t(), map(), integer()) ::
           {:ok, map()} | {:error, map()}
   def save_query(service, token, scope, operation, request, now),
@@ -241,7 +241,7 @@ defmodule Wotex.Tracker.Service do
     result =
       with {:ok, access} <- authorize(service, token, scope, "read", now),
            {:ok, row} <- fetch(service, access, "saved_queries", id, nil, "read", now),
-           {:ok, spec} <- SavedQuery.query(row["value"], id),
+           {:ok, spec} <- SavedQuery.query(row["value"], id, now),
            do: Store.authorized_analytics(service.store, access, spec, now)
 
     Result.normalize(result)

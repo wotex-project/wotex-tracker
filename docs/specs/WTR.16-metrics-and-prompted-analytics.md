@@ -7,15 +7,16 @@ content-identified absolute-UTC numeric rows, closed query/result codecs and
 bounded count/min/max/mean/last aggregation. The first service adapter adds
 authorized committed SQLite snapshots, a versioned HTTP operation, bounded
 global/per-principal execution and cancellation. The transactional service also
-persists, versions, executes and tombstones owned fixed-window query definitions
-with closed visualization options. Closed telemetry now covers requests,
+persists, versions, executes and tombstones owned absolute and rolling query
+definitions with closed visualization options. Each rolling execution records
+fresh resolved absolute bounds. Closed telemetry now covers requests,
 queries, import admission/decoding, transactional commits, forward-queue depth
 and overflow, publication reconciliation and store checks through an explicitly
 supervised bounded volatile collector. Reconnect, rendering and native
 host-resource events remain with their owning adapters. Encrypted analytics
 continuations now bind the exact query and first committed generation while
-reauthorizing every bucket page. Rolling dashboards,
-prompt integration and graphs remain required product deliverables.
+reauthorizing every bucket page. Dashboard composition and sharing, prompt
+integration and graphs remain required product deliverables.
 Model execution is explicitly configured and can be disabled; deterministic
 tracking and structured analytics MUST remain useful without AI or any external
 observability service.

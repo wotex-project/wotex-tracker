@@ -1137,6 +1137,7 @@ save_operation = Identifier.uuid()
 save_request = %{
   "id" => "archive-temperature",
   "title" => "Archive temperature",
+  "window" => %{"kind" => "rolling", "duration_ms" => 1},
   "query" => query_document,
   "visualization" => %{
     "type" => "line",
@@ -1152,7 +1153,15 @@ save_request = %{
 {:ok, ^saved} =
   Service.save_query(service, token, "archive", save_operation, save_request, update.now)
 
-{:ok, %{"value" => %{"query" => ^query_document, "owner" => "wtr1_" <> _}}} =
+{:ok,
+ %{
+   "value" => %{
+     "schema" => "wtr.saved-query.v2",
+     "window" => %{"kind" => "rolling", "duration_ms" => 1},
+     "query" => ^query_document,
+     "owner" => "wtr1_" <> _
+   }
+ }} =
   Service.get(service, token, "archive", "saved_queries", "archive-temperature", update.now)
 
 {:ok, %{"spec" => ^query_document, "series" => [%{"points" => [%{"value" => 24.3}]}]}} =
@@ -1365,5 +1374,5 @@ retained = Process.list() |> MapSet.new() |> MapSet.difference(before_processes)
 0 = retained
 
 IO.puts(
-  "SERVICE_COHORT_PASS durable_restart=true durable_store_forward=true atomic_transport_health=true atomic_heartbeat=true scheduled_rules=true scheduled_transport_health=true atomic_battery=true atomic_motion=true atomic_geofence=true atomic_geofence_crossing=true atomic_suspicious_movement=true analytics=true analytics_pagination=true saved_queries=true operational_telemetry=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true explicit_association=true independent_http_sse=true actual_runtime_http_peer=true actual_runtime_sse=true retained_new_processes=#{retained}"
+  "SERVICE_COHORT_PASS durable_restart=true durable_store_forward=true atomic_transport_health=true atomic_heartbeat=true scheduled_rules=true scheduled_transport_health=true atomic_battery=true atomic_motion=true atomic_geofence=true atomic_geofence_crossing=true atomic_suspicious_movement=true analytics=true analytics_pagination=true saved_queries=true rolling_saved_queries=true operational_telemetry=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true explicit_association=true independent_http_sse=true actual_runtime_http_peer=true actual_runtime_sse=true retained_new_processes=#{retained}"
 )

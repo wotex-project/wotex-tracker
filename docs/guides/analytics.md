@@ -8,9 +8,9 @@ Unix-millisecond window, UTC-aligned buckets, ascending or descending order, and
 
 The window is inclusive at `from_at` and exclusive at `to_at`. It is limited to
 31 days and must fit the requested bucket size within `max_points`, up to 1,000
-points per series. This revision admits only `Etc/UTC`; named display timezones,
-rolling windows and daylight-saving presentation belong to later service and UI
-contracts.
+points per series. The pure query contract always carries resolved absolute
+bounds. This revision admits only `Etc/UTC`; named display timezones and
+daylight-saving presentation belong to later service and UI contracts.
 
 `Wotex.Tracker.QueryRow` carries the normalized input to the pure evaluator. An
 available row has a finite numeric value. An unavailable row has `nil`. The
@@ -44,7 +44,7 @@ inside a SQLite read transaction and pins the current scope generation. For each
 explicit series it extracts matching measurements from committed state history,
 then passes admitted rows and a scope-generation snapshot identity to the pure
 evaluator. The same operation is available as the read-only
-`POST …/analytics/query` endpoint in service contract 1.8.0.
+`POST …/analytics/query` endpoint in service contract 1.9.0.
 
 `Service.analytics_page/5` and `POST …/analytics/pages` partition the admitted
 bucket window into pages of 1 to 1,000 buckets. The first request supplies the
@@ -63,13 +63,29 @@ malformed committed scalars and invented quality values fail closed. The endpoin
 uses scope-level `read` authority, produces no mutation receipt and requires no
 idempotency key.
 
+`Service.save_query/6` and `POST …/saved_queries` persist admitted queries with
+closed visualization options, private ownership and a public owner pseudonym.
+Scope-generation checks serialize concurrent edits, operation IDs make retries
+idempotent, and history retains every definition version plus an explicit
+deletion tombstone. Only the owning administrator can update or delete a record.
+A request without `window` retains an absolute `wtr.saved-query.v1`. A request
+with exact `{"kind":"rolling","duration_ms":…}` metadata persists a
+`wtr.saved-query.v2`; its duration must equal the admitted template query range.
+
+`GET …/saved_queries/{id}/execute` validates the definition and passes it to the
+normal analytics executor without invoking a model. Each rolling execution
+resolves a fresh absolute interval ending at `host_now + 1`, so an observation
+at the current millisecond is included. The returned result records the resolved
+bounds and content identity. Reading or sharing a definition never grants
+access, and each execution reauthorizes the resolved query against its own
+committed snapshot.
+
 The service admits at most eight simultaneous queries, two from one principal,
 and sixteen starts per principal per second. Each accepted query uses its own
 read-only SQLite connection. Caller loss, store shutdown or the configured
 five-second deadline cancels the connection through its busy and progress
-handlers and releases the reservation. Rolling windows, named display timezones,
-prompt translation and graph rendering remain required by the analytics target
-contract.
+handlers and releases the reservation. Named display timezones, prompt
+translation and graph rendering remain required by the analytics target contract.
 
 The service emits closed `request.stop`, `query.stop`, `ingest.stop`,
 `store.stop`, `queue.stop`, `publication.stop` and `resource.stop` telemetry.
@@ -84,17 +100,3 @@ Package loading remains inert, and collector failure cannot affect a committed
 observation or rule decision. Reconnect, rendering and native host-resource
 events belong to the adapters and UIs that perform those operations and remain
 required for the complete product instrumentation contract.
-
-`Service.save_query/6` and `POST …/saved_queries` persist an admitted absolute
-query with closed visualization options, private ownership and a public owner
-pseudonym. Scope-generation checks serialize concurrent edits, operation IDs
-make retries idempotent, and history retains every definition version plus an
-explicit deletion tombstone. Only the owning administrator can update or delete
-the record.
-
-`GET …/saved_queries/{id}/execute` loads the exact structured query, validates it
-again and passes it to the normal analytics executor. The caller still needs
-current `read` authority; a copied definition is never an access grant. Execution
-does not invoke a model. This first saved-definition revision pins absolute
-incident bounds. Rolling windows, sharing policy and UI dashboard composition
-remain future contracts.
