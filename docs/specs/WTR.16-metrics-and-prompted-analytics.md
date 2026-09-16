@@ -2,9 +2,12 @@
 
 ## Status
 
-Accepted target contract. No collector, query engine, prompt integration or
-graph implementation exists. Interactive analytics and the prompted-query
-capability are required product deliverables. Model execution is explicitly
+Accepted target contract. A first pure deterministic query core implements
+content-identified absolute-UTC numeric rows, closed query/result codecs and
+bounded count/min/max/mean/last aggregation. It does not yet provide store-backed
+snapshot selection, service authorization, telemetry collection, saved queries,
+prompt integration or graphs. Interactive analytics and the prompted-query
+capability remain required product deliverables. Model execution is explicitly
 configured and can be disabled; deterministic tracking and structured analytics
 MUST remain useful without AI or any external observability service.
 

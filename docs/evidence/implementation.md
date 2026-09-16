@@ -1143,3 +1143,41 @@ and proves atomic `geofence.entered` intent plus retry deduplication. Exact
 archive and lock identities are recorded in `verification/service-consumer.json`.
 Position ingestion, notification delivery and public rule management remain host
 work.
+
+## WTR.16 deterministic measurement analytics — 2026-09-16
+
+The first pure analytics core now admits closed content-identified query rows,
+absolute UTC query specifications and snapshot-bound results. Queries select one
+numeric measurement/unit and up to eight explicit series, qualify valid or
+suspect rows, and request count, minimum, maximum, mean or stable last-observed
+values in bounded buckets. Windows are from-inclusive/to-exclusive, limited to
+31 days and 1,000 points per series. The evaluator accepts at most 100,000 rows,
+rejects duplicate identities and incompatible units, preserves native integer or
+float values where the aggregation permits, and orders equal last-observed times
+by row identity.
+
+Unavailable and rejected-quality rows are disclosed separately. Empty buckets
+remain absent so consumers can preserve gaps. Result admission binds the exact
+query, committed snapshot identity, series order, bucket geometry, sample totals,
+last-row references and disclosure counts under the existing 256 KiB
+materialization budget. Closed codecs reject unknown fields, vocabulary changes,
+forged identities, duplicate buckets and inconsistent counts. The pure library
+starts no process and reads no clock or store.
+
+Both required root runtime lanes passed the complete gate with 1 doctest,
+19 properties and 158 tests, no failures and 95.4% production line coverage.
+Both service runtime lanes passed with 2 properties and 117 tests, no failures
+and 95.9% floor / 96.0% current production line coverage after rebuilding the
+changed root dependency and Dialyzer PLTs. Compiler, formatter, strict Credo,
+Dialyzer, ExDoc, dependency
+audit, licences, documentation contracts, OpenAPI validation and archive
+inspection passed.
+
+Six root and six service production-archive consumers execute the admitted query
+and result codecs plus a known-answer aggregation on both runtime lanes in fresh,
+locked and minimum dependency modes, while retaining zero new Tracker processes.
+Exact archive and lock identities are recorded in
+`verification/source-consumer.json` and `verification/service-consumer.json`.
+Authorization, indexed SQLite snapshots, deadlines/cancellation, pagination,
+operational telemetry, named display timezones, saved dashboards, prompting and
+dynamic graphs remain required host and product work.

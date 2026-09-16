@@ -87,6 +87,12 @@ first SQLite host integration persists those transitions atomically.
 [Implementation evidence](docs/evidence/implementation.md) records
 executed software checks and unpassed release, host and hardware gates.
 
+The first pure analytics slice admits content-identified numeric history rows
+and closed absolute-UTC queries, then deterministically returns bounded bucketed
+count/min/max/mean/last series with snapshot binding, stable ties, preserved gaps
+and disclosed exclusions. Authorization and durable snapshot selection remain
+service responsibilities. See the [analytics guide](docs/guides/analytics.md).
+
 Start with the [WTR specification index](docs/specs/WTR-index.md) and the [software implementation sequence](docs/plans/software-implementation.md).
 
 The dated [ecosystem research](docs/provenance/ecosystem-research.md) records

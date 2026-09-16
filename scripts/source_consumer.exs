@@ -763,8 +763,73 @@ transport_request = %{
     1_003
   )
 
+analytics_row = fn id, series, event_at, value, availability, quality ->
+  {:ok, row} =
+    Wotex.Tracker.QueryRow.new(%{
+      measurement: "batteryVoltage",
+      series: series,
+      event_at: event_at,
+      value: value,
+      unit: "V",
+      availability: availability,
+      quality: quality,
+      evidence_identity: id
+    })
+
+  row
+end
+
+analytics_rows = [
+  analytics_row.("archive-analytics-1", "bike", 1_000, 2.9, :available, :valid),
+  analytics_row.("archive-analytics-2", "bike", 1_500, 3.1, :available, :valid),
+  analytics_row.("archive-analytics-gap", "bike", 2_000, nil, :unavailable, :valid),
+  analytics_row.("archive-analytics-suspect", "bike", 3_000, 9.9, :available, :suspect)
+]
+
+{:ok, analytics_query} =
+  Wotex.Tracker.QuerySpec.new(%{
+    id: "archive-battery-history",
+    revision: "archive-query-v1",
+    dataset: :measurements,
+    measurement: "batteryVoltage",
+    unit: "V",
+    series: ["bike"],
+    qualities: [:valid],
+    from_at: 1_000,
+    to_at: 4_000,
+    timezone: "Etc/UTC",
+    bucket_ms: 1_000,
+    aggregation: :mean,
+    order: :ascending,
+    max_points: 3
+  })
+
+{:ok,
+ %{
+   selected_rows: 4,
+   qualified_rows: 2,
+   excluded_unavailable: 1,
+   excluded_quality: 1,
+   series: [
+     %{
+       "id" => "bike",
+       "points" => [%{"start_at" => 1_000, "value" => 3.0, "sample_count" => 2}]
+     }
+   ]
+ } = analytics_result} =
+  Wotex.Tracker.Analytics.evaluate(
+    Enum.reverse(analytics_rows),
+    analytics_query,
+    "archive-snapshot-1"
+  )
+
+{:ok, analytics_query_document} = Wotex.Tracker.QuerySpec.to_map(analytics_query)
+{:ok, ^analytics_query} = Wotex.Tracker.QuerySpec.from_map(analytics_query_document)
+{:ok, analytics_result_document} = Wotex.Tracker.QueryResult.to_map(analytics_result)
+{:ok, ^analytics_result} = Wotex.Tracker.QueryResult.from_map(analytics_result_document)
+
 true = MapSet.subset?(MapSet.new(Process.list()), before_processes)
 
 IO.puts(
-  "SOURCE_COHORT_PASS Elixir=#{System.version()} OTP=#{System.otp_release()} properties=10 position_freshness=true position_selection=true position_order=true movement=true motion_transition=true trip_distance=true heartbeat=true battery=true suspicious_movement=true transport_policy=true transport_degradation=true geofence=true geofence_transition=true geofence_crossing=true no_new_processes=true optional_hosts_absent=true"
+  "SOURCE_COHORT_PASS Elixir=#{System.version()} OTP=#{System.otp_release()} properties=10 position_freshness=true position_selection=true position_order=true movement=true motion_transition=true trip_distance=true heartbeat=true battery=true suspicious_movement=true transport_policy=true transport_degradation=true geofence=true geofence_transition=true geofence_crossing=true analytics=true no_new_processes=true optional_hosts_absent=true"
 )
