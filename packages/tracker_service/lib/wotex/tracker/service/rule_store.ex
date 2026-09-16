@@ -1,12 +1,21 @@
 defmodule Wotex.Tracker.Service.RuleStore do
   @moduledoc false
-  alias Wotex.Tracker.Service.{Codec, RuleTransition, SQL, Transaction}
+  alias Wotex.Tracker.Service.{Codec, RuleEvent, RuleTransition, SQL, Transaction}
 
   def commit(db, transition, options) do
     transaction(db, options, fn ->
       db
       |> state_row(transition.scope, transition.kind, transition.rule_id)
       |> commit_state(db, transition, options)
+    end)
+  end
+
+  def commit_event(db, intent, options) do
+    transaction(db, options, fn ->
+      case event_row(db, intent.scope, RuleEvent.event_identity(intent)) do
+        nil -> write_event(db, intent, options)
+        stored -> duplicate_event(stored, intent)
+      end
     end)
   end
 
@@ -39,6 +48,56 @@ defmodule Wotex.Tracker.Service.RuleStore do
       nil -> {:error, :not_found}
       stored -> {:ok, project_event(stored)}
     end
+  end
+
+  defp duplicate_event(stored, intent) do
+    if stored.digest == Codec.digest(intent.event) and stored.kind == intent.kind and
+         stored.rule_id == intent.rule_id and stored.mode == intent.mode and
+         stored.action == intent.action do
+      event_receipt(stored.generation, intent, "duplicate", "duplicate")
+    else
+      throw({:storage, :rule_event_conflict})
+    end
+  end
+
+  defp write_event(db, intent, options) do
+    generation = Transaction.generation(db, intent.scope)
+    if generation >= 9_223_372_036_854_775_806, do: throw({:storage, :capacity_exceeded})
+    next_generation = generation + 1
+    capacity!(db, "rule_event_intents", 1, options.max_rows)
+    capacity!(db, "events", 1, options.max_rows)
+    id = RuleEvent.event_identity(intent)
+    document = Codec.encode!(intent.event)
+
+    SQL.rows!(db, "INSERT INTO rule_event_intents VALUES(?,?,?,?,?,?,?,?,?,?)", [
+      intent.scope,
+      id,
+      Codec.digest(intent.event),
+      intent.kind,
+      intent.rule_id,
+      next_generation,
+      intent.evaluated_at,
+      document,
+      intent.mode,
+      intent.action
+    ])
+
+    envelope = %{"type" => "tracker.event", "data" => intent.event}
+
+    SQL.rows!(db, "INSERT INTO events(scope,generation,created_at,document) VALUES(?,?,?,?)", [
+      intent.scope,
+      next_generation,
+      intent.evaluated_at,
+      Codec.encode!(envelope)
+    ])
+
+    SQL.rows!(
+      db,
+      "INSERT INTO scopes VALUES(?,?) ON CONFLICT(scope) DO UPDATE SET generation=excluded.generation",
+      [intent.scope, next_generation]
+    )
+
+    event_receipt(next_generation, intent, "accepted", "recorded")
   end
 
   defp duplicate(db, stored, transition) do
@@ -249,6 +308,19 @@ defmodule Wotex.Tracker.Service.RuleStore do
       "state_identity" => stored.state_identity,
       "transition_identity" => stored.transition_identity,
       "event_id" => RuleTransition.event_identity(transition),
+      "event_disposition" => event_disposition
+    }
+
+  defp event_receipt(generation, intent, disposition, event_disposition),
+    do: %{
+      "schema" => "wtr.rule-event-commit.v1",
+      "outcome" => "committed",
+      "disposition" => disposition,
+      "scope" => intent.scope,
+      "kind" => intent.kind,
+      "rule_id" => intent.rule_id,
+      "generation" => Integer.to_string(generation),
+      "event_id" => RuleEvent.event_identity(intent),
       "event_disposition" => event_disposition
     }
 

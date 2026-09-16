@@ -54,6 +54,13 @@ retain prohibited dispatch, while live event intents retain the need for separat
 authorization. Deadline scheduling, notification delivery and public HTTP rule
 management remain outside this host port.
 
+Stateless rule results use the same intent and public-event tables through
+`RuleEvent`. Its crossing constructor restores complete fence, endpoint and
+policy documents and re-evaluates the pure result before commit. A new stable
+event advances the scope once; an exact retry returns the original generation.
+The recorded mode and physical-action metadata cannot be changed by replaying the
+same event identity through another mode.
+
 `GET …/{resource}/{id}/history` returns ascending public versions, including
 explicit deletion records, with `limit` and encrypted `cursor` pagination.
 Pages stay at one committed generation and provide an event cursor for the same

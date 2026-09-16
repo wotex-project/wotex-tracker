@@ -404,7 +404,7 @@ crossing_to = crossing_sample.("to", 0.0001, 1_001)
  %{
    "status" => "inferred_crossing",
    "event" => %{"kind" => "geofence.crossing_inferred", "crossing_time" => nil}
- }} =
+ } = crossing_result} =
   Wotex.Tracker.GeofenceCrossing.evaluate(
     fence,
     crossing_from,
@@ -413,6 +413,21 @@ crossing_to = crossing_sample.("to", 0.0001, 1_001)
     :replay,
     1_001
   )
+
+{:ok, ^crossing_result} =
+  Wotex.Tracker.GeofenceCrossing.validate_result(
+    fence,
+    crossing_from,
+    crossing_to,
+    crossing_policy,
+    crossing_result
+  )
+
+:ok = Wotex.Tracker.GeofenceCrossing.validate_event(crossing_result["event"])
+{:ok, crossing_policy_document} = Wotex.Tracker.GeofenceCrossing.to_map(crossing_policy)
+
+{:ok, ^crossing_policy} =
+  Wotex.Tracker.GeofenceCrossing.from_map(crossing_policy_document)
 
 {:ok, movement_policy} =
   Wotex.Tracker.PositionMovement.new(%{

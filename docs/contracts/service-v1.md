@@ -101,6 +101,13 @@ physical Action still needs separate authorization; replay event intents retain
 that dispatch is prohibited. The current port does not schedule evaluation,
 deliver notifications or expose rule mutation over HTTP.
 
+Event-only rules use the same intent and public-event tables without manufacturing
+canonical state. The prepared host value retains complete closed inputs and the
+pure result, re-evaluates them during admission, and binds its own identity. A new
+event ID advances the scope and writes both rows atomically. An exact event retry
+with the same mode/effect returns the original generation; changed content or
+live/replay effect metadata conflicts.
+
 ## Finite budgets
 
 These are service ceilings, not radio protocol maxima. Operator configuration

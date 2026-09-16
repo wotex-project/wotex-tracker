@@ -6,6 +6,7 @@ alias Wotex.Tracker.{
   Evidence,
   EvidenceBundle,
   Geofence,
+  GeofenceCrossing,
   GeofenceTransition,
   HeartbeatTransition,
   Measurement,
@@ -28,6 +29,7 @@ alias Wotex.Tracker.Service.{
   ForwardItem,
   Identifier,
   Projection,
+  RuleEvent,
   RuleTransition,
   Store,
   Update
@@ -483,6 +485,41 @@ end
 {:ok, %{"generation" => "1", "event_disposition" => "none"}} =
   Store.commit_rule(store, geofence_baseline_transition)
 
+{:ok, crossing_policy} =
+  GeofenceCrossing.new(%{
+    id: "archive-crossing",
+    revision: "archive-crossing-v1",
+    order_policy: geofence_order_policy,
+    max_gap_ms: 10_000,
+    max_distance_m: 500
+  })
+
+crossing_from = motion_sample.("crossing-from", -0.002, update.now)
+crossing_to = motion_sample.("crossing-to", 0.002, update.now + 1)
+
+{:ok, crossing_result} =
+  GeofenceCrossing.evaluate(
+    geofence,
+    crossing_from,
+    crossing_to,
+    crossing_policy,
+    :replay,
+    update.now + 1
+  )
+
+{:ok, crossing_intent} =
+  RuleEvent.geofence_crossing(
+    "archive-crossing",
+    geofence,
+    crossing_from,
+    crossing_to,
+    crossing_policy,
+    crossing_result
+  )
+
+{:ok, %{"generation" => "1", "event_disposition" => "recorded"} = crossing_receipt} =
+  Store.commit_rule_event(store, crossing_intent)
+
 {:ok, forward_item} =
   ForwardItem.new(%{
     scope: "archive",
@@ -672,6 +709,16 @@ true = restored_geofence === geofence_baseline_result["state"]
    "mode" => "replay",
    "physical_action_dispatch" => "prohibited"
  }} = Store.rule_event(store, "archive-geofence", geofence_receipt["event_id"])
+
+{:ok,
+ %{
+   "event" => %{"kind" => "geofence.crossing_inferred"},
+   "mode" => "replay",
+   "physical_action_dispatch" => "prohibited"
+ }} = Store.rule_event(store, "archive-crossing", crossing_receipt["event_id"])
+
+{:ok, %{"generation" => "1", "disposition" => "duplicate"}} =
+  Store.commit_rule_event(store, crossing_intent)
 
 {:ok, %{"status" => "pending"}} =
   Store.forward_status(store, "archive", forward_item.id)
@@ -1004,5 +1051,5 @@ retained = Process.list() |> MapSet.new() |> MapSet.difference(before_processes)
 0 = retained
 
 IO.puts(
-  "SERVICE_COHORT_PASS durable_restart=true durable_store_forward=true atomic_transport_health=true atomic_heartbeat=true atomic_battery=true atomic_motion=true atomic_geofence=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true explicit_association=true independent_http_sse=true actual_runtime_http_peer=true actual_runtime_sse=true retained_new_processes=#{retained}"
+  "SERVICE_COHORT_PASS durable_restart=true durable_store_forward=true atomic_transport_health=true atomic_heartbeat=true atomic_battery=true atomic_motion=true atomic_geofence=true atomic_geofence_crossing=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true explicit_association=true independent_http_sse=true actual_runtime_http_peer=true actual_runtime_sse=true retained_new_processes=#{retained}"
 )

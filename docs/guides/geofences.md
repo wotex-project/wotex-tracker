@@ -148,5 +148,9 @@ geometry algorithm. `crossing_time` is deliberately `nil`: sparse endpoints only
 establish an interval. Event identity excludes processing mode and evaluation
 time, so live and replay agree; replay prohibits physical Action dispatch.
 
-Atomic transition/crossing state and event-intent persistence in the host remains
-subsequent work.
+The service `RuleEvent` port retains complete closed inputs while preparing an
+inferred crossing, restores them and re-evaluates the pure result before storage.
+SQLite records a new stable intent and public event at one generation; an exact
+retry after restart returns the original generation. Because crossing is a
+stateless inference, this path persists no synthetic canonical state. A collision
+that attempts to change live/replay effect metadata conflicts.

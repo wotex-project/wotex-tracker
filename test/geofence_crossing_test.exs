@@ -128,12 +128,63 @@ defmodule Wotex.Tracker.GeofenceCrossingTest do
     assert live["event"]["crossing_time"] == nil
     assert live["event"]["route_claim"] == "straight_segment_interpolation_only"
     assert live["physical_action_dispatch"] == "separate_authorization_required"
+    assert live["evaluated_at"] == 1_010
+    assert {:ok, ^live} = GeofenceCrossing.validate_result(fence, from, to, policy, live)
+    assert :ok = GeofenceCrossing.validate_event(live["event"])
+
+    assert {:ok, policy_document} = GeofenceCrossing.to_map(policy)
+    assert GeofenceCrossing.from_map(policy_document) == {:ok, policy}
 
     assert {:ok, replay} =
              GeofenceCrossing.evaluate(fence, from, to, policy, :replay, 1_010)
 
     assert replay["event"] === live["event"]
     assert replay["physical_action_dispatch"] == "prohibited"
+    assert {:ok, ^replay} = GeofenceCrossing.validate_result(fence, from, to, policy, replay)
+
+    for changed <- [
+          Map.put(policy_document, "schema", "wtr.other.v1"),
+          Map.put(policy_document, "identity", "forged"),
+          Map.put(policy_document, "max_gap_ms", 11),
+          put_in(policy_document, ["order_policy", "identity"], "forged"),
+          Map.put(policy_document, "extra", true)
+        ] do
+      assert {:error, _} = GeofenceCrossing.from_map(changed)
+    end
+
+    for changed <- [
+          Map.put(live["event"], "schema", "wtr.other.v1"),
+          Map.put(live["event"], "id", "forged"),
+          Map.put(live["event"], "kind", "geofence.guessed"),
+          Map.put(live["event"], "time_gap_ms", 11),
+          Map.put(live["event"], "endpoint_distance_m", -1),
+          Map.put(live["event"], "crossing_time", 1_005),
+          Map.put(live["event"], "extra", true)
+        ] do
+      assert {:error, _} = GeofenceCrossing.validate_event(changed)
+    end
+
+    assert {:error, _} =
+             GeofenceCrossing.validate_result(
+               fence,
+               from,
+               to,
+               policy,
+               Map.put(live, "reason", "changed")
+             )
+
+    assert {:error, _} =
+             GeofenceCrossing.validate_result(
+               fence,
+               from,
+               to,
+               policy,
+               Map.put(live, "mode", "historical")
+             )
+
+    assert {:error, _} = GeofenceCrossing.to_map(:invalid)
+    assert {:error, _} = GeofenceCrossing.from_map(nil)
+    assert {:error, _} = GeofenceCrossing.validate_event(nil)
   end
 
   test "time and distance equality are accepted while larger gaps are not inferred" do
@@ -154,6 +205,9 @@ defmodule Wotex.Tracker.GeofenceCrossingTest do
     assert time_rejected["status"] == "not_inferred"
     assert time_rejected["reason"] == "time_gap_exceeded"
 
+    assert {:ok, ^time_rejected} =
+             GeofenceCrossing.validate_result(fence, from, beyond_time, exact, time_rejected)
+
     short = policy(%{max_distance_m: trace["endpoint_distance_m"] - 1.0e-6})
 
     assert {:ok, distance_rejected} =
@@ -161,6 +215,9 @@ defmodule Wotex.Tracker.GeofenceCrossingTest do
 
     assert distance_rejected["reason"] == "distance_gap_exceeded"
     assert distance_rejected["event"] == nil
+
+    assert {:ok, ^distance_rejected} =
+             GeofenceCrossing.validate_result(fence, from, at_time, short, distance_rejected)
   end
 
   test "endpoint changes and out-of-order samples cannot become inferred crossings" do
@@ -181,6 +238,22 @@ defmodule Wotex.Tracker.GeofenceCrossingTest do
 
     assert result["status"] == "historical"
     assert result["event"] == nil
+
+    future = sample("future", 0, -0.002, 1_101)
+
+    assert {:ok, future_result} =
+             GeofenceCrossing.evaluate(fence, future, outside, policy(), :live, 1_100)
+
+    assert future_result["status"] == "unknown"
+    assert future_result["reason"] == "receiver_in_future"
+
+    miss = sample("miss", 0.001, -0.002, 1_001)
+
+    assert {:ok, miss_result} =
+             GeofenceCrossing.evaluate(fence, outside, miss, policy(), :live, 1_001)
+
+    assert miss_result["status"] == "no_crossing"
+    assert miss_result["event"] == nil
   end
 
   test "policy identity binds ordering and both interpolation gaps" do

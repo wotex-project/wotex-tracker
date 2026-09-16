@@ -22,6 +22,7 @@ defmodule Wotex.Tracker.Service.Store do
     Operation,
     Publication,
     Read,
+    RuleEvent,
     RuleStore,
     RuleTransition,
     Schema,
@@ -200,6 +201,13 @@ defmodule Wotex.Tracker.Service.Store do
   def commit_rule(store, transition) do
     with {:ok, admitted} <- RuleTransition.validate(transition),
          do: StoreCall.run(store, {:commit_rule, admitted})
+  end
+
+  @doc "Atomically records one re-evaluated event-only rule intent and public event."
+  @spec commit_rule_event(t(), RuleEvent.t()) :: {:ok, map()} | {:error, atom()}
+  def commit_rule_event(store, intent) do
+    with {:ok, admitted} <- RuleEvent.validate(intent),
+         do: StoreCall.run(store, {:commit_rule_event, admitted})
   end
 
   @doc "Reads one canonical durable rule state through the privileged host port."
@@ -464,6 +472,9 @@ defmodule Wotex.Tracker.Service.Store do
 
   defp dispatch({:commit_rule, transition}, state),
     do: RuleStore.commit(state.db, transition, state.options)
+
+  defp dispatch({:commit_rule_event, intent}, state),
+    do: RuleStore.commit_event(state.db, intent, state.options)
 
   defp dispatch({:rule_state, scope, kind, rule_id}, state),
     do: RuleStore.status(state.db, scope, kind, rule_id)

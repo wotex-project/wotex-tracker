@@ -196,8 +196,9 @@ uncertainty and antimeridian rules. See the
 [geofence guide](../guides/geofences.md). Ordered baseline, entry/exit, bounded-gap
 and fence/rule-edit recomputation are implemented with stable event identities and
 explicit live/replay effects. Sparse crossing inference identifies both endpoints,
-enforces time/distance gaps and makes no route or crossing-time claim. Atomic host
-integration remains subsequent work. Two-fix motion classification implements
+enforces time/distance gaps and makes no route or crossing-time claim. The service
+re-evaluates complete crossing inputs and atomically deduplicates its stable event
+intent without inventing canonical state. Two-fix motion classification implements
 bounded distance/speed uncertainty, hysteresis, impossible-speed rejection and
 gap handling. Consecutive-segment dwell establishes stationary/moving state and
 stable trip start, stop and interruption events without treating one segment as

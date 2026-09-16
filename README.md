@@ -60,7 +60,8 @@ membership. See the [position guide](docs/guides/positions.md) and
 [geofence guide](docs/guides/geofences.md). Ordered geofence baseline, entry/exit
 and edit recomputation plus bounded sparse-crossing inference are implemented.
 Changed geofence state and stable event intent can be committed atomically and
-restored after restart;
+restored after restart; inferred-crossing event intents have an event-only atomic
+deduplication path;
 two-fix movement/uncertainty classification is also implemented. See the
 [motion guide](docs/guides/motion.md). Consecutive-segment dwell now establishes
 stationary/moving state and stable trip start, stop and interruption events. Host
