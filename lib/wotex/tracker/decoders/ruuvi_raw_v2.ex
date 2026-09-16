@@ -5,6 +5,7 @@ defmodule Wotex.Tracker.Decoders.RuuviRawV2 do
   Sentinels remain unavailable. Humidity above 100% is suspect evidence.
   This proves format support, not SKU, identity, movement state or battery percentage.
   """
+
   import Bitwise, only: [band: 2, bsr: 2]
   alias Wotex.Tracker.{DeviceProfile, Error, Measurement, Observation}
 

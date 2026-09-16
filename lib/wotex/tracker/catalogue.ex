@@ -1,5 +1,13 @@
 defmodule Wotex.Tracker.Catalogue do
-  @moduledoc "A bounded, immutable, deterministically ordered profile snapshot."
+  @moduledoc """
+  Holds the admitted device profiles used for deterministic resolution.
+
+  `new/2` validates every profile, rejects repeated ID/version pairs, sorts the
+  result, and binds it to a content identity. Pass the snapshot to
+  `Wotex.Tracker.resolve/3`; `validate/2` detects changes to an existing
+  snapshot. Catalogue order does not choose a winner between tied profiles.
+  """
+
   alias Wotex.Tracker.{Admission, DeviceProfile, Error, Limits}
 
   @type t :: %__MODULE__{profiles: [DeviceProfile.t()], identity: String.t()}

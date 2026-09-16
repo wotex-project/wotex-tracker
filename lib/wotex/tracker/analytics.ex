@@ -6,6 +6,7 @@ defmodule Wotex.Tracker.Analytics do
   Empty buckets are absent, preserving gaps instead of inventing zero values or
   drawing continuity through unobserved time.
   """
+
   alias Wotex.Tracker.{Admission, Error, QueryResult, QueryRow, QuerySpec}
 
   @maximum_rows 100_000

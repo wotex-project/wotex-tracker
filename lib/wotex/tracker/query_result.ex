@@ -1,5 +1,13 @@
 defmodule Wotex.Tracker.QueryResult do
-  @moduledoc "A content-identified deterministic analytics result with disclosed exclusions."
+  @moduledoc """
+  Binds an analytics result to its query and committed snapshot.
+
+  The result carries admitted series, bucket values, row counts, and explicit
+  exclusions for unavailable values and quality filtering. `new/2` checks those
+  relationships and computes a content identity. `validate/2` and `from_map/2`
+  reject changed results instead of silently accepting altered points or counts.
+  """
+
   alias Wotex.Tracker.{Admission, Error, Limits, QuerySpec}
 
   @fields ~w(spec snapshot series scanned_rows selected_rows qualified_rows excluded_unavailable excluded_quality)a

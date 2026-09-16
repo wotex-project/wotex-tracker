@@ -1,5 +1,13 @@
 defmodule Wotex.Tracker.QueryRow do
-  @moduledoc "A content-identified numeric history row supplied to deterministic analytics."
+  @moduledoc """
+  Admits one numeric history row for deterministic analytics.
+
+  A row names its measurement, series, event time, unit, quality, availability,
+  and source evidence. `new/2` binds those fields to a content identity;
+  `validate/2` detects changes, and `to_map/2` and `from_map/2` use a closed
+  versioned JSON shape. Unavailable values remain distinct from numeric zero.
+  """
+
   alias Wotex.Tracker.{Admission, Error, Limits}
 
   @fields ~w(measurement series event_at value unit availability quality evidence_identity)a

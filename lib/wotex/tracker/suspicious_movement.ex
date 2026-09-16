@@ -6,6 +6,7 @@ defmodule Wotex.Tracker.SuspiciousMovement do
   presence is false. Unknown owner presence remains unknown unless the policy
   explicitly elects to interpret it as absence.
   """
+
   alias Wotex.Tracker.{Admission, Error, Limits, MotionTransition, PolicyFact}
 
   @fields ~w(id revision motion_policy armed_predicate owner_presence_predicate maximum_fact_age_ms future_skew_ms owner_unknown_as_absent)a

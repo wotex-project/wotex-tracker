@@ -5,6 +5,7 @@ defmodule Wotex.Tracker.BatteryTransition do
   Policies name the exact measurement kind/unit, separate low and clear
   thresholds, freshness, future skew and suspect-quality treatment.
   """
+
   alias Wotex.Tracker.{Admission, Error, Limits, MeasurementSample}
 
   @fields ~w(id revision measurement_kind unit low_threshold clear_threshold maximum_age_ms future_skew_ms accept_suspect)a
@@ -16,7 +17,14 @@ defmodule Wotex.Tracker.BatteryTransition do
   defstruct @enforce_keys
 
   defmodule State do
-    @moduledoc "Immutable battery state returned by `BatteryTransition.evaluate/6`."
+    @moduledoc """
+    Holds the evaluated low-battery status and its source sample.
+
+    `Wotex.Tracker.BatteryTransition.evaluate/6` returns this immutable value
+    with the admitted policy, evaluation time, and content identity. The
+    transition checks age, quality, and hysteresis before changing status.
+    """
+
     @type t :: %__MODULE__{}
     @enforce_keys [:policy, :sample, :status, :evaluated_at, :identity]
     defstruct @enforce_keys

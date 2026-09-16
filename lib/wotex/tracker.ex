@@ -10,6 +10,7 @@ defmodule Wotex.Tracker do
       iex> catalogue.profiles
       []
   """
+
   alias Wotex.Tracker.{Catalogue, Decoder, Error, Materialisation, Observation, Resolution}
 
   @doc "Admits explicit capture facts."

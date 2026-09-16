@@ -1,5 +1,13 @@
 defmodule Wotex.Tracker.Model do
-  @moduledoc "An upstream-validated, immutable self-contained Thing Model; loading sources is caller-owned."
+  @moduledoc """
+  Admits a self-contained Thing Model for evidence-based materialisation.
+
+  `new/3` validates the native document against the supported subset and the
+  explicit ID/version revision, then records a content identity. `validate/2`
+  recomputes that identity before the model is used. The caller loads the source;
+  this module does not fetch references, expand templates, or execute Forms.
+  """
+
   alias Wotex.Tracker.{Admission, Error, Limits}
 
   @type t :: %__MODULE__{

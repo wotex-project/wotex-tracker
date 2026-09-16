@@ -6,6 +6,7 @@ defmodule Wotex.Tracker.HeartbeatTransition do
   observations are ordered by receiver time and full content identity. Initial
   evaluation establishes a baseline instead of inventing a prior transition.
   """
+
   alias Wotex.Tracker.{Admission, Error, Limits, Observation}
 
   @fields ~w(id revision maximum_silence_ms future_skew_ms)a
@@ -17,7 +18,15 @@ defmodule Wotex.Tracker.HeartbeatTransition do
   defstruct @enforce_keys
 
   defmodule State do
-    @moduledoc "Immutable heartbeat state returned by `HeartbeatTransition.evaluate/6`."
+    @moduledoc """
+    Holds the heartbeat baseline and current overdue status.
+
+    `Wotex.Tracker.HeartbeatTransition.evaluate/6` returns this immutable
+    value with the last observation identity, due time, evaluation time, and
+    content identity. A time tick can re-evaluate it without inventing a new
+    receiver observation.
+    """
+
     @type t :: %__MODULE__{}
     @enforce_keys [
       :policy,

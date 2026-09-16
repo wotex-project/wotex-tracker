@@ -6,6 +6,7 @@ defmodule Wotex.Tracker.TripDistance do
   distance. Every other segment remains an explicit exclusion, and no exclusion
   is bridged by joining its surrounding positions.
   """
+
   alias Wotex.Tracker.{
     Admission,
     Error,

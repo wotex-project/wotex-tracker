@@ -1,5 +1,14 @@
 defmodule Wotex.Tracker.Limits do
-  @moduledoc "Explicit first-slice budgets. Unknown, repeated or invalid options are rejected."
+  @moduledoc """
+  Admits resource budgets shared by Tracker's pure constructors.
+
+  `new/1` starts from finite defaults and accepts positive integer overrides in
+  a keyword list. Unknown, repeated, and invalid options fail admission.
+  `json/1` projects the normal JSON limits; `material/1` supplies the separate
+  larger budget for Thing materialisation. Callers can lower or raise a budget
+  explicitly without changing the shape of the admitted data.
+  """
+
   alias Wotex.Tracker.Error
 
   @defaults [

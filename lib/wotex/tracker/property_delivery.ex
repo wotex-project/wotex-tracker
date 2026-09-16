@@ -1,5 +1,6 @@
 defmodule Wotex.Tracker.PropertyDelivery do
   @moduledoc false
+
   alias Wotex.Tracker.{Admission, Error}
 
   # Delivery is a host declaration backed by a transport claim. It does not

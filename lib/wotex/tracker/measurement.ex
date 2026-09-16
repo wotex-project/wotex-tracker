@@ -1,5 +1,13 @@
 defmodule Wotex.Tracker.Measurement do
-  @moduledoc "A numeric or boolean decoder value with explicit unit, raw interpretation and availability/quality."
+  @moduledoc """
+  Represents one decoder measurement and its interpretation.
+
+  `new/2` admits a numeric or boolean available value, or an unavailable value
+  represented by `nil`. Kind, unit, quality, raw source value, and reason remain
+  explicit. `to_map/2` and `from_map/2` carry the complete interpretation into
+  evidence claims without treating missing data as zero or false.
+  """
+
   alias Wotex.Tracker.{Admission, Error, Limits}
 
   @fields ~w(kind value unit availability quality raw reason)a

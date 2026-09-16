@@ -4,6 +4,7 @@ defmodule Wotex.Tracker.Resolution do
   Exact/strong ties remain ambiguous. Candidate-only matches remain unknown.
   Names, catalogue order and decoder behavior never select a winner.
   """
+
   alias Wotex.Tracker.{Admission, Catalogue, DeviceProfile, Error, Limits, Observation, Predicate}
 
   @rank %{exact: 3, strong: 2, candidate: 1, unknown: 0}

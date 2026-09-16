@@ -1,5 +1,14 @@
 defmodule Wotex.Tracker.Deployment do
-  @moduledoc "Explicit endpoint and security declarations. No credentials, default security or invented Forms are supplied."
+  @moduledoc """
+  Admits deployment-owned Forms and security declarations for materialisation.
+
+  `new/2` checks readable Property Forms and explicit security definitions
+  against the upstream WoT constructors, then binds the admitted declarations
+  to a content identity. The caller supplies endpoint and security policy;
+  this module does not invent Forms, provide credentials, select default
+  security, or contact an endpoint. `validate/2` rejects changed declarations.
+  """
+
   alias Wotex.Tracker.{Admission, Error, Limits, PropertyDelivery}
 
   @fields ~w(revision title forms security_definitions security)a

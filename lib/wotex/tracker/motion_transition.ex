@@ -6,6 +6,7 @@ defmodule Wotex.Tracker.MotionTransition do
   segment of the same class must confirm the configured dwell before canonical
   motion changes, so one speed spike cannot establish a trip.
   """
+
   alias Wotex.Tracker.{Admission, Error, Limits, PositionMovement, PositionOrder, PositionSample}
 
   @fields ~w(id revision movement_policy minimum_movement_ms minimum_stop_ms)a
@@ -18,7 +19,14 @@ defmodule Wotex.Tracker.MotionTransition do
   defstruct @enforce_keys
 
   defmodule Trip do
-    @moduledoc "A content-identified active trip established by movement dwell."
+    @moduledoc """
+    Holds a trip established by confirmed movement dwell.
+
+    The start and confirmation samples bind the trip to admitted position
+    evidence. The parent transition owns changes to this immutable value;
+    a single moving segment does not create an active trip.
+    """
+
     @type t :: %__MODULE__{}
     @enforce_keys [
       :id,
@@ -32,7 +40,14 @@ defmodule Wotex.Tracker.MotionTransition do
   end
 
   defmodule State do
-    @moduledoc "Immutable motion state returned by `MotionTransition.evaluate/6`."
+    @moduledoc """
+    Holds motion ordering, candidate dwell, and the active trip.
+
+    `Wotex.Tracker.MotionTransition.evaluate/6` returns this immutable state.
+    Separate received and segment samples let the transition retain late or
+    uncertain evidence without silently advancing canonical motion.
+    """
+
     @type t :: %__MODULE__{}
     @enforce_keys [
       :policy,

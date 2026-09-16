@@ -7,6 +7,7 @@ defmodule Wotex.Tracker.TransportDegradation do
   stale delivery evidence remains unknown. Evaluation reads no clock and performs
   no send, queue or notification effect.
   """
+
   alias Wotex.Tracker.{Admission, Error, Limits, TransportPolicy}
 
   @fields ~w(id revision transport_policy healthy_candidate_ids maximum_decision_age_ms future_skew_ms)a
@@ -18,7 +19,14 @@ defmodule Wotex.Tracker.TransportDegradation do
   defstruct @enforce_keys
 
   defmodule State do
-    @moduledoc "Immutable transport health returned by `TransportDegradation.evaluate/6`."
+    @moduledoc """
+    Holds the last evaluated transport-health decision.
+
+    `Wotex.Tracker.TransportDegradation.evaluate/6` returns this immutable
+    state with its policy, decision, status, evaluation time, and content
+    identity. It records an interpretation, not a send or delivery attempt.
+    """
+
     @type t :: %__MODULE__{}
     @enforce_keys [:policy, :decision, :status, :evaluated_at, :identity]
     defstruct @enforce_keys

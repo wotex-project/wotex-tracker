@@ -7,6 +7,7 @@ defmodule Wotex.Tracker.Position do
   not authenticate a receiver, qualify a clock or perform source-unit conversion;
   the claim declares those interpretations with its profile/decoder provenance.
   """
+
   alias Wotex.Tracker.{Admission, Error, EvidenceBundle, Limits}
 
   @fields ~w(schema latitude longitude altitude_m speed_m_s horizontal_accuracy_m accuracy_kind source fix_at device_at received_at fix_clock device_clock availability quality source_units conversion_revision raw receiver_observation_id)

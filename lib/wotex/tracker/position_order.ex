@@ -6,6 +6,7 @@ defmodule Wotex.Tracker.PositionOrder do
   when history needs ordered replay, and when sequence evidence is contradictory.
   It neither buffers observations nor mutates canonical state.
   """
+
   alias Wotex.Tracker.{Admission, Error, Limits, PositionSample}
 
   @fields ~w(revision event_time future_skew_ms late_window_ms sequence)a

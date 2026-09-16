@@ -6,6 +6,7 @@ defmodule Wotex.Tracker.TransportCandidate do
   power and acknowledgement classes. It describes no socket, radio process or
   delivery result.
   """
+
   alias Wotex.Tracker.{Admission, Error, Limits, PolicyFact}
 
   @fields ~w(id bearer application_protocol capability connectivity cost_class power_class acknowledgement_layers)a

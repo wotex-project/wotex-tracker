@@ -5,6 +5,7 @@ defmodule Wotex.Tracker.Evidence do
   A record does not validate the truth of a claim. `EvidenceBundle` validates its
   references. Format confidence, association and authorization remain separate.
   """
+
   alias Wotex.Tracker.{Admission, Error, Limits}
 
   @fields ~w(id kind claim source_observation_ids evidence_ids profile decoder confidence reasons association_id)a

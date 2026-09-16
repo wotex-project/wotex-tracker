@@ -9,6 +9,7 @@ defmodule Wotex.Tracker.Decoder do
   or a typed error. The wrapper validates the entire return, generates complete
   observation/profile/decoder lineage and returns an immutable evidence bundle.
   """
+
   alias Wotex.Tracker.{
     Admission,
     Capability,

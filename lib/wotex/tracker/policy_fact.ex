@@ -5,6 +5,7 @@ defmodule Wotex.Tracker.PolicyFact do
   Facts expose the policy revision that derived true, false or unknown. They do
   not infer truth from radio reception, missing evidence or a capability name.
   """
+
   alias Wotex.Tracker.{Admission, Error, EvidenceBundle, Limits}
 
   @claim_fields ~w(schema predicate status policy_revision reason)

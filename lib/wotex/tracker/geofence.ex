@@ -6,6 +6,7 @@ defmodule Wotex.Tracker.Geofence do
   across the antimeridian and projected into one bounded local equirectangular
   plane. Boundary and uncertainty treatment are explicit, content-bound policy.
   """
+
   alias Wotex.Tracker.{Admission, Error, EvidenceBundle, Limits, Position}
 
   @fields ~w(id revision shape boundary uncertainty)a

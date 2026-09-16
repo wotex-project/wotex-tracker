@@ -4,6 +4,7 @@ defmodule Wotex.Tracker.Capability do
   The initial decoder slice implements readable Properties only. Events, writes
   and physical Actions require their own qualified evidence and adapters.
   """
+
   alias Wotex.Tracker.{Admission, Error, EvidenceBundle, Limits}
 
   @fields ~w(id kind operations unit evidence_ids)a

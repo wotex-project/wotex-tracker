@@ -6,6 +6,7 @@ defmodule Wotex.Tracker.GeofenceCrossing do
   the actual route or a fabricated crossing timestamp. Time and distance gaps are
   explicit content-bound policy.
   """
+
   alias Wotex.Tracker.{
     Admission,
     Error,

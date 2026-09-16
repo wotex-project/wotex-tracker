@@ -6,6 +6,7 @@ defmodule Wotex.Tracker.PositionSelection do
   supply a forged freshness label. The result records the complete ordered rank,
   policy identities and rejected-candidate reasons; it performs no fusion.
   """
+
   alias Wotex.Tracker.{Admission, Error, EvidenceBundle, Limits, Position, PositionFreshness}
 
   @fields ~w(revision accepted_freshness source_priority unlisted_sources missing_accuracy max_horizontal_accuracy_m)a

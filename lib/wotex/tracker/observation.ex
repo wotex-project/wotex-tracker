@@ -6,6 +6,7 @@ defmodule Wotex.Tracker.Observation do
   string-keyed export. Byte payloads use canonical Base64 in that export; JSON
   payloads preserve native types. No transport address implies device identity.
   """
+
   alias Wotex.Tracker.{Admission, Error, Limits}
 
   @fields ~w(id observed_at ingress source addressing payload radio transport provenance)a

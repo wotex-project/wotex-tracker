@@ -6,6 +6,7 @@ defmodule Wotex.Tracker.GeofenceTransition do
   retains separate ordering, last-received and last-valid samples so uncertain or
   historical evidence cannot silently replace canonical membership.
   """
+
   alias Wotex.Tracker.{Admission, Error, Geofence, Limits, PositionOrder, PositionSample}
 
   @fields ~w(id revision order_policy max_transition_gap_ms)a
@@ -17,7 +18,15 @@ defmodule Wotex.Tracker.GeofenceTransition do
   defstruct @enforce_keys
 
   defmodule State do
-    @moduledoc "Immutable geofence rule state returned by `GeofenceTransition.evaluate/7`."
+    @moduledoc """
+    Holds geofence ordering and last valid membership separately.
+
+    `Wotex.Tracker.GeofenceTransition.evaluate/7` returns this immutable
+    value. Received, ordered, and last valid samples remain distinct so late
+    or uncertain evidence cannot replace canonical membership without a
+    validated transition.
+    """
+
     @type t :: %__MODULE__{}
     @enforce_keys [
       :fence,

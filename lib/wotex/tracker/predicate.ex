@@ -3,6 +3,7 @@ defmodule Wotex.Tracker.Predicate do
   Closed declarative fingerprints over admitted capture facts. Byte/length and
   JSON equality/membership predicates execute no supplied code or regular expression.
   """
+
   alias Wotex.Tracker.{Admission, Error, Limits, Observation}
 
   @fields ~w(ingress source addressing radio transport provenance payload_json)

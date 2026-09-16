@@ -4,6 +4,7 @@ defmodule Wotex.Tracker.Identity do
   admits a UUIDv4 URN, never a MAC/IMEI-derived public ID. It creates no persistent
   enrollment and confers no authorization. The host owns uniqueness and custody.
   """
+
   alias Wotex.Tracker.{Admission, Error, EvidenceBundle, Limits}
 
   @type t :: %__MODULE__{}

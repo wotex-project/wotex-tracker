@@ -6,6 +6,7 @@ defmodule Wotex.Tracker.PositionSample do
   Its scope distinguishes devices or streams, while its session identifies the
   reconnect interval in which the modular counter is meaningful.
   """
+
   alias Wotex.Tracker.{Admission, Error, EvidenceBundle, Limits, Position}
 
   @sequence_fields ~w(schema scope_id session_id value modulus receiver_observation_id)

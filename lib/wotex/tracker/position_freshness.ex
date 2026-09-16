@@ -7,6 +7,7 @@ defmodule Wotex.Tracker.PositionFreshness do
   under an explicit policy; an untrusted supplied fix never silently falls back.
   Device message time is retained evidence, not a replacement for fix time.
   """
+
   alias Wotex.Tracker.{Admission, Error, Limits, Position}
 
   @fields ~w(revision max_age_ms future_skew_ms missing_fix accept_suspect)a

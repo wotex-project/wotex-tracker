@@ -6,6 +6,7 @@ defmodule Wotex.Tracker.PositionMovement do
   moving, stationary, indeterminate, implausible or reasoned unknown. It retains
   no state and does not turn one segment into a trip.
   """
+
   alias Wotex.Tracker.{Admission, Error, Limits, PositionOrder, PositionSample}
 
   @fields ~w(id revision order_policy moving_speed_m_s stationary_speed_m_s moving_distance_m stationary_distance_m max_plausible_speed_m_s max_gap_ms uncertainty)a

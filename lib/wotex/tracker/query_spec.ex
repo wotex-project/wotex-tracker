@@ -5,6 +5,7 @@ defmodule Wotex.Tracker.QuerySpec do
   The first query revision uses absolute Unix-millisecond windows and UTC-aligned
   buckets. It cannot carry SQL, code, tenant scope, module names or destinations.
   """
+
   alias Wotex.Tracker.{Admission, Error, Limits}
 
   @fields ~w(id revision dataset measurement unit series qualities from_at to_at timezone bucket_ms aggregation order max_points)a

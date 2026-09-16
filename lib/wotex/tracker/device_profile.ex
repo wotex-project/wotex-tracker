@@ -1,5 +1,14 @@
 defmodule Wotex.Tracker.DeviceProfile do
-  @moduledoc "Immutable profile metadata and declarative fingerprints; decoder references are inert values."
+  @moduledoc """
+  Describes one immutable device-profile revision for catalogue resolution.
+
+  A profile declares fingerprints, confidence, decoder and model revisions,
+  mapping, and source provenance. `new/2` rejects eligible confidence supported
+  only by weak fingerprints. Decoder references are inert revision values here;
+  this module does not load or execute a decoder. `identity/2` covers the full
+  admitted profile document.
+  """
+
   alias Wotex.Tracker.{Admission, Error, Limits, Predicate}
 
   @fields ~w(id version confidence fingerprints decoder model mapping_revision mapping source_provenance)a

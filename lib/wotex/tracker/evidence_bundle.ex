@@ -8,6 +8,7 @@ defmodule Wotex.Tracker.EvidenceBundle do
   association and revisions. Expired evidence needs an explicit future retained
   record adapter; this closed first-slice bundle never pretends bytes are retained.
   """
+
   alias Wotex.Tracker.{Admission, Error, Evidence, Limits, Observation}
 
   @type t :: %__MODULE__{observations: map(), evidence: map(), identity: String.t()}
