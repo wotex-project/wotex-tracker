@@ -21,6 +21,14 @@ substitution seams; explicit values or functions suffice for the first clock,
 catalogue and identity inputs. No generic plugin framework, macros/DSL compiler,
 Python service, Rust helper, NIF or database is needed for the first decoder.
 
+Repository implementation, verification and packaging use Elixir/Erlang or the
+established native language of the owning platform. Python is not admitted for
+source, scripts, tests, generators, consumers, CLIs, build steps, runtime images
+or verification dependencies. Existing Python surfaces are migration debt and
+MUST be removed instead of extended. Independent consumers remain independent by
+using only the public wire or package contract and by importing no production
+domain modules; choosing a different language does not establish that boundary.
+
 Future long-lived discovery/ingress components expose explicit `start_link/1`
 or child-spec APIs. The caller chooses the supervisor, IDs, optional names,
 restart strategy and configuration. Two differently configured instances must
@@ -181,6 +189,9 @@ minimum dependency sets with unchanged repository locks. Test optional integrati
 both absent and explicitly present, including production compilation without
 development path switches. Record unsatisfied releases or incompatible combinations
 honestly; no resolver override counts as compatibility. Build is not publication.
+All consumer orchestration and contract generation obey the repository language
+policy and the full gate rejects tracked Python files or Python interpreter
+requirements.
 
 WTR.12 and the implementation plan distinguish spec checks, software acceptance,
 host integration and hardware qualification. Do not mark an unimplemented
