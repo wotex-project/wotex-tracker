@@ -37,11 +37,17 @@ defmodule Wotex.Tracker.Host.ConfigTest do
     path = Path.join(directory, "config.json")
     write(path, document)
     previous = System.get_env("WOTEX_TRACKER_CONFIG")
+    previous_browser = System.get_env("WOTEX_TRACKER_UI_CONFIG")
+    System.delete_env("WOTEX_TRACKER_UI_CONFIG")
 
     on_exit(fn ->
       if previous,
         do: System.put_env("WOTEX_TRACKER_CONFIG", previous),
         else: System.delete_env("WOTEX_TRACKER_CONFIG")
+
+      if previous_browser,
+        do: System.put_env("WOTEX_TRACKER_UI_CONFIG", previous_browser),
+        else: System.delete_env("WOTEX_TRACKER_UI_CONFIG")
 
       File.rm_rf!(directory)
     end)
@@ -186,6 +192,65 @@ defmodule Wotex.Tracker.Host.ConfigTest do
     Supervisor.stop(host)
     refute Process.alive?(server)
     refute Process.alive?(store)
+  end
+
+  test "optional browser configuration reuses the private-file and listener security boundary",
+       c do
+    {:ok, service_options} = Config.load(c.path)
+    assert {:ok, nil} = Config.load_browser(nil, service_options)
+
+    browser = %{
+      "schema" => "wtr.browser.v1",
+      "listen" => %{"ip" => "127.0.0.1", "port" => 4040},
+      "exposure" => "loopback",
+      "public_origin" => "http://127.0.0.1:4040",
+      "secret_key_base" => String.duplicate("s", 64)
+    }
+
+    path = Path.join(c.directory, "browser.json")
+    write(path, browser)
+    assert {:ok, config} = Config.load_browser(path, service_options)
+    assert config.port == 4040 and config.exposure == :loopback
+    refute inspect(config) =~ browser["secret_key_base"]
+
+    unless Code.ensure_loaded?(Wotex.Tracker.Host.Browser) do
+      System.put_env("WOTEX_TRACKER_CONFIG", c.path)
+      System.put_env("WOTEX_TRACKER_UI_CONFIG", path)
+      assert {:error, :ui_not_in_artifact} = Application.start(:normal, [])
+    end
+
+    for change <- [
+          %{"exposure" => "proxy", "public_origin" => "https://tracker.example"},
+          %{
+            "exposure" => "tls",
+            "public_origin" => "https://tracker.example",
+            "tls" => %{"certfile" => "/cert.pem", "keyfile" => "/key.pem"}
+          }
+        ] do
+      write(path, Map.merge(browser, change))
+      assert {:ok, _} = Config.load_browser(path, service_options)
+    end
+
+    for bad <- [
+          nil,
+          %{},
+          Map.put(browser, "extra", true),
+          Map.put(browser, "secret_key_base", "short"),
+          Map.put(browser, "public_origin", "listener"),
+          Map.put(browser, "public_origin", "http://remote.example"),
+          Map.put(browser, "listen", %{"ip" => "0.0.0.0", "port" => 4040}),
+          Map.put(browser, "listen", %{"ip" => "127.0.0.1", "port" => 0}),
+          Map.put(browser, "exposure", "unknown"),
+          Map.put(browser, "tls", %{})
+        ] do
+      write(path, bad)
+      assert {:error, :invalid_configuration} = Config.load_browser(path, service_options)
+    end
+
+    write(path, browser)
+    File.chmod!(path, 0o644)
+    assert {:error, :invalid_configuration} = Config.load_browser(path, service_options)
+    assert {:error, :invalid_configuration} = Config.load_browser("relative", service_options)
   end
 
   defp write(path, document) do

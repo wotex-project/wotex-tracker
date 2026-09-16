@@ -1530,3 +1530,63 @@ exercise multiple pages, an intervening sample, altered filters and limits,
 collector restart, and retention expiry. The production service archive
 consumer traverses its real HTTP request history through this interface.
 Operational pages are volatile and do not turn into durable asset history.
+
+### Shared browser enrollment and asset inspection — 2026-09-16
+
+`packages/tracker_ui/` now contains the first shared LiveView workflow: sign-in,
+bounded observations and assets, retained profile evidence, explicit ownership
+confirmation, enrollment, Thing provisioning, actual scalar measurements with
+quality and UTC time, and bounded immutable state history. The package has no
+application callback or endpoint and imports no host. Its local client calls
+only the public authorized service facade and resolves the current service on
+every request. Session stores are explicit, independently named host resources.
+
+Enrollment and provisioning establish a UUID operation reference in the page
+URL before permitting submission. Reconnect reads the durable receipt and checks
+that it belongs to the expected resource/workflow. The test adapter can execute
+a real service mutation and discard its reply: both enrollment and provisioning
+then show an unknown outcome, recover the committed receipt and create no
+duplicate resource. Stale generation, unrelated receipts, read-only mutation
+attempts, failed refresh and missing resources have explicit outcomes.
+
+The bounded, volatile session owner retains the bearer only in server memory.
+Its monotonic expiry is independent of wall-clock authorization, and separate
+stores cannot reuse each other's session IDs. Tests check capacity, expiry,
+invalid/duplicate configuration, redacted process status, logout and durable
+service revocation. The HTTP cookie is encrypted, HttpOnly and SameSite=Strict;
+Secure follows the declared public HTTPS origin. CSRF validation, no-store/CSP
+headers and non-reflection are exercised. A test verifies and decodes the actual
+signed LiveView payload and checks that it contains only the opaque browser
+session and framework CSRF state, with no bearer credential. Mounted views
+reauthorize before events and at a five-second idle interval.
+
+The optional `WOTEX_TRACKER_UI=1` app-host composition owns PubSub, sessions and
+the Phoenix/Bandit endpoint. Its separate private browser configuration declares
+the listener, public origin and secret. The headless build has separate dependency
+and build state and rejects browser configuration when its artifact lacks UI.
+Actual HTTP tests exercise sign-in without bypassing CSRF, observation browsing,
+all local assets, foreign WebSocket-origin rejection and Secure cookies behind
+an explicitly declared HTTPS proxy. Listener, parser and WebSocket frame bounds
+are explicit. No external asset service or build-time scripting runtime is used.
+
+Desktop Chrome review executed sign-in, fixture enrollment, provisioning,
+measurements and sign-out. A 390 × 844 viewport review checked the same layout
+and keyboard access to the horizontally scrolling history table. These are
+software browser observations, not physical mobile or complete accessibility
+acceptance. The review used a disposable local service and synthetic fixture;
+its listener and browser tab were stopped after verification.
+
+The complete local gates pass on Darwin ARM64 with both Elixir 1.18.4 / OTP
+27.3.4.15 and Elixir 1.20.4 / OTP 29.0.4. The shared UI runs 17 tests at 98.6%
+production line coverage; the headless host runs 12 at 97.8%, and the UI-enabled
+host runs 14 at 98.0–98.1%. All pass with no test failures. Their gates include
+warnings-as-errors compilation, formatting, strict Credo, Dialyzer, ExDoc,
+dependency audit, licenses and the stack-language check. The UI archive is
+inspected with ordinary dependency metadata and excludes tests and host code.
+The root gate also passes on the floor runtime at 95.4% production coverage.
+
+Complete setup/import, maps/trips, protection, interactions, privacy controls,
+analytics screens, remote-service presentation, UI-enabled production archive
+consumers and bundled release/OCI qualification remain open. The existing
+headless artifact receipts retain their original scope and source identities.
+Pi, mobile and all physical gates remain unpassed.

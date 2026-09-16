@@ -9,6 +9,7 @@ defmodule Wotex.Tracker.Host.Config do
   Invalid configuration returns one fixed error without secret or path content.
   """
   import Bitwise
+  alias Wotex.Tracker.Host.BrowserConfig
   alias Wotex.Tracker.Service.{Codec, Credentials}
   alias Wotex.Tracker.Service.HTTP.Config, as: ServerConfig
 
@@ -23,15 +24,72 @@ defmodule Wotex.Tracker.Host.Config do
   @doc "Loads at most 64 KiB and returns explicit validated HTTP server options."
   @spec load(term()) :: {:ok, keyword()} | {:error, :invalid_configuration}
   def load(path) do
-    with :ok <- private_file(path),
-         {:ok, bytes} <- bounded_read(path),
-         {:ok, document} <- Codec.decode(bytes),
+    with {:ok, document} <- read_document(path),
          {:ok, options} <- options(document),
          {:ok, _config} <- ServerConfig.new(options) do
       {:ok, options}
     else
       _ -> {:error, :invalid_configuration}
     end
+  end
+
+  @doc "Loads an optional, separately private browser listener configuration."
+  @spec load_browser(term(), keyword()) ::
+          {:ok, BrowserConfig.t() | nil} | {:error, :invalid_configuration}
+  def load_browser(nil, _), do: {:ok, nil}
+
+  def load_browser(path, service_options) do
+    with {:ok, document} <- read_document(path),
+         %{
+           "schema" => "wtr.browser.v1",
+           "listen" => listen,
+           "exposure" => exposure,
+           "public_origin" => origin,
+           "secret_key_base" => secret
+         } <- document,
+         true <-
+           Enum.sort(Map.keys(document)) in [
+             Enum.sort(~w(schema listen exposure public_origin secret_key_base)),
+             Enum.sort(~w(schema listen exposure public_origin secret_key_base tls))
+           ],
+         true <- is_binary(secret) and byte_size(secret) in 64..128,
+         true <- is_binary(origin) and origin != "listener",
+         {:ok, ip, port} <- listen(listen),
+         true <- port in 1..65_535,
+         {:ok, exposure} <- exposure(exposure),
+         {:ok, tls} <- tls(document["tls"]),
+         {:ok, config} <-
+           ServerConfig.new(
+             Keyword.merge(service_options,
+               ip: ip,
+               port: port,
+               public_origin: origin,
+               exposure: exposure,
+               tls: tls
+             )
+           ),
+         true <- browser_origin?(config) do
+      {:ok,
+       config
+       |> Map.take([:ip, :port, :public_origin, :exposure, :tls])
+       |> Map.put(:secret_key_base, secret)
+       |> then(&struct!(BrowserConfig, &1))}
+    else
+      _ -> {:error, :invalid_configuration}
+    end
+  end
+
+  defp browser_origin?(%{exposure: :loopback} = config) do
+    uri = URI.parse(config.public_origin)
+    uri.port == config.port and uri.host in [to_string(:inet.ntoa(config.ip)), "localhost"]
+  end
+
+  defp browser_origin?(_), do: true
+
+  defp read_document(path) do
+    with :ok <- private_file(path),
+         {:ok, bytes} <- bounded_read(path),
+         do: Codec.decode(bytes)
   end
 
   defp private_file(path) when is_binary(path) do

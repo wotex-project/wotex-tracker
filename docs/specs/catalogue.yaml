@@ -120,15 +120,15 @@ delivery_targets:
     required_for_product: true
     contracts: [WTR.07, WTR.08, WTR.15]
     requires: [headless_service, analytics]
-    implementation_status: not-started
-    evidence_refs: []
+    implementation_status: in-progress
+    evidence_refs: [docs/evidence/implementation.md]
     acceptance: complete browser workflows, shared LiveView components, authorization, privacy and accessibility
   - id: analytics
     required_for_product: true
     contracts: [WTR.05, WTR.07, WTR.08, WTR.16]
     requires: [headless_service]
-    implementation_status: not-started
-    evidence_refs: []
+    implementation_status: in-progress
+    evidence_refs: [docs/evidence/implementation.md]
     acceptance: known-answer queries, browser graph behavior, saved windows/snapshots, real prompted query and AI-absent operation
   - id: pi5_headless
     required_for_product: true

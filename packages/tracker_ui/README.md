@@ -1,0 +1,48 @@
+# WoTEx Tracker UI
+
+Shared LiveView screens over the authorized Tracker service. This package has
+no application callback, endpoint, listener or automatic session store.
+Hosts own and explicitly supervise those resources.
+
+The first workflow covers sign-in, bounded asset and observation lists,
+evidence inspection, confirmed enrollment, explicit provisioning, retained
+measurements and resource history. Unsupported positioning and Actions are
+identified honestly. This is not full application, Pi or mobile acceptance.
+
+`Wotex.Tracker.UI.Local` calls only the public authorized service facade.
+`Wotex.Tracker.UI.Sessions` keeps bearer credentials in bounded server memory;
+browser cookies and LiveView session payloads carry an opaque session identifier.
+Every service request rechecks authority. Logout destroys the presentation
+session; service credential revocation also rejects existing views.
+
+The host supplies a `Wotex.Tracker.UI.Client` implementation and explicitly
+starts the session store. The local adapter resolves the current service for
+each request, so a restarted store is not cached in a view. The standalone app
+host owns the endpoint, PubSub, session supervision and private listener
+configuration; this package imports no host modules.
+
+Enrollment and provisioning acquire a stable operation reference in the page
+URL before exposing a submit control. Reconnect checks the durable receipt,
+including its resource identity. An unknown outcome is shown explicitly and
+does not permit an automatic repeat. Views retain only bounded presentation
+snapshots; authority and canonical state remain in the service.
+
+Run the complete local gate from this package directory:
+
+```sh
+WOTEX_PATH_DEPS=1 MIX_ENV=test mise exec -- mix deps.get
+WOTEX_PATH_DEPS=1 MIX_ENV=test mise exec -- mix check --no-retry
+```
+
+Phoenix and LiveView JavaScript assets are served locally from the pinned
+dependencies. The small repository hook reports disconnection and loading;
+there is no separate JavaScript framework or asset-build runtime. The ordinary
+package archive contains its Elixir modules, CSS and hook, with no endpoint or
+test helpers. Root and service-only consumers do not depend on this package.
+
+The first cohort exercises real authorized services, duplicate prevention,
+lost-reply recovery, revocation, read-only denial, bounded lists/history,
+CSRF protection and credential custody. Complete setup/import, maps, trips,
+protection, interactions, privacy controls, analytics, remote adapters and
+cross-surface accessibility remain subsequent work. A responsive browser view
+does not qualify a mobile or Pi application.

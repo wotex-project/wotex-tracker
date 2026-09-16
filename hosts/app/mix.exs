@@ -7,6 +7,11 @@ defmodule WotexTrackerHost.MixProject do
       version: "0.1.0",
       elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
+      elixirc_paths: if(ui?(), do: ["lib", "ui"], else: ["lib"]),
+      test_paths: if(ui?(), do: ["test", "ui_test"], else: ["test"]),
+      lockfile: if(ui?(), do: "mix.ui.lock", else: "mix.lock"),
+      build_path: if(ui?(), do: "_build/ui", else: "_build"),
+      deps_path: if(ui?(), do: "_build/ui_deps", else: "deps"),
       deps: deps(),
       test_coverage: [tool: ExCoveralls],
       dialyzer: [plt_add_apps: [:mix, :ex_unit]],
@@ -38,7 +43,32 @@ defmodule WotexTrackerHost.MixProject do
       {:ex_check, "~> 0.16", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.38", only: [:dev, :test, :docs], runtime: false},
       {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false}
-    ]
+    ] ++ ui_dependencies()
+  end
+
+  defp ui? do
+    case System.get_env("WOTEX_TRACKER_UI") do
+      nil -> false
+      "1" -> true
+      _ -> raise "WOTEX_TRACKER_UI accepts only 1 when building a browser-enabled host"
+    end
+  end
+
+  defp ui_dependencies do
+    if ui?() do
+      case {System.get_env("WOTEX_PATH_DEPS"), Mix.env()} do
+        {nil, _} ->
+          [{:wotex_tracker_ui, "~> 0.1.0"}]
+
+        {"1", env} when env in [:dev, :test, :docs] ->
+          [{:wotex_tracker_ui, path: "../../packages/tracker_ui", env: env}]
+
+        _ ->
+          raise "WOTEX_PATH_DEPS accepts only 1 in dev/test/docs; production requires artifacts"
+      end
+    else
+      []
+    end
   end
 
   defp service do

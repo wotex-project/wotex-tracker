@@ -1,0 +1,377 @@
+defmodule Wotex.Tracker.UI.WorkflowTest do
+  @moduledoc false
+  use ExUnit.Case, async: false
+  import Plug.Conn
+  import Phoenix.ConnTest
+  import Phoenix.LiveViewTest
+  import Wotex.Tracker.Service.Fixtures
+  alias Phoenix.LiveView.Static
+  alias Wotex.Tracker.Service
+  alias Wotex.Tracker.Service.Identifier
+  alias Wotex.Tracker.UI.{ErrorHTML, Presenter, Sessions, TestClient, TestEndpoint}
+  @endpoint TestEndpoint
+
+  setup do
+    c = service()
+    faults = start_supervised!({Agent, fn -> %{} end})
+
+    sessions =
+      start_supervised!(
+        {Sessions,
+         client: {TestClient, {fn -> {:ok, c.service} end, faults}}, clock: fn -> c.now end}
+      )
+
+    start_supervised!({Phoenix.PubSub, name: Wotex.Tracker.UI.TestPubSub})
+
+    start_supervised!(
+      {TestEndpoint,
+       secret_key_base: String.duplicate("s", 64),
+       live_view: [signing_salt: "live-view-test"],
+       pubsub_server: Wotex.Tracker.UI.TestPubSub,
+       url: [host: "www.example.com", scheme: "https", port: 443],
+       check_origin: ["https://www.example.com"],
+       render_errors: [formats: [html: Wotex.Tracker.UI.ErrorHTML], layout: false],
+       server: false,
+       tracker_ui: [sessions: sessions]}
+    )
+
+    {:ok, %{"id" => id}} = Sessions.login(sessions, c.admin, c.scope)
+    conn = build_conn() |> init_test_session(%{"browser_session" => id})
+    Map.merge(c, %{sessions: sessions, session: id, conn: conn, faults: faults})
+  end
+
+  test "enroll, reconnect, provision and inspect the same authorized asset", c do
+    {:ok, imported} =
+      Service.submit(c.service, c.admin, c.scope, Identifier.uuid(), import_request(), c.now)
+
+    observation = imported["data"]["observation_id"]
+    operation = Identifier.uuid()
+    path = Presenter.path(:observation, observation) <> "?operation=" <> operation
+    {:ok, view, html} = live(c.conn, path)
+    assert html =~ "Observation evidence"
+    refute html =~ c.admin
+    refute html =~ "private-hardware"
+
+    view
+    |> form("#enroll", enrollment: %{title: "Workshop sensor", confirmed: "true"})
+    |> render_submit()
+
+    assert has_element?(view, "a", "Continue provisioning")
+    {:ok, receipt} = Service.operation(c.service, c.admin, c.scope, operation, c.now)
+    thing = receipt["data"]["thing_id"]
+    {:ok, resumed, _} = live(c.conn, path)
+    refute has_element?(resumed, "#enroll")
+    assert has_element?(resumed, "a", "Continue provisioning")
+    {:ok, assets} = Service.list(c.service, c.admin, c.scope, "enrollments", %{}, c.now)
+    assert length(assets["items"]) == 1
+
+    asset_path = Presenter.path(:asset, thing) <> "?operation=" <> Identifier.uuid()
+    {:ok, asset, _} = live(c.conn, asset_path)
+    assert has_element?(asset, "button", "Provision Thing")
+    asset |> element("button", "Provision Thing") |> render_click()
+    assert has_element?(asset, ".reading", "24.3")
+    assert has_element?(asset, "h2", "Measurement history")
+    assert render(asset) =~ "connectivity is unknown"
+    refute has_element?(asset, "button", "Provision Thing")
+    {:ok, state} = Service.get(c.service, c.admin, c.scope, "state", thing, c.now)
+    assert state["value"]["measurements"] != []
+  end
+
+  test "reader cannot enroll even with a forged event", c do
+    {:ok, imported} =
+      Service.submit(c.service, c.admin, c.scope, Identifier.uuid(), import_request(), c.now)
+
+    {:ok, %{"id" => reader}} = Sessions.login(c.sessions, c.reader, c.scope)
+    conn = build_conn() |> init_test_session(%{"browser_session" => reader})
+
+    path =
+      Presenter.path(:observation, imported["data"]["observation_id"]) <>
+        "?operation=" <> Identifier.uuid()
+
+    {:ok, view, _} = live(conn, path)
+    refute has_element?(view, "#enroll")
+    render_click(view, "enroll", %{"enrollment" => %{"title" => "Forged", "confirmed" => "true"}})
+    assert render(view) =~ "does not permit"
+    {:ok, assets} = Service.list(c.service, c.admin, c.scope, "enrollments", %{}, c.now)
+    assert assets["items"] == []
+  end
+
+  test "stale enrollment writes stay uncommitted until explicitly refreshed", c do
+    {:ok, imported} =
+      Service.submit(c.service, c.admin, c.scope, Identifier.uuid(), import_request(), c.now)
+
+    path =
+      Presenter.path(:observation, imported["data"]["observation_id"]) <>
+        "?operation=" <> Identifier.uuid()
+
+    {:ok, view, _} = live(c.conn, path)
+
+    {:ok, _} =
+      Service.submit(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        import_request(%{id: "later", observed_at: c.now + 1}, "1"),
+        c.now
+      )
+
+    view |> form("#enroll", enrollment: %{title: "Stale", confirmed: "true"}) |> render_submit()
+    assert render(view) =~ "changed since this page loaded"
+    {:ok, assets} = Service.list(c.service, c.admin, c.scope, "enrollments", %{}, c.now)
+    assert assets["items"] == []
+  end
+
+  test "logout retires an already mounted view", c do
+    {:ok, view, _} = live(c.conn, "/")
+    Sessions.logout(c.sessions, c.session)
+    assert {:error, {:redirect, %{to: "/sign-in"}}} = render_click(view, "refresh")
+  end
+
+  test "anonymous mounts and malformed operation references fail closed", c do
+    assert {:error, {:redirect, %{to: "/sign-in"}}} = live(build_conn(), "/")
+    {:ok, view, _} = live(c.conn, "/observations/missing?operation=invalid")
+    refute has_element?(view, "#enroll")
+    assert render(view) =~ "Check the required fields"
+  end
+
+  test "sign-in uses CSRF and an encrypted HttpOnly cookie without reflecting a token", c do
+    sign_in = get(build_conn(), "/sign-in")
+    body = html_response(sign_in, 200)
+    assert body =~ "name=\"_csrf_token\""
+    assert get_resp_header(sign_in, "cache-control") == ["no-store"]
+    assert get_resp_header(sign_in, "content-security-policy") != []
+
+    assert_raise Plug.CSRFProtection.InvalidCSRFTokenError, fn ->
+      build_conn()
+      |> put_private(:plug_skip_csrf_protection, false)
+      |> post("/session", %{token: c.admin, scope: c.scope})
+    end
+
+    logged_in =
+      build_conn()
+      |> put_private(:plug_skip_csrf_protection, true)
+      |> post("/session", %{token: c.admin, scope: c.scope})
+
+    assert redirected_to(logged_in) == "/"
+    assert Map.keys(get_session(logged_in)) -- ["_csrf_token", "browser_session"] == []
+    refute inspect(logged_in.resp_cookies) =~ c.admin
+    cookie = logged_in.resp_cookies["_tracker_ui_test"]
+    assert cookie.http_only and cookie.secure and cookie.same_site == "Strict"
+
+    body = logged_in |> recycle() |> get("/") |> html_response(200)
+    [_, signed] = Regex.run(~r/data-phx-session="([^"]+)"/, body)
+    assert {:ok, %{session: payload}} = Static.verify_token(TestEndpoint, signed)
+    assert Map.keys(payload) -- ["_csrf_token", "browser_session"] == []
+    refute inspect(payload) =~ c.admin
+  end
+
+  test "observation paging is bounded and a failed refresh retains the loaded page", c do
+    for generation <- 0..25 do
+      assert {:ok, _} =
+               Service.submit(
+                 c.service,
+                 c.admin,
+                 c.scope,
+                 Identifier.uuid(),
+                 import_request(
+                   %{id: "observation-#{generation}", observed_at: c.now + generation},
+                   to_string(generation)
+                 ),
+                 c.now
+               )
+    end
+
+    {:ok, view, _} = live(c.conn, "/setup")
+
+    assert length(
+             view
+             |> render()
+             |> LazyHTML.from_fragment()
+             |> LazyHTML.query(".card")
+             |> Enum.to_list()
+           ) == 25
+
+    view |> element("button", "Next page") |> render_click()
+    refute has_element?(view, "button", "Next page")
+    assert has_element?(view, "a", "Inspect observation")
+    Agent.update(c.faults, &Map.put(&1, :list, :unavailable))
+    view |> element("button", "Refresh") |> render_click()
+    assert render(view) =~ "service could not complete"
+    assert has_element?(view, "a", "Inspect observation")
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, "button", "Next page")
+    render_click(view, "unknown-event")
+  end
+
+  test "lost enrollment reply is recovered through its receipt after reconnect", c do
+    observation = imported(c)
+    operation = Identifier.uuid()
+    path = Presenter.path(:observation, observation) <> "?operation=" <> operation
+    {:ok, view, _} = live(c.conn, path)
+    Agent.update(c.faults, &Map.put(&1, :enroll, :lost_reply))
+
+    view
+    |> form("#enroll", enrollment: %{title: "Recovered", confirmed: "true"})
+    |> render_submit()
+
+    assert has_element?(view, "h2", "Enrollment outcome unknown")
+    refute has_element?(view, "#enroll")
+    render_click(view, "unknown-event")
+    view |> element("button", "Check operation outcome") |> render_click()
+    assert has_element?(view, "h2", "Enrollment saved")
+    view |> element("button", "Refresh evidence") |> render_click()
+    {:ok, resumed, _} = live(c.conn, path)
+    assert has_element?(resumed, "h2", "Enrollment saved")
+    {:ok, assets} = Service.list(c.service, c.admin, c.scope, "enrollments", %{}, c.now)
+    assert length(assets["items"]) == 1
+  end
+
+  test "lost provisioning reply and temporary read failures preserve explicit outcomes", c do
+    {thing, _} = enrolled(c)
+    path = Presenter.path(:asset, thing) <> "?operation=" <> Identifier.uuid()
+    {:ok, view, _} = live(c.conn, path)
+    Agent.update(c.faults, &Map.put(&1, :materialize, :lost_reply))
+    view |> element("button", "Provision Thing") |> render_click()
+    assert render(view) =~ "Provisioning outcome: unknown"
+    view |> element("button", "Check operation outcome") |> render_click()
+    assert render(view) =~ "Provisioning outcome: committed"
+    assert has_element?(view, ".reading", "24.3")
+    Agent.update(c.faults, &Map.put(&1, :history, :unavailable))
+    view |> element("button", "Refresh") |> render_click()
+    assert render(view) =~ "service could not complete"
+    assert has_element?(view, ".reading", "24.3")
+    render_click(view, "unknown-event")
+    {:ok, _, html} = live(c.conn, "/")
+    assert html =~ "Workshop sensor"
+  end
+
+  test "stable URLs are established before a mutation and unrelated receipts never claim success",
+       c do
+    {thing, enrollment_operation} = enrolled(c)
+    {:ok, enrollment} = Service.get(c.service, c.admin, c.scope, "enrollments", thing, c.now)
+    observation = enrollment["value"]["observation_id"]
+
+    assert {:error, {:redirect, %{to: observation_url}}} =
+             live(c.conn, Presenter.path(:observation, observation))
+
+    assert observation_url =~ "?operation="
+    assert {:error, {:redirect, %{to: asset_url}}} = live(c.conn, Presenter.path(:asset, thing))
+    assert asset_url =~ "?operation="
+
+    {:ok, asset, _} =
+      live(c.conn, Presenter.path(:asset, thing) <> "?operation=" <> enrollment_operation)
+
+    assert render(asset) =~ "different workflow"
+    refute has_element?(asset, "button", "Provision Thing")
+
+    import_operation = Identifier.uuid()
+
+    {:ok, imported} =
+      Service.submit(
+        c.service,
+        c.admin,
+        c.scope,
+        import_operation,
+        import_request(%{id: "another"}, "2"),
+        c.now
+      )
+
+    other = imported["data"]["observation_id"]
+
+    for reference <- [enrollment_operation, import_operation] do
+      {:ok, view, _} =
+        live(c.conn, Presenter.path(:observation, other) <> "?operation=" <> reference)
+
+      assert render(view) =~ "different workflow"
+      refute has_element?(view, "#enroll")
+    end
+  end
+
+  test "idle views reauthorize and revoked sessions close without another user action", c do
+    {:ok, %{"id" => reader}} = Sessions.login(c.sessions, c.reader, c.scope)
+    conn = build_conn() |> init_test_session(%{"browser_session" => reader})
+    {:ok, view, _} = live(conn, "/")
+    send(view.pid, :check_authority)
+    assert render(view) =~ "Your assets"
+
+    {:ok, _} =
+      Service.revoke(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"credential_id" => "reader", "expected_generation" => "0"},
+        c.now
+      )
+
+    send(view.pid, :check_authority)
+    assert_redirect(view, "/sign-in")
+  end
+
+  test "failed sign-in never reflects a credential and HTTP sign-out invalidates old view payloads",
+       c do
+    failed =
+      build_conn()
+      |> put_private(:plug_skip_csrf_protection, true)
+      |> post("/session", %{token: "private-invalid-token", scope: c.scope})
+
+    assert html_response(failed, 401) =~ "Sign-in failed"
+    refute failed.resp_body =~ "private-invalid-token"
+
+    signed_out =
+      c.conn |> put_private(:plug_skip_csrf_protection, true) |> post("/session/logout", %{})
+
+    assert redirected_to(signed_out) == "/sign-in"
+
+    assert {:error, %{"code" => "unauthorized"}} =
+             Sessions.request(c.sessions, c.session, :authorize)
+
+    assert ErrorHTML.render("404.html", %{private: c.admin}) ==
+             "This page is not available."
+
+    refute ErrorHTML.render("500.html", %{private: c.admin}) =~ c.admin
+  end
+
+  test "missing records and malformed asset requests cannot expose provisioning controls", c do
+    for path <- [
+          "/assets/missing?operation=invalid",
+          "/assets/missing?operation=" <> Identifier.uuid(),
+          "/observations/missing?operation=" <> Identifier.uuid()
+        ] do
+      {:ok, view, _} = live(c.conn, path)
+      assert has_element?(view, "[role=alert]")
+      refute has_element?(view, "#enroll")
+      refute has_element?(view, "button", "Provision Thing")
+    end
+  end
+
+  defp imported(c) do
+    {:ok, result} =
+      Service.submit(c.service, c.admin, c.scope, Identifier.uuid(), import_request(), c.now)
+
+    result["data"]["observation_id"]
+  end
+
+  defp enrolled(c) do
+    observation = imported(c)
+    operation = Identifier.uuid()
+
+    {:ok, result} =
+      Service.enroll(
+        c.service,
+        c.admin,
+        c.scope,
+        operation,
+        %{
+          "observation_id" => observation,
+          "title" => "Workshop sensor",
+          "owner_confirmed" => true,
+          "expected_generation" => "1"
+        },
+        c.now
+      )
+
+    {result["data"]["thing_id"], operation}
+  end
+end

@@ -1,0 +1,190 @@
+defmodule Wotex.Tracker.UI.ObservationLive do
+  @moduledoc "Evidence-first enrollment with a stable operation reference across reconnects."
+  use Phoenix.LiveView, log: false
+  import Wotex.Tracker.UI.Components
+  alias Wotex.Tracker.Service.Identifier
+  alias Wotex.Tracker.UI.{Auth, Presenter}
+
+  @impl true
+  def mount(_, _, socket),
+    do:
+      {:ok,
+       assign(socket,
+         observation: nil,
+         resolution: nil,
+         generation: nil,
+         operation: nil,
+         outcome: nil,
+         error: nil
+       )}
+
+  @impl true
+  def handle_params(%{"id" => id} = params, _, socket) do
+    case params["operation"] do
+      nil ->
+        {:noreply,
+         redirect(socket,
+           to: Presenter.path(:observation, id) <> "?operation=" <> Identifier.uuid()
+         )}
+
+      operation ->
+        if Identifier.operation?(operation) do
+          {:noreply, socket |> assign(id: id, operation: operation) |> recover() |> load()}
+        else
+          {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
+        end
+    end
+  end
+
+  @impl true
+  def handle_event(
+        "enroll",
+        %{"enrollment" => params},
+        %{assigns: %{outcome: nil, observation: observation}} = socket
+      )
+      when not is_nil(observation) do
+    request = %{
+      "observation_id" => socket.assigns.id,
+      "title" => params["title"],
+      "owner_confirmed" => params["confirmed"] == "true",
+      "expected_generation" => socket.assigns.generation
+    }
+
+    result =
+      Auth.request(socket, :enroll, %{
+        "operation" => socket.assigns.operation,
+        "request" => request
+      })
+
+    {:noreply, outcome(socket, result)}
+  end
+
+  def handle_event("check-operation", _, socket), do: {:noreply, recover(socket)}
+  def handle_event("refresh", _, socket), do: {:noreply, socket |> recover() |> load()}
+  def handle_event(_, _, socket), do: {:noreply, socket}
+
+  @impl true
+  def render(assigns) do
+    ~H"""
+    <main id="main" class="workspace narrow">
+      <a href="/setup">← All observations</a>
+      <p class="eyebrow">Setup · review evidence</p>
+      <h1>Confirm this tracker</h1>
+      <.notice error={@error} />
+      <section :if={@observation && @resolution} class="panel">
+        <h2>Observation evidence</h2>
+        <dl>
+          <dt>Observation reference</dt><dd class="identifier">{@id}</dd>
+          <dt>Recorded</dt><dd>{Presenter.timestamp(@observation["observed_at"])}</dd>
+          <dt>Source</dt><dd>{@observation["ingress"]}</dd>
+          <dt>Profile match</dt><dd>{@resolution["status"]} · {@resolution["reason"]}</dd>
+        </dl>
+        <ul>
+          <li :for={candidate <- @resolution["candidates"]}>
+            {candidate["id"]} {candidate["version"]} · {candidate["confidence"]}
+          </li>
+        </ul>
+        <p>
+          Enrollment creates a service identity. A profile match alone does not prove that you own the physical device.
+        </p>
+      </section>
+      <section :if={@observation && @identity["can_enroll"] && is_nil(@outcome)} class="panel">
+        <h2>Enroll an asset</h2>
+        <.form for={%{}} id="enroll" phx-submit="enroll">
+          <label for="title">Asset name</label>
+          <input
+            id="title"
+            name="enrollment[title]"
+            required
+            maxlength="128"
+            placeholder="Workshop sensor"
+          />
+          <label class="checkbox" for="confirmed">
+            <input id="confirmed" type="checkbox" name="enrollment[confirmed]" value="true" required />
+            I own this device or have permission to enroll it.
+          </label>
+          <button type="submit" phx-disable-with="Checking enrollment…">Confirm enrollment</button>
+        </.form>
+      </section>
+      <p :if={@observation && !@identity["can_enroll"]} class="notice">
+        This credential can inspect evidence but cannot enroll an asset.
+      </p>
+      <section :if={@outcome} class="panel" role="status">
+        <h2>
+          {if @outcome["outcome"] == "committed",
+            do: "Enrollment saved",
+            else: "Enrollment outcome unknown"}
+        </h2>
+        <a
+          :if={@outcome["outcome"] == "committed" && @outcome["data"]["thing_id"]}
+          class="button"
+          href={Presenter.path(:asset, @outcome["data"]["thing_id"])}
+        >Continue provisioning</a>
+        <p :if={@outcome["outcome"] != "committed"}>
+          Keep this page's address. Check the outcome before starting another enrollment.
+        </p>
+      </section>
+      <div :if={@operation} class="operation">
+        <p>Operation reference <code>{@operation}</code></p>
+        <button class="secondary" phx-click="check-operation">Check operation outcome</button>
+        <button class="secondary" phx-click="refresh">Refresh evidence</button>
+      </div>
+    </main>
+    """
+  end
+
+  defp recover(socket) do
+    case Auth.request(socket, :operation, %{"id" => socket.assigns.operation}) do
+      {:error, %{"code" => "not_found"}} -> socket
+      result -> outcome(socket, result)
+    end
+  end
+
+  defp outcome(
+         socket,
+         {:ok, %{"outcome" => "committed", "data" => %{"thing_id" => id} = data} = result}
+       )
+       when map_size(data) == 1 do
+    case Auth.request(socket, :get, %{"resource" => "enrollments", "id" => id}) do
+      {:ok, %{"value" => %{"observation_id" => observation}}}
+      when observation == socket.assigns.id ->
+        assign(socket, outcome: result, error: nil)
+
+      _ ->
+        unrelated(socket)
+    end
+  end
+
+  defp outcome(socket, {:ok, %{"outcome" => "unknown"} = result}),
+    do: assign(socket, outcome: result, error: nil)
+
+  defp outcome(socket, {:ok, _}), do: unrelated(socket)
+  defp outcome(socket, {:error, error}), do: assign(socket, error: error)
+
+  defp unrelated(socket),
+    do:
+      assign(socket,
+        outcome: %{"outcome" => "unrelated"},
+        error: %{"code" => "operation_mismatch"}
+      )
+
+  defp load(socket) do
+    with {:ok, observation} <-
+           Auth.request(socket, :get, %{"resource" => "observations", "id" => socket.assigns.id}),
+         {:ok, resolution} <-
+           Auth.request(socket, :get, %{"resource" => "resolutions", "id" => socket.assigns.id}),
+         {:ok, page} <-
+           Auth.request(socket, :list, %{
+             "resource" => "observations",
+             "params" => %{"limit" => 1}
+           }) do
+      assign(socket,
+        observation: observation["value"],
+        resolution: resolution["value"],
+        generation: page["generation"]
+      )
+    else
+      {:error, error} -> assign(socket, error: error)
+    end
+  end
+end

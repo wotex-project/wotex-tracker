@@ -1,7 +1,8 @@
 # Standalone Tracker host
 
-This optional application owns startup of the headless service. The root library
-and service package keep their explicit, inert installation contract.
+This optional application owns startup of the service and, when explicitly built
+and configured, its browser interface. The root library and service package keep
+their explicit, inert installation contract.
 
 Startup requires `WOTEX_TRACKER_CONFIG` to name an absolute regular 0600 JSON
 file in a 0700 directory. Paths must not traverse symlinks. There is no default
@@ -109,6 +110,72 @@ There is no automatic reconnect. Unavailable samples close the stream; after
 recovery, start a fresh snapshot without a cursor. This is observation of committed
 Thing state; imports require explicit association and materialisation first.
 Physical scanner/Action commands remain unsupported in capabilities.
+
+## Optional browser interface
+
+Build this composition with `WOTEX_TRACKER_UI=1`. It adds the shared
+`wotex_tracker_ui` package and compiles `ui/`; the ordinary host build excludes
+both. The two compositions use separate lockfiles, dependency directories and
+build directories. Each needs its own dependency resolution and complete check:
+
+```sh
+WOTEX_PATH_DEPS=1 WOTEX_TRACKER_UI=1 MIX_ENV=test mise exec -- mix deps.get
+WOTEX_PATH_DEPS=1 WOTEX_TRACKER_UI=1 MIX_ENV=test mise exec -- mix check --no-retry
+```
+
+The browser listener needs a second private configuration file, selected at
+runtime by `WOTEX_TRACKER_UI_CONFIG`. Its closed `wtr.browser.v1` document has
+`listen`, `exposure`, `public_origin`, `secret_key_base` and optional `tls`.
+The file has the same 0600/0700, regular-file, no-symlink and 64 KiB requirements
+as the service configuration. Supply a fresh random secret of 64–128 bytes,
+distinct from the service instance key. The origin is explicit; loopback mode
+requires the listener's port and its numeric address or `localhost`. Proxy/TLS
+mode requires an HTTPS public origin and sets Secure cookies. Direct TLS uses
+the same certificate/key fields as the service. An artifact without UI support
+rejects browser configuration at startup.
+
+After creating `_build/local` with the CLI above, create a loopback browser
+configuration without printing its secret or replacing an existing file:
+
+```sh
+umask 077
+WOTEX_PATH_DEPS=1 WOTEX_TRACKER_UI=1 MIX_ENV=test mise exec -- mix run --no-start -e '
+document = %{
+  "schema" => "wtr.browser.v1",
+  "listen" => %{"ip" => "127.0.0.1", "port" => 4040},
+  "exposure" => "loopback",
+  "public_origin" => "http://127.0.0.1:4040",
+  "secret_key_base" => Base.encode64(:crypto.strong_rand_bytes(64))
+}
+File.write!("_build/local/browser.json", Wotex.Tracker.Service.Codec.encode!(document), [:exclusive])
+'
+WOTEX_PATH_DEPS=1 WOTEX_TRACKER_UI=1 MIX_ENV=test \
+  WOTEX_TRACKER_CONFIG="$PWD/_build/local/config.json" \
+  WOTEX_TRACKER_UI_CONFIG="$PWD/_build/local/browser.json" \
+  mise exec -- mix run --no-halt
+```
+
+Open `http://127.0.0.1:4040`, sign in with scope `workshop` and the private
+operator token, then choose Setup. Import observations through the CLI or API;
+the browser presents their retained evidence, explicit ownership confirmation,
+enrollment and Thing provisioning. Asset details show actual measurements,
+quality, UTC observation time and bounded measurement history. No physical
+scanner, positioning, protection, Action or battery-percentage behavior is
+invented for the environmental fixture.
+
+Credentials stay in a bounded volatile server store. Encrypted HttpOnly,
+SameSite=Strict cookies and signed LiveView payloads carry only an opaque session
+reference. Sessions expire within one hour; service authorization is checked on
+every request and idle views recheck within five seconds. Logout invalidates
+existing views. Restart requires sign-in. A disconnected view identifies its
+display as potentially out of date; operation references stay in page URLs so
+reconnecting can recover a retained receipt without repeating a mutation.
+
+Source tests cover the shared workflow and actual host HTTP authentication,
+static assets, cookie attributes and WebSocket-origin denial. Browser review
+includes desktop and narrow viewport layouts. UI-enabled bundled release/OCI,
+remote-service presentation, complete accessibility and full product workflows
+remain unqualified. The artifact qualification below covers the headless build.
 
 ## Bundled release and local OCI qualification
 
