@@ -234,6 +234,13 @@ The sibling checkouts were inspected read-only because another session is
 implementing their native targets. These revisions identify this audit; they
 are not dependency pins or claims about subsequent work.
 
+A follow-up scan at Tracker `64e08a1`, including its uncommitted shared UI work,
+found the same sibling revisions and the same 34-file inventory. It also
+reviewed interpreter, package-tool and bridge references across source,
+configuration and specifications. No new Tracker Python surface was present.
+The original clean-worktree statement above describes the earlier snapshot;
+the follow-up included ongoing Tracker changes.
+
 ```text
 wotex                 eadc6c9
 wotex-bacnet          966373b
