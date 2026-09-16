@@ -304,7 +304,8 @@ showcase is labelled real interoperability or general public availability.
 
 The first shared package and optional app-host composition implement sign-in,
 bounded asset/observation browsing, one-file Observation JSON import in Setup,
-source evidence, confirmed enrollment, explicit Thing provisioning, retained
+source evidence, confirmed enrollment, later observation association, explicit
+Thing provisioning and updates, retained
 measurements and paged history. The host
 owns the listener, credentials and supervision; the package calls the authorized
 service facade. Stable operation URLs recover durable outcomes on reconnect.

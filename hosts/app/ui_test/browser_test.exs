@@ -7,6 +7,7 @@ defmodule Wotex.Tracker.Host.BrowserTest do
   alias Wotex.Tracker.Service
   alias Wotex.Tracker.Service.{Codec, Credentials, Identifier}
   alias Wotex.Tracker.Service.HTTP.{Config, Server}
+  alias Wotex.Tracker.UI.Presenter
 
   setup do
     {:ok, _} = Application.ensure_all_started(:inets)
@@ -66,7 +67,7 @@ defmodule Wotex.Tracker.Host.BrowserTest do
 
     {:ok, document} = File.read!("priv/examples/ruuvi-raw-v2.observation.json") |> Codec.decode()
 
-    {:ok, _} =
+    {:ok, imported} =
       Service.submit(
         service,
         c.token,
@@ -75,6 +76,25 @@ defmodule Wotex.Tracker.Host.BrowserTest do
         %{"observation" => document, "expected_generation" => "0"},
         System.system_time(:millisecond)
       )
+
+    observation = imported["data"]["observation_id"]
+
+    {:ok, enrolled} =
+      Service.enroll(
+        service,
+        c.token,
+        "workshop",
+        Identifier.uuid(),
+        %{
+          "observation_id" => observation,
+          "title" => "Workshop sensor",
+          "owner_confirmed" => true,
+          "expected_generation" => "1"
+        },
+        System.system_time(:millisecond)
+      )
+
+    thing = enrolled["data"]["thing_id"]
 
     {200, headers, body} = request(:get, origin <> "/sign-in", [], nil)
     [_, csrf] = Regex.run(~r/name="_csrf_token"[^>]*value="([^"]+)"/, body)
@@ -106,6 +126,36 @@ defmodule Wotex.Tracker.Host.BrowserTest do
     assert setup =~ "Inspect observation"
     assert setup =~ "Import an observation capture"
     refute setup =~ c.token
+
+    {200, _, picker} =
+      request(
+        :get,
+        origin <> Presenter.path(:asset, thing) <> "/observations",
+        [{~c"cookie", browser_cookie}],
+        nil
+      )
+
+    assert picker =~ "Choose an observation for Workshop sensor"
+    assert picker =~ "Inspect observation"
+
+    {302, association_headers, _} =
+      request(
+        :get,
+        origin <> Presenter.association_path(thing, observation),
+        [{~c"cookie", browser_cookie}],
+        nil
+      )
+
+    association_path =
+      association_headers |> List.keyfind(~c"location", 0) |> elem(1) |> to_string()
+
+    assert association_path =~ "?operation="
+
+    {200, _, association} =
+      request(:get, origin <> association_path, [{~c"cookie", browser_cookie}], nil)
+
+    assert association =~ "Confirm association"
+    refute association =~ c.token
 
     for path <- [
           "/assets/tracker.js",

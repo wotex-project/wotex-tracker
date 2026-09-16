@@ -11,6 +11,31 @@ defmodule Wotex.Tracker.UI.Components do
     """
   end
 
+  attr(:id, :string, required: true)
+  attr(:observation, :map, required: true)
+  attr(:resolution, :map, required: true)
+  attr(:explanation, :string, required: true)
+
+  def observation_evidence(assigns) do
+    ~H"""
+    <section class="panel">
+      <h2>Observation evidence</h2>
+      <dl>
+        <dt>Observation reference</dt><dd class="identifier">{@id}</dd>
+        <dt>Recorded</dt><dd>{Presenter.timestamp(@observation["observed_at"])}</dd>
+        <dt>Source</dt><dd>{@observation["ingress"]}</dd>
+        <dt>Profile match</dt><dd>{@resolution["status"]} · {@resolution["reason"]}</dd>
+      </dl>
+      <ul>
+        <li :for={candidate <- @resolution["candidates"]}>
+          {candidate["id"]} {candidate["version"]} · {candidate["confidence"]}
+        </li>
+      </ul>
+      <p>{@explanation}</p>
+    </section>
+    """
+  end
+
   attr(:state, :map, required: true)
 
   def measurements(assigns) do

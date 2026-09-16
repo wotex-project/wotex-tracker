@@ -53,7 +53,7 @@ intents, with restart recovery and retry deduplication. The
 standalone CLI and bundled Darwin/Linux ARM64 service artifacts pass local probes.
 See the [service contract](docs/contracts/service-v1.md). The first shared browser
 workflow now covers sign-in, bounded JSON capture import, evidence review,
-enrollment, provisioning and retained measurements. Live scanning and the rest of the application remain
+enrollment, later observation association, provisioning and retained measurements. Live scanning and the rest of the application remain
 subsequent work.
 
 The WTR.05 pure foundation admits position evidence, freshness, deterministic

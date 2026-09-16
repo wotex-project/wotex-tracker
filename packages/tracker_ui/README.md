@@ -6,8 +6,8 @@ Hosts own and explicitly supervise those resources.
 
 The first workflow covers sign-in, bounded asset and observation lists,
 single-file Observation JSON capture import in Setup, evidence inspection,
-confirmed enrollment, explicit provisioning, retained measurements and
-resource history. Unsupported positioning and Actions are identified honestly.
+confirmed enrollment, later observation association, explicit Thing updates,
+retained measurements and resource history. Unsupported positioning and Actions are identified honestly.
 This is not full application, Pi or mobile acceptance.
 
 `Wotex.Tracker.UI.Local` calls only the public authorized service facade.
@@ -22,7 +22,7 @@ each request, so a restarted store is not cached in a view. The standalone app
 host owns the endpoint, PubSub, session supervision and private listener
 configuration; this package imports no host modules.
 
-Capture import, enrollment and provisioning acquire a stable operation reference
+Capture import, enrollment, association and provisioning acquire a stable operation reference
 in the page URL before exposing a submit control. Reconnect checks the durable
 receipt, including its resource identity. An unknown outcome is shown explicitly
 and does not permit an automatic repeat. Setup accepts one `.json` file of at

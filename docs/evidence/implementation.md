@@ -1617,3 +1617,33 @@ per-platform results are recorded in `verification/ui-consumer.json`.
 The bundles and image are local artifacts; none was published. These probes
 qualify the first browser workflow and release composition, not a complete
 tracking application, physical device, Pi panel or mobile companion.
+
+### Browser capture import and later association — 2026-09-16
+
+The shared Setup screen now accepts one operator-selected Observation JSON file
+of at most 256 KiB. It decodes through the bounded service JSON codec and calls
+the authorized `submit` facade; it does not create or scan a capture. The import
+operation reference is in the URL before upload is offered. A committed receipt
+is checked against the retained observation and its commit generation. Unknown
+outcomes suppress another submission until the operator checks the receipt.
+Tests execute real service mutations through the LiveView upload channel, then
+exercise reconnect, lost replies, malformed and oversized files, stale writes,
+read-only denial, unrelated receipts and temporary read failure.
+
+An existing asset now offers a bounded observation picker and a separate
+evidence-and-confirmation screen. The authorized `associate` facade returns the
+Thing ID, selected public observation ID and newly recorded association ID in
+the atomic receipt. These exact fields allow the browser to recover a lost reply
+without mistaking enrollment or materialisation for this association. A changed
+source observation leaves prior measurements visible and explicitly marked as
+prior until the operator updates the Thing; service state remains canonical.
+Tests exercise association, a later materialisation with changed RAWv2 values,
+receipt recovery, stale and read-only denial, pagination and unrelated operation
+references. The app-host HTTP test and both bundled browser probes reach the
+selector and confirmation form through ordinary artifacts.
+
+This is a software setup path for admitted captures. Live BLE scanning, physical
+identity proof, a qualified mobile/Pi interface and the remaining application
+workflows are still unpassed. Updated local package/release receipts are in
+`verification/ui-consumer.json` and `verification/host-consumer.json`; neither
+artifact was published.

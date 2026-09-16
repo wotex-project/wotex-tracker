@@ -159,7 +159,9 @@ Open `http://127.0.0.1:4040`, sign in with scope `workshop` and the private
 operator token, then choose Setup. Choose a preformed Observation JSON capture
 up to 256 KiB to import it from the browser. The CLI and API accept the same
 admission contract. The browser presents retained evidence, explicit ownership
-confirmation, enrollment and Thing provisioning. Asset details show actual measurements,
+confirmation, enrollment, later observation association and Thing provisioning.
+After association, the asset page identifies prior measurements and offers an
+explicit Thing update. Asset details show actual measurements,
 quality, UTC observation time and bounded measurement history. No physical
 scanner, positioning, protection, Action or battery-percentage behavior is
 invented for the environmental fixture.

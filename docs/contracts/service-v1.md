@@ -209,7 +209,9 @@ keys; generation strings are canonical nonnegative decimals.
 | `revoke` | `admin` | `credential_id`, `expected_generation` |
 
 Successful imports return `data.observation_id`; enrollment returns
-`data.thing_id`; materialisation returns that Thing ID and `materialisation_id`.
+`data.thing_id`; association returns that Thing ID, the selected public
+`observation_id` and a new `association_id`; materialisation returns the Thing ID
+and `materialisation_id`.
 Generated IDs are stored in the atomic operation receipt. After authentication
 and request admission, exact replay returns that receipt before consulting a
 new catalogue or model. A new request still checks its generation and authority

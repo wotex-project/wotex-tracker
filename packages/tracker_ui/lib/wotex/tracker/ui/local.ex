@@ -57,6 +57,9 @@ defmodule Wotex.Tracker.UI.Local do
   defp dispatch(service, token, scope, :enroll, args, now),
     do: Service.enroll(service, token, scope, args["operation"], args["request"], now)
 
+  defp dispatch(service, token, scope, :associate, args, now),
+    do: Service.associate(service, token, scope, args["operation"], args["request"], now)
+
   defp dispatch(service, token, scope, :materialize, args, now),
     do: Service.materialize(service, token, scope, args["operation"], args["request"], now)
 

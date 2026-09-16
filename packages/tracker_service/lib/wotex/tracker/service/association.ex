@@ -47,10 +47,11 @@ defmodule Wotex.Tracker.Service.Association do
 
   defp update(access, operation, request, enrollment, index, now) do
     id = request["thing_id"]
+    association_id = Identifier.uuid()
 
     record = %{
       "public" => Map.put(enrollment["public"], "observation_id", request["observation_id"]),
-      "association_id" => Identifier.uuid(),
+      "association_id" => association_id,
       "identity_revision" => operation,
       "actor" => access.principal,
       "created_at" => now,
@@ -68,7 +69,11 @@ defmodule Wotex.Tracker.Service.Association do
       request: %{"operation" => "associate", "body" => request},
       observation: nil,
       publication: nil,
-      response: %{"thing_id" => id},
+      response: %{
+        "thing_id" => id,
+        "observation_id" => request["observation_id"],
+        "association_id" => association_id
+      },
       records: [%{kind: "enrollments", id: id, value: record}],
       events: [%{"type" => "enrollment.changed", "data" => %{"id" => id}}]
     })

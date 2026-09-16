@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted target contract. No application, mobile build or device acceptance exists.
+Accepted target contract. A partial shared browser workflow exists; no complete
+application, mobile build or device acceptance exists.
 These are required product deliverables and optional installations for consumers
 of the library. An incomplete backend or UI framework cannot waive a product gate.
 

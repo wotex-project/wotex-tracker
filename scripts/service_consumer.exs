@@ -1046,6 +1046,10 @@ association_request = %{
     update.now
   )
 
+true = associated["data"]["thing_id"] == thing
+true = associated["data"]["observation_id"] == later["data"]["observation_id"]
+true = Identifier.operation?(associated["data"]["association_id"])
+
 {:ok, ^associated} =
   Service.associate(
     service,

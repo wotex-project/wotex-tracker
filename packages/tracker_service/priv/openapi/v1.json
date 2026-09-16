@@ -4522,6 +4522,31 @@
                         "type": "string",
                         "pattern": "^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
                       },
+                      "observation_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256,
+                        "x-max-utf8-bytes": 256
+                      },
+                      "association_id": {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                      }
+                    },
+                    "required": [
+                      "thing_id",
+                      "observation_id",
+                      "association_id"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "thing_id": {
+                        "type": "string",
+                        "pattern": "^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                      },
                       "materialisation_id": {
                         "type": "string",
                         "minLength": 1,

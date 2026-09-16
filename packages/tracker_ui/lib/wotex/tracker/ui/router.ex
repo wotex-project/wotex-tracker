@@ -29,6 +29,8 @@ defmodule Wotex.Tracker.UI.Router do
       live("/", BrowseLive, :assets)
       live("/setup", BrowseLive, :observations)
       live("/observations/:id", ObservationLive, :show)
+      live("/assets/:id/observations", AssociationSelectLive, :index)
+      live("/assets/:thing_id/observations/:observation_id", AssociationLive, :show)
       live("/assets/:id", AssetLive, :show)
     end
   end

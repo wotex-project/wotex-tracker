@@ -46,6 +46,12 @@ defmodule Wotex.Tracker.UI.Presenter do
     prefix <> URI.encode(id, &URI.char_unreserved?/1)
   end
 
+  @doc "Builds the local path for reviewing one observation against an existing asset."
+  @spec association_path(String.t(), String.t()) :: String.t()
+  def association_path(thing, observation) when is_binary(thing) and is_binary(observation),
+    do:
+      path(:asset, thing) <> "/observations/" <> URI.encode(observation, &URI.char_unreserved?/1)
+
   @doc "Formats a tagged public scalar without converting unavailable values to zero."
   @spec scalar(term()) :: String.t()
   def scalar(%{"value" => nil}), do: "Unavailable"

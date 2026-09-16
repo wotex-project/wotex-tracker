@@ -77,6 +77,262 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert state["value"]["measurements"] != []
   end
 
+  test "associate a later observation and update the same Thing", c do
+    {thing, _} = enrolled(c)
+
+    {:ok, _} =
+      Service.materialize(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"thing_id" => thing, "expected_generation" => "2"},
+        c.now
+      )
+
+    <<5, _::16, rest::binary>> = elem(observation().payload, 1)
+
+    {:ok, imported} =
+      Service.submit(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        import_request(
+          %{
+            id: "later",
+            observed_at: c.now + 1,
+            payload: {:bytes, <<5, 6000::16, rest::binary>>}
+          },
+          "3"
+        ),
+        c.now
+      )
+
+    later = imported["data"]["observation_id"]
+
+    {:ok, asset, _} =
+      live(c.conn, Presenter.path(:asset, thing) <> "?operation=" <> Identifier.uuid())
+
+    assert has_element?(asset, "a", "Associate a later observation")
+
+    {:ok, picker, _} = live(c.conn, Presenter.path(:asset, thing) <> "/observations")
+    assert render(picker) =~ Presenter.association_path(thing, later)
+    assert has_element?(picker, "a", "Inspect observation")
+
+    assert {:error, {:redirect, %{to: path}}} =
+             live(c.conn, Presenter.association_path(thing, later))
+
+    assert path =~ "?operation="
+    {:ok, view, _} = live(c.conn, path)
+    assert has_element?(view, "h2", "Observation evidence")
+    assert has_element?(view, "#associate")
+
+    view
+    |> form("#associate", association: %{confirmed: "true"})
+    |> render_submit()
+
+    assert has_element?(view, "h2", "Association saved")
+    refute has_element?(view, "#associate")
+    {:ok, enrollment} = Service.get(c.service, c.admin, c.scope, "enrollments", thing, c.now)
+    assert enrollment["value"]["observation_id"] == later
+    {:ok, prior_state} = Service.get(c.service, c.admin, c.scope, "state", thing, c.now)
+    refute prior_state["value"]["observation_id"] == later
+
+    assert {:error, {:redirect, %{to: asset_path}}} = live(c.conn, Presenter.path(:asset, thing))
+    {:ok, update, _} = live(c.conn, asset_path)
+    assert has_element?(update, "button", "Update Thing")
+    assert render(update) =~ "prior retained measurements"
+    update |> element("button", "Update Thing") |> render_click()
+    assert render(update) =~ "30.0"
+    refute has_element?(update, "button", "Update Thing")
+    {:ok, history} = Service.history(c.service, c.admin, c.scope, "state", thing, %{}, c.now)
+    assert length(history["items"]) == 2
+  end
+
+  test "lost association reply recovers through its receipt without another association", c do
+    {thing, _} = enrolled(c)
+
+    {:ok, imported} =
+      Service.submit(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        import_request(%{id: "later", observed_at: c.now + 1}, "2"),
+        c.now
+      )
+
+    later = imported["data"]["observation_id"]
+    path = Presenter.association_path(thing, later) <> "?operation=" <> Identifier.uuid()
+    {:ok, view, _} = live(c.conn, path)
+    Agent.update(c.faults, &Map.put(&1, :associate, :lost_reply))
+    view |> form("#associate", association: %{confirmed: "true"}) |> render_submit()
+    assert has_element?(view, "h2", "Association outcome unknown")
+    refute has_element?(view, "#associate")
+    {:ok, resumed, _} = live(c.conn, path)
+    assert has_element?(resumed, "h2", "Association saved")
+
+    {:ok, history} =
+      Service.history(c.service, c.admin, c.scope, "enrollments", thing, %{}, c.now)
+
+    assert length(history["items"]) == 2
+
+    {:ok, newer} =
+      Service.submit(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        import_request(%{id: "newer", observed_at: c.now + 2}, "4"),
+        c.now
+      )
+
+    {:ok, _} =
+      Service.associate(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{
+          "thing_id" => thing,
+          "observation_id" => newer["data"]["observation_id"],
+          "owner_confirmed" => true,
+          "expected_generation" => "5"
+        },
+        c.now
+      )
+
+    {:ok, historical, _} = live(c.conn, path)
+    assert has_element?(historical, "h2", "Association saved")
+    assert render(historical) =~ "receipt records an earlier association"
+    refute has_element?(historical, "a", "Update Thing")
+  end
+
+  test "reader and stale association cannot change an asset", c do
+    {thing, _} = enrolled(c)
+
+    {:ok, imported} =
+      Service.submit(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        import_request(%{id: "later", observed_at: c.now + 1}, "2"),
+        c.now
+      )
+
+    later = imported["data"]["observation_id"]
+    path = Presenter.association_path(thing, later) <> "?operation=" <> Identifier.uuid()
+    {:ok, %{"id" => reader}} = Sessions.login(c.sessions, c.reader, c.scope)
+    conn = build_conn() |> init_test_session(%{"browser_session" => reader})
+
+    {:ok, read_asset, _} =
+      live(conn, Presenter.path(:asset, thing) <> "?operation=" <> Identifier.uuid())
+
+    refute has_element?(read_asset, "a", "Associate a later observation")
+    {:ok, readonly, _} = live(conn, path)
+    refute has_element?(readonly, "#associate")
+    render_submit(readonly, "associate", %{"association" => %{"confirmed" => "true"}})
+    assert render(readonly) =~ "does not permit"
+
+    {:ok, admin, _} = live(c.conn, path)
+
+    {:ok, _} =
+      Service.submit(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        import_request(%{id: "newer", observed_at: c.now + 2}, "3"),
+        c.now
+      )
+
+    admin |> form("#associate", association: %{confirmed: "true"}) |> render_submit()
+    assert render(admin) =~ "changed since this page loaded"
+    refute has_element?(admin, "#associate")
+    {:ok, enrollment} = Service.get(c.service, c.admin, c.scope, "enrollments", thing, c.now)
+    refute enrollment["value"]["observation_id"] == later
+  end
+
+  test "association picker pages observations and unrelated receipts cannot submit", c do
+    {thing, enrollment_operation} = enrolled(c)
+
+    for generation <- 2..26 do
+      assert {:ok, _} =
+               Service.submit(
+                 c.service,
+                 c.admin,
+                 c.scope,
+                 Identifier.uuid(),
+                 import_request(
+                   %{id: "later-#{generation}", observed_at: c.now + generation},
+                   to_string(generation)
+                 ),
+                 c.now
+               )
+    end
+
+    {:ok, picker, _} = live(c.conn, Presenter.path(:asset, thing) <> "/observations")
+    assert has_element?(picker, "button", "Next page")
+    picker |> element("button", "Next page") |> render_click()
+    refute has_element?(picker, "button", "Next page")
+
+    {:ok, page} = Service.list(c.service, c.admin, c.scope, "observations", %{}, c.now)
+    observation = hd(page["items"])["id"]
+    path = Presenter.association_path(thing, observation)
+    {:ok, unrelated, _} = live(c.conn, path <> "?operation=" <> enrollment_operation)
+    assert render(unrelated) =~ "different workflow"
+    refute has_element?(unrelated, "#associate")
+    {:ok, invalid, _} = live(c.conn, path <> "?operation=invalid")
+    refute has_element?(invalid, "#associate")
+  end
+
+  test "unresolved observations and missing assets cannot enter association", c do
+    {thing, _} = enrolled(c)
+
+    {:ok, imported} =
+      Service.submit(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        import_request(%{id: "unknown", payload: {:bytes, <<>>}}, "2"),
+        c.now
+      )
+
+    unresolved = imported["data"]["observation_id"]
+    path = Presenter.association_path(thing, unresolved) <> "?operation=" <> Identifier.uuid()
+    {:ok, view, _} = live(c.conn, path)
+    assert render(view) =~ "no supported exact profile"
+    refute has_element?(view, "#associate")
+
+    {:ok, missing, _} = live(c.conn, "/assets/missing/observations")
+    assert has_element?(missing, "[role=alert]")
+    refute has_element?(missing, "a", "Inspect observation")
+
+    {:ok, missing_detail, _} =
+      live(
+        c.conn,
+        Presenter.association_path("missing", unresolved) <> "?operation=" <> Identifier.uuid()
+      )
+
+    assert has_element?(missing_detail, "[role=alert]")
+    refute has_element?(missing_detail, "#associate")
+  end
+
+  test "a failed association-picker refresh retains the last bounded page", c do
+    {thing, _} = enrolled(c)
+    {:ok, picker, _} = live(c.conn, Presenter.path(:asset, thing) <> "/observations")
+    assert has_element?(picker, "a", "Inspect observation")
+    Agent.update(c.faults, &Map.put(&1, :list, :unavailable))
+    picker |> element("button", "Refresh") |> render_click()
+    assert render(picker) =~ "service could not complete"
+    assert has_element?(picker, "a", "Inspect observation")
+    picker |> element("button", "Refresh") |> render_click()
+    refute has_element?(picker, "[role=alert]")
+  end
+
   test "reader cannot enroll even with a forged event", c do
     {:ok, imported} =
       Service.submit(c.service, c.admin, c.scope, Identifier.uuid(), import_request(), c.now)

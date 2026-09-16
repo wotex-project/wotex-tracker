@@ -38,6 +38,8 @@ defmodule Wotex.Tracker.AssociationTest do
     assert {:ok, receipt} = associate(c, operation, request)
     assert receipt["generation"] == "5"
     assert receipt["data"]["thing_id"] == thing
+    assert receipt["data"]["observation_id"] == imported["data"]["observation_id"]
+    assert Identifier.operation?(receipt["data"]["association_id"])
     assert {:ok, ^receipt} = associate(c, operation, request)
     assert {:ok, %{"value" => 24.3}} = read(c, thing)
 

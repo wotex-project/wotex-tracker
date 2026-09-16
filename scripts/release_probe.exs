@@ -397,6 +397,41 @@ defmodule Wotex.Tracker.ReleaseProbe do
     true = String.contains?(detail, "Measurement history")
     false = String.contains?(detail, instance.token)
 
+    observation =
+      request(instance, "/enrollments/" <> encode_segment(thing))["value"]["observation_id"]
+
+    selector = "/assets/" <> encode_segment(thing) <> "/observations"
+
+    {200, _headers, choices} =
+      browser_request(:get, origin <> selector, [{~c"cookie", cookie}], nil)
+
+    true = String.contains?(choices, "Inspect observation")
+    true = String.contains?(choices, observation)
+
+    {302, association_headers, _body} =
+      browser_request(
+        :get,
+        origin <> selector <> "/" <> encode_segment(observation),
+        [{~c"cookie", cookie}],
+        nil
+      )
+
+    association_location =
+      association_headers |> List.keyfind(~c"location", 0) |> elem(1) |> to_string()
+
+    true = String.contains?(association_location, "?operation=")
+
+    {200, _headers, association} =
+      browser_request(
+        :get,
+        URI.merge(origin, association_location) |> to_string(),
+        [{~c"cookie", cookie}],
+        nil
+      )
+
+    true = String.contains?(association, "Confirm association")
+    false = String.contains?(association, instance.token)
+
     for path <-
           ~w(/assets/tracker.js /assets/tracker.css /assets/phoenix/phoenix.min.js /assets/liveview/phoenix_live_view.min.js) do
       {200, _headers, bytes} = browser_request(:get, origin <> path, [], nil)

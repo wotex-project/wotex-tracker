@@ -71,23 +71,13 @@ defmodule Wotex.Tracker.UI.ObservationLive do
       <p class="eyebrow">Setup · review evidence</p>
       <h1>Confirm this tracker</h1>
       <.notice error={@error} />
-      <section :if={@observation && @resolution} class="panel">
-        <h2>Observation evidence</h2>
-        <dl>
-          <dt>Observation reference</dt><dd class="identifier">{@id}</dd>
-          <dt>Recorded</dt><dd>{Presenter.timestamp(@observation["observed_at"])}</dd>
-          <dt>Source</dt><dd>{@observation["ingress"]}</dd>
-          <dt>Profile match</dt><dd>{@resolution["status"]} · {@resolution["reason"]}</dd>
-        </dl>
-        <ul>
-          <li :for={candidate <- @resolution["candidates"]}>
-            {candidate["id"]} {candidate["version"]} · {candidate["confidence"]}
-          </li>
-        </ul>
-        <p>
-          Enrollment creates a service identity. A profile match alone does not prove that you own the physical device.
-        </p>
-      </section>
+      <.observation_evidence
+        :if={@observation && @resolution}
+        id={@id}
+        observation={@observation}
+        resolution={@resolution}
+        explanation="Enrollment creates a service identity. A profile match alone does not prove that you own the physical device."
+      />
       <section :if={@observation && @identity["can_enroll"] && is_nil(@outcome)} class="panel">
         <h2>Enroll an asset</h2>
         <.form for={%{}} id="enroll" phx-submit="enroll">

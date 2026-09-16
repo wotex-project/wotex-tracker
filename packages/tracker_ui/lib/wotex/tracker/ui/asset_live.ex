@@ -14,6 +14,7 @@ defmodule Wotex.Tracker.UI.AssetLive do
          state: nil,
          history: nil,
          generation: nil,
+         needs_materialization: false,
          operation: nil,
          outcome: nil,
          error: nil
@@ -39,7 +40,7 @@ defmodule Wotex.Tracker.UI.AssetLive do
   def handle_event(
         "provision",
         _,
-        %{assigns: %{state: nil, outcome: nil, enrollment: enrollment}} = socket
+        %{assigns: %{needs_materialization: true, outcome: nil, enrollment: enrollment}} = socket
       )
       when not is_nil(enrollment) do
     result =
@@ -79,15 +80,24 @@ defmodule Wotex.Tracker.UI.AssetLive do
         <p class="identifier">{@id}</p>
         <p>Ownership confirmed · {@enrollment["identity_strategy"]}</p>
         <a href={Presenter.path(:observation, @enrollment["observation_id"])}>Inspect source evidence</a>
+        <a :if={@identity["can_enroll"]} href={Presenter.path(:asset, @id) <> "/observations"}>
+          Associate a later observation
+        </a>
         <p :if={!@state}>
           This asset is enrolled. Provision its Thing to expose supported measurements through the service.
         </p>
+        <p :if={@state && @needs_materialization} class="notice">
+          These are prior retained measurements. Update the Thing to publish the newly associated observation.
+        </p>
         <button
-          :if={!@state && is_nil(@outcome) && @identity["can_enroll"]}
+          :if={@needs_materialization && is_nil(@outcome) && @identity["can_enroll"]}
           phx-click="provision"
           phx-disable-with="Provisioning…"
-        >Provision Thing</button>
-        <p :if={@state}>
+        >{if @state, do: "Update Thing", else: "Provision Thing"}</button>
+        <a :if={@needs_materialization && @outcome} href={Presenter.path(:asset, @id)}>
+          Start another Thing update
+        </a>
+        <p :if={@state && !@needs_materialization}>
           Provisioned. The service exposes the measurements supplied by this profile.
         </p>
       </section>
@@ -181,8 +191,17 @@ defmodule Wotex.Tracker.UI.AssetLive do
          {:ok, page} <-
            Auth.request(socket, :list, %{"resource" => "enrollments", "params" => %{"limit" => 1}}),
          {:ok, state} <- state(socket) do
+      needs_materialization =
+        is_nil(state) or
+          state["value"]["observation_id"] != enrollment["value"]["observation_id"]
+
       socket
-      |> assign(enrollment: enrollment["value"], state: state, generation: page["generation"])
+      |> assign(
+        enrollment: enrollment["value"],
+        state: if(state, do: state["value"], else: nil),
+        generation: page["generation"],
+        needs_materialization: needs_materialization
+      )
       |> history(%{})
     else
       {:error, error} -> assign(socket, error: error)
@@ -191,7 +210,7 @@ defmodule Wotex.Tracker.UI.AssetLive do
 
   defp state(socket) do
     case Auth.request(socket, :get, %{"resource" => "state", "id" => socket.assigns.id}) do
-      {:ok, row} -> {:ok, row["value"]}
+      {:ok, row} -> {:ok, row}
       {:error, %{"code" => "not_found"}} -> {:ok, nil}
       error -> error
     end
