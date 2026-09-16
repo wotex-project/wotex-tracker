@@ -1,8 +1,9 @@
 defmodule Wotex.Tracker.StackLanguageCheck do
   @moduledoc false
 
-  @root_extensions ~w(.ex .exs .sh .bash .zsh .fish .mk .toml .yml .yaml .rs .c .h .cc .cpp .hpp)
-  @python_manifests ~w(Pipfile Pipfile.lock pyproject.toml poetry.lock uv.lock pdm.lock .python-version)
+  @root_extensions ~w(.ex .exs .erl .hrl .escript .sh .bash .zsh .fish .mk .cmake .toml .yml .yaml .rs .c .h .cc .cpp .hpp .js .mjs .cjs .jsx .ts .tsx .ipynb)
+  @python_extensions ~w(.py .pyi .pyw .pyc .pyo .pyd .pyx .pxd .pxi .pyz .whl .egg)
+  @python_manifests ~w(Pipfile Pipfile.lock pyproject.toml poetry.lock uv.lock pdm.lock .python-version .python-versions tox.ini pytest.ini)
   @excluded_content_paths MapSet.new(["scripts/check_stack_language.exs"])
 
   def run! do
@@ -47,23 +48,34 @@ defmodule Wotex.Tracker.StackLanguageCheck do
     basename = Path.basename(path)
 
     cond do
-      Path.extname(path) in ~w(.py .pyi .pyw .pyc) -> ["#{path}: Python source is forbidden"]
-      "__pycache__" in Path.split(path) -> ["#{path}: Python cache is forbidden"]
-      requirements_manifest?(basename) -> ["#{path}: Python requirement manifests are forbidden"]
-      basename in @python_manifests -> ["#{path}: Python environment manifests are forbidden"]
-      true -> []
+      Path.extname(path) in @python_extensions ->
+        ["#{path}: Python source or artifacts are forbidden"]
+
+      "__pycache__" in Path.split(path) ->
+        ["#{path}: Python cache is forbidden"]
+
+      requirements_manifest?(basename) ->
+        ["#{path}: Python requirement manifests are forbidden"]
+
+      basename in @python_manifests ->
+        ["#{path}: Python environment manifests are forbidden"]
+
+      true ->
+        []
     end
   end
 
   defp requirements_manifest?(basename),
-    do: String.starts_with?(basename, "requirements") and String.ends_with?(basename, ".txt")
+    do:
+      String.starts_with?(basename, "requirements") and
+        String.ends_with?(basename, [".txt", ".in"])
 
   defp content_violations(root, path) do
-    if active_surface?(path) and path not in @excluded_content_paths do
+    if path not in @excluded_content_paths do
       bytes = File.read!(Path.join(root, path))
 
-      if String.valid?(bytes) and
-           Regex.match?(~r/\bpython(?:\d+(?:\.\d+)*)?\b|\bpip(?:3)?\s+install\b/i, bytes) do
+      if String.valid?(bytes) and (active_surface?(path) or String.starts_with?(bytes, "#!")) and
+           Regex.match?(~r/\b(?:python(?:\d+(?:\.\d+)*)?|pypy[23]?|pip[23]?)\b/i, bytes) do
         ["#{path}: Python interpreter or package tooling is forbidden"]
       else
         []
@@ -79,9 +91,10 @@ defmodule Wotex.Tracker.StackLanguageCheck do
 
     extension in @root_extensions or
       String.starts_with?(path, ".github/") or
-      String.starts_with?(path, "hosts/app/bin/") or
+      "bin" in Path.split(path) or
       String.starts_with?(path, "scripts/") or
-      String.starts_with?(basename, "Dockerfile") or basename in ~w(Makefile Justfile)
+      String.starts_with?(basename, "Dockerfile") or
+      basename in ~w(Makefile Justfile CMakeLists.txt package.json package-lock.json)
   end
 end
 

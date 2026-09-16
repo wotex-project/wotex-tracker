@@ -15,7 +15,12 @@
   only remove Python are allowed.
 - Prefer Elixir for repository orchestration, contract generation, acceptance
   consumers and host tooling. Use Erlang where direct OTP primitives make the
-  boundary clearer. Platform applications use their established native
-  language.
+  boundary clearer. Prefer C, C++ or Rust for native helpers and independent
+  native consumers. Platform applications use their established native language.
 - Keep independent acceptance consumers outside the production domain modules;
   language independence is not a substitute for protocol-boundary independence.
+
+## Local commits
+
+- Use a GitOps/conventional prefix and a natural sentence describing the change.
+- Never include specification or work-package identifiers in commit messages.

@@ -22,7 +22,8 @@ catalogue and identity inputs. No generic plugin framework, macros/DSL compiler,
 Python service, Rust helper, NIF or database is needed for the first decoder.
 
 Repository implementation, verification and packaging use Elixir/Erlang or the
-established native language of the owning platform. Python is not admitted for
+established native language of the owning platform. Prefer C, C++ or Rust for
+native helpers and independent native consumers. Python is not admitted for
 source, scripts, tests, generators, consumers, CLIs, build steps, runtime images
 or verification dependencies. Existing Python surfaces are migration debt and
 MUST be removed instead of extended. Independent consumers remain independent by
