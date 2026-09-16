@@ -68,5 +68,12 @@ immutable state history and, when present, records the stable event intent plus
 the public event. Independent writers serialize through SQLite; exact retries
 return the committed generation and stale writers fail without a partial event.
 State and event-intent reads support restart recovery. This privileged API does
-not schedule policy evaluation, send a notification or authorize a physical
-Action.
+not send a notification or authorize a physical Action.
+
+The explicitly started service `RuleScheduler` reconstructs decision freshness
+boundaries from this durable state. An excessive-future decision is reconsidered
+when it reaches the permitted future-skew boundary. Every non-stale decision,
+including pending or unknown outcomes, is reconsidered at the first millisecond
+after `maximum_decision_age_ms`; this persists unknown freshness without
+fabricating a degraded or recovered event. Receiver Unix boundaries are converted
+once to local monotonic deadlines, and restart rebuilds them from canonical state.

@@ -11,7 +11,11 @@ defmodule Wotex.Tracker.Service.RuleSchedulerTest do
     EvidenceBundle,
     HeartbeatTransition,
     Measurement,
-    MeasurementSample
+    MeasurementSample,
+    PolicyFact,
+    TransportCandidate,
+    TransportDegradation,
+    TransportPolicy
   }
 
   alias Wotex.Tracker.Service.{RuleScheduler, RuleTransition, SQL, Store}
@@ -115,6 +119,68 @@ defmodule Wotex.Tracker.Service.RuleSchedulerTest do
         Store.rule_state(store, "workshop", "battery", policy.id)
       )
     end)
+  end
+
+  test "restart expires persisted transport health at the first stale millisecond" do
+    {store, directory} = store()
+    now = 1_700_000_000_000
+    {policy, decision} = transport_rule(now, 50, 0)
+    {:ok, baseline_result} = TransportDegradation.evaluate(nil, decision, policy, :live, now)
+    assert baseline_result["transport_status"] == "healthy"
+    {:ok, baseline} = RuleTransition.new("workshop", nil, baseline_result)
+    assert {:ok, %{"generation" => "1"}} = Store.commit_rule(store, baseline)
+    GenServer.stop(store.pid)
+    {reopened, _} = store(directory: directory)
+
+    scheduler =
+      start_supervised!(
+        {RuleScheduler, store: reopened, clock: fn -> now + 100 end, refresh_interval: 1_000}
+      )
+
+    assert :ok = RuleScheduler.refresh(scheduler)
+
+    eventually(fn ->
+      match?(
+        {:ok,
+         %{
+           "generation" => "2",
+           "state" => %{"status" => "unknown", "evaluated_at" => evaluated_at}
+         }}
+        when evaluated_at == now + 51,
+        Store.rule_state(reopened, "workshop", "transport_degradation", policy.id)
+      )
+    end)
+
+    assert {:ok, %{"scheduled" => 0}} =
+             eventually_value(fn -> RuleScheduler.snapshot(scheduler) end)
+
+    assert {:ok, %{"items" => []}} = Store.events(reopened, replay(%{now: now + 100}))
+  end
+
+  test "a future transport decision is reconsidered at its permitted skew boundary" do
+    {store, _} = store()
+    now = 1_700_000_000_000
+    {policy, decision} = transport_rule(now + 80, 1_000, 20)
+    {:ok, baseline_result} = TransportDegradation.evaluate(nil, decision, policy, :live, now)
+    assert baseline_result["transport_status"] == "unknown"
+    {:ok, baseline} = RuleTransition.new("workshop", nil, baseline_result)
+    assert {:ok, %{"generation" => "1"}} = Store.commit_rule(store, baseline)
+    {clock, _wall} = advancing_clock(now)
+
+    scheduler =
+      start_supervised!({RuleScheduler, store: store, clock: clock, refresh_interval: 1_000})
+
+    eventually(fn ->
+      match?(
+        {:ok, %{"generation" => "2", "state" => %{"status" => "healthy"}}},
+        Store.rule_state(store, "workshop", "transport_degradation", policy.id)
+      )
+    end)
+
+    assert {:ok, %{"jobs" => [%{"kind" => "transport_degradation", "due_at" => due_at}]}} =
+             RuleScheduler.snapshot(scheduler)
+
+    assert due_at == now + 1_081
   end
 
   test "restart rebuilds an elapsed deadline and store loss stops its scheduler" do
@@ -369,6 +435,110 @@ defmodule Wotex.Tracker.Service.RuleSchedulerTest do
       })
 
     policy
+  end
+
+  defp transport_rule(evaluated_at, maximum_age, future_skew) do
+    transport_policy = transport_policy()
+
+    {:ok, policy} =
+      TransportDegradation.new(%{
+        id: "transport-health",
+        revision: "transport-health-v1",
+        transport_policy: transport_policy,
+        healthy_candidate_ids: ["lorawan"],
+        maximum_decision_age_ms: maximum_age,
+        future_skew_ms: future_skew
+      })
+
+    {:ok, decision} =
+      TransportPolicy.select(
+        [transport_candidate(evaluated_at)],
+        %{
+          id: "transport-request",
+          severity: :critical,
+          purpose: :event,
+          maximum_cost_class: 100,
+          maximum_power_class: 100,
+          acknowledgement: nil
+        },
+        transport_policy,
+        evaluated_at
+      )
+
+    {policy, decision}
+  end
+
+  defp transport_policy do
+    {:ok, policy} =
+      TransportPolicy.new(%{
+        id: "transport",
+        revision: "transport-v1",
+        fact_policy_revision: "facts-v1",
+        ordinary_order: ["lorawan"],
+        critical_order: ["lorawan"],
+        maximum_fact_age_ms: 1_000,
+        future_skew_ms: 0,
+        ordinary_max_cost_class: 100,
+        critical_max_cost_class: 100,
+        ordinary_max_power_class: 100,
+        critical_max_power_class: 100,
+        ordinary_acknowledgement: :none,
+        critical_acknowledgement: :none,
+        ordinary_no_route: :store_and_retry,
+        critical_no_route: :unavailable
+      })
+
+    policy
+  end
+
+  defp transport_candidate(observed_at) do
+    {:ok, candidate} =
+      TransportCandidate.new(%{
+        id: "lorawan",
+        bearer: "lorawan-eu868",
+        application_protocol: "fixture-protocol",
+        capability: transport_fact("capability", :capability, observed_at),
+        connectivity: transport_fact("connectivity", :transport, observed_at),
+        cost_class: 10,
+        power_class: 10,
+        acknowledgement_layers: []
+      })
+
+    candidate
+  end
+
+  defp transport_fact(id, kind, observed_at) do
+    capture = observation(%{id: "transport-#{id}", observed_at: observed_at})
+
+    predicate =
+      if(kind == :capability,
+        do: TransportCandidate.capability_predicate("lorawan"),
+        else: TransportCandidate.connectivity_predicate("lorawan")
+      )
+
+    {:ok, evidence} =
+      Evidence.new(%{
+        id: "transport-#{id}",
+        kind: kind,
+        claim: %{
+          "schema" => "wtr.policy-fact.v1",
+          "predicate" => predicate,
+          "status" => "true",
+          "policy_revision" => "facts-v1",
+          "reason" => "fixture"
+        },
+        source_observation_ids: [capture.id],
+        evidence_ids: [],
+        profile: {"transport", "1"},
+        decoder: {"transport", "1"},
+        confidence: :exact,
+        reasons: ["fixture"],
+        association_id: nil
+      })
+
+    {:ok, bundle} = EvidenceBundle.new([capture], [evidence])
+    {:ok, fact} = PolicyFact.new("transport-#{id}", bundle)
+    fact
   end
 
   defp sample(id, value, observed_at) do

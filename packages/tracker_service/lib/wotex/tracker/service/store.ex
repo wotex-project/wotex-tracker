@@ -258,7 +258,7 @@ defmodule Wotex.Tracker.Service.Store do
       else: {:error, :invalid_query}
   end
 
-  @doc "Reads the bounded heartbeat and battery states owned by a trusted scheduler."
+  @doc "Reads the bounded time-driven rule states owned by a trusted scheduler."
   @spec scheduled_rules(t(), pos_integer()) :: {:ok, [map()]} | {:error, atom()}
   def scheduled_rules(store, limit) when is_integer(limit) and limit in 1..1_024,
     do: StoreCall.run(store, {:scheduled_rules, limit})

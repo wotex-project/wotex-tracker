@@ -48,7 +48,8 @@ defmodule Wotex.Tracker.Service.RuleStore do
       SQL.rows!(
         db,
         "SELECT scope,kind,rule_id,state_identity,document FROM rule_states " <>
-          "WHERE kind IN ('heartbeat','battery') ORDER BY scope,kind,rule_id LIMIT ?",
+          "WHERE kind IN ('heartbeat','battery','transport_degradation') " <>
+          "ORDER BY scope,kind,rule_id LIMIT ?",
         [limit + 1]
       )
 

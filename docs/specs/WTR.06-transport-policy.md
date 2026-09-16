@@ -16,6 +16,12 @@ A profile may declare transport capabilities such as BLE, LoRaWAN EU868, Wi-Fi/I
 
 A transport policy consumes explicit state such as device capabilities, connectivity evidence, event severity, power budget, acknowledgement state, roaming/cost class and deployment preference.
 
+The service host schedules the declared transport-health freshness boundaries
+from persisted canonical state. It re-evaluates excessive-future decisions at the
+permitted skew boundary and all non-stale decisions at the first stale
+millisecond. The timer uses a local monotonic deadline and never treats the
+decision's Unix timestamp as a monotonic value.
+
 Example bike policy:
 
 ```text

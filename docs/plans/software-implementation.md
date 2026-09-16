@@ -236,9 +236,9 @@ and no-route outcomes are distinct from pending, unknown and stale decisions;
 degradation, recovery and rule-edit events have stable identities. See the
 [transport policy guide](../guides/transport-policy.md). The service now
 atomically persists this rule's canonical state, history and stable event intent
-with optimistic prior-state identity and restart recovery. Scheduling and
-notification delivery remain subsequent work for transport health, as does rule
-scheduling for geofence and suspicious-movement evaluation.
+with optimistic prior-state identity and restart recovery. Decision
+freshness/future-skew scheduling is now implemented. Input-triggered orchestration
+and notification delivery remain for geofence and suspicious-movement evaluation.
 
 Implement explicit time/freshness, quality selection, motion/trips/stops,
 geofence membership/transitions, heartbeat, suspicious movement, low-battery,

@@ -63,11 +63,11 @@ Rules consume explicit timestamps and a caller-owned clock. Device clocks may be
 
 Pure evaluation receives a fixed `now` value, not a clock-reading side effect. Live host deadlines use local monotonic milliseconds under WTR.13. Device event time, receiver Unix time and monotonic deadlines are never compared as if they shared an epoch. Freshness, permitted future skew and the handling of missing device time are explicit rule inputs.
 
-The first service scheduler applies that clock separation to persisted heartbeat
-and battery state. It converts the next receiver-time boundary into a local
-monotonic deadline, rechecks the durable state identity before firing and rebuilds
-deadlines after restart. It records live event intent atomically and performs no
-notification or physical Action.
+The service scheduler applies that clock separation to persisted heartbeat,
+battery and transport-health state. It converts the next receiver-time boundary
+into a local monotonic deadline, rechecks the durable state identity before firing
+and rebuilds deadlines after restart. It records live event intent atomically and
+performs no notification or physical Action.
 
 ## Geofences
 

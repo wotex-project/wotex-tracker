@@ -728,6 +728,31 @@ true = restored_heartbeat === heartbeat_result["state"]
 
 {:ok, %{"generation" => "1"}} = Store.commit_rule(store, scheduled_baseline)
 
+{:ok, scheduled_transport_policy} =
+  TransportDegradation.new(%{
+    id: "archive-scheduled-transport",
+    revision: "archive-scheduled-transport-v1",
+    transport_policy: transport_policy,
+    healthy_candidate_ids: ["lorawan"],
+    maximum_decision_age_ms: 0,
+    future_skew_ms: 0
+  })
+
+{:ok, scheduled_transport_result} =
+  TransportDegradation.evaluate(
+    nil,
+    healthy_decision,
+    scheduled_transport_policy,
+    :live,
+    update.now
+  )
+
+{:ok, scheduled_transport_transition} =
+  RuleTransition.new("archive-scheduled-transport", nil, scheduled_transport_result)
+
+{:ok, %{"generation" => "1"}} =
+  Store.commit_rule(store, scheduled_transport_transition)
+
 {:ok, scheduler} =
   RuleScheduler.start_link(
     store: store,
@@ -754,6 +779,24 @@ wait_for_scheduled_rule = fn wait_for_scheduled_rule, attempts ->
 end
 
 :ok = wait_for_scheduled_rule.(wait_for_scheduled_rule, 200)
+
+wait_for_scheduled_transport = fn wait_for_scheduled_transport, attempts ->
+  case Store.rule_state(
+         store,
+         "archive-scheduled-transport",
+         "transport_degradation",
+         scheduled_transport_policy.id
+       ) do
+    {:ok, %{"generation" => "2", "state" => %{"status" => "unknown"}}} ->
+      :ok
+
+    _ when attempts > 0 ->
+      Process.sleep(5)
+      wait_for_scheduled_transport.(wait_for_scheduled_transport, attempts - 1)
+  end
+end
+
+:ok = wait_for_scheduled_transport.(wait_for_scheduled_transport, 200)
 GenServer.stop(scheduler)
 
 {:ok, durable_battery} =
@@ -1322,5 +1365,5 @@ retained = Process.list() |> MapSet.new() |> MapSet.difference(before_processes)
 0 = retained
 
 IO.puts(
-  "SERVICE_COHORT_PASS durable_restart=true durable_store_forward=true atomic_transport_health=true atomic_heartbeat=true scheduled_rules=true atomic_battery=true atomic_motion=true atomic_geofence=true atomic_geofence_crossing=true atomic_suspicious_movement=true analytics=true analytics_pagination=true saved_queries=true operational_telemetry=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true explicit_association=true independent_http_sse=true actual_runtime_http_peer=true actual_runtime_sse=true retained_new_processes=#{retained}"
+  "SERVICE_COHORT_PASS durable_restart=true durable_store_forward=true atomic_transport_health=true atomic_heartbeat=true scheduled_rules=true scheduled_transport_health=true atomic_battery=true atomic_motion=true atomic_geofence=true atomic_geofence_crossing=true atomic_suspicious_movement=true analytics=true analytics_pagination=true saved_queries=true operational_telemetry=true native_types=true revoked_access_denied=true encrypted_cursor=true authenticated_enrollment_materialisation=true explicit_association=true independent_http_sse=true actual_runtime_http_peer=true actual_runtime_sse=true retained_new_processes=#{retained}"
 )

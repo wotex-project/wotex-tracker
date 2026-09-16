@@ -1390,3 +1390,30 @@ and observes the committed overdue transition. Exact archive and lock identities
 are recorded in `verification/source-consumer.json` and
 `verification/service-consumer.json`. Geofence and suspicious-movement scheduling
 and notification delivery remain subsequent host work.
+
+### Transport decision deadline scheduling — 2026-09-16
+
+The persisted rule scheduler now restores transport-health state alongside
+heartbeat and battery state. An excessive-future decision is reconsidered at its
+exact permitted-skew boundary. Every decision that is not yet stale, including a
+pending or unknown outcome, is reconsidered at the first millisecond beyond its
+declared maximum age. A stale tick persists unknown health and does not fabricate
+a degradation or recovery event.
+
+Tests prove first-stale-millisecond behavior after both the store and scheduler
+restart, exact future-skew eligibility, the subsequent stale deadline and absence
+of a public event for healthy-to-unknown expiry. Both service runtime lanes passed
+the complete gate with 2 properties and 154 tests, no failures and 95.2%
+production line coverage. Both root runtime lanes remained green with 1 doctest,
+19 properties and 158 tests, no failures and 95.4% coverage. Compiler, formatter,
+strict Credo, Dialyzer, ExDoc, dependency audit, licences, documentation contracts,
+generated/packaged OpenAPI equality and 63-member service / 93-member root archive
+inspection passed.
+
+Six root and six service production-archive modes pass in fresh, locked and
+minimum dependency configurations across both runtime lanes. The service consumer
+also observes a persisted healthy transport decision become unknown through the
+installed scheduler. Exact archive and lock identities are recorded in
+`verification/source-consumer.json` and `verification/service-consumer.json`.
+Input-triggered rule orchestration and notification delivery remain subsequent
+host work.

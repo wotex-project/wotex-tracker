@@ -1,6 +1,6 @@
 defmodule Wotex.Tracker.Service.RuleScheduler do
   @moduledoc """
-  Explicit bounded scheduler for persisted heartbeat and battery deadlines.
+  Explicit bounded scheduler for persisted time-driven rule deadlines.
 
   Absolute receiver times are converted once to local monotonic deadlines. A
   timer never compares those clock domains, and a persisted state change replaces
@@ -9,7 +9,7 @@ defmodule Wotex.Tracker.Service.RuleScheduler do
   """
   use GenServer
 
-  alias Wotex.Tracker.{BatteryTransition, HeartbeatTransition}
+  alias Wotex.Tracker.{BatteryTransition, HeartbeatTransition, TransportDegradation}
   alias Wotex.Tracker.Service.{RuleTransition, Store}
 
   @maximum_rules 1_024
@@ -243,6 +243,22 @@ defmodule Wotex.Tracker.Service.RuleScheduler do
     end
   end
 
+  defp planned(%{
+         "scope" => scope,
+         "kind" => "transport_degradation" = kind,
+         "rule_id" => rule_id,
+         "state_identity" => identity,
+         "state" => document
+       }) do
+    case TransportDegradation.state_from_map(document) do
+      {:ok, state} ->
+        job(scope, kind, rule_id, identity, document, transport_deadline(state))
+
+      _ ->
+        {:error, :storage_unavailable}
+    end
+  end
+
   defp planned(_), do: {:error, :storage_unavailable}
 
   defp job(_, _, _, _, _, nil), do: {:ok, nil}
@@ -272,6 +288,22 @@ defmodule Wotex.Tracker.Service.RuleScheduler do
 
       state.status in ~w(low normal) ->
         state.sample.observed_at + state.policy.maximum_age_ms + 1
+
+      true ->
+        nil
+    end
+  end
+
+  defp transport_deadline(state) do
+    observed_at = state.decision["evaluated_at"]
+    age = state.evaluated_at - observed_at
+
+    cond do
+      age < -state.policy.future_skew_ms ->
+        observed_at - state.policy.future_skew_ms
+
+      age <= state.policy.maximum_decision_age_ms ->
+        observed_at + state.policy.maximum_decision_age_ms + 1
 
       true ->
         nil
@@ -348,6 +380,14 @@ defmodule Wotex.Tracker.Service.RuleScheduler do
   defp evaluate("battery", document, now) do
     with {:ok, state} <- BatteryTransition.state_from_map(document),
          {:ok, result} <- BatteryTransition.evaluate(state, nil, state.policy, :live, now) do
+      {:ok, state, result}
+    end
+  end
+
+  defp evaluate("transport_degradation", document, now) do
+    with {:ok, state} <- TransportDegradation.state_from_map(document),
+         {:ok, result} <-
+           TransportDegradation.evaluate(state, nil, state.policy, :live, now) do
       {:ok, state, result}
     end
   end

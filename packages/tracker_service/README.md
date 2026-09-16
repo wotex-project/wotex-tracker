@@ -54,15 +54,16 @@ the native JSON state back through the pure constructor. Replay event intents
 retain prohibited dispatch, while live event intents retain the need for separate
 authorization.
 
-`RuleScheduler` is a caller-owned bounded process for persisted heartbeat and
-battery time boundaries. It admits at most 1,024 rules, refreshes at a finite
-interval and converts receiver Unix boundaries once to local monotonic deadlines.
-It rereads the durable state before firing, ignores stale timer tokens, rebuilds
-after restart and commits through the same atomic rule transaction. The explicit
-HTTP `Server` supervises one scheduler by default and exposes bounded host-only
-deadline metadata through `Server.rule_schedule/1`. Package loading remains inert.
-Notification delivery, other rule scheduling and public HTTP rule management
-remain outside this host port.
+`RuleScheduler` is a caller-owned bounded process for persisted heartbeat,
+battery and transport-health time boundaries. It admits at most 1,024 rules,
+refreshes at a finite interval and converts receiver Unix boundaries once to
+local monotonic deadlines. It rereads the durable state before firing, ignores
+stale timer tokens, rebuilds after restart and commits through the same atomic
+rule transaction. The explicit HTTP `Server` supervises one scheduler by default
+and exposes bounded host-only deadline metadata through
+`Server.rule_schedule/1`. Package loading remains inert. Notification delivery,
+input-triggered rule orchestration and public HTTP rule management remain outside
+this host port.
 
 Stateless rule results use the same intent and public-event tables through
 `RuleEvent`. Its crossing constructor restores complete fence, endpoint and

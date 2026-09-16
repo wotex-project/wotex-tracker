@@ -354,10 +354,11 @@ those integrations or a production deployment.
 
 The explicit host also supervises one internal `RuleScheduler`. Its bounded
 host-only snapshot is available through `Server.rule_schedule/1`; it is not a
-public HTTP rule-management endpoint. The scheduler restores heartbeat and
-battery state, maps the next receiver-time boundary to a local monotonic timer,
-rechecks durable identity and commits the pure live transition. Event intents may
-require separate physical authorization; no Action or notification is dispatched.
+public HTTP rule-management endpoint. The scheduler restores heartbeat, battery
+and transport-health state, maps the next receiver-time boundary to a local
+monotonic timer, rechecks durable identity and commits the pure live transition.
+Event intents may require separate physical authorization; no Action or
+notification is dispatched.
 
 ## Structured measurement query contract
 
