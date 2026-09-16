@@ -4583,10 +4583,15 @@
                         "minLength": 1,
                         "maxLength": 256,
                         "x-max-utf8-bytes": 256
+                      },
+                      "action": {
+                        "type": "string",
+                        "enum": ["saved", "deleted"]
                       }
                     },
                     "required": [
-                      "query_id"
+                      "query_id",
+                      "action"
                     ],
                     "additionalProperties": false
                   }

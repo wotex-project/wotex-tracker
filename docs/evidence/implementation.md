@@ -1712,6 +1712,18 @@ LiveView tests cover a rolling save and reconnect, a fixed save, invalid input,
 stale-generation refusal, a lost reply, a failed verification read, a temporary
 transport failure, read-only denial and an unrelated operation reference. An
 unknown outcome hides the form and can be checked through the retained receipt
-without sending the mutation again. Browser edit/delete controls, dashboard
-composition/sharing, scheduled live refresh and physical surface acceptance
-remain open.
+without sending the mutation again. Dashboard composition/sharing, scheduled
+live refresh and physical surface acceptance remain open.
+
+### Browser dashboard edit and deletion — 2026-09-16
+
+The saved dashboard screen now prepares title/view edits and deletions with a
+current scope generation and an operation UUID in its address. The edit keeps
+the admitted query and fixed or rolling window intact; the service checks the
+owning administrator. Both mutations carry action-specific receipts, so a
+revisit after a lost reply can distinguish the committed edit from a deletion
+without repeating the write. An unknown result hides the controls; stale
+generations fail without overwriting a newer definition. Browser tests cover
+reconnect recovery, reader denial, stale writes and unrelated receipts.
+Dashboard composition/sharing, scheduled live refresh and physical surface
+acceptance remain open.

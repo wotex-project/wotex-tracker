@@ -563,6 +563,187 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert_redirect(detail, "/sign-in")
   end
 
+  test "an administrator edits a dashboard and reconnects without repeating the write", c do
+    {dashboard, _} = saved_dashboard(c)
+    path = Presenter.dashboard_path(dashboard)
+    {:ok, detail, _} = live(c.conn, path)
+    detail |> element("button", "Prepare edit") |> render_click()
+    prepared = assert_patch(detail)
+    assert has_element?(detail, "#edit-dashboard")
+
+    detail
+    |> form("#edit-dashboard", edit: %{title: "Updated workshop view", view: "area"})
+    |> render_submit()
+
+    assert render(detail) =~ "Dashboard updated"
+    refute has_element?(detail, "#edit-dashboard")
+    assert has_element?(detail, "h1", "Updated workshop view")
+    {:ok, stored} = Service.get(c.service, c.admin, c.scope, "saved_queries", dashboard, c.now)
+    assert stored["value"]["visualization"]["type"] == "area"
+    assert stored["value"]["window"]["kind"] == "rolling"
+
+    {:ok, resumed, _} = live(c.conn, prepared)
+    assert render(resumed) =~ "Dashboard updated"
+    refute has_element?(resumed, "#edit-dashboard")
+
+    {:ok, history} =
+      Service.history(c.service, c.admin, c.scope, "saved_queries", dashboard, %{}, c.now)
+
+    assert length(history["items"]) == 2
+  end
+
+  test "a lost edit reply is recovered while readers cannot manage dashboards", c do
+    {dashboard, _} = saved_dashboard(c)
+    path = Presenter.dashboard_path(dashboard)
+    {:ok, %{"id" => reader}} = Sessions.login(c.sessions, c.reader, c.scope)
+    reader_conn = build_conn() |> init_test_session(%{"browser_session" => reader})
+    {:ok, readonly, _} = live(reader_conn, path)
+    refute has_element?(readonly, "button", "Prepare edit")
+    render_click(readonly, "prepare-manage", %{"intent" => "delete"})
+    assert render(readonly) =~ "does not permit"
+    render_click(readonly, "delete", %{})
+    assert {:ok, _} = Service.get(c.service, c.admin, c.scope, "saved_queries", dashboard, c.now)
+
+    {:ok, detail, _} = live(c.conn, path)
+    detail |> element("button", "Prepare edit") |> render_click()
+    prepared = assert_patch(detail)
+    Agent.update(c.faults, &Map.put(&1, :save_query, :lost_reply))
+
+    detail
+    |> form("#edit-dashboard", edit: %{title: "Recovered edit", view: "points"})
+    |> render_submit()
+
+    assert render(detail) =~ "Operation outcome unknown"
+    refute has_element?(detail, "#edit-dashboard")
+    {:ok, resumed, _} = live(c.conn, prepared)
+    assert render(resumed) =~ "Dashboard updated"
+    assert has_element?(resumed, "h1", "Recovered edit")
+
+    {:ok, history} =
+      Service.history(c.service, c.admin, c.scope, "saved_queries", dashboard, %{}, c.now)
+
+    assert length(history["items"]) == 2
+  end
+
+  test "a lost delete reply recovers the tombstone without a second deletion", c do
+    {dashboard, _} = saved_dashboard(c)
+    {:ok, detail, _} = live(c.conn, Presenter.dashboard_path(dashboard))
+    detail |> element("button", "Prepare delete") |> render_click()
+    prepared = assert_patch(detail)
+    assert has_element?(detail, "button", "Delete dashboard")
+    Agent.update(c.faults, &Map.put(&1, :delete_query, :lost_reply))
+    detail |> element("button", "Delete dashboard") |> render_click()
+    assert render(detail) =~ "Operation outcome unknown"
+    refute has_element?(detail, "button", "Delete dashboard")
+
+    {:ok, resumed, _} = live(c.conn, prepared)
+    assert render(resumed) =~ "Dashboard deleted"
+    refute has_element?(resumed, "button", "Run saved query")
+
+    assert {:error, %{"code" => "not_found"}} =
+             Service.get(c.service, c.admin, c.scope, "saved_queries", dashboard, c.now)
+
+    {:ok, history} =
+      Service.history(c.service, c.admin, c.scope, "saved_queries", dashboard, %{}, c.now)
+
+    assert length(history["items"]) == 2
+  end
+
+  test "stale and unrelated dashboard operations cannot overwrite or delete a definition", c do
+    {dashboard, original_operation} = saved_dashboard(c)
+    path = Presenter.dashboard_path(dashboard)
+    {:ok, detail, _} = live(c.conn, path)
+    detail |> element("button", "Prepare edit") |> render_click()
+    assert_patch(detail)
+    {:ok, page} = Service.list(c.service, c.admin, c.scope, "saved_queries", %{}, c.now)
+
+    {:ok, _} =
+      Service.save_query(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        dashboard_request(dashboard, "Other update", c, page["generation"]),
+        c.now
+      )
+
+    detail
+    |> form("#edit-dashboard", edit: %{title: "Stale update", view: "table"})
+    |> render_submit()
+
+    assert has_element?(detail, "[role=alert]")
+    {:ok, stored} = Service.get(c.service, c.admin, c.scope, "saved_queries", dashboard, c.now)
+    assert stored["value"]["title"] == "Other update"
+
+    unrelated = path <> "?manage_operation=#{original_operation}&manage_intent=delete"
+    {:ok, mismatch, _} = live(c.conn, unrelated)
+    assert render(mismatch) =~ "different workflow"
+    refute has_element?(mismatch, "button", "Delete dashboard")
+    render_click(mismatch, "delete", %{})
+    assert {:ok, _} = Service.get(c.service, c.admin, c.scope, "saved_queries", dashboard, c.now)
+
+    {:ok, invalid, _} = live(c.conn, path <> "?manage_operation=invalid&manage_intent=edit")
+    assert has_element?(invalid, "[role=alert]")
+    refute has_element?(invalid, "#edit-dashboard")
+    render_click(invalid, "prepare-manage", %{"intent" => "invalid"})
+    refute has_element?(invalid, "#edit-dashboard")
+  end
+
+  test "a direct edit address can resume and preserve an absolute query", c do
+    dashboard = "incident-dashboard"
+    {:ok, page} = Service.list(c.service, c.admin, c.scope, "saved_queries", %{}, c.now)
+
+    {:ok, _} =
+      Service.save_query(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        dashboard_request(dashboard, "Incident view", c, page["generation"])
+        |> Map.delete("window"),
+        c.now
+      )
+
+    path =
+      Presenter.dashboard_path(dashboard) <>
+        "?manage_operation=#{Identifier.uuid()}&manage_intent=edit"
+
+    {:ok, detail, _} = live(c.conn, path)
+    assert has_element?(detail, "#edit-dashboard")
+    render_submit(detail, "edit", %{"edit" => %{"title" => "Incident view", "view" => "invalid"}})
+    assert has_element?(detail, "[role=alert]")
+
+    detail
+    |> form("#edit-dashboard", edit: %{title: "Incident table", view: "table"})
+    |> render_submit()
+
+    assert render(detail) =~ "Dashboard updated"
+    {:ok, stored} = Service.get(c.service, c.admin, c.scope, "saved_queries", dashboard, c.now)
+    assert stored["value"]["window"] == "absolute"
+    assert stored["value"]["visualization"]["type"] == "table"
+  end
+
+  test "dashboard preparation and operation lookup failures cannot submit a mutation", c do
+    {dashboard, _} = saved_dashboard(c)
+    path = Presenter.dashboard_path(dashboard)
+    {:ok, detail, _} = live(c.conn, path)
+    Agent.update(c.faults, &Map.put(&1, :list, :unavailable))
+    detail |> element("button", "Prepare edit") |> render_click()
+    assert has_element?(detail, "[role=alert]")
+    refute has_element?(detail, "#edit-dashboard")
+
+    prepared = path <> "?manage_operation=#{Identifier.uuid()}&manage_intent=delete"
+    {:ok, uncertain, _} = live(c.conn, prepared)
+    assert has_element?(uncertain, "button", "Delete dashboard")
+    Agent.update(c.faults, &Map.put(&1, :operation, :unavailable))
+    uncertain |> element("button", "Check operation outcome") |> render_click()
+    assert render(uncertain) =~ "Operation outcome unknown"
+    refute has_element?(uncertain, "button", "Delete dashboard")
+    uncertain |> element("button", "Check operation outcome") |> render_click()
+    refute has_element?(uncertain, "button", "Delete dashboard")
+    assert {:ok, _} = Service.get(c.service, c.admin, c.scope, "saved_queries", dashboard, c.now)
+  end
+
   test "missing and temporarily unavailable saved dashboards expose no result", c do
     {:ok, missing, _} = live(c.conn, "/dashboards/missing")
     assert has_element?(missing, "[role=alert]")
@@ -1352,5 +1533,36 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
 
     {:ok, document} = QuerySpec.to_map(spec)
     document
+  end
+
+  defp saved_dashboard(c) do
+    id = "workshop-dashboard"
+    {:ok, page} = Service.list(c.service, c.admin, c.scope, "saved_queries", %{}, c.now)
+    operation = Identifier.uuid()
+
+    {:ok, _} =
+      Service.save_query(
+        c.service,
+        c.admin,
+        c.scope,
+        operation,
+        dashboard_request(id, "Workshop dashboard", c, page["generation"]),
+        c.now
+      )
+
+    {id, operation}
+  end
+
+  defp dashboard_request(id, title, c, generation) do
+    query = dashboard_query("workshop-asset", c.now)
+
+    %{
+      "id" => id,
+      "title" => title,
+      "query" => query,
+      "window" => %{"kind" => "rolling", "duration_ms" => query["to_at"] - query["from_at"]},
+      "visualization" => %{"type" => "line", "show_legend" => true, "show_points" => true},
+      "expected_generation" => generation
+    }
   end
 end

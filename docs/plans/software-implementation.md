@@ -378,8 +378,8 @@ live refresh, dashboard composition and sharing, prompting and the physical UI
 acceptance gates remain.
 The shared browser can also list saved query definitions and rerun one under
 current read authority. Administrators can save a displayed graph with a fixed
-or rolling window and recover a lost reply by operation reference. Browser
-editing and deletion remain open.
+or rolling window and recover a lost reply by operation reference. They can
+edit its title/view or delete it with the same generation and receipt rules.
 
 Add an explicitly configured public model adapter for question-to-query translation:
 synthetic boundary tests plus a separately recorded real-provider execution.

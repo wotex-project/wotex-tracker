@@ -65,6 +65,9 @@ defmodule Wotex.Tracker.UI.Local do
   defp dispatch(service, token, scope, :save_query, args, now),
     do: Service.save_query(service, token, scope, args["operation"], args["request"], now)
 
+  defp dispatch(service, token, scope, :delete_query, args, now),
+    do: Service.delete_query(service, token, scope, args["operation"], args["request"], now)
+
   defp dispatch(service, token, scope, :enroll, args, now),
     do: Service.enroll(service, token, scope, args["operation"], args["request"], now)
 

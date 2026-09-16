@@ -321,6 +321,9 @@ definition cannot widen authority: execution independently authenticates the
 caller, checks `read` inside the query snapshot and applies the normal
 concurrency, rate and deadline limits. Dashboard sharing policy remains outside
 this contract.
+Save and delete receipts identify the affected definition in `data.query_id` and
+the committed mutation in `data.action` (`saved` or `deleted`). An operation
+lookup can therefore distinguish an edit from a deletion after a lost reply.
 
 API JSON replies use `application/json`. Raw downloads use
 `application/vnd.wotex.tracker.observation+json` or

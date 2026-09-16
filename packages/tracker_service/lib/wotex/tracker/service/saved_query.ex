@@ -142,7 +142,7 @@ defmodule Wotex.Tracker.Service.SavedQuery do
       },
       observation: nil,
       publication: nil,
-      response: %{"query_id" => request["id"]},
+      response: %{"query_id" => request["id"], "action" => action},
       records: [%{kind: "saved_queries", id: request["id"], value: value}],
       events: [
         %{

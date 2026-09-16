@@ -372,7 +372,7 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
   defp save_result(socket, {:ok, %{"outcome" => "committed", "data" => data} = receipt}) do
     expected = saved_id(socket.assigns.save_operation)
 
-    if data == %{"query_id" => expected} do
+    if data == %{"query_id" => expected, "action" => "saved"} do
       verify_saved(socket, expected, receipt)
     else
       unrelated_save(socket)

@@ -37,7 +37,7 @@ defmodule Wotex.Tracker.Service.SavedQueryTest do
              )
 
     assert saved["generation"] == "1"
-    assert saved["data"] == %{"query_id" => "workshop-temperature"}
+    assert saved["data"] == %{"query_id" => "workshop-temperature", "action" => "saved"}
 
     assert {:ok, ^saved} =
              Service.save_query(
@@ -132,7 +132,7 @@ defmodule Wotex.Tracker.Service.SavedQueryTest do
 
     delete = %{"id" => "workshop-temperature", "expected_generation" => "2"}
 
-    assert {:ok, %{"generation" => "3"}} =
+    assert {:ok, %{"generation" => "3", "data" => %{"action" => "deleted"}}} =
              Service.delete_query(
                context.service,
                context.admin,
@@ -415,7 +415,8 @@ defmodule Wotex.Tracker.Service.SavedQueryTest do
 
     operation = Identifier.uuid()
 
-    assert {200, %{"data" => %{"data" => %{"query_id" => "workshop-temperature"}}}} =
+    assert {200,
+            %{"data" => %{"data" => %{"query_id" => "workshop-temperature", "action" => "saved"}}}} =
              http(
                server,
                context,

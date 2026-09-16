@@ -442,6 +442,7 @@ defmodule Wotex.Tracker.HTTPConsumer do
 
     receipt = data(context, "save_query", prefix <> "/saved_queries", body: saved)
     "10" = receipt["generation"]
+    %{"query_id" => "independent-temperature", "action" => "saved"} = receipt["data"]
     saved_path = prefix <> "/saved_queries/" <> encode_segment(saved["id"])
     definition = data(context, "get_saved_queries", saved_path)["value"]
     true = saved["query"] == definition["query"]
@@ -455,7 +456,7 @@ defmodule Wotex.Tracker.HTTPConsumer do
     executed = data(context, "execute_saved_query", saved_path <> "/execute")
     true = saved["query"] == executed["spec"]
 
-    %{"generation" => "11"} =
+    %{"generation" => "11", "data" => %{"action" => "deleted"}} =
       data(context, "delete_query", prefix <> "/saved_query_deletions",
         body: %{"id" => saved["id"], "expected_generation" => "10"}
       )

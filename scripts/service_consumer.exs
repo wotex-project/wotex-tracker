@@ -1153,7 +1153,9 @@ save_request = %{
   "expected_generation" => "7"
 }
 
-{:ok, %{"generation" => "8", "data" => %{"query_id" => "archive-temperature"}} = saved} =
+{:ok,
+ %{"generation" => "8", "data" => %{"query_id" => "archive-temperature", "action" => "saved"}} =
+   saved} =
   Service.save_query(service, token, "archive", save_operation, save_request, update.now)
 
 {:ok, ^saved} =

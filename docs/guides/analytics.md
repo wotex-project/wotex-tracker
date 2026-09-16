@@ -70,6 +70,11 @@ the scope generation, persists the admitted query and visualization, and checks
 the resulting receipt against the saved definition and asset. A lost response
 leaves an explicit unknown outcome; revisiting the address or checking the
 operation resolves the durable receipt without sending a second save.
+On a saved dashboard, an administrator can prepare an edit to its title and
+view or prepare a deletion. Each action captures the current scope generation
+and puts its own operation reference in the page address. An uncertain response
+hides the action until the retained receipt reports whether the edit or deletion
+committed. The service still enforces ownership and current authorization.
 
 `Service.analytics_page/5` and `POST …/analytics/pages` partition the admitted
 bucket window into pages of 1 to 1,000 buckets. The first request supplies the
