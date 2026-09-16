@@ -1,5 +1,6 @@
 defmodule Wotex.Tracker.Service.Result do
   @moduledoc false
+
   alias Wotex.Tracker.Service.Identifier
 
   @codes ~w(unauthorized forbidden invalid_request invalid_observation invalid_cursor cursor_expired operation_expired not_found conflict idempotency_conflict observation_conflict unsupported unresolved revision_mismatch invalid_deployment invalid_materialisation storage_unavailable storage_full busy capacity_exceeded response_too_large overloaded invalid_query invalid_update unavailable deadline_exceeded)a

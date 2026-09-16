@@ -5,6 +5,7 @@ defmodule Wotex.Tracker.Service.RuleTransition do
   Construction re-evaluates the pure transition. The durable store receives only
   its native-JSON state, stable event intent and expected prior-state identity.
   """
+
   alias Wotex.Tracker.{
     BatteryTransition,
     GeofenceTransition,

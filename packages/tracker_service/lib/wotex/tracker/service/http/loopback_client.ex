@@ -12,6 +12,7 @@ defmodule Wotex.Tracker.Service.HTTP.LoopbackClient do
   The caller owns its Runtime credential provider. This is a local peer adapter,
   with caller-selected credentials and subscription lifetimes.
   """
+
   @behaviour Wotex.Binding.HTTP.Client
   alias Mint.HTTP1, as: HTTP
   alias Wotex.Binding.HTTP.{Headers, Request, Response}

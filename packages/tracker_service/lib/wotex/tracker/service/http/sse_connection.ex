@@ -1,5 +1,6 @@
 defmodule Wotex.Tracker.Service.HTTP.SSEConnection do
   @moduledoc false
+
   use GenServer
   alias Mint.HTTP1, as: HTTP
   alias Wotex.Tracker.Service.HTTP.SSEParser

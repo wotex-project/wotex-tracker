@@ -8,6 +8,7 @@ defmodule Wotex.Tracker.Service.HTTP.Server do
   never trusts forwarded headers for Forms or authentication. `:listener` derives
   the origin from a loopback listener, including an OS-assigned port.
   """
+
   use Supervisor
   alias Wotex.Tracker.Service
   alias Wotex.Tracker.Service.HTTP.{Capacity, Config, Router}

@@ -1,5 +1,6 @@
 defmodule Wotex.Tracker.Service.ForwardQueue do
   @moduledoc false
+
   alias Wotex.Tracker.Service.{Codec, ForwardItem, SQL}
 
   @completion_fields ~w(status layer at reference)a

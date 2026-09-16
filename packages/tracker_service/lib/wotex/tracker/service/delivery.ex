@@ -1,5 +1,6 @@
 defmodule Wotex.Tracker.Service.Delivery do
   @moduledoc false
+
   alias Wotex.Tracker.{Deployment, Evidence}
 
   def prepare(service, access, enrollment, imported, operation) do

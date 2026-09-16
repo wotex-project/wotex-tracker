@@ -1,5 +1,6 @@
 defmodule Wotex.Tracker.Service.Schema do
   @moduledoc false
+
   alias Wotex.Tracker.Service.SQL
 
   def initialize(db, options) do

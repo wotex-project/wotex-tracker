@@ -8,6 +8,7 @@ defmodule Wotex.Tracker.Service.HTTP.FileConfig do
   filesystem replacement. Credentials are hashed entries plus an instance key.
   Invalid configuration returns one fixed error without secret or path content.
   """
+
   import Bitwise
   alias Wotex.Tracker.Service.{Codec, Credentials}
   alias Wotex.Tracker.Service.HTTP.Config, as: ServerConfig

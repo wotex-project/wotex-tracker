@@ -1,5 +1,6 @@
 defmodule Wotex.Tracker.Service.Enrollment do
   @moduledoc false
+
   alias Wotex.Tracker.Service.{Codec, Identifier, Snapshot, Update}
 
   def admit(

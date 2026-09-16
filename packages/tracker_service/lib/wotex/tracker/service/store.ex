@@ -10,6 +10,7 @@ defmodule Wotex.Tracker.Service.Store do
   uses separate cancellable read-only connections with tighter concurrency and
   per-principal start budgets.
   """
+
   use GenServer
 
   alias Exqlite.Sqlite3

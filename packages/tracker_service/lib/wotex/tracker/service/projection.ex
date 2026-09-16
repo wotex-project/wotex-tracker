@@ -1,5 +1,6 @@
 defmodule Wotex.Tracker.Service.Projection do
   @moduledoc false
+
   alias Wotex.Tracker.Service.{Codec, Credentials}
 
   def resource(_, nil), do: nil

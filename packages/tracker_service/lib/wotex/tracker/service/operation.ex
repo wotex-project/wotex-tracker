@@ -1,5 +1,6 @@
 defmodule Wotex.Tracker.Service.Operation do
   @moduledoc false
+
   alias Wotex.Tracker.Service.{Codec, SQL}
 
   def digest(request, generation, observation_identity),

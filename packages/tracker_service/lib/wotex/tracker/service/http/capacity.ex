@@ -1,5 +1,6 @@
 defmodule Wotex.Tracker.Service.HTTP.Capacity do
   @moduledoc false
+
   use GenServer
 
   def start_link(options), do: GenServer.start_link(__MODULE__, options)

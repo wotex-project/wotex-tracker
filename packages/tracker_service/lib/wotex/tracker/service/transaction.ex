@@ -1,5 +1,6 @@
 defmodule Wotex.Tracker.Service.Transaction do
   @moduledoc false
+
   alias Wotex.Tracker.Observation
   alias Wotex.Tracker.Service.{Authority, Codec, Operation, SQL}
 

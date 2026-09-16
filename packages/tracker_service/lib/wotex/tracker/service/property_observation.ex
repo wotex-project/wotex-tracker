@@ -1,5 +1,6 @@
 defmodule Wotex.Tracker.Service.PropertyObservation do
   @moduledoc false
+
   alias Wotex.Runtime.Context
   alias Wotex.Tracker.Service.{Codec, Credentials, Cursor, Identifier, Interaction, Store}
 

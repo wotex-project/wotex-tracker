@@ -1,5 +1,6 @@
 defmodule Wotex.Tracker.Service.Events do
   @moduledoc false
+
   alias Wotex.Tracker.Service.{Credentials, Cursor, Store}
 
   # Streams retain an access proof, never the supplied bearer token.

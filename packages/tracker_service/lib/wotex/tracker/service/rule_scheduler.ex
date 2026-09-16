@@ -7,6 +7,7 @@ defmodule Wotex.Tracker.Service.RuleScheduler do
   the old in-memory deadline. Evaluation and atomic event intent storage still use
   the pure rule and store contracts; this process dispatches no physical action.
   """
+
   use GenServer
 
   alias Wotex.Tracker.{BatteryTransition, HeartbeatTransition, TransportDegradation}

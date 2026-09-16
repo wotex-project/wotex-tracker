@@ -1,5 +1,6 @@
 defmodule Wotex.Tracker.Service.Snapshot do
   @moduledoc false
+
   alias Wotex.Tracker.Service.Store
 
   def fetch(service, access, kind, id, generation, permission, now) do

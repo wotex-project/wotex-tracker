@@ -1,5 +1,6 @@
 defmodule Wotex.Tracker.Service.Materialize do
   @moduledoc false
+
   alias Wotex.Tracker
   alias Wotex.Tracker.Decoders.RuuviRawV2
   alias Wotex.Tracker.{Evidence, EvidenceBundle, Identity, Observation}

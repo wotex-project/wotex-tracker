@@ -1,5 +1,6 @@
 defmodule Wotex.Tracker.Service.HTTP.Config do
   @moduledoc false
+
   alias Wotex.Tracker.Service.Credentials
 
   @required ~w(directory credentials ip port public_origin exposure)a

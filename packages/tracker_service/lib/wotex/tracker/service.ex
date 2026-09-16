@@ -7,6 +7,7 @@ defmodule Wotex.Tracker.Service do
   authorization clock. Store, credential and model snapshots remain explicit.
   This facade starts no process, listener or physical ingress.
   """
+
   alias Wotex.Tracker.{Catalogue, Model, Observation, QuerySpec}
   alias Wotex.Tracker.Decoders.RuuviRawV2
 

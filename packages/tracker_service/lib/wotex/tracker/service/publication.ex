@@ -1,5 +1,6 @@
 defmodule Wotex.Tracker.Service.Publication do
   @moduledoc false
+
   alias Wotex.Tracker.Service.{Codec, SQL}
 
   def status(db, scope, thing, generation) do

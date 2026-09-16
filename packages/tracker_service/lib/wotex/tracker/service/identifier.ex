@@ -1,5 +1,6 @@
 defmodule Wotex.Tracker.Service.Identifier do
   @moduledoc false
+
   import Bitwise
 
   def uuid do

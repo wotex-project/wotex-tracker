@@ -1,5 +1,6 @@
 defmodule Wotex.Tracker.Service.HTTP.SSEClient do
   @moduledoc false
+
   alias Mint.HTTP1, as: HTTP
   alias Wotex.Binding.HTTP.{Headers, Request, Response}
   alias Wotex.Runtime.Context

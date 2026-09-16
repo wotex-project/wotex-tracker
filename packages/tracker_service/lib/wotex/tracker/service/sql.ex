@@ -1,5 +1,6 @@
 defmodule Wotex.Tracker.Service.SQL do
   @moduledoc false
+
   alias Exqlite.Sqlite3
 
   def execute!(db, sql), do: checked(Sqlite3.execute(db, sql))

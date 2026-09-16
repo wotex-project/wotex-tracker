@@ -1,5 +1,6 @@
 defmodule Wotex.Tracker.Service.History do
   @moduledoc false
+
   alias Wotex.Tracker.Service.{Codec, Credentials, Cursor, Projection, Store}
 
   def page(service, access, resource, id, params, now) do

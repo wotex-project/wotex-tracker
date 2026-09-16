@@ -1,5 +1,6 @@
 defmodule Wotex.Tracker.Service.HTTP.SSEParser do
   @moduledoc false
+
   alias Wotex.Binding.HTTP.SSE.Event
 
   # WHATWG event-stream framing. This local peer rejects malformed UTF-8 and

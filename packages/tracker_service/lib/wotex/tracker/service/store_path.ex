@@ -1,5 +1,6 @@
 defmodule Wotex.Tracker.Service.StorePath do
   @moduledoc false
+
   import Bitwise
 
   def database(directory) do

@@ -5,6 +5,7 @@ defmodule Wotex.Tracker.Service.ForwardItem do
   The value keeps route metadata, required acknowledgement, source reliability
   and native JSON payload explicit. It does not claim transmission or delivery.
   """
+
   alias Wotex.Tracker.Service.Codec
 
   @fields ~w(scope id candidate_id bearer application_protocol payload source admitted_at required_acknowledgement)a

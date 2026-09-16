@@ -6,6 +6,7 @@ defmodule Wotex.Tracker.Service.OperationalHistory do
   changes the epoch. Retention and capacity are enforced during insertion and
   reads; collector loss never changes an admitted observation or alarm decision.
   """
+
   use GenServer
 
   alias Wotex.Tracker.Service.{Codec, OperationalTelemetry}

@@ -1,5 +1,6 @@
 defmodule Wotex.Tracker.Service.RuleStore do
   @moduledoc false
+
   alias Wotex.Tracker.Service.{Codec, RuleEvent, RuleTransition, SQL, Transaction}
 
   def commit(db, transition, options) do

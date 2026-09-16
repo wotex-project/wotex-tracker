@@ -5,6 +5,7 @@ defmodule Wotex.Tracker.Service.RuleEvent do
   Complete closed inputs remain attached to the prepared value so validation can
   restore and re-run the pure rule before the store records its stable event.
   """
+
   alias Wotex.Tracker.{
     Geofence,
     GeofenceCrossing,

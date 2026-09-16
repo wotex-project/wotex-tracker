@@ -6,6 +6,7 @@ defmodule Wotex.Tracker.Service.ResourceSampler do
   are not an OS RSS or per-tenant measurement. The bounded collector owns their
   retention; a sampler failure cannot change domain state.
   """
+
   use GenServer
 
   alias Wotex.Tracker.Service.OperationalTelemetry

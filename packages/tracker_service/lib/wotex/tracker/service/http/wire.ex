@@ -1,5 +1,6 @@
 defmodule Wotex.Tracker.Service.HTTP.Wire do
   @moduledoc false
+
   import Plug.Conn
   alias Plug.Conn.Utils
   alias Wotex.Tracker.Service.{Codec, Identifier}

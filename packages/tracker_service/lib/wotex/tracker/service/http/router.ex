@@ -1,5 +1,6 @@
 defmodule Wotex.Tracker.Service.HTTP.Router do
   @moduledoc false
+
   @behaviour Plug
   import Plug.Conn
   require Logger

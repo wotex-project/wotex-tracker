@@ -1,5 +1,6 @@
 defmodule Wotex.Tracker.Service.Authority do
   @moduledoc false
+
   alias Wotex.Tracker.Service.{Access, Codec, Credentials, SQL}
 
   # A real host supplies its clock at the storage boundary so queued requests

@@ -9,6 +9,7 @@ defmodule Wotex.Tracker.Service.Cursor do
   Key rotation or a different instance invalidates old cursors. There is no
   fallback to the latest page on invalid or expired input.
   """
+
   alias Wotex.Tracker.Service.Codec
 
   @retention 604_800_000

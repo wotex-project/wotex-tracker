@@ -1,5 +1,6 @@
 defmodule Wotex.Tracker.Service.HTTP.PropertyStream do
   @moduledoc false
+
   import Plug.Conn
   alias Wotex.Tracker.Service.{Codec, PropertyObservation, Store}
   alias Wotex.Tracker.Service.HTTP.Wire

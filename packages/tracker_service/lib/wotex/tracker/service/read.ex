@@ -1,5 +1,6 @@
 defmodule Wotex.Tracker.Service.Read do
   @moduledoc false
+
   alias Wotex.Tracker.Service.{Codec, SQL, Transaction, Update}
 
   @retention 604_800_000

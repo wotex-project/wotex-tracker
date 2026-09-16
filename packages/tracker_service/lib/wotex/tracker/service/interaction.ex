@@ -1,5 +1,6 @@
 defmodule Wotex.Tracker.Service.Interaction do
   @moduledoc false
+
   alias Wotex.Runtime.{Context, ExposedThing}
   alias Wotex.ThingDescription
   alias Wotex.Tracker.Service.{Codec, Snapshot}
