@@ -67,12 +67,21 @@ defmodule Wotex.Tracker.UI.AssociationSelectLive do
     case Auth.request(socket, :get, %{"resource" => "enrollments", "id" => socket.assigns.id}) do
       {:ok, %{"value" => asset}} ->
         case Auth.request(socket, :list, %{"resource" => "observations", "params" => params}) do
-          {:ok, page} -> assign(socket, asset: asset, page: page, error: nil)
-          {:error, error} -> assign(socket, asset: asset, error: error)
+          {:ok, page} ->
+            assign(socket, asset: asset, page: page, error: nil)
+
+          {:error, %{"code" => code} = error} when code in ~w(forbidden unauthorized not_found) ->
+            assign(socket, asset: nil, page: nil, error: error)
+
+          {:error, error} ->
+            assign(socket, asset: asset, error: error)
         end
 
-      {:error, error} ->
+      {:error, %{"code" => code} = error} when code in ~w(forbidden unauthorized not_found) ->
         assign(socket, asset: nil, page: nil, error: error)
+
+      {:error, error} ->
+        assign(socket, error: error)
     end
   end
 end

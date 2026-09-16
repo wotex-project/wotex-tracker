@@ -1837,3 +1837,9 @@ workflows remain open.
 A terminal list-refresh denial also clears the visible cards and their retained
 summaries. Temporary list failures keep the prior page with an error for retry.
 The browser workflow test covers the denial and recovery path.
+
+Asset details, observation evidence, reassociation and the observation picker
+also clear retained projections after a terminal read denial or a missing
+record. A later authorized refresh restores the page. Temporary storage
+failures retain the prior evidence for retry; a workflow test exercises these
+boundaries across the shared LiveView screens.

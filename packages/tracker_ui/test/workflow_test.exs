@@ -161,6 +161,90 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert has_element?(view, ".card .summary-values li", "Temperature: 24.3 °C")
   end
 
+  test "terminal read denials clear retained detail and setup evidence", c do
+    {thing, _} = enrolled(c)
+    {:ok, enrollment} = Service.get(c.service, c.admin, c.scope, "enrollments", thing, c.now)
+    observation = enrollment["value"]["observation_id"]
+
+    {:ok, _} =
+      Service.materialize(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"thing_id" => thing, "expected_generation" => "2"},
+        c.now
+      )
+
+    {:ok, asset, _} =
+      live(c.conn, Presenter.path(:asset, thing) <> "?operation=" <> Identifier.uuid())
+
+    assert has_element?(asset, ".reading", "24.3")
+    assert has_element?(asset, "h2", "Measurement history")
+    Agent.update(c.faults, &Map.put(&1, :history, {:deny, "forbidden"}))
+    asset |> element("button", "Refresh") |> render_click()
+    refute has_element?(asset, ".reading")
+    refute has_element?(asset, "h2", "Measurement history")
+    refute render(asset) =~ "Workshop sensor"
+    assert has_element?(asset, "[role=alert]")
+    asset |> element("button", "Refresh") |> render_click()
+    assert has_element?(asset, ".reading", "24.3")
+    refute has_element?(asset, "[role=alert]")
+
+    {:ok, evidence, _} =
+      live(
+        c.conn,
+        Presenter.path(:observation, observation) <> "?operation=" <> Identifier.uuid()
+      )
+
+    assert has_element?(evidence, "#enroll")
+    Agent.update(c.faults, &Map.put(&1, :get, {:deny, "forbidden"}))
+    evidence |> element("button", "Refresh evidence") |> render_click()
+    refute has_element?(evidence, "#enroll")
+    assert has_element?(evidence, "[role=alert]")
+    evidence |> element("button", "Refresh evidence") |> render_click()
+    assert has_element?(evidence, "#enroll")
+    refute has_element?(evidence, "[role=alert]")
+
+    {:ok, association, _} =
+      live(
+        c.conn,
+        Presenter.association_path(thing, observation) <> "?operation=" <> Identifier.uuid()
+      )
+
+    assert has_element?(association, "#associate")
+    Agent.update(c.faults, &Map.put(&1, :get, {:deny, "forbidden"}))
+    association |> element("button", "Refresh evidence") |> render_click()
+    refute has_element?(association, "#associate")
+    refute render(association) =~ "Workshop sensor"
+    assert has_element?(association, "[role=alert]")
+    association |> element("button", "Refresh evidence") |> render_click()
+    assert has_element?(association, "#associate")
+    refute has_element?(association, "[role=alert]")
+
+    {:ok, picker, _} = live(c.conn, Presenter.path(:asset, thing) <> "/observations")
+    assert has_element?(picker, "a", "Inspect observation")
+    Agent.update(c.faults, &Map.put(&1, :list, {:deny, "forbidden"}))
+    picker |> element("button", "Refresh") |> render_click()
+    refute has_element?(picker, "a", "Inspect observation")
+    assert has_element?(picker, "[role=alert]")
+    picker |> element("button", "Refresh") |> render_click()
+    assert has_element?(picker, "a", "Inspect observation")
+    refute has_element?(picker, "[role=alert]")
+
+    Agent.update(c.faults, &Map.put(&1, :get, :unavailable))
+    picker |> element("button", "Refresh") |> render_click()
+    assert has_element?(picker, "a", "Inspect observation")
+    assert has_element?(picker, "[role=alert]")
+    picker |> element("button", "Refresh") |> render_click()
+    refute has_element?(picker, "[role=alert]")
+
+    Agent.update(c.faults, &Map.put(&1, :get, {:deny, "forbidden"}))
+    picker |> element("button", "Refresh") |> render_click()
+    refute has_element?(picker, "a", "Inspect observation")
+    assert has_element?(picker, "[role=alert]")
+  end
+
   test "a reader sees only declared Property controls and a committed read result", c do
     {thing, _} = enrolled(c)
 

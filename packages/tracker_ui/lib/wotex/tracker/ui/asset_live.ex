@@ -32,9 +32,9 @@ defmodule Wotex.Tracker.UI.AssetLive do
 
       operation ->
         if Identifier.operation?(operation) do
-          {:noreply, socket |> assign(id: id, operation: operation) |> recover() |> load()}
+          {:noreply, socket |> activate(id, operation) |> recover() |> load()}
         else
-          {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
+          {:noreply, socket |> activate(id, nil) |> assign(error: %{"code" => "invalid_request"})}
         end
     end
   end
@@ -58,8 +58,11 @@ defmodule Wotex.Tracker.UI.AssetLive do
     {:noreply, socket |> outcome(result) |> load()}
   end
 
-  def handle_event("check-operation", _, socket), do: {:noreply, socket |> recover() |> load()}
-  def handle_event("refresh", _, socket), do: {:noreply, socket |> recover() |> load()}
+  def handle_event("check-operation", _, socket),
+    do: {:noreply, socket |> assign(error: nil) |> recover() |> load()}
+
+  def handle_event("refresh", _, socket),
+    do: {:noreply, socket |> assign(error: nil) |> recover() |> load()}
 
   def handle_event("read-property", %{"name" => name}, socket) when is_binary(name) do
     properties = if socket.assigns.thing, do: socket.assigns.thing["properties"], else: nil
@@ -211,6 +214,27 @@ defmodule Wotex.Tracker.UI.AssetLive do
     end
   end
 
+  defp activate(socket, id, operation) do
+    if socket.assigns[:id] == id and socket.assigns.operation == operation do
+      socket
+    else
+      assign(socket,
+        id: id,
+        operation: operation,
+        enrollment: nil,
+        state: nil,
+        thing: nil,
+        property_result: nil,
+        property_error: nil,
+        history: nil,
+        generation: nil,
+        needs_materialization: false,
+        outcome: nil,
+        error: nil
+      )
+    end
+  end
+
   defp outcome(
          socket,
          {:ok,
@@ -254,7 +278,11 @@ defmodule Wotex.Tracker.UI.AssetLive do
       |> history(%{})
       |> load_thing()
     else
-      {:error, error} -> assign(socket, error: error)
+      {:error, %{"code" => code} = error} when code in ~w(forbidden unauthorized not_found) ->
+        clear_detail(socket, error)
+
+      {:error, error} ->
+        assign(socket, error: error)
     end
   end
 
@@ -270,8 +298,14 @@ defmodule Wotex.Tracker.UI.AssetLive do
 
   defp load_thing(socket) do
     case Auth.request(socket, :get, %{"resource" => "things", "id" => socket.assigns.id}) do
-      {:ok, %{"value" => thing}} -> assign(socket, thing: thing)
-      {:error, error} -> assign(socket, thing: nil, property_error: error)
+      {:ok, %{"value" => thing}} ->
+        assign(socket, thing: thing)
+
+      {:error, %{"code" => code} = error} when code in ~w(forbidden unauthorized not_found) ->
+        clear_detail(socket, error)
+
+      {:error, error} ->
+        assign(socket, thing: nil, property_error: error)
     end
   end
 
@@ -283,8 +317,29 @@ defmodule Wotex.Tracker.UI.AssetLive do
            "id" => socket.assigns.id,
            "params" => params
          }) do
-      {:ok, history} -> assign(socket, history: history)
-      {:error, error} -> assign(socket, error: error)
+      {:ok, history} ->
+        assign(socket, history: history)
+
+      {:error, %{"code" => code} = error} when code in ~w(forbidden unauthorized not_found) ->
+        clear_detail(socket, error)
+
+      {:error, error} ->
+        assign(socket, error: error)
     end
+  end
+
+  defp clear_detail(socket, error) do
+    assign(socket,
+      enrollment: nil,
+      state: nil,
+      thing: nil,
+      property_result: nil,
+      property_error: nil,
+      history: nil,
+      generation: nil,
+      needs_materialization: false,
+      outcome: nil,
+      error: error
+    )
   end
 end

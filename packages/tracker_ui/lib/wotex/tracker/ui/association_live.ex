@@ -31,7 +31,9 @@ defmodule Wotex.Tracker.UI.AssociationLive do
       {:noreply, socket |> activate(thing, observation, operation) |> recover() |> load()}
     else
       {:noreply,
-       assign(socket, operation: nil, outcome: nil, error: %{"code" => "invalid_request"})}
+       socket
+       |> activate(thing, observation, nil)
+       |> assign(error: %{"code" => "invalid_request"})}
     end
   end
 
@@ -77,8 +79,12 @@ defmodule Wotex.Tracker.UI.AssociationLive do
   def handle_event("associate", _, socket),
     do: {:noreply, assign(socket, error: %{"code" => "forbidden"})}
 
-  def handle_event("check-operation", _, socket), do: {:noreply, socket |> recover() |> load()}
-  def handle_event("refresh", _, socket), do: {:noreply, socket |> recover() |> load()}
+  def handle_event("check-operation", _, socket),
+    do: {:noreply, socket |> assign(error: nil) |> recover() |> load()}
+
+  def handle_event("refresh", _, socket),
+    do: {:noreply, socket |> assign(error: nil) |> recover() |> load()}
+
   def handle_event(_, _, socket), do: {:noreply, socket}
 
   @impl true
@@ -278,7 +284,18 @@ defmodule Wotex.Tracker.UI.AssociationLive do
         generation: page["generation"]
       )
     else
-      {:error, error} -> assign(socket, error: error)
+      {:error, %{"code" => code} = error} when code in ~w(forbidden unauthorized not_found) ->
+        assign(socket,
+          asset: nil,
+          observation: nil,
+          resolution: nil,
+          generation: nil,
+          outcome: nil,
+          error: error
+        )
+
+      {:error, error} ->
+        assign(socket, error: error)
     end
   end
 end

@@ -29,9 +29,9 @@ defmodule Wotex.Tracker.UI.ObservationLive do
 
       operation ->
         if Identifier.operation?(operation) do
-          {:noreply, socket |> assign(id: id, operation: operation) |> recover() |> load()}
+          {:noreply, socket |> activate(id, operation) |> recover() |> load()}
         else
-          {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
+          {:noreply, socket |> activate(id, nil) |> assign(error: %{"code" => "invalid_request"})}
         end
     end
   end
@@ -59,8 +59,12 @@ defmodule Wotex.Tracker.UI.ObservationLive do
     {:noreply, outcome(socket, result)}
   end
 
-  def handle_event("check-operation", _, socket), do: {:noreply, recover(socket)}
-  def handle_event("refresh", _, socket), do: {:noreply, socket |> recover() |> load()}
+  def handle_event("check-operation", _, socket),
+    do: {:noreply, socket |> assign(error: nil) |> recover()}
+
+  def handle_event("refresh", _, socket),
+    do: {:noreply, socket |> assign(error: nil) |> recover() |> load()}
+
   def handle_event(_, _, socket), do: {:noreply, socket}
 
   @impl true
@@ -130,6 +134,22 @@ defmodule Wotex.Tracker.UI.ObservationLive do
     end
   end
 
+  defp activate(socket, id, operation) do
+    if socket.assigns[:id] == id and socket.assigns.operation == operation do
+      socket
+    else
+      assign(socket,
+        id: id,
+        operation: operation,
+        observation: nil,
+        resolution: nil,
+        generation: nil,
+        outcome: nil,
+        error: nil
+      )
+    end
+  end
+
   defp outcome(
          socket,
          {:ok, %{"outcome" => "committed", "data" => %{"thing_id" => id} = data} = result}
@@ -174,7 +194,17 @@ defmodule Wotex.Tracker.UI.ObservationLive do
         generation: page["generation"]
       )
     else
-      {:error, error} -> assign(socket, error: error)
+      {:error, %{"code" => code} = error} when code in ~w(forbidden unauthorized not_found) ->
+        assign(socket,
+          observation: nil,
+          resolution: nil,
+          generation: nil,
+          outcome: nil,
+          error: error
+        )
+
+      {:error, error} ->
+        assign(socket, error: error)
     end
   end
 end
