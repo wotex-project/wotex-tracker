@@ -1833,3 +1833,7 @@ one shared snapshot. A denied read clears the whole page instead of retaining
 older card contents. LiveView tests cover provisioning, refresh, failed reads,
 denial and reader access. Position, map, protection and physical surface
 workflows remain open.
+
+A terminal list-refresh denial also clears the visible cards and their retained
+summaries. Temporary list failures keep the prior page with an error for retry.
+The browser workflow test covers the denial and recovery path.

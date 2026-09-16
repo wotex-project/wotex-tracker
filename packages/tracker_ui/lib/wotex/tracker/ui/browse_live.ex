@@ -205,6 +205,9 @@ defmodule Wotex.Tracker.UI.BrowseLive do
           {:error, error} -> assign(socket, page: nil, summaries: %{}, error: error)
         end
 
+      {:error, %{"code" => code} = error} when code in ~w(forbidden unauthorized) ->
+        assign(socket, page: nil, summaries: %{}, error: error)
+
       {:error, error} ->
         assign(socket, error: error)
     end

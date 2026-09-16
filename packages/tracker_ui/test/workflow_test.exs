@@ -151,6 +151,14 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     conn = build_conn() |> init_test_session(%{"browser_session" => reader})
     {:ok, reader_view, _} = live(conn, "/")
     assert has_element?(reader_view, ".card .summary-values li", "Temperature: 24.3 °C")
+
+    Agent.update(c.faults, &Map.put(&1, :list, {:deny, "forbidden"}))
+    view |> element("button", "Refresh") |> render_click()
+    refute has_element?(view, ".card")
+    assert has_element?(view, "[role=alert]")
+
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, ".card .summary-values li", "Temperature: 24.3 °C")
   end
 
   test "a reader sees only declared Property controls and a committed read result", c do
@@ -625,6 +633,7 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
 
     {:ok, retry, _} = live(c.conn, base)
     retry |> form("#analytics-query") |> render_submit()
+    assert has_element?(retry, "h2", "Query result"), render(retry)
     Agent.update(c.faults, &Map.put(&1, :list, :unavailable))
     retry |> element("button", "Prepare save") |> render_click()
     assert has_element?(retry, "[role=alert]")
