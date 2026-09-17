@@ -273,6 +273,16 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
     {conn, Service.thing_policies(service, token, scope, thing, now)}
   end
 
+  defp scoped(%{method: "GET"} = conn, ["things", thing, "alerts"], params, context) do
+    {service, token, scope, now} = context
+
+    result =
+      with {:ok, params} <- list_params(params),
+           do: Service.thing_alerts(service, token, scope, thing, params, now)
+
+    {conn, result}
+  end
+
   defp scoped(%{method: "GET"} = conn, ["things", thing, "properties", name], params, context)
        when map_size(params) == 0 do
     {service, token, scope, now} = context

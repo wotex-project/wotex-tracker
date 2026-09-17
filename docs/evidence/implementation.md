@@ -2300,3 +2300,27 @@ until a later check recovers without a new commit, a rolling window rerunning on
 its sixth quiet check, unavailable and malformed event batches, an expired
 cursor and unavailable or malformed snapshot reads recovering on the next check.
 Changed definitions still reload, and deletion and revocation still stop following.
+
+### Per-Thing rule alerts — 2026-09-17
+
+Store schema 7 and HTTP contract 1.18.0 bind alerts to Things. When a rule event
+writes its alert, the store reads the service definition with the same rule kind
+and ID in the same transaction and records its `thing_id`, or null for
+host-managed and event-only rules. A definition saved in that commit is already
+visible, and definitions fix kind and Thing for an ID, so the binding cannot
+change. The 6-to-7 migration applies the same lookup to existing alerts,
+including those whose definition was later deleted. `Service.thing_alerts/6` and
+`GET …/things/{id}/alerts` page one Thing's alerts newest first under `read`,
+with a cursor that binds the Thing and page size.
+
+A service test raises alerts for two Things' battery definitions and pages one
+Thing's alerts one at a time into exactly that Thing's newest-first alerts. It
+rejects a cursor used for another Thing, a changed page size, a plain alert-list
+cursor, an empty Thing, malformed parameters and an invalid token, and returns
+no alerts for an unknown Thing. A migration test binds an existing alert to the
+Thing of a later-deleted same-kind definition and leaves an other-kind alert and
+a host rule alert unbound. The schema 5 backfill still equals a newly written
+alert. The independent HTTP consumer sees no alert after a normal battery
+baseline, one bound alert after editing the thresholds to low, an empty list for
+an unknown Thing, 400 and 401 outcomes, and the same alert after the definition
+is deleted.

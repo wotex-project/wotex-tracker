@@ -115,6 +115,25 @@ defmodule Wotex.Tracker.Service.Cursor do
 
   defp data?(
          %{
+           "kind" => "thing_alerts",
+           "thing" => thing,
+           "generation" => generation,
+           "after" => after_id,
+           "limit" => limit
+         } = data
+       )
+       when map_size(data) == 5 do
+    Codec.id?(thing) and
+      data?(%{
+        "kind" => "alerts",
+        "generation" => generation,
+        "after" => after_id,
+        "limit" => limit
+      })
+  end
+
+  defp data?(
+         %{
            "kind" => "events",
            "generation" => generation,
            "after" => cursor,

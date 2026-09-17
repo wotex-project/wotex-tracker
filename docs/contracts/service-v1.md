@@ -22,7 +22,7 @@ a quiet scope's last event predates retention. Subsequent events still obey
 retention. The HTTP layer must bind this pair, principal, scope and issue/expiry
 time in its authenticated cursor; raw storage tokens do not grant authority.
 
-Schema version 6 is created transactionally using `PRAGMA user_version`.
+Schema version 7 is created transactionally using `PRAGMA user_version`.
 Version 1 upgrades through the forward-queue, rule-state, rule-history,
 rule-event projection and alert schemas in the same startup transaction; later
 versions start at their next step. The version 3 step reassigns existing rule versions
@@ -31,7 +31,8 @@ version 4 step removes private capture, evidence, sample, fact and decision
 references from stored public `tracker.event` documents; rule event intents keep
 their complete private copy. The version 5 step backfills one unacknowledged
 alert record for every existing rule event intent, identical to a newly written
-alert. Other scopes, operations, observations, events,
+alert. The version 6 step sets each alert's `thing_id` to the Thing of a service
+definition with the alert's rule kind and ID, or null when none exists. Other scopes, operations, observations, events,
 records, publications and queue items remain unchanged. Unknown newer schemas
 fail startup. Migrations may never silently reset data.
 WAL, `synchronous=FULL`, foreign keys, a 1,000 ms busy timeout, 1,000-page
@@ -282,7 +283,7 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
-## HTTP and stream contract 1.17.0
+## HTTP and stream contract 1.18.0
 
 The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
 2020-12. The independently maintained Elixir audit checks document shape,
@@ -302,7 +303,7 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | --- | --- |
 | `/health/live` | GET public liveness |
 | `/api/v1/openapi.json` | GET public machine contract |
-| `/api/v1/scopes/{scope}/health/ready` | GET authenticated writable-store check reporting store schema `6` |
+| `/api/v1/scopes/{scope}/health/ready` | GET authenticated writable-store check reporting store schema `7` |
 | `/api/v1/scopes/{scope}/capabilities` | GET explicit available/unsupported/unconfigured status; rules report `heartbeat_battery_definitions` |
 | `…/analytics/query` | POST one read-only structured measurement query against a committed snapshot |
 | `…/analytics/pages` | POST one snapshot-pinned bucket page with an encrypted continuation |
@@ -317,6 +318,7 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | `…/alert_acknowledgements` | POST acknowledge one live rule alert once |
 | `…/credentials` | GET the administrator audit of this scope's configured credentials, grants, expiry and revocation |
 | `…/things/{id}/policies` | GET the at most eight live rule definitions bound to one Thing |
+| `…/things/{id}/alerts` | GET newest-first alerts of the rules defined for one Thing |
 | `…/things/{id}/properties/{property}` | GET authorized Runtime Property scalar |
 | `…/things/{id}/properties/{property}/observe` | GET committed Property values as resumable SSE |
 | `…/observations/{id}/raw`, `…/evidence/{id}/raw` | GET raw-permission native JSON downloads |
@@ -662,7 +664,14 @@ generation and the commit generation, `-` and the event ID, so ordinary ascendin
 ID pages list the newest alerts first. The alert carries the reviewed public
 event, the rule kind and ID, live or replay mode, the physical-action dispatch
 flag, the evaluation time, the commit generation and `acknowledgement: null`.
-List, get and history require `read`.
+Its `thing_id` names the Thing of the service definition with the same rule kind
+and ID, read in the writing transaction, so a definition saved in that commit
+binds its own alerts. Definitions fix kind and Thing for an ID, so the binding
+cannot change. Alerts of host-managed and event-only rules have `thing_id: null`.
+List, get and history require `read`. `thing_alerts` and
+`GET …/things/{id}/alerts` page the alerts bound to one Thing newest first under
+`read`, with `limit` from 1 to 100 and a cursor bound to that Thing and page
+size; an unknown Thing has none.
 
 `acknowledge_alert` requires `admin`, a UUIDv4 operation ID and exactly
 `alert_id` and `expected_generation`, with the ordinary receipt and replay

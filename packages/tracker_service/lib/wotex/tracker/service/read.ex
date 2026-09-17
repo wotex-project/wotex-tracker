@@ -349,6 +349,10 @@ defmodule Wotex.Tracker.Service.Read do
       (after_id == "" or Codec.id?(after_id)) and is_integer(limit) and limit in 1..100
   end
 
+  # Alert pages may be narrowed to the alerts bound to one Thing.
+  defp valid_query?(%{kind: "alerts", thing: thing} = query) when map_size(query) == 6,
+    do: Codec.id?(thing) and valid_query?(Map.delete(query, :thing))
+
   defp valid_query?(_), do: false
 
   # Rule history is written only by the rule transaction, never by a generic update.
@@ -393,6 +397,19 @@ defmodule Wotex.Tracker.Service.Read do
       db,
       "SELECT id,document,generation FROM observations WHERE scope=? AND generation<=? AND id>? ORDER BY id LIMIT ?",
       [query.scope, generation, query.after, query.limit]
+    )
+  end
+
+  defp page(db, %{thing: thing} = query, generation) do
+    SQL.rows!(
+      db,
+      """
+      SELECT r.id,r.document,r.generation FROM records r
+      WHERE r.scope=? AND r.kind='alerts' AND r.id>? AND r.generation<=?
+      AND r.generation=(SELECT max(v.generation) FROM records v WHERE v.scope=r.scope AND v.kind=r.kind AND v.id=r.id AND v.generation<=?)
+      AND json_extract(r.document,'$.public.thing_id')=? ORDER BY r.id LIMIT ?
+      """,
+      [query.scope, query.after, generation, generation, thing, query.limit]
     )
   end
 

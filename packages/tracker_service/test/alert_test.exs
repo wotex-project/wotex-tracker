@@ -41,6 +41,7 @@ defmodule Wotex.Tracker.Service.AlertTest do
              "event_id" => intent["event_id"],
              "event" => RuleEventProjection.public(intent["event"]),
              "rule" => %{"kind" => "heartbeat", "id" => "silence"},
+             "thing_id" => nil,
              "mode" => "live",
              "physical_action_dispatch" => "separate_authorization_required",
              "created_at" => RuleFixtures.now() + 11,
@@ -166,12 +167,63 @@ defmodule Wotex.Tracker.Service.AlertTest do
     :ok = File.chmod(path, 0o600)
 
     {store, _} = store(directory: directory)
-    assert {:ok, %{"schema" => "6"}} = Store.readiness(store)
+    assert {:ok, %{"schema" => "7"}} = Store.readiness(store)
 
     assert {:ok, %{"items" => [%{"id" => ^id, "generation" => "2", "value" => migrated}]}} =
              Store.snapshot(store, query(%{scope: "existing", kind: "alerts"}))
 
     assert migrated == %{"public" => expected}
+  end
+
+  test "schema six binds existing alerts to the Thing of a same-kind definition" do
+    directory = directory()
+    path = Path.join(directory, "tracker.db")
+    {:ok, db} = Sqlite3.open(path)
+
+    :ok =
+      Sqlite3.execute(
+        db,
+        File.read!(Application.app_dir(:wotex_tracker_service, "priv/schema/6.sql"))
+      )
+
+    thing = "urn:uuid:" <> Identifier.uuid()
+
+    alert = fn kind, id ->
+      Codec.encode!(%{"public" => %{"rule" => %{"kind" => kind, "id" => id}}})
+    end
+
+    policy = Codec.encode!(%{"public" => %{"kind" => "battery", "thing_id" => thing}})
+
+    for {kind, id, generation, document} <- [
+          {"policies", "low-battery", 1, policy},
+          {"policies", "low-battery", 2, "null"},
+          {"alerts", "alert-2", 2, alert.("battery", "low-battery")},
+          {"alerts", "alert-3", 3, alert.("heartbeat", "low-battery")},
+          {"alerts", "alert-4", 4, alert.("heartbeat", "silence")}
+        ] do
+      {:ok, statement} = Sqlite3.prepare(db, "INSERT INTO records VALUES('existing',?1,?2,?3,?4)")
+      :ok = Sqlite3.bind(statement, [kind, id, generation, document])
+      :done = Sqlite3.step(db, statement)
+      :ok = Sqlite3.release(db, statement)
+    end
+
+    :ok = Sqlite3.execute(db, "INSERT INTO scopes VALUES('existing',4)")
+    :ok = Sqlite3.close(db)
+    :ok = File.chmod(path, 0o600)
+
+    {store, _} = store(directory: directory)
+    assert {:ok, %{"schema" => "7"}} = Store.readiness(store)
+
+    assert {:ok, %{"items" => items}} =
+             Store.snapshot(store, query(%{scope: "existing", kind: "alerts"}))
+
+    assert Enum.map(items, &{&1["id"], &1["value"]["public"]["thing_id"]}) == [
+             {"alert-2", thing},
+             {"alert-3", nil},
+             {"alert-4", nil}
+           ]
+
+    assert Enum.all?(items, &Map.has_key?(&1["value"]["public"], "thing_id"))
   end
 
   defp acknowledge(c, token, request),

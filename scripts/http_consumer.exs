@@ -632,16 +632,39 @@ defmodule Wotex.Tracker.HTTPConsumer do
     %{"status" => "normal", "rule" => %{"revision" => "12", "identity" => identity}} = status
     ^identity = definition["policy_identity"]
     %{"type" => "number", "value" => 2.977} = status["battery"]["measurement"]["value"]
+    thing_alerts = prefix <> "/things/" <> encode_segment(thing) <> "/alerts"
+    %{"items" => [], "cursor" => nil} = data(context, "list_thing_alerts", thing_alerts)
 
-    %{"generation" => "13", "data" => %{"action" => "deleted"}} =
+    low =
+      policy
+      |> put_in(["parameters", "low_threshold"], 3.0)
+      |> put_in(["parameters", "clear_threshold"], 3.2)
+      |> Map.put("expected_generation", "12")
+
+    %{"generation" => "13"} = data(context, "save_policy", prefix <> "/policies", body: low)
+
+    %{"generation" => "13", "items" => [alert], "cursor" => nil} =
+      data(context, "list_thing_alerts", thing_alerts <> "?limit=2")
+
+    %{"thing_id" => ^thing, "rule" => %{"kind" => "battery", "id" => "independent-battery"}} =
+      alert["value"]
+
+    %{"items" => []} =
+      data(context, "list_thing_alerts", prefix <> "/things/urn%3Auuid%3Aunknown/alerts")
+
+    request(context, "list_thing_alerts", thing_alerts <> "?limit=0", status: 400)
+    request(context, "list_thing_alerts", thing_alerts, who: nil, status: 401)
+
+    %{"generation" => "14", "data" => %{"action" => "deleted"}} =
       data(context, "delete_policy", prefix <> "/policy_deletions",
-        body: %{"id" => "independent-battery", "expected_generation" => "12"}
+        body: %{"id" => "independent-battery", "expected_generation" => "13"}
       )
 
     request(context, "get_policies", policy_path, status: 404)
-    %{"generation" => "13", "items" => []} = data(context, "list_thing_policies", thing_policies)
+    %{"generation" => "14", "items" => []} = data(context, "list_thing_policies", thing_policies)
+    %{"items" => [^alert]} = data(context, "list_thing_alerts", thing_alerts)
 
-    [false, true] =
+    [false, false, true] =
       context
       |> data("history_policies", policy_path <> "/history")
       |> Map.fetch!("items")

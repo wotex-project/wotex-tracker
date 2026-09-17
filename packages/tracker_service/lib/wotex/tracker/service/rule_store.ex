@@ -276,8 +276,25 @@ defmodule Wotex.Tracker.Service.RuleStore do
       "alerts",
       Alert.id(generation, id),
       generation,
-      Codec.encode!(Alert.record(event, source, generation))
+      Codec.encode!(Alert.record(event, source, generation, definition_thing(db, source)))
     ])
+  end
+
+  # Definitions fix kind and Thing for an ID, so any live version names the binding. A
+  # definition saved in this transaction is already visible to this lookup.
+  defp definition_thing(db, source) do
+    case SQL.rows!(
+           db,
+           """
+           SELECT json_extract(document,'$.public.thing_id') FROM records
+           WHERE scope=? AND kind='policies' AND id=? AND document!='null'
+           AND json_extract(document,'$.public.kind')=? LIMIT 1
+           """,
+           [source.scope, source.rule_id, source.kind]
+         ) do
+      [[thing]] when is_binary(thing) -> thing
+      _ -> nil
+    end
   end
 
   defp state_row(db, scope, kind, rule_id) do

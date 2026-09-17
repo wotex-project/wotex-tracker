@@ -122,7 +122,9 @@ Each recorded rule event also becomes a newest-first `wtr.alert.v1` record with
 the reviewed event. `Service.acknowledge_alert/6` and `POST
 …/alert_acknowledgements` let an administrator acknowledge a live alert once;
 replay alerts are informational. Acknowledgement changes no rule state and
-dispatches nothing.
+dispatches nothing. An alert names the Thing whose service definition produced
+it, and `Service.thing_alerts/6` and `GET …/things/{id}/alerts` page one
+Thing's alerts newest first; host-managed rule alerts have no Thing.
 
 `Service.analytics/5` and `POST …/analytics/query` accept the closed
 `wtr.query-spec.v1` document. The service rechecks `read` authority inside a
@@ -204,7 +206,7 @@ and key paths. Explicit `:proxy` mode requires an HTTPS public origin and a
 protected proxy-to-listener network; forwarded headers never supply authority or
 Forms. No remote exposure is inferred.
 
-OpenAPI **3.1.0**, contract revision **1.17.0**, is packaged at
+OpenAPI **3.1.0**, contract revision **1.18.0**, is packaged at
 `priv/openapi/v1.json` and served at `/api/v1/openapi.json`. Liveness is
 `/health/live`; authenticated resources are under `/api/v1/scopes/{scope}`.
 Use `Authorization: Bearer …`, and a UUIDv4 `Idempotency-Key` for POST mutations.

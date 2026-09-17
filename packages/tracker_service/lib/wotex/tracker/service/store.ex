@@ -600,7 +600,7 @@ defmodule Wotex.Tracker.Service.Store do
     try do
       SQL.rows!(state.db, "INSERT OR IGNORE INTO scopes VALUES('__readiness__',0)")
       [[version]] = SQL.rows!(state.db, "SELECT sqlite_version()")
-      {:ok, %{"writable" => true, "schema" => "6", "sqlite" => version}}
+      {:ok, %{"writable" => true, "schema" => "7", "sqlite" => version}}
     after
       SQL.rollback(state.db)
     end

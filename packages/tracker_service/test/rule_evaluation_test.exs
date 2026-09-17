@@ -355,6 +355,76 @@ defmodule Wotex.Tracker.Service.RuleEvaluationTest do
              )
   end
 
+  test "alerts of defined rules are bound to their Thing and paged per Thing", c do
+    assert {:ok, _} = save(c, battery(c.thing, "3", {3.0, 3.2}), c.now)
+    assert {:ok, _} = save(c, battery(c.thing, "4", {2.5, 2.8}), c.now + 1)
+    assert {:ok, %{"generation" => "6"}} = save(c, battery(c.thing, "5", {3.0, 3.2}), c.now + 2)
+    second = second_thing(c, "6")
+
+    other =
+      c.thing
+      |> battery("9", {2.5, 2.8})
+      |> Map.merge(%{"id" => "other-battery", "thing_id" => second})
+
+    assert {:ok, %{"generation" => "10"}} = save(c, other, c.now + 3)
+    changed = other |> battery_thresholds({3.0, 3.2}) |> Map.put("expected_generation", "10")
+    assert {:ok, %{"generation" => "11"}} = save(c, changed, c.now + 4)
+
+    {:ok, %{"items" => all}} = Service.list(c.service, c.reader, c.scope, "alerts", %{}, c.now)
+    ours = Enum.filter(all, &(&1["value"]["thing_id"] == c.thing))
+    theirs = Enum.filter(all, &(&1["value"]["thing_id"] == second))
+    assert length(ours) >= 2 and theirs != []
+    assert length(ours) + length(theirs) == length(all)
+
+    assert Enum.all?(
+             ours,
+             &(&1["value"]["rule"] == %{"kind" => "battery", "id" => "low-battery"})
+           )
+
+    assert collect(c, c.thing, %{"limit" => 1}, []) == ours
+    assert {:ok, %{"items" => ^theirs, "cursor" => nil}} = thing_alerts(c, second, %{})
+
+    {:ok, %{"cursor" => cursor}} = thing_alerts(c, c.thing, %{"limit" => 1})
+
+    {:ok, %{"cursor" => plain}} =
+      Service.list(c.service, c.reader, c.scope, "alerts", %{"limit" => 1}, c.now)
+
+    for {thing, params} <- [
+          {second, %{"cursor" => cursor}},
+          {c.thing, %{"cursor" => cursor, "limit" => 2}},
+          {c.thing, %{"cursor" => plain}},
+          {"", %{"cursor" => cursor}}
+        ] do
+      assert {:error, %{"code" => "invalid_cursor"}} = thing_alerts(c, thing, params)
+    end
+
+    assert {:ok, %{"items" => [], "cursor" => nil}} = thing_alerts(c, "urn:uuid:unknown", %{})
+    assert {:error, %{"code" => "invalid_request"}} = thing_alerts(c, c.thing, %{"limit" => 0})
+    assert {:error, %{"code" => "invalid_request"}} = thing_alerts(c, c.thing, %{"other" => 1})
+    assert {:error, %{"code" => "invalid_request"}} = thing_alerts(c, c.thing, nil)
+    assert {:error, %{"code" => "invalid_query"}} = thing_alerts(c, "", %{})
+
+    assert {:error, %{"code" => "unauthorized"}} =
+             Service.thing_alerts(c.service, "invalid", c.scope, c.thing, %{}, c.now)
+  end
+
+  defp collect(c, thing, params, acc) do
+    {:ok, %{"items" => items, "cursor" => cursor}} = thing_alerts(c, thing, params)
+
+    if cursor,
+      do: collect(c, thing, %{"cursor" => cursor}, acc ++ items),
+      else: acc ++ items
+  end
+
+  defp thing_alerts(c, thing, params),
+    do: Service.thing_alerts(c.service, c.reader, c.scope, thing, params, c.now)
+
+  defp battery_thresholds(request, {low, clear}),
+    do:
+      request
+      |> put_in(["parameters", "low_threshold"], low)
+      |> put_in(["parameters", "clear_threshold"], clear)
+
   defp definitions(c, generation) do
     {:ok, access} = Service.authorize(c.service, c.admin, c.scope, "admin", c.now)
     RuleEvaluation.definitions(c.service, access, "admin", c.thing, generation, c.now)

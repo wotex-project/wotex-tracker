@@ -16,7 +16,8 @@ defmodule Wotex.Tracker.Service.Alert do
         String.pad_leading(Integer.to_string(@maximum_generation - generation), 19, "0") <>
         "-" <> event_id
 
-  def record(event, fields, generation) do
+  # A rule defined through the service binds its alerts to that Thing; other rules have none.
+  def record(event, fields, generation, thing_id) do
     id = id(generation, event["id"])
 
     %{
@@ -26,6 +27,7 @@ defmodule Wotex.Tracker.Service.Alert do
         "event_id" => event["id"],
         "event" => RuleEventProjection.public(event),
         "rule" => %{"kind" => fields.kind, "id" => fields.rule_id},
+        "thing_id" => thing_id,
         "mode" => fields.mode,
         "physical_action_dispatch" => fields.action,
         "created_at" => fields.evaluated_at,

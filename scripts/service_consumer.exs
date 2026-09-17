@@ -163,7 +163,7 @@ store = Store.handle(pid)
 {:ok, result} = Store.mutate(store, update)
 "committed" = result["outcome"]
 {:ok, ^result} = Store.mutate(store, update)
-{:ok, %{"schema" => "6", "sqlite" => "3.53.4"}} = Store.readiness(store)
+{:ok, %{"schema" => "7", "sqlite" => "3.53.4"}} = Store.readiness(store)
 
 transport_fact = fn id, predicate, kind ->
   {:ok, evidence} =

@@ -75,7 +75,7 @@ defmodule Wotex.Tracker.Service.RuleEventProjectionTest do
     :ok = File.chmod(path, 0o600)
 
     {store, _} = store(directory: directory)
-    assert {:ok, %{"schema" => "6"}} = Store.readiness(store)
+    assert {:ok, %{"schema" => "7"}} = Store.readiness(store)
 
     assert {:ok, %{"items" => [first, second]}} =
              Store.events(store, replay(%{scope: "existing", now: 1}))
