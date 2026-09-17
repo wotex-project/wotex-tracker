@@ -157,8 +157,13 @@ defmodule Wotex.Tracker.Host.CLIConsumer do
 
     [%{"data" => %{"items" => []}}] = call(context, ["list", "alerts"])
 
+    [%{"data" => %{"items" => []}}] = call(context, ["list", "rules", "--thing", thing])
+
     [%{"error" => %{"code" => "invalid_arguments"}}] =
-      call(context, ["list", "rules", "--thing", thing], 2)
+      call(context, ["list", "rules", "--thing", thing, "--cursor", "wtrc1.x"], 2)
+
+    [%{"error" => %{"code" => "invalid_arguments"}}] =
+      call(context, ["list", "things", "--thing", thing], 2)
 
     [%{"error" => %{"code" => "invalid_arguments"}}] =
       call(context, ["list", "policies", "--thing", thing, "--limit", "1"], 2)

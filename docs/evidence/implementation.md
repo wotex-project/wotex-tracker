@@ -2445,3 +2445,11 @@ LiveView tests show a provisioned card with no rules, then a low battery rule
 marked as needing attention, keep the temperature reading through an unavailable
 status read and clear the cards on a forbidden one. The protection page test sees
 low and on-time statuses and an unavailable status column.
+
+### Command-line per-Thing rule status — 2026-09-17
+
+`trackerctl list rules --thing THING` reads `GET …/things/{id}/rules`. Like
+per-Thing definitions it accepts no paging options, and `--thing` remains limited
+to rules, definitions and alerts. The independent CLI consumer lists no statuses
+for its materialised Thing and receives `invalid_arguments` for a cursor with the
+per-Thing status read and for `--thing` with Things.

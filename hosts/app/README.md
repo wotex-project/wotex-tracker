@@ -80,7 +80,7 @@ With those global options before the command, the available commands are:
 | `history state THING --limit 25` | Immutable history; resume with `--cursor` |
 | `list rules`, `inspect rules KIND:RULE`, `history rules KIND:RULE` | Read-only committed rule status without private evidence |
 | `list policies`, `list alerts`, `inspect`/`history` of either | Rule definitions and recorded alerts |
-| `list policies --thing THING`, `list alerts --thing THING --limit 25` | One Thing's live definitions and its newest-first alerts |
+| `list rules --thing THING`, `list policies --thing THING`, `list alerts --thing THING --limit 25` | One Thing's rule statuses, live definitions and newest-first alerts |
 | `events --cursor CURSOR` | Bounded replay from a snapshot/event cursor |
 | `events --cursor CURSOR --stream --seconds 30 --max-events 100` | Bounded SSE delivery |
 | `raw observations ID --output export.json` | Original native JSON bytes to a new 0600 file |

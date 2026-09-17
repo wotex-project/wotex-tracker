@@ -538,10 +538,10 @@ defmodule Wotex.Tracker.Host.CLI do
     options = parse_options(arguments, limit: :integer, cursor: :string, thing: :string)
     thing = if options[:thing], do: identifier(options[:thing])
 
-    # Only rule definitions and alerts have per-Thing reads; definitions are not paged.
+    # Rule statuses, definitions and alerts have per-Thing reads; only alerts are paged.
     if thing &&
-         (resource not in ~w(policies alerts) or
-            (resource == "policies" and (options[:limit] || options[:cursor]))),
+         (resource not in ~w(rules policies alerts) or
+            (resource in ~w(rules policies) and (options[:limit] || options[:cursor]))),
        do: usage("invalid_arguments")
 
     %{
