@@ -329,7 +329,8 @@ in the browser, and review and acknowledge their alerts. Each provisioned asset
 lists its live rule definitions, stops offering new rules at the service's
 eight-definition limit and pages the alerts those definitions recorded.
 Administrators can remove an enrolled asset from current views after a stated,
-confirmed and recoverable operation; data deletion remains open. Complete application, remote adapter,
+confirmed and recoverable operation; data deletion remains open. An Activity page
+pages the credential's recent committed changes for recovery. Complete application, remote adapter,
 accessibility, Pi and mobile acceptance remain open.
 
 Implement WTR.15's shared components and `hosts/app/` after Phase 3; use admitted

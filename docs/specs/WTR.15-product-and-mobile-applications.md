@@ -31,6 +31,9 @@ access audit and management of devices remain open. An administrator can remove 
 after reading the consequences and confirming: its enrollment, Thing, state and
 rule definitions leave current views while history, evidence and alerts remain.
 Data deletion and retention management remain open.
+An Activity page lists the changes committed with the browser's credential in the
+last seven days, newest first, with links to the changed records, so work can be
+found after an operation reference is lost.
 Readers can move forward and revisit up to 32 earlier state-history pages;
 each move reloads that page under current read authority. Refresh starts again
 at the latest snapshot. Temporary failures keep the current page available;

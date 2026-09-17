@@ -466,6 +466,118 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     refute render(reader_view) =~ c.reader
   end
 
+  test "the activity page pages recent committed changes with links to what changed", c do
+    thing = provisioned(c)
+
+    save = fn request ->
+      Service.save_policy(c.service, c.admin, c.scope, Identifier.uuid(), request, c.now)
+    end
+
+    {:ok, _} = save.(battery_rule(thing, generation(c), {2.5, 2.8}))
+    {:ok, _} = save.(battery_rule(thing, generation(c), {3.0, 3.2}))
+
+    {:ok, %{"items" => [%{"id" => alert} | _]}} =
+      Service.thing_alerts(c.service, c.reader, c.scope, thing, %{}, c.now)
+
+    {:ok, _} =
+      Service.acknowledge_alert(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"alert_id" => alert, "expected_generation" => generation(c)},
+        c.now
+      )
+
+    {dashboard, _} = saved_dashboard(c, thing)
+
+    {:ok, _} =
+      Service.delete_query(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"id" => dashboard, "expected_generation" => generation(c)},
+        c.now
+      )
+
+    {:ok, _} =
+      Service.delete_policy(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"id" => "low-battery", "expected_generation" => generation(c)},
+        c.now
+      )
+
+    {:ok, _} =
+      Service.revoke(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"credential_id" => "reader", "expected_generation" => generation(c)},
+        c.now
+      )
+
+    {:ok, _} =
+      Service.unenroll(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"thing_id" => thing, "expected_generation" => generation(c)},
+        c.now
+      )
+
+    {:ok, _layout, html} = live(c.conn, "/")
+    assert html =~ ~s(<a href="/activity">Activity</a>)
+
+    {:ok, view, _} = live(c.conn, "/activity")
+    first = render(view)
+    assert first =~ "Removed asset"
+    assert first =~ "Revoked credential"
+    assert has_element?(view, ~s(a[href="#{Presenter.alert_path(alert)}"]), "Acknowledged alert")
+    assert first =~ "Deleted dashboard"
+
+    assert has_element?(
+             view,
+             ~s(a[href="#{Presenter.dashboard_path(dashboard)}"]),
+             "Saved dashboard"
+           )
+
+    refute has_element?(view, "button", "Newer changes")
+
+    Agent.update(c.faults, &Map.put(&1, :operations, :unavailable))
+    view |> element("button", "Older changes") |> render_click()
+    assert has_element?(view, "[role=alert]")
+    assert render(view) =~ "Removed asset"
+
+    view |> element("button", "Older changes") |> render_click()
+    assert has_element?(view, "a", "Imported observation")
+    refute render(view) =~ "Removed asset"
+
+    view |> element("button", "Newer changes") |> render_click()
+    assert render(view) =~ "Removed asset"
+
+    view |> element("button", "Older changes") |> render_click()
+    commit_change(c, "activity")
+    view |> element("button", "Newer changes") |> render_click()
+    assert has_element?(view, "[role=alert]", "service changed")
+
+    Agent.update(c.faults, &Map.put(&1, :operations, {:reply, {:ok, %{}}}))
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, "[role=alert]")
+
+    Agent.update(c.faults, &Map.put(&1, :operations, {:deny, "forbidden"}))
+    view |> element("button", "Refresh") |> render_click()
+    refute has_element?(view, "table")
+
+    view |> element("button", "Refresh") |> render_click()
+    assert render(view) =~ "Imported observation"
+  end
+
   test "a browser ends another session of the same credential from the access page", c do
     {:ok, %{"id" => other}} = Sessions.login(c.sessions, c.admin, c.scope)
     {:ok, view, html} = live(c.conn, "/access")
@@ -4358,6 +4470,13 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
       },
       "expected_generation" => generation
     }
+
+  defp generation(c) do
+    {:ok, %{"generation" => generation}} =
+      Service.list(c.service, c.admin, c.scope, "enrollments", %{"limit" => 1}, c.now)
+
+    generation
+  end
 
   # Commits one unrelated observation so a following view sees a new scope event.
   defp commit_change(c, id) do

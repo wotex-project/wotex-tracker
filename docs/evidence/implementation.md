@@ -2525,3 +2525,19 @@ a changed page size, a malformed cursor, another principal's cursor, a resource
 page cursor, malformed parameters and an invalid token are rejected. The
 independent HTTP consumer lists its import receipt after the operation status
 lookup, sees no receipts for the reader and gets 400 for a zero page size.
+
+### Browser recent changes — 2026-09-17
+
+A new Activity page, linked from the main navigation, pages the browser
+credential's receipts from `Service.operations/5` ten at a time, newest first,
+with a bounded path back to newer pages under current read authority. Each row
+describes the committed change from its receipt data, including imports,
+enrollment, provisioning, rule definition saves and deletions, alert
+acknowledgements, dashboard saves and deletions, credential revocation and asset
+removal, and links the record where one still exists. The page states that a
+change missing from it had not committed when the page loaded.
+
+A LiveView test commits eleven changes of those kinds, finds the newest ten with
+their links, keeps the first page through an unavailable older page, reaches the
+import on the second page, returns to newer changes, refuses a newer page from a
+changed snapshot, and reports malformed and forbidden replies.
