@@ -229,7 +229,7 @@ defmodule Wotex.Tracker.Service.RuleDefinition do
            request["expected_generation"],
            now
          ) do
-      {:ok, rows} ->
+      {:ok, %{"items" => rows}} ->
         ids = Enum.map(rows, & &1["id"])
 
         if request["id"] in ids or length(ids) < @maximum_per_thing,

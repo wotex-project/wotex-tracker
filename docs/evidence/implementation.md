@@ -2190,3 +2190,13 @@ page 26 heartbeat alerts through transient failure, changed generation and
 denial, show replay alerts without review controls, and keep unrelated receipts,
 transport failures and failed verification reads uncertain. The optional app
 host serves the alert list through its real loopback listener.
+
+### Per-Thing rule definitions — 2026-09-17
+
+HTTP contract 1.16.0 adds `GET …/things/{id}/policies`, backed by
+`Service.thing_policies/5`. It returns, under current `read` authority and at one
+committed snapshot, the at most eight live definitions bound to that Thing in ID
+order, so a client need not scan every definition in the scope. A service test
+separates two Things' definitions, drops a deleted definition, omits the private
+actor and returns an empty list for an unknown Thing; the independent HTTP
+consumer checks the list after saving and deleting a battery rule.

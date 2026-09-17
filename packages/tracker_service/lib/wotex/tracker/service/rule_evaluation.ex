@@ -17,7 +17,7 @@ defmodule Wotex.Tracker.Service.RuleEvaluation do
   alias Wotex.Tracker.Service.{RuleDefinition, RuleTransition, Snapshot, Store}
 
   def definitions(service, access, permission, thing, generation, now) do
-    with {:ok, rows} <-
+    with {:ok, %{"items" => rows}} <-
            Store.authorized_policies(service.store, access, permission, thing, generation, now),
          do: decode(rows, [])
   end

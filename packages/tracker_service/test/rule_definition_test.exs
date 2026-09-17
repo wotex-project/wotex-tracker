@@ -209,6 +209,52 @@ defmodule Wotex.Tracker.Service.RuleDefinitionTest do
              )
   end
 
+  test "readers list only the live definitions bound to one Thing", c do
+    assert {:ok, %{"generation" => "3", "items" => []}} =
+             Service.thing_policies(c.service, c.reader, c.scope, c.thing, c.now)
+
+    assert {:ok, _} = save(c, heartbeat(c.thing, "3"), c.now)
+    assert {:ok, _} = save(c, battery(c.thing, "4"), c.now)
+    second = second_thing(c, "5")
+
+    other =
+      c.thing |> heartbeat("8") |> Map.merge(%{"id" => "other-silence", "thing_id" => second})
+
+    assert {:ok, %{"generation" => "9"}} = save(c, other, c.now)
+
+    assert {:ok, %{"generation" => "9", "items" => items}} =
+             Service.thing_policies(c.service, c.reader, c.scope, c.thing, c.now)
+
+    assert Enum.map(items, &{&1["id"], &1["value"]["kind"], &1["value"]["thing_id"]}) == [
+             {"low-battery", "battery", c.thing},
+             {"sensor-silence", "heartbeat", c.thing}
+           ]
+
+    refute Enum.any?(items, &Map.has_key?(&1["value"], "actor"))
+
+    assert {:ok, %{"generation" => "10"}} =
+             Service.delete_policy(
+               c.service,
+               c.admin,
+               c.scope,
+               Identifier.uuid(),
+               %{"id" => "low-battery", "expected_generation" => "9"},
+               c.now
+             )
+
+    assert {:ok, %{"items" => [%{"id" => "sensor-silence"}]}} =
+             Service.thing_policies(c.service, c.reader, c.scope, c.thing, c.now)
+
+    assert {:ok, %{"items" => []}} =
+             Service.thing_policies(c.service, c.reader, c.scope, "urn:uuid:unknown", c.now)
+
+    assert {:error, %{"code" => "unauthorized"}} =
+             Service.thing_policies(c.service, "invalid", c.scope, c.thing, c.now)
+
+    assert {:error, %{"code" => "invalid_query"}} =
+             Service.thing_policies(c.service, c.reader, c.scope, "", c.now)
+  end
+
   test "one Thing admits at most eight definitions while edits remain possible", c do
     for index <- 1..8 do
       request =

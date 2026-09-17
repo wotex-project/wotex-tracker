@@ -140,8 +140,8 @@ defmodule Wotex.Tracker.Service.Store do
   def authorized_analytics_at(_, _, _, _, _), do: {:error, :invalid_query}
 
   @doc "Reauthorizes and reads the live rule definitions bound to one Thing at a generation."
-  @spec authorized_policies(t(), Access.t(), String.t(), String.t(), String.t(), integer()) ::
-          {:ok, [map()]} | {:error, atom()}
+  @spec authorized_policies(t(), Access.t(), String.t(), String.t(), String.t() | nil, integer()) ::
+          {:ok, map()} | {:error, atom()}
   def authorized_policies(store, access, permission, thing, generation, now),
     do: StoreCall.run(store, {:authorized_policies, access, permission, thing, generation, now})
 

@@ -274,7 +274,7 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
-## HTTP and stream contract 1.15.0
+## HTTP and stream contract 1.16.0
 
 The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
 2020-12. The independently maintained Elixir audit checks document shape,
@@ -307,6 +307,7 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | `…/policies` | POST create or update a heartbeat or battery rule definition for one Thing |
 | `…/policy_deletions` | POST delete a rule definition with a retained tombstone |
 | `…/alert_acknowledgements` | POST acknowledge one live rule alert once |
+| `…/things/{id}/policies` | GET the at most eight live rule definitions bound to one Thing |
 | `…/things/{id}/properties/{property}` | GET authorized Runtime Property scalar |
 | `…/things/{id}/properties/{property}/observe` | GET committed Property values as resumable SSE |
 | `…/observations/{id}/raw`, `…/evidence/{id}/raw` | GET raw-permission native JSON downloads |
@@ -614,7 +615,9 @@ The stored record retains the acting principal privately and projects
 `wtr.rule-definition.v1` with ID, kind, Thing, revision, policy identity, exact
 parameters and creation/update times. A deletion is a tombstone; earlier versions
 stay readable in history. Both mutations publish `policy.changed` with the ID and
-`saved` or `deleted`.
+`saved` or `deleted`. `thing_policies` and `GET …/things/{id}/policies` return, in
+ID order and under `read`, the live definitions bound to one Thing at the current
+snapshot with that generation; an unknown Thing has none.
 
 ### Definition evaluation
 

@@ -267,6 +267,27 @@ defmodule Wotex.Tracker.Service do
         "policy"
       )
 
+  @doc "Lists the at most eight live rule definitions bound to one Thing at the current snapshot."
+  @spec thing_policies(t(), String.t(), String.t(), String.t(), integer()) ::
+          {:ok, map()} | {:error, map()}
+  def thing_policies(service, token, scope, thing, now) do
+    result =
+      with {:ok, access} <- authorize(service, token, scope, "read", now),
+           {:ok, page} <-
+             Store.authorized_policies(service.store, access, "read", thing, nil, now) do
+        {:ok,
+         %{
+           page
+           | "items" =>
+               Enum.map(page["items"], fn row ->
+                 %{row | "value" => Projection.resource("policies", row["value"])}
+               end)
+         }}
+      end
+
+    Result.normalize(result)
+  end
+
   @doc "Acknowledges one live rule alert once without changing rule state or dispatching an Action."
   @spec acknowledge_alert(t(), String.t(), String.t(), String.t(), map(), integer()) ::
           {:ok, map()} | {:error, map()}

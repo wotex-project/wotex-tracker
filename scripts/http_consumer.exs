@@ -600,6 +600,11 @@ defmodule Wotex.Tracker.HTTPConsumer do
     %{"items" => [%{"id" => "independent-battery", "value" => ^definition}]} =
       data(context, "list_policies", prefix <> "/policies")
 
+    thing_policies = prefix <> "/things/" <> encode_segment(thing) <> "/policies"
+
+    %{"generation" => "12", "items" => [%{"id" => "independent-battery", "value" => ^definition}]} =
+      data(context, "list_thing_policies", thing_policies)
+
     %{"generation" => "12", "value" => status} =
       data(context, "get_rules", prefix <> "/rules/battery%3Aindependent-battery")
 
@@ -613,6 +618,7 @@ defmodule Wotex.Tracker.HTTPConsumer do
       )
 
     request(context, "get_policies", policy_path, status: 404)
+    %{"generation" => "13", "items" => []} = data(context, "list_thing_policies", thing_policies)
 
     [false, true] =
       context
