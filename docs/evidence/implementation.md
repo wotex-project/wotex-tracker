@@ -2045,3 +2045,24 @@ The independent CLI consumer checks against the provisioned host that
 capabilities report rules as `read_only`, an empty scope returns an empty rule
 page at generation 0, and missing rule inspection and history return
 `not_found`. The CLI cannot create or evaluate rules.
+
+### Versioned rule definitions — 2026-09-17
+
+HTTP contract 1.12.0 adds administrator-managed `policies`. A heartbeat or
+battery definition binds a lower-case rule ID to one existing Thing with an
+exact closed parameter set. The service assigns the revision from the commit
+generation, builds the pure policy, stores its content identity and keeps the
+acting principal private. Battery rules must name a declared numeric Property
+in the same unit, so an unsupported measurement is rejected instead of silently
+remaining unknown. Kind and Thing are immutable for an ID, one Thing admits at
+most eight definitions, and deletion retains a tombstone. Saves and deletions
+publish `policy.changed` through the ordinary receipt and event contract.
+
+Service tests cover exact projections, revision identities, replay, edits that
+preserve creation time, listing, paged history with the tombstone and events.
+They reject reader writes, malformed IDs and parameters, missing Things,
+unsupported battery measurements, stale snapshots, kind and Thing changes, a
+ninth definition and invalid deletion, while still allowing edits at the limit.
+The independent HTTP consumer validates save, 401/409/501 outcomes, get, list,
+delete, 404 and history against OpenAPI. Definitions are not yet evaluated;
+status, events and deadlines are unchanged by saving them.

@@ -25,7 +25,9 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
     "materialisations" => {:materialize, "enroll"},
     "revocations" => {:revoke, "admin"},
     "saved_queries" => {:save_query, "admin"},
-    "saved_query_deletions" => {:delete_query, "admin"}
+    "saved_query_deletions" => {:delete_query, "admin"},
+    "policies" => {:save_policy, "admin"},
+    "policy_deletions" => {:delete_policy, "admin"}
   }
 
   @impl true

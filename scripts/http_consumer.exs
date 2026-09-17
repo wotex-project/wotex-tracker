@@ -51,7 +51,8 @@ defmodule Wotex.Tracker.HTTPConsumer do
     IO.puts(
       "HTTP_CONSUMER_PASS openapi=true enrollment=true materialisation=true " <>
         "native_types=true history=true replay=true revoked_stream_closed=true " <>
-        "property_observation=true analytics_pagination=true saved_queries=true"
+        "property_observation=true analytics_pagination=true saved_queries=true " <>
+        "rule_definitions=true"
     )
   end
 
@@ -523,6 +524,58 @@ defmodule Wotex.Tracker.HTTPConsumer do
     [false, true] =
       context
       |> data("history_saved_queries", saved_path <> "/history")
+      |> Map.fetch!("items")
+      |> Enum.map(& &1["deleted"])
+
+    policy_workflow(context, prefix, thing)
+  end
+
+  defp policy_workflow(context, prefix, thing) do
+    policy = %{
+      "id" => "independent-battery",
+      "kind" => "battery",
+      "thing_id" => thing,
+      "parameters" => %{
+        "measurement_kind" => "batteryVoltage",
+        "unit" => "V",
+        "low_threshold" => 2.5,
+        "clear_threshold" => 2.8,
+        "maximum_age_ms" => 3_600_000,
+        "future_skew_ms" => 0,
+        "accept_suspect" => false
+      },
+      "expected_generation" => "11"
+    }
+
+    request(context, "save_policy", prefix <> "/policies", body: policy, who: nil, status: 401)
+
+    request(context, "save_policy", prefix <> "/policies",
+      body: put_in(policy, ["parameters", "unit"], "mV"),
+      status: 501
+    )
+
+    %{"generation" => "12", "data" => %{"policy_id" => "independent-battery"}} =
+      data(context, "save_policy", prefix <> "/policies", body: policy)
+
+    request(context, "save_policy", prefix <> "/policies", body: policy, status: 409)
+    policy_path = prefix <> "/policies/independent-battery"
+    definition = data(context, "get_policies", policy_path)["value"]
+    %{"kind" => "battery", "revision" => "12", "thing_id" => ^thing} = definition
+    false = Map.has_key?(definition, "actor")
+
+    %{"items" => [%{"id" => "independent-battery", "value" => ^definition}]} =
+      data(context, "list_policies", prefix <> "/policies")
+
+    %{"generation" => "13", "data" => %{"action" => "deleted"}} =
+      data(context, "delete_policy", prefix <> "/policy_deletions",
+        body: %{"id" => "independent-battery", "expected_generation" => "12"}
+      )
+
+    request(context, "get_policies", policy_path, status: 404)
+
+    [false, true] =
+      context
+      |> data("history_policies", policy_path <> "/history")
       |> Map.fetch!("items")
       |> Enum.map(& &1["deleted"])
   end

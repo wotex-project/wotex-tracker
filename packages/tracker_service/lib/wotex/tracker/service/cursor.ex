@@ -139,7 +139,7 @@ defmodule Wotex.Tracker.Service.Cursor do
          } = data
        )
        when map_size(data) == 6 do
-    resource in ~w(observations resolutions evidence enrollments things state saved_queries rules) and
+    resource in ~w(observations resolutions evidence enrollments things state saved_queries rules policies) and
       Codec.id?(id) and
       match?({:ok, _}, Codec.generation(generation)) and
       match?({:ok, _}, Codec.generation(position)) and

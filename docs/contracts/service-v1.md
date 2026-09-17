@@ -263,7 +263,7 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
-## HTTP and stream contract 1.11.0
+## HTTP and stream contract 1.12.0
 
 The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
 2020-12. The independently maintained Elixir audit checks document shape,
@@ -287,12 +287,14 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | `/api/v1/scopes/{scope}/capabilities` | GET explicit available/unsupported/unconfigured status; persisted rule status is `read_only` |
 | `…/analytics/query` | POST one read-only structured measurement query against a committed snapshot |
 | `…/analytics/pages` | POST one snapshot-pinned bucket page with an encrypted continuation |
-| `…/observations`, `…/resolutions`, `…/evidence`, `…/state`, `…/enrollments`, `…/things`, `…/saved_queries`, `…/rules` | GET public snapshot pages |
+| `…/observations`, `…/resolutions`, `…/evidence`, `…/state`, `…/enrollments`, `…/things`, `…/saved_queries`, `…/rules`, `…/policies` | GET public snapshot pages |
 | `…/{resource}/{id}` | GET one public value |
 | `…/{resource}/{id}/history` | GET ascending committed public versions, including deletion records |
 | `…/saved_queries` | POST create or update an owned absolute or rolling query definition |
 | `…/saved_query_deletions` | POST delete an owned definition with a retained tombstone |
 | `…/saved_queries/{id}/execute` | GET execute the stored query under current read authority |
+| `…/policies` | POST create or update a heartbeat or battery rule definition for one Thing |
+| `…/policy_deletions` | POST delete a rule definition with a retained tombstone |
 | `…/things/{id}/properties/{property}` | GET authorized Runtime Property scalar |
 | `…/things/{id}/properties/{property}/observe` | GET committed Property values as resumable SSE |
 | `…/observations/{id}/raw`, `…/evidence/{id}/raw` | GET raw-permission native JSON downloads |
@@ -542,7 +544,8 @@ the explicit numeric-loopback peer, not arbitrary remote deployment.
 ## Public resource history
 
 `GET …/{resource}/{id}/history` covers observations, resolutions, evidence
-summaries, enrollment, Things, canonical state, saved queries and rule status. It requires current `read`
+summaries, enrollment, Things, canonical state, saved queries, rule status and
+rule definitions. It requires current `read`
 authority and returns only the same reviewed public projections as inspection.
 It accepts `limit` (1–100, default 25) and an optional encrypted `cursor`; it
 accepts no arbitrary SQL, field expression or private evidence filter.
@@ -563,6 +566,42 @@ inside its SQLite snapshot. Later commits cannot enter an in-progress page set.
 The stream cursor starts after the event high-water mark in that same snapshot;
 event retention/replay rules remain in force. History responses share the 4 MiB
 ceiling: reduce the requested page size on `response_too_large`.
+
+## Rule definitions
+
+`policies` holds administrator-managed rule definitions. `save_policy` and
+`delete_policy` require `admin`, a UUIDv4 operation ID and the expected scope
+generation, and use the ordinary receipt, replay and unknown-outcome contract.
+Reads, pages and history use `read`.
+
+A save request has exactly `id`, `kind`, `thing_id`, `parameters` and
+`expected_generation`. The ID matches `^[a-z0-9][a-z0-9-]{0,62}$`, so it can also
+form a `{kind}:{id}` rule status identifier. `kind` is `heartbeat` or `battery`:
+
+| Kind | Exact parameters |
+| --- | --- |
+| `heartbeat` | `maximum_silence_ms`, `future_skew_ms` |
+| `battery` | `measurement_kind`, `unit`, `low_threshold`, `clear_threshold`, `maximum_age_ms`, `future_skew_ms`, `accept_suspect` |
+
+Durations are integer milliseconds from 0 to seven days; thresholds are finite
+numbers and the low threshold must be below the clear threshold. The service
+assigns the policy revision as the decimal generation the definition commits at,
+constructs the pure policy and stores its content identity. The request cannot
+choose a revision, identity, owner, timestamp or evaluation mode.
+
+Preparation reads the requested snapshot. The Thing must exist there. A battery
+definition must name a declared numeric Thing Property with exactly the same
+unit; otherwise it returns `unsupported` rather than accepting a rule that could
+never qualify evidence. An existing ID keeps its kind and Thing; changing either
+conflicts. One Thing can have at most eight live definitions; editing an existing
+one remains allowed at that limit, and a ninth returns `capacity_exceeded`.
+
+The stored record retains the acting principal privately and projects
+`wtr.rule-definition.v1` with ID, kind, Thing, revision, policy identity, exact
+parameters and creation/update times. A deletion is a tombstone; earlier versions
+stay readable in history. Both mutations publish `policy.changed` with the ID and
+`saved` or `deleted`. This slice validates and persists definitions only: it does
+not evaluate them, change existing rule status or schedule deadlines.
 
 ## Public rule status
 

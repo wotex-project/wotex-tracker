@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "WoTEx Tracker service",
-    "version": "1.11.0",
-    "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries and read-only persisted rule status. No scanner, rule management or physical interaction is implied."
+    "version": "1.12.0",
+    "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries, read-only persisted rule status and administrator-managed heartbeat and battery rule definitions. No scanner, rule evaluation from definitions or physical interaction is implied."
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "security": [
@@ -755,7 +755,7 @@
             }
           }
         },
-        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 3."
+        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 4."
       }
     },
     "/api/v1/scopes/{scope}/resolutions": {
@@ -1092,7 +1092,7 @@
             }
           }
         },
-        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 3."
+        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 4."
       }
     },
     "/api/v1/scopes/{scope}/evidence": {
@@ -1429,7 +1429,7 @@
             }
           }
         },
-        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 3."
+        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 4."
       }
     },
     "/api/v1/scopes/{scope}/state": {
@@ -1766,7 +1766,7 @@
             }
           }
         },
-        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 3."
+        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 4."
       }
     },
     "/api/v1/scopes/{scope}/enrollments": {
@@ -2183,7 +2183,7 @@
             }
           }
         },
-        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 3."
+        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 4."
       }
     },
     "/api/v1/scopes/{scope}/things": {
@@ -2520,7 +2520,7 @@
             }
           }
         },
-        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 3."
+        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 4."
       }
     },
     "/api/v1/scopes/{scope}/saved_queries": {
@@ -2937,7 +2937,7 @@
             }
           }
         },
-        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 3."
+        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 4."
       }
     },
     "/api/v1/scopes/{scope}/rules": {
@@ -3241,7 +3241,424 @@
             }
           }
         },
-        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 3."
+        "description": "Ascending immutable committed rule status versions. Rule history has no deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 4."
+      }
+    },
+    "/api/v1/scopes/{scope}/policies": {
+      "get": {
+        "operationId": "list_policies",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 256,
+                                "x-max-utf8-bytes": 256
+                              },
+                              "generation": {
+                                "type": "string",
+                                "pattern": "^(0|[1-9][0-9]{0,18})$",
+                                "description": "Canonical decimal integer below 9223372036854775807."
+                              },
+                              "value": {
+                                "$ref": "#/components/schemas/RuleDefinition"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "generation",
+                              "value"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "maxItems": 100
+                        },
+                        "generation": {
+                          "type": "string",
+                          "pattern": "^(0|[1-9][0-9]{0,18})$",
+                          "description": "Canonical decimal integer below 9223372036854775807."
+                        },
+                        "cursor": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 4096,
+                              "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "stream_cursor": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 4096,
+                          "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "generation",
+                        "cursor",
+                        "stream_cursor"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "save_policy",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Receipt"
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Receipt"
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveRuleDefinitionRequest"
+              }
+            }
+          },
+          "description": "At most 1 MiB, UTF-8 JSON; duplicate keys and unknown fields are rejected."
+        }
+      }
+    },
+    "/api/v1/scopes/{scope}/policies/{id}": {
+      "get": {
+        "operationId": "get_policies",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 256,
+                          "x-max-utf8-bytes": 256
+                        },
+                        "generation": {
+                          "type": "string",
+                          "pattern": "^(0|[1-9][0-9]{0,18})$",
+                          "description": "Canonical decimal integer below 9223372036854775807."
+                        },
+                        "value": {
+                          "$ref": "#/components/schemas/RuleDefinition"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "generation",
+                        "value"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scopes/{scope}/policies/{id}/history": {
+      "get": {
+        "operationId": "history_policies",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/ID"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 256,
+                                    "x-max-utf8-bytes": 256
+                                  },
+                                  "generation": {
+                                    "type": "string",
+                                    "pattern": "^(0|[1-9][0-9]{0,18})$",
+                                    "description": "Canonical decimal integer below 9223372036854775807."
+                                  },
+                                  "value": {
+                                    "$ref": "#/components/schemas/RuleDefinition"
+                                  },
+                                  "deleted": {
+                                    "const": false
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "generation",
+                                  "value",
+                                  "deleted"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 256,
+                                    "x-max-utf8-bytes": 256
+                                  },
+                                  "generation": {
+                                    "type": "string",
+                                    "pattern": "^(0|[1-9][0-9]{0,18})$",
+                                    "description": "Canonical decimal integer below 9223372036854775807."
+                                  },
+                                  "deleted": {
+                                    "const": true
+                                  },
+                                  "value": {
+                                    "type": "null"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "generation",
+                                  "deleted",
+                                  "value"
+                                ],
+                                "additionalProperties": false
+                              }
+                            ]
+                          },
+                          "maxItems": 100
+                        },
+                        "generation": {
+                          "type": "string",
+                          "pattern": "^(0|[1-9][0-9]{0,18})$",
+                          "description": "Canonical decimal integer below 9223372036854775807."
+                        },
+                        "cursor": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 4096,
+                              "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "stream_cursor": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 4096,
+                          "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "generation",
+                        "cursor",
+                        "stream_cursor"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 4."
       }
     },
     "/api/v1/scopes/{scope}/things/{id}/properties/{property}": {
@@ -3662,6 +4079,88 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/DeleteQueryRequest"
+              }
+            }
+          },
+          "description": "At most 1 MiB, UTF-8 JSON; duplicate keys and unknown fields are rejected."
+        }
+      }
+    },
+    "/api/v1/scopes/{scope}/policy_deletions": {
+      "post": {
+        "operationId": "delete_policy",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Receipt"
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Receipt"
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteRuleDefinitionRequest"
               }
             }
           },
@@ -4895,6 +5394,24 @@
                     },
                     "required": [
                       "query_id",
+                      "action"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "policy_id": {
+                        "type": "string",
+                        "pattern": "^[a-z0-9][a-z0-9-]{0,62}$"
+                      },
+                      "action": {
+                        "type": "string",
+                        "enum": ["saved", "deleted"]
+                      }
+                    },
+                    "required": [
+                      "policy_id",
                       "action"
                     ],
                     "additionalProperties": false
@@ -6268,6 +6785,339 @@
             "additionalProperties": false
           }
         ]
+      },
+      "RuleDefinition": {
+        "description": "Reviewed rule definition. The acting principal is retained privately. Saving a definition does not by itself evaluate the rule.",
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "schema": {
+                "const": "wtr.rule-definition.v1"
+              },
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9-]{0,62}$"
+              },
+              "kind": {
+                "const": "heartbeat"
+              },
+              "thing_id": {
+                "type": "string",
+                "pattern": "^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+              },
+              "revision": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]{0,18})$",
+                "description": "Canonical decimal integer below 9223372036854775807."
+              },
+              "policy_identity": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "x-max-utf8-bytes": 256
+              },
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "maximum_silence_ms": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 604800000
+                  },
+                  "future_skew_ms": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 604800000
+                  }
+                },
+                "required": [
+                  "maximum_silence_ms",
+                  "future_skew_ms"
+                ],
+                "additionalProperties": false
+              },
+              "created_at": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "updated_at": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "schema",
+              "id",
+              "kind",
+              "thing_id",
+              "revision",
+              "policy_identity",
+              "parameters",
+              "created_at",
+              "updated_at"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "schema": {
+                "const": "wtr.rule-definition.v1"
+              },
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9-]{0,62}$"
+              },
+              "kind": {
+                "const": "battery"
+              },
+              "thing_id": {
+                "type": "string",
+                "pattern": "^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+              },
+              "revision": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]{0,18})$",
+                "description": "Canonical decimal integer below 9223372036854775807."
+              },
+              "policy_identity": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "x-max-utf8-bytes": 256
+              },
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "measurement_kind": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256,
+                    "x-max-utf8-bytes": 256
+                  },
+                  "unit": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256,
+                    "x-max-utf8-bytes": 256
+                  },
+                  "low_threshold": {
+                    "type": "number",
+                    "minimum": -1000000000,
+                    "maximum": 1000000000
+                  },
+                  "clear_threshold": {
+                    "type": "number",
+                    "minimum": -1000000000,
+                    "maximum": 1000000000
+                  },
+                  "maximum_age_ms": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 604800000
+                  },
+                  "future_skew_ms": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 604800000
+                  },
+                  "accept_suspect": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "measurement_kind",
+                  "unit",
+                  "low_threshold",
+                  "clear_threshold",
+                  "maximum_age_ms",
+                  "future_skew_ms",
+                  "accept_suspect"
+                ],
+                "additionalProperties": false,
+                "description": "low_threshold must be below clear_threshold."
+              },
+              "created_at": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "updated_at": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "schema",
+              "id",
+              "kind",
+              "thing_id",
+              "revision",
+              "policy_identity",
+              "parameters",
+              "created_at",
+              "updated_at"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "SaveRuleDefinitionRequest": {
+        "description": "Binds one closed heartbeat or battery policy to an existing Thing. The service assigns the policy revision from the commit generation. Kind and Thing are immutable for an ID; a battery rule requires a declared numeric Property in the same unit. At most eight definitions may refer to one Thing.",
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9-]{0,62}$"
+              },
+              "kind": {
+                "const": "heartbeat"
+              },
+              "thing_id": {
+                "type": "string",
+                "pattern": "^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+              },
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "maximum_silence_ms": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 604800000
+                  },
+                  "future_skew_ms": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 604800000
+                  }
+                },
+                "required": [
+                  "maximum_silence_ms",
+                  "future_skew_ms"
+                ],
+                "additionalProperties": false
+              },
+              "expected_generation": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]{0,18})$",
+                "description": "Canonical decimal integer below 9223372036854775807."
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "thing_id",
+              "parameters",
+              "expected_generation"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9-]{0,62}$"
+              },
+              "kind": {
+                "const": "battery"
+              },
+              "thing_id": {
+                "type": "string",
+                "pattern": "^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+              },
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "measurement_kind": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256,
+                    "x-max-utf8-bytes": 256
+                  },
+                  "unit": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256,
+                    "x-max-utf8-bytes": 256
+                  },
+                  "low_threshold": {
+                    "type": "number",
+                    "minimum": -1000000000,
+                    "maximum": 1000000000
+                  },
+                  "clear_threshold": {
+                    "type": "number",
+                    "minimum": -1000000000,
+                    "maximum": 1000000000
+                  },
+                  "maximum_age_ms": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 604800000
+                  },
+                  "future_skew_ms": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 604800000
+                  },
+                  "accept_suspect": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "measurement_kind",
+                  "unit",
+                  "low_threshold",
+                  "clear_threshold",
+                  "maximum_age_ms",
+                  "future_skew_ms",
+                  "accept_suspect"
+                ],
+                "additionalProperties": false,
+                "description": "low_threshold must be below clear_threshold."
+              },
+              "expected_generation": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]{0,18})$",
+                "description": "Canonical decimal integer below 9223372036854775807."
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "thing_id",
+              "parameters",
+              "expected_generation"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "DeleteRuleDefinitionRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]{0,62}$"
+          },
+          "expected_generation": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,18})$",
+            "description": "Canonical decimal integer below 9223372036854775807."
+          }
+        },
+        "required": [
+          "id",
+          "expected_generation"
+        ],
+        "additionalProperties": false
       },
       "DeleteQueryRequest": {
         "type": "object",

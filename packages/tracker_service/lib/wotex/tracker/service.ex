@@ -26,13 +26,14 @@ defmodule Wotex.Tracker.Service do
     Materialize,
     Projection,
     Result,
+    RuleDefinition,
     SavedQuery,
     Snapshot,
     Store,
     Update
   }
 
-  @resources ~w(observations resolutions evidence state enrollments things saved_queries rules)
+  @resources ~w(observations resolutions evidence state enrollments things saved_queries rules policies)
   @derive {Inspect, only: [:base_url]}
   @enforce_keys [:store, :credentials, :catalogue, :model, :base_url]
   defstruct @enforce_keys
@@ -223,13 +224,47 @@ defmodule Wotex.Tracker.Service do
   @spec save_query(t(), String.t(), String.t(), String.t(), map(), integer()) ::
           {:ok, map()} | {:error, map()}
   def save_query(service, token, scope, operation, request, now),
-    do: saved_query_mutation(service, token, scope, operation, request, now, :save)
+    do:
+      admin_mutation(service, {token, scope, operation, request, now}, SavedQuery, :save, "query")
 
   @doc "Deletes one owned saved query through a retained transactional tombstone."
   @spec delete_query(t(), String.t(), String.t(), String.t(), map(), integer()) ::
           {:ok, map()} | {:error, map()}
   def delete_query(service, token, scope, operation, request, now),
-    do: saved_query_mutation(service, token, scope, operation, request, now, :delete)
+    do:
+      admin_mutation(
+        service,
+        {token, scope, operation, request, now},
+        SavedQuery,
+        :delete,
+        "query"
+      )
+
+  @doc "Saves one heartbeat or battery rule definition for an enrolled Thing."
+  @spec save_policy(t(), String.t(), String.t(), String.t(), map(), integer()) ::
+          {:ok, map()} | {:error, map()}
+  def save_policy(service, token, scope, operation, request, now),
+    do:
+      admin_mutation(
+        service,
+        {token, scope, operation, request, now},
+        RuleDefinition,
+        :save,
+        "policy"
+      )
+
+  @doc "Deletes one rule definition through a retained transactional tombstone."
+  @spec delete_policy(t(), String.t(), String.t(), String.t(), map(), integer()) ::
+          {:ok, map()} | {:error, map()}
+  def delete_policy(service, token, scope, operation, request, now),
+    do:
+      admin_mutation(
+        service,
+        {token, scope, operation, request, now},
+        RuleDefinition,
+        :delete,
+        "policy"
+      )
 
   @doc "Executes the admitted query from a saved definition after current read authorization."
   @spec execute_saved_query(t(), String.t(), String.t(), String.t(), integer()) ::
@@ -409,20 +444,20 @@ defmodule Wotex.Tracker.Service do
     end
   end
 
-  defp saved_query_mutation(service, token, scope, operation, request, now, action) do
+  defp admin_mutation(service, {token, scope, operation, request, now}, module, action, name) do
     result =
       with {:ok, access} <- authorize(service, token, scope, "admin", now),
            true <- Identifier.operation?(operation),
-           :ok <- admit_saved_query(action, request) do
+           :ok <- admit_admin(module, action, request) do
         intent = %{
           operation_id: operation,
-          request: %{"operation" => "#{action}_query", "body" => request},
+          request: %{"operation" => "#{action}_#{name}", "body" => request},
           expected_generation: request["expected_generation"],
           observation_identity: nil
         }
 
         execute_new(service, access, "admin", intent, now, fn ->
-          prepare_saved_query(action, service, access, operation, request, now)
+          prepare_admin(module, action, service, access, operation, request, now)
         end)
       else
         false -> {:error, :invalid_request}
@@ -432,14 +467,14 @@ defmodule Wotex.Tracker.Service do
     Result.mutation(result, operation)
   end
 
-  defp admit_saved_query(:save, request), do: SavedQuery.admit_save(request)
-  defp admit_saved_query(:delete, request), do: SavedQuery.admit_delete(request)
+  defp admit_admin(module, :save, request), do: module.admit_save(request)
+  defp admit_admin(module, :delete, request), do: module.admit_delete(request)
 
-  defp prepare_saved_query(:save, service, access, operation, request, now),
-    do: SavedQuery.prepare_save(service, access, operation, request, now)
+  defp prepare_admin(module, :save, service, access, operation, request, now),
+    do: module.prepare_save(service, access, operation, request, now)
 
-  defp prepare_saved_query(:delete, service, access, operation, request, now),
-    do: SavedQuery.prepare_delete(service, access, operation, request, now)
+  defp prepare_admin(module, :delete, service, access, operation, request, now),
+    do: module.prepare_delete(service, access, operation, request, now)
 
   defp storage_kind("observations"), do: "resolutions"
   defp storage_kind(resource), do: resource

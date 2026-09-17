@@ -84,6 +84,41 @@ defmodule Wotex.Tracker.Service.Read do
     end
   end
 
+  # Each Thing admits at most eight definitions; the extra row detects a violated bound.
+  def policies(db, scope, thing, generation, authorize) do
+    with true <- Codec.id?(scope) and Codec.id?(thing),
+         {:ok, version} <- Codec.generation(generation) do
+      SQL.execute!(db, "BEGIN")
+
+      try do
+        authorize.()
+        if version > Transaction.generation(db, scope), do: throw({:storage, :invalid_cursor})
+
+        rows =
+          SQL.rows!(
+            db,
+            """
+            SELECT r.id,r.document FROM records r
+            WHERE r.scope=? AND r.kind='policies' AND r.generation<=?
+            AND r.generation=(SELECT max(v.generation) FROM records v WHERE v.scope=r.scope AND v.kind=r.kind AND v.id=r.id AND v.generation<=?)
+            AND r.document!='null' AND json_extract(r.document,'$.public.thing_id')=?
+            ORDER BY r.id LIMIT 9
+            """,
+            [scope, version, version, thing]
+          )
+
+        if length(rows) > 8, do: throw({:storage, :storage_unavailable})
+
+        {:ok,
+         Enum.map(rows, fn [id, document] -> %{"id" => id, "value" => Codec.decode!(document)} end)}
+      after
+        SQL.rollback(db)
+      end
+    else
+      _ -> {:error, :invalid_query}
+    end
+  end
+
   def events(db, query, authorize \\ fn -> :ok end)
 
   def events(db, %{scope: scope, after: cursor, limit: limit, now: now} = query, authorize)

@@ -139,6 +139,12 @@ defmodule Wotex.Tracker.Service.Store do
 
   def authorized_analytics_at(_, _, _, _, _), do: {:error, :invalid_query}
 
+  @doc "Reauthorizes and reads the live rule definitions bound to one Thing at a generation."
+  @spec authorized_policies(t(), Access.t(), String.t(), String.t(), integer()) ::
+          {:ok, [map()]} | {:error, atom()}
+  def authorized_policies(store, access, thing, generation, now),
+    do: StoreCall.run(store, {:authorized_policies, access, thing, generation, now})
+
   @doc "Reads bounded ascending record versions, retaining explicit deletion tombstones."
   @spec history(t(), map()) :: {:ok, map()} | {:error, atom()}
   def history(store, query), do: StoreCall.run(store, {:history, query})
@@ -468,6 +474,19 @@ defmodule Wotex.Tracker.Service.Store do
           access,
           query.scope,
           permission,
+          Authority.now(state.options, now)
+        )
+      end)
+
+  defp dispatch({:authorized_policies, access, thing, generation, now}, state),
+    do:
+      Read.policies(state.db, access_scope(access), thing, generation, fn ->
+        Authority.check!(
+          state.db,
+          state.options.credentials,
+          access,
+          access_scope(access),
+          "read",
           Authority.now(state.options, now)
         )
       end)

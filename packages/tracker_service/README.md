@@ -104,6 +104,14 @@ restored through its pure constructor first; a damaged document returns
 `storage_unavailable`. Observations, evidence bundles, samples and coordinates
 are never included.
 
+Administrators can save and delete `wtr.rule-definition.v1` heartbeat and
+battery definitions for one enrolled Thing through `Service.save_policy/6`,
+`Service.delete_policy/6`, `POST …/policies` and `POST …/policy_deletions`.
+The service assigns each revision from its commit generation, validates the
+policy through the pure constructor and requires a battery rule to name a
+declared numeric Property in the same unit. A Thing has at most eight definitions.
+Definitions are not evaluated yet.
+
 `Service.analytics/5` and `POST …/analytics/query` accept the closed
 `wtr.query-spec.v1` document. The service rechecks `read` authority inside a
 dedicated read-only SQLite transaction, pins the current scope generation and
@@ -184,7 +192,7 @@ and key paths. Explicit `:proxy` mode requires an HTTPS public origin and a
 protected proxy-to-listener network; forwarded headers never supply authority or
 Forms. No remote exposure is inferred.
 
-OpenAPI **3.1.0**, contract revision **1.11.0**, is packaged at
+OpenAPI **3.1.0**, contract revision **1.12.0**, is packaged at
 `priv/openapi/v1.json` and served at `/api/v1/openapi.json`. Liveness is
 `/health/live`; authenticated resources are under `/api/v1/scopes/{scope}`.
 Use `Authorization: Bearer …`, and a UUIDv4 `Idempotency-Key` for POST mutations.
