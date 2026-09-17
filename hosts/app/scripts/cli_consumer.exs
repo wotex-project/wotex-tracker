@@ -25,7 +25,14 @@ defmodule Wotex.Tracker.Host.CLIConsumer do
 
     [%{"data" => %{"writable" => true}}] = call(context, ["ready"])
 
-    [%{"data" => %{"runtime" => %{"readproperty" => "available"}, "rules" => "heartbeat_battery_definitions"}}] =
+    [
+      %{
+        "data" => %{
+          "runtime" => %{"readproperty" => "available"},
+          "rules" => "heartbeat_battery_definitions"
+        }
+      }
+    ] =
       call(context, ["capabilities"])
 
     [%{"data" => %{"items" => [], "cursor" => nil, "generation" => "0"}}] =
