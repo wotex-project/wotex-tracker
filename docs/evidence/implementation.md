@@ -2009,3 +2009,11 @@ damaged latest or historical versions. Baseline motion and bounded-geofence
 tests cover a missing trip and missing valid membership. A separate BEAM HTTP
 consumer validates capabilities, paged list, get, history, 400/401/404 outcomes
 and response bytes against OpenAPI while a supervised rule scheduler runs.
+
+### Paged saved-query history — 2026-09-17
+
+Saved-query history continuations were rejected by the encrypted history cursor
+allowlist. A history page with more versions than its `limit` therefore raised
+while issuing the next cursor, which HTTP reported as an internal error. The
+cursor now admits `saved_queries`; the saved-query lifecycle test pages its two
+edits and deletion tombstone with a continuation.

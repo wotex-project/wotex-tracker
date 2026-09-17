@@ -165,6 +165,28 @@ defmodule Wotex.Tracker.Service.SavedQueryTest do
 
     assert tombstone["deleted"]
     assert tombstone["value"] == nil
+
+    assert {:ok, %{"items" => [^first, ^second], "cursor" => cursor}} =
+             Service.history(
+               context.service,
+               context.reader,
+               context.scope,
+               "saved_queries",
+               "workshop-temperature",
+               %{"limit" => 2},
+               context.now + 2
+             )
+
+    assert {:ok, %{"items" => [^tombstone], "cursor" => nil}} =
+             Service.history(
+               context.service,
+               context.reader,
+               context.scope,
+               "saved_queries",
+               "workshop-temperature",
+               %{"cursor" => cursor},
+               context.now + 2
+             )
   end
 
   test "save admission, authority and generation checks fail closed", context do
