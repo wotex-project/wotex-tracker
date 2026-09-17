@@ -30,6 +30,10 @@ the page sends no notification. A rule page shows its service definition and
 lets an administrator prepare an edit or deletion with the same generation check
 and recoverable operation reference. Parameters that are not whole seconds are
 not offered for browser editing, so a save cannot silently round them.
+The Protection page links to a newest-first alert list. Each alert page shows
+the recorded status change, rule, evaluation mode and dispatch restriction, and
+lets an administrator acknowledge a live alert once through a prepared operation
+reference. Replay alerts are marked as needing no review.
 This is not full application, Pi or mobile acceptance.
 
 `Wotex.Tracker.UI.Local` calls only the public authorized service facade.

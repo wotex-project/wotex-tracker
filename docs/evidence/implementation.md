@@ -2170,3 +2170,23 @@ second, stale, missing and malformed acknowledgements and replay-mode alerts.
 A migration test backfills an alert equal to one written by the current store.
 The independent HTTP consumer lists, acknowledges, fetches and pages an alert
 against OpenAPI, including 403 and 409 outcomes.
+
+### Browser alert review — 2026-09-17
+
+`/protection/alerts` pages the service alert projection newest first, labels
+known event kinds and marks each alert as needing review, acknowledged or a
+replay record. `/protection/alerts/{id}` shows the rule, status change, reason,
+recorded time, evaluation mode and that any physical Action needs separate
+authorization or cannot be dispatched. An administrator prepares an
+acknowledgement, which captures the scope generation and patches an operation
+reference into the address; success is reported only after reloading shows the
+acknowledgement.
+
+LiveView tests list all five rule kinds in order without capture or evidence
+references, refuse reader preparation and forged events, recover a lost
+acknowledgement reply once, reconnect to its receipt, surface a stale generation
+after another acknowledgement and reject an invalid operation reference. They
+page 26 heartbeat alerts through transient failure, changed generation and
+denial, show replay alerts without review controls, and keep unrelated receipts,
+transport failures and failed verification reads uncertain. The optional app
+host serves the alert list through its real loopback listener.

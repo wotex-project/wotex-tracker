@@ -1,11 +1,10 @@
-defmodule Wotex.Tracker.UI.ProtectionLive do
+defmodule Wotex.Tracker.UI.AlertIndexLive do
   @moduledoc """
-  Lists the committed status of deterministic tracking rules.
+  Lists recorded rule alerts, newest first, under current read authority.
 
-  Each page is fetched through the authorized service `rules` projection. The
-  screen keeps a bounded path through earlier cursor pages and reloads them under
-  current authority. It does not configure, arm, evaluate or acknowledge a rule,
-  and it never receives the private evidence behind a status.
+  Each page comes from the service `alerts` projection and keeps a bounded path
+  through earlier pages. An alert is a recorded deterministic event: this list
+  does not send notifications, acknowledge alerts or request physical Actions.
   """
 
   use Phoenix.LiveView, log: false
@@ -57,38 +56,38 @@ defmodule Wotex.Tracker.UI.ProtectionLive do
   def render(assigns) do
     ~H"""
     <main id="main" class="workspace">
+      <a href="/protection">← Tracking rules</a>
       <p class="eyebrow">Protection</p>
       <div class="heading">
         <div>
-          <h1>Tracking rules</h1>
+          <h1>Alerts</h1>
           <p>
-            Status is the service's latest committed deterministic evaluation. It is not live
-            device connectivity. This page cannot change, arm or acknowledge a rule.
+            Recorded rule events, newest first. Alerts are not delivered as notifications here, and
+            none of them requests or performs a physical Action.
           </p>
         </div>
         <button class="secondary" phx-click="refresh">Refresh</button>
       </div>
       <.notice error={@error} />
-      <a href="/protection/alerts">Review alerts</a>
-      <section :if={@page} aria-label="Tracking rules">
+      <section :if={@page} aria-label="Alerts">
         <div :if={@page["items"] == []} class="empty">
-          <h2>No rule status on this page</h2>
-          <p>
-            A host has not committed any rule evaluation for this scope. Sensor-only assets can
-            remain useful without position, motion or battery rules.
-          </p>
+          <h2>No alerts on this page</h2>
+          <p>Alerts appear when a tracking rule records a change.</p>
         </div>
         <div class="cards">
           <article :for={row <- @page["items"]} class="card">
-            <p class="eyebrow">{Presenter.rule_kind(row["value"]["kind"])}</p>
+            <p class="eyebrow">{Presenter.rule_kind(row["value"]["rule"]["kind"])}</p>
             <h2>
-              <a href={Presenter.rule_path(row["id"])}>{row["value"]["rule"]["id"]}</a>
+              <a href={Presenter.alert_path(row["id"])}>
+                {Presenter.alert_kind(row["value"]["event"]["kind"])}
+              </a>
             </h2>
-            <p class="reading">{Presenter.rule_status(row["value"]["status"])}</p>
+            <p>{Presenter.alert_state(row["value"])}</p>
             <p class="muted">
-              Revision {row["value"]["rule"]["revision"]} · committed generation {row["generation"]}
+              Rule {row["value"]["rule"]["id"]} · recorded {Presenter.timestamp(%{
+                "value" => row["value"]["created_at"]
+              })}
             </p>
-            <.rule_details status={row["value"]} />
           </article>
         </div>
         <button :if={@page_back != []} class="secondary" phx-click="previous">Previous page</button>
@@ -99,7 +98,7 @@ defmodule Wotex.Tracker.UI.ProtectionLive do
   end
 
   defp load(socket, params) do
-    case Auth.request(socket, :list, %{"resource" => "rules", "params" => params}) do
+    case Auth.request(socket, :list, %{"resource" => "alerts", "params" => params}) do
       {:ok, page} ->
         assign(socket, page: page, page_params: params, error: nil)
 

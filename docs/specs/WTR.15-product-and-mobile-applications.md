@@ -37,7 +37,9 @@ retained evaluation history under current read authority. It omits position
 evidence. An administrator can add a heartbeat or low-battery-voltage rule to a
 provisioned asset with a recoverable operation reference, then edit or delete
 it from the rule page; the service evaluates it from committed evidence.
-Geofences, movement rules, arming and alert acknowledgement remain open.
+Recorded rule events appear as newest-first alerts, and an administrator can
+acknowledge a live alert once without changing the rule or dispatching an
+Action. Geofences, movement rules, arming and notification delivery remain open.
 These are required product deliverables and optional installations for consumers
 of the library. An incomplete backend or UI framework cannot waive a product gate.
 

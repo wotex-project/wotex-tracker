@@ -127,6 +127,9 @@ defmodule Wotex.Tracker.UI.Local do
   defp dispatch(service, token, scope, :delete_policy, args, now),
     do: Service.delete_policy(service, token, scope, args["operation"], args["request"], now)
 
+  defp dispatch(service, token, scope, :acknowledge_alert, args, now),
+    do: Service.acknowledge_alert(service, token, scope, args["operation"], args["request"], now)
+
   defp dispatch(service, token, scope, :enroll, args, now),
     do: Service.enroll(service, token, scope, args["operation"], args["request"], now)
 

@@ -6,9 +6,19 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
   import Phoenix.LiveViewTest
   import Wotex.Tracker.Service.Fixtures
   alias Phoenix.LiveView.Static
-  alias Wotex.Tracker.{QueryResult, QuerySpec}
+  alias Wotex.Tracker.{HeartbeatTransition, QueryResult, QuerySpec}
   alias Wotex.Tracker.Service
-  alias Wotex.Tracker.Service.{Codec, Identifier, Projection, RuleFixtures, Store, Update}
+
+  alias Wotex.Tracker.Service.{
+    Codec,
+    Identifier,
+    Projection,
+    RuleFixtures,
+    RuleTransition,
+    Store,
+    Update
+  }
+
   alias Wotex.Tracker.UI.{ErrorHTML, Presenter, PromptPeer, Sessions, TestClient, TestEndpoint}
   @endpoint TestEndpoint
 
@@ -2745,6 +2755,193 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
       assert has_element?(invalid, "[role=alert]")
       refute has_element?(invalid, "#edit-rule")
     end
+  end
+
+  test "an administrator acknowledges the newest alert once without private references", c do
+    RuleFixtures.commit_all(c.store, c.scope)
+    {:ok, protection, _} = live(c.conn, "/protection")
+    assert has_element?(protection, ~s(a[href="/protection/alerts"]), "Review alerts")
+
+    {:ok, list, _} = live(c.conn, "/protection/alerts")
+
+    for {title, index} <-
+          Enum.with_index(
+            [
+              "Geofence entered",
+              "Trip started",
+              "Transport degraded",
+              "Battery low",
+              "Reporting overdue"
+            ],
+            1
+          ) do
+      assert has_element?(list, ".card:nth-child(#{index}) h2", title)
+    end
+
+    assert has_element?(list, ".card", "Needs review")
+
+    for private <- ~w(capture private-hardware _evidence_id latitude) do
+      refute render(list) =~ private
+    end
+
+    {:ok, %{"items" => [%{"id" => newest} | _] = alerts}} =
+      Service.list(c.service, c.reader, c.scope, "alerts", %{}, c.now)
+
+    path = Presenter.alert_path(newest)
+
+    {:ok, %{"id" => reader}} = Sessions.login(c.sessions, c.reader, c.scope)
+    reader_conn = build_conn() |> init_test_session(%{"browser_session" => reader})
+    {:ok, reader_view, _} = live(reader_conn, path)
+    assert has_element?(reader_view, ".reading", "Needs review")
+    refute has_element?(reader_view, "button", "Prepare acknowledgement")
+    render_click(reader_view, "prepare", %{})
+    render_click(reader_view, "acknowledge", %{})
+
+    {:ok, view, _} = live(c.conn, path)
+    assert has_element?(view, "h1", "Geofence entered")
+    assert render(view) =~ "Outside to Inside"
+    assert has_element?(view, ~s(a[href="/protection/geofence%3Ayard-membership"]))
+    assert render(view) =~ "any Action would need separate authorization"
+    render_click(view, "acknowledge", %{})
+    assert has_element?(view, "[role=alert]")
+
+    view |> element("button", "Prepare acknowledgement") |> render_click()
+    patched = assert_patch(view)
+    Agent.update(c.faults, &Map.put(&1, :acknowledge_alert, :lost_reply))
+    view |> element("button", "Acknowledge alert") |> render_click()
+    assert has_element?(view, "[role=status]", "Acknowledgement outcome unknown")
+    refute has_element?(view, "button", "Acknowledge alert")
+    view |> element("button", "Check operation outcome") |> render_click()
+    assert has_element?(view, "[role=status]", "Alert acknowledged")
+    assert has_element?(view, ".reading", "Acknowledged")
+    refute has_element?(view, "button", "Prepare acknowledgement")
+
+    {:ok, resumed, _} = live(c.conn, patched)
+    assert has_element?(resumed, "[role=status]", "Alert acknowledged")
+
+    [_, _, _, %{"id" => battery}, %{"id" => heartbeat}] = alerts
+    {:ok, stale, _} = live(c.conn, Presenter.alert_path(battery))
+    stale |> element("button", "Prepare acknowledgement") |> render_click()
+    assert_patch(stale)
+
+    {:ok, _} =
+      Service.acknowledge_alert(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"alert_id" => heartbeat, "expected_generation" => "12"},
+        c.now
+      )
+
+    stale |> element("button", "Acknowledge alert") |> render_click()
+    assert render(stale) =~ "changed since this page loaded"
+
+    Agent.update(c.faults, &Map.put(&1, :list, :unavailable))
+    {:ok, failing, _} = live(c.conn, Presenter.alert_path(battery))
+    Agent.update(c.faults, &Map.put(&1, :list, :unavailable))
+    failing |> element("button", "Prepare acknowledgement") |> render_click()
+    assert has_element?(failing, "[role=alert]")
+
+    {:ok, missing, _} = live(c.conn, Presenter.alert_path("alert-missing"))
+    assert has_element?(missing, "h1", "Alert unavailable")
+
+    {:ok, invalid, _} = live(c.conn, Presenter.alert_path(battery) <> "?operation=not-a-uuid")
+    assert has_element?(invalid, "[role=alert]")
+  end
+
+  test "alert pages revisit earlier pages and replay alerts need no review", c do
+    RuleFixtures.commit_heartbeat_versions(c.store, c.scope, "silence", 27)
+    {:ok, list, _} = live(c.conn, "/protection/alerts")
+    assert has_element?(list, ".card h2", "Reporting recovered")
+    list |> element("button", "Next page") |> render_click()
+    assert has_element?(list, "button", "Previous page")
+    refute has_element?(list, "button", "Next page")
+
+    Agent.update(c.faults, &Map.put(&1, :list, :unavailable))
+    list |> element("button", "Previous page") |> render_click()
+    assert has_element?(list, "[role=alert]")
+    list |> element("button", "Previous page") |> render_click()
+    refute has_element?(list, "button", "Previous page")
+
+    list |> element("button", "Next page") |> render_click()
+    RuleFixtures.commit_heartbeat_versions(c.store, c.scope, "other", 2)
+    list |> element("button", "Previous page") |> render_click()
+    assert render(list) =~ "changed since this page loaded"
+    list |> element("button", "Refresh") |> render_click()
+    render_click(list, "unknown-event", %{})
+
+    Agent.update(c.faults, &Map.put(&1, :list, {:deny, "forbidden"}))
+    list |> element("button", "Refresh") |> render_click()
+    refute has_element?(list, ".card")
+
+    policy = RuleFixtures.heartbeat_policy("replayed")
+    capture = observation(%{id: "replay-capture", observed_at: c.now})
+    {:ok, baseline} = HeartbeatTransition.evaluate(nil, capture, policy, :replay, c.now)
+    {:ok, first} = RuleTransition.new(c.scope, nil, baseline)
+    {:ok, _} = Store.commit_rule(c.store, first)
+    state = baseline["state"]
+    {:ok, overdue} = HeartbeatTransition.evaluate(state, nil, policy, :replay, state.due_at)
+    {:ok, second} = RuleTransition.new(c.scope, state, overdue)
+    {:ok, receipt} = Store.commit_rule(c.store, second)
+
+    {:ok, %{"items" => [%{"id" => replayed} | _]}} =
+      Service.list(c.service, c.reader, c.scope, "alerts", %{}, c.now)
+
+    assert String.ends_with?(replayed, receipt["event_id"])
+    {:ok, replay_view, _} = live(c.conn, Presenter.alert_path(replayed))
+    assert has_element?(replay_view, ".reading", "Replay record")
+    assert render(replay_view) =~ "None can be dispatched from this record"
+    refute has_element?(replay_view, "button", "Prepare acknowledgement")
+    replay_view |> element("button", "Refresh") |> render_click()
+    render_click(replay_view, "unknown-event", %{})
+  end
+
+  test "alert acknowledgement keeps unrelated, failed and unverified outcomes uncertain", c do
+    RuleFixtures.commit_all(c.store, c.scope)
+
+    {:ok, %{"items" => [%{"id" => newest}, %{"id" => trip} | _]}} =
+      Service.list(c.service, c.reader, c.scope, "alerts", %{}, c.now)
+
+    other_operation = Identifier.uuid()
+
+    {:ok, _} =
+      Service.acknowledge_alert(
+        c.service,
+        c.admin,
+        c.scope,
+        other_operation,
+        %{"alert_id" => trip, "expected_generation" => "11"},
+        c.now
+      )
+
+    path = Presenter.alert_path(newest)
+    {:ok, unrelated, _} = live(c.conn, path <> "?operation=" <> other_operation)
+    assert render(unrelated) =~ "belongs to a different workflow"
+    refute has_element?(unrelated, "button", "Acknowledge alert")
+
+    {:ok, reconnected, _} = live(c.conn, path <> "?operation=" <> Identifier.uuid())
+    assert has_element?(reconnected, "button", "Acknowledge alert")
+
+    Agent.update(c.faults, &Map.put(&1, :get, :unavailable))
+    reconnected |> element("button", "Refresh") |> render_click()
+    assert has_element?(reconnected, "[role=alert]")
+    assert has_element?(reconnected, ".reading", "Needs review")
+
+    Agent.update(c.faults, &Map.put(&1, :acknowledge_alert, :unavailable))
+    reconnected |> element("button", "Acknowledge alert") |> render_click()
+    assert has_element?(reconnected, "[role=status]", "Acknowledgement outcome unknown")
+
+    {:ok, lost, _} = live(c.conn, path)
+    lost |> element("button", "Prepare acknowledgement") |> render_click()
+    assert_patch(lost)
+    Agent.update(c.faults, &Map.put(&1, :acknowledge_alert, :lost_reply))
+    lost |> element("button", "Acknowledge alert") |> render_click()
+    Agent.update(c.faults, &Map.put(&1, :get, :unavailable))
+    lost |> element("button", "Check operation outcome") |> render_click()
+    assert has_element?(lost, "[role=status]", "Acknowledgement outcome unknown")
+    lost |> element("button", "Check operation outcome") |> render_click()
+    assert has_element?(lost, "[role=status]", "Alert acknowledged")
   end
 
   test "saved table dashboard keeps multiple series and exposes a failed rerun", c do

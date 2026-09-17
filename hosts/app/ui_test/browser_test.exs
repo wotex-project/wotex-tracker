@@ -206,6 +206,12 @@ defmodule Wotex.Tracker.Host.BrowserTest do
         nil
       )
 
+    {200, _, alerts} =
+      request(:get, origin <> "/protection/alerts", [{~c"cookie", browser_cookie}], nil)
+
+    assert alerts =~ "No alerts on this page"
+    refute alerts =~ c.token
+
     assert rule_form =~ "Add a rule for Workshop sensor"
     assert rule_form =~ "Provision this asset before adding a rule"
     refute rule_form =~ c.token

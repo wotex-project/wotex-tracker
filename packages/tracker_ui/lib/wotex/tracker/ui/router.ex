@@ -41,6 +41,8 @@ defmodule Wotex.Tracker.UI.Router do
       live("/operations", OperationalLive, :index)
       live("/access", AccessLive, :index)
       live("/protection", ProtectionLive, :index)
+      live("/protection/alerts", AlertIndexLive, :index)
+      live("/protection/alerts/:id", AlertLive, :show)
       live("/protection/:id", RuleLive, :show)
       live("/dashboards/:id", DashboardLive, :show)
       live("/observations/:id", ObservationLive, :show)

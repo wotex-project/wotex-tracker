@@ -119,6 +119,43 @@ defmodule Wotex.Tracker.UI.Presenter do
         status
       )
 
+  @doc "Builds the local path for one recorded alert."
+  @spec alert_path(String.t()) :: String.t()
+  def alert_path(id) when is_binary(id),
+    do: "/protection/alerts/" <> URI.encode(id, &URI.char_unreserved?/1)
+
+  @doc "Names a recorded rule event kind, falling back to its canonical name."
+  @spec alert_kind(String.t()) :: String.t()
+  def alert_kind(kind),
+    do:
+      Map.get(
+        %{
+          "heartbeat.overdue" => "Reporting overdue",
+          "heartbeat.recovered" => "Reporting recovered",
+          "heartbeat.recomputed" => "Heartbeat rule recomputed",
+          "battery.low" => "Battery low",
+          "battery.recovered" => "Battery recovered",
+          "battery.recomputed" => "Battery rule recomputed",
+          "transport.degraded" => "Transport degraded",
+          "transport.recovered" => "Transport recovered",
+          "transport.recomputed" => "Transport rule recomputed",
+          "trip.started" => "Trip started",
+          "trip.stopped" => "Trip stopped",
+          "geofence.entered" => "Geofence entered",
+          "geofence.exited" => "Geofence exited"
+        },
+        kind,
+        kind
+      )
+
+  @doc "Describes whether an alert needs review, is acknowledged or is only a replay record."
+  @spec alert_state(map()) :: String.t()
+  def alert_state(%{"acknowledgement" => %{"at" => at}}),
+    do: "Acknowledged " <> timestamp(%{"value" => at})
+
+  def alert_state(%{"mode" => "live"}), do: "Needs review"
+  def alert_state(_), do: "Replay record; no review needed"
+
   @doc "Formats a tagged millisecond duration without rounding it into a coarser unit."
   @spec duration(term()) :: String.t()
   def duration(%{"type" => "integer", "value" => value}) when is_integer(value),
