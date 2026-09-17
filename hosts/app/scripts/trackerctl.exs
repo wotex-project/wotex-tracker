@@ -531,7 +531,7 @@ defmodule Wotex.Tracker.Host.CLI do
     }
   end
 
-  defp parse_command([name]) when name in ["capabilities", "ready"],
+  defp parse_command([name]) when name in ["capabilities", "ready", "credentials"],
     do: %{name: String.to_atom(name)}
 
   defp parse_command(["list", resource | arguments]) do
@@ -667,6 +667,9 @@ defmodule Wotex.Tracker.Host.CLI do
 
   defp command_target(%{name: :ready}, base),
     do: {base <> "/health/ready", nil, finite("application/json")}
+
+  defp command_target(%{name: :credentials}, base),
+    do: {base <> "/credentials", nil, finite("application/json")}
 
   defp command_target(%{name: :list} = command, base),
     do: resource_target(base, command, false)

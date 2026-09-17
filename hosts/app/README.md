@@ -83,6 +83,7 @@ With those global options before the command, the available commands are:
 | `events --cursor CURSOR --stream --seconds 30 --max-events 100` | Bounded SSE delivery |
 | `raw observations ID --output export.json` | Original native JSON bytes to a new 0600 file |
 | `operation UUID` | Resolve the retained outcome without repeating an operation |
+| `credentials` | Administrator inventory of this scope's credentials, grants, expiry and revocation |
 | `revoke CREDENTIAL_ID --generation N` | Permanently revoke this scope's credential ID |
 
 Every mutation requires the expected generation. Supply `--operation UUID` to

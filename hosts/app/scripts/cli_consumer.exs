@@ -35,6 +35,26 @@ defmodule Wotex.Tracker.Host.CLIConsumer do
     ] =
       call(context, ["capabilities"])
 
+    [
+      %{
+        "data" => %{
+          "generation" => "0",
+          "items" => [
+            %{
+              "credential_id" => "operator",
+              "principal" => "operator",
+              "current" => true,
+              "status" => "active",
+              "revocation" => nil
+            }
+          ]
+        }
+      }
+    ] = call(context, ["credentials"])
+
+    [%{"error" => %{"code" => "invalid_arguments"}}] =
+      call(context, ["credentials", "extra"], 2)
+
     [%{"data" => %{"items" => [], "cursor" => nil, "generation" => "0"}}] =
       call(context, ["list", "rules", "--limit", "1"])
 

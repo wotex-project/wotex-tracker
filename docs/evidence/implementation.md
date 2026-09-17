@@ -2270,3 +2270,12 @@ stays unknown while the inventory cannot be read and becomes revoked once it
 can. Reader sessions cannot see the inventory, prepare a revocation or forge a
 confirmation. The optional app host serves the inventory through its real
 loopback listener without disclosing the bearer.
+
+### Command-line credential inventory — 2026-09-17
+
+`trackerctl credentials` reads `GET …/credentials` with the same bounded HTTP
+client, JSON output and exit contract as other commands; it takes no arguments.
+The independent CLI consumer checks against the provisioned host that the
+operator credential created by `init` is listed as the current, active,
+unrevoked `operator` credential at generation 0, and that an extra argument
+is rejected with exit status 2 and `invalid_arguments`.
