@@ -55,6 +55,11 @@ permissions, expiry and revocation status, and can revoke another active
 credential. That flow keeps the credential ID and an operation reference in the
 address, requires confirmation and counts a committed receipt only after the
 reloaded inventory shows the credential revoked.
+An administrator can remove an enrolled asset from its detail page. The removal
+page states that the asset, its state and its rule definitions leave current
+views while history, evidence and alerts remain, then requires a prepared
+operation reference and confirmation. Success is reported only when the receipt
+names the asset and its enrollment is no longer readable.
 
 The host supplies a `Wotex.Tracker.UI.Client` implementation and explicitly
 starts the session store. The local adapter resolves the current service for

@@ -24,7 +24,10 @@ credential after explicit confirmation. Administrators also see the scope's
 configured credentials with permissions, expiry and revocation status and can
 revoke another active credential through a recoverable, confirmed operation.
 Accesses themselves are not recorded, so a full access audit and management of
-sessions and devices remain open.
+sessions and devices remain open. An administrator can remove an enrolled asset
+after reading the consequences and confirming: its enrollment, Thing, state and
+rule definitions leave current views while history, evidence and alerts remain.
+Data deletion and retention management remain open.
 Readers can move forward and revisit up to 32 earlier state-history pages;
 each move reloads that page under current read authority. Refresh starts again
 at the latest snapshot. Temporary failures keep the current page available;

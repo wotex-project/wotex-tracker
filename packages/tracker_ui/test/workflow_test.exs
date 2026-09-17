@@ -2810,6 +2810,130 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert has_element?(view, "[role=status]", "Alerts are unavailable")
   end
 
+  test "an administrator removes an asset after confirmation and reconnects to the receipt", c do
+    thing = provisioned(c)
+
+    {:ok, _} =
+      Service.save_policy(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        battery_rule(thing, "3", {2.5, 2.8}),
+        c.now
+      )
+
+    path = Presenter.path(:asset, thing) <> "/remove"
+
+    {:ok, asset, _} =
+      live(c.conn, Presenter.path(:asset, thing) <> "?operation=" <> Identifier.uuid())
+
+    assert has_element?(asset, ~s(a[href="#{path}"]), "Remove asset")
+
+    {:ok, view, _} = live(c.conn, path)
+    assert has_element?(view, "h2", "What removal does")
+    assert render(view) =~ "1 rule definition is deleted"
+    refute has_element?(view, "#remove-asset")
+    view |> element("button", "Prepare removal") |> render_click()
+    patched = assert_patch(view)
+    assert has_element?(view, "#remove-asset")
+
+    view |> form("#remove-asset") |> render_submit()
+    assert has_element?(view, "[role=alert]", "Check the required fields")
+    assert {:ok, _} = Service.get(c.service, c.admin, c.scope, "enrollments", thing, c.now)
+
+    view |> form("#remove-asset", removal: %{confirmed: "yes"}) |> render_submit()
+    assert has_element?(view, "[role=status]", "Asset removed")
+    assert has_element?(view, ~s(a[href="/"]), "Return to assets")
+    refute has_element?(view, "#remove-asset")
+
+    assert {:error, %{"code" => "not_found"}} =
+             Service.get(c.service, c.admin, c.scope, "enrollments", thing, c.now)
+
+    assert {:ok, %{"items" => []}} =
+             Service.thing_policies(c.service, c.reader, c.scope, thing, c.now)
+
+    {:ok, resumed, _} = live(c.conn, patched)
+    assert has_element?(resumed, "h1", "Asset removed")
+    assert has_element?(resumed, "[role=status]", "Asset removed")
+    render_submit(resumed, "remove", %{"removal" => %{"confirmed" => "yes"}})
+    refute has_element?(resumed, "[role=alert]")
+
+    {:ok, list, _} = live(c.conn, "/")
+    refute has_element?(list, ".card")
+  end
+
+  test "asset removal refuses readers and stale snapshots and recovers uncertain replies", c do
+    thing = provisioned(c)
+    path = Presenter.path(:asset, thing) <> "/remove"
+
+    {:ok, %{"id" => reader}} = Sessions.login(c.sessions, c.reader, c.scope)
+    reader_conn = build_conn() |> init_test_session(%{"browser_session" => reader})
+    {:ok, reader_view, _} = live(reader_conn, path)
+    assert render(reader_view) =~ "cannot remove it"
+    refute has_element?(reader_view, "button", "Prepare removal")
+    render_click(reader_view, "prepare", %{})
+    assert has_element?(reader_view, "[role=alert]")
+
+    {:ok, forged, _} = live(reader_conn, path <> "?operation=" <> Identifier.uuid())
+    refute has_element?(forged, "#remove-asset")
+    render_submit(forged, "remove", %{"removal" => %{"confirmed" => "yes"}})
+    assert has_element?(forged, "[role=alert]", "does not permit")
+
+    {:ok, stale, _} = live(c.conn, path)
+    stale |> element("button", "Prepare removal") |> render_click()
+    assert_patch(stale)
+    import_operation = Identifier.uuid()
+
+    {:ok, _} =
+      Service.submit(
+        c.service,
+        c.admin,
+        c.scope,
+        import_operation,
+        import_request(%{id: "observation-removal"}, "3"),
+        c.now
+      )
+
+    stale |> form("#remove-asset", removal: %{confirmed: "yes"}) |> render_submit()
+    assert has_element?(stale, "[role=alert]", "service changed")
+    refute has_element?(stale, "#remove-asset")
+    assert {:ok, _} = Service.get(c.service, c.admin, c.scope, "enrollments", thing, c.now)
+
+    {:ok, unrelated, _} = live(c.conn, path <> "?operation=" <> import_operation)
+    assert has_element?(unrelated, "[role=alert]", "different workflow")
+
+    {:ok, invalid, _} = live(c.conn, path <> "?operation=not-a-uuid")
+    assert has_element?(invalid, "[role=alert]")
+    refute has_element?(invalid, "#remove-asset")
+
+    {:ok, failing, _} = live(c.conn, path)
+    failing |> element("button", "Prepare removal") |> render_click()
+    assert_patch(failing)
+    Agent.update(c.faults, &Map.put(&1, :unenroll, :unavailable))
+    failing |> form("#remove-asset", removal: %{confirmed: "yes"}) |> render_submit()
+    assert has_element?(failing, "[role=status]", "Removal outcome unknown")
+    failing |> element("button", "Check operation outcome") |> render_click()
+    assert has_element?(failing, "[role=status]", "Removal outcome unknown")
+    assert {:ok, _} = Service.get(c.service, c.admin, c.scope, "enrollments", thing, c.now)
+
+    {:ok, lost, _} = live(c.conn, path)
+    lost |> element("button", "Prepare removal") |> render_click()
+    assert_patch(lost)
+    Agent.update(c.faults, &Map.put(&1, :unenroll, :lost_reply))
+    lost |> form("#remove-asset", removal: %{confirmed: "yes"}) |> render_submit()
+    assert has_element?(lost, "[role=status]", "Removal outcome unknown")
+    Agent.update(c.faults, &Map.put(&1, :get, :unavailable))
+    lost |> element("button", "Check operation outcome") |> render_click()
+    assert has_element?(lost, "[role=status]", "Removal outcome unknown")
+    lost |> element("button", "Check operation outcome") |> render_click()
+    assert has_element?(lost, "[role=status]", "Asset removed")
+
+    Agent.update(c.faults, &Map.put(&1, :get, :unavailable))
+    {:ok, gone, _} = live(c.conn, path)
+    assert has_element?(gone, "h1", "Asset unavailable")
+  end
+
   test "rule creation rejects readers, invalid input, stale snapshots and duplicate writes", c do
     {thing, _} = enrolled(c)
     path = Presenter.path(:asset, thing) <> "/protection"

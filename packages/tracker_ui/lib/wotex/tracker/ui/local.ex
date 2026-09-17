@@ -151,6 +151,9 @@ defmodule Wotex.Tracker.UI.Local do
   defp dispatch(service, token, scope, :materialize, args, now),
     do: Service.materialize(service, token, scope, args["operation"], args["request"], now)
 
+  defp dispatch(service, token, scope, :unenroll, args, now),
+    do: Service.unenroll(service, token, scope, args["operation"], args["request"], now)
+
   defp dispatch(service, token, scope, :revoke, args, now),
     do: Service.revoke(service, token, scope, args["operation"], args["request"], now)
 

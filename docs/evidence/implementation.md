@@ -2384,3 +2384,23 @@ materialised enrollment writes only that tombstone and event and leaves other
 assets untouched. The independent HTTP consumer enrolls a second asset, gets 403
 for a reader, unenrolls it, receives 404 for its enrollment and sees the deletion
 in its history.
+
+### Browser asset removal — 2026-09-17
+
+An enrolled asset's page now links administrators to `/assets/{id}/remove`. The
+page lists the consequences before anything is prepared, including how many rule
+definitions will be deleted and that retained history, observations, evidence,
+rule status and alerts stay. Preparing a removal captures the scope generation
+and patches a fresh operation reference into the address; submitting requires a
+confirmation checkbox and calls `Service.unenroll/6`. A committed receipt counts
+only when it names this asset and the enrollment reads as not found. An unknown or
+failed reply keeps the reference for a later check, and a stale generation closes
+the form without committing.
+
+LiveView tests remove a provisioned asset with a battery definition after an
+unconfirmed submission is refused, find its enrollment and definitions gone,
+reconnect to the receipt without a second write and see the asset list empty.
+They refuse reader preparation and forged submission, surface a stale generation
+after another commit, reject an unrelated or invalid operation reference, keep an
+unavailable reply uncertain, and recover a lost reply once the enrollment can be
+read as removed.

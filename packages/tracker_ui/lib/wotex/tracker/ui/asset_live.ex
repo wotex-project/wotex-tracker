@@ -250,6 +250,13 @@ defmodule Wotex.Tracker.UI.AssetLive do
       <a :if={@thing} href={Presenter.path(:asset, @id) <> "/protection"}>
         Protection rules
       </a>
+      <a
+        :if={@enrollment && @identity["can_manage_queries"]}
+        class="secondary"
+        href={Presenter.path(:asset, @id) <> "/remove"}
+      >
+        Remove asset
+      </a>
       <section :if={@state} class="panel">
         <h2>Tracking capabilities</h2>
         <p>
