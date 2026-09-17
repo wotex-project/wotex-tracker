@@ -94,6 +94,9 @@ publication effect is implicit.
 An `enroll` grant can derive initial state/evidence for the same Thing in its
 materialisation transaction. It cannot import observations or export raw data.
 Resource reads need `read`; raw exports need `raw`; revocation needs `admin`.
+`Service.unenroll/6` and `POST …/unenrollments` let an administrator remove one
+enrolled asset: its enrollment, Thing, current state and rule definitions become
+tombstones in one commit while history, evidence and alerts are retained.
 `Service.credentials/4` and `GET …/credentials` give administrators an audit of
 the scope's configured credentials, their grants, expiry and durable revocation,
 without token digests.
@@ -206,7 +209,7 @@ and key paths. Explicit `:proxy` mode requires an HTTPS public origin and a
 protected proxy-to-listener network; forwarded headers never supply authority or
 Forms. No remote exposure is inferred.
 
-OpenAPI **3.1.0**, contract revision **1.18.0**, is packaged at
+OpenAPI **3.1.0**, contract revision **1.19.0**, is packaged at
 `priv/openapi/v1.json` and served at `/api/v1/openapi.json`. Liveness is
 `/health/live`; authenticated resources are under `/api/v1/scopes/{scope}`.
 Use `Authorization: Bearer …`, and a UUIDv4 `Idempotency-Key` for POST mutations.

@@ -583,6 +583,7 @@ defmodule Wotex.Tracker.HTTPConsumer do
       |> Enum.map(& &1["deleted"])
 
     policy_workflow(context, prefix, thing)
+    unenrollment_workflow(context, prefix, observation["observed_at"])
   end
 
   defp policy_workflow(context, prefix, thing) do
@@ -667,6 +668,53 @@ defmodule Wotex.Tracker.HTTPConsumer do
     [false, false, true] =
       context
       |> data("history_policies", policy_path <> "/history")
+      |> Map.fetch!("items")
+      |> Enum.map(& &1["deleted"])
+  end
+
+  # A second asset is removed so later probes keep using the first one.
+  defp unenrollment_workflow(context, prefix, now) do
+    %{"generation" => generation} = data(context, "list_things", prefix <> "/things")
+
+    import = %{
+      "observation" => observation("unenrolled-observation", now),
+      "expected_generation" => generation
+    }
+
+    imported = data(context, "import_observation", prefix <> "/observations", body: import)
+
+    enrolled =
+      data(context, "enroll", prefix <> "/enrollments",
+        body: %{
+          "observation_id" => imported["data"]["observation_id"],
+          "title" => "Removed client sensor",
+          "owner_confirmed" => true,
+          "expected_generation" => imported["generation"]
+        }
+      )
+
+    thing = enrolled["data"]["thing_id"]
+    request = %{"thing_id" => thing, "expected_generation" => enrolled["generation"]}
+
+    request(context, "unenroll", prefix <> "/unenrollments",
+      body: request,
+      who: :reader,
+      status: 403
+    )
+
+    %{"data" => %{"thing_id" => ^thing, "action" => "unenrolled", "policy_ids" => []}} =
+      data(context, "unenroll", prefix <> "/unenrollments", body: request)
+
+    request(context, "get_enrollments", prefix <> "/enrollments/" <> encode_segment(thing),
+      status: 404
+    )
+
+    [false, true] =
+      context
+      |> data(
+        "history_enrollments",
+        prefix <> "/enrollments/" <> encode_segment(thing) <> "/history"
+      )
       |> Map.fetch!("items")
       |> Enum.map(& &1["deleted"])
   end

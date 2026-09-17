@@ -231,16 +231,29 @@ keys; generation strings are canonical nonnegative decimals.
 | `associate` | `enroll` | `thing_id`, `observation_id`, `owner_confirmed` (`true`), `expected_generation` |
 | `materialize` | `enroll` | `thing_id` (issued UUID URN), `expected_generation` |
 | `revoke` | `admin` | `credential_id`, `expected_generation` |
+| `unenroll` | `admin`, plus `enroll` for enrollment, Thing and state records | `thing_id`, `expected_generation` |
 
 Successful imports return `data.observation_id`; enrollment returns
 `data.thing_id`; association returns that Thing ID, the selected public
 `observation_id` and a new `association_id`; materialisation returns the Thing ID
-and `materialisation_id`.
+and `materialisation_id`. Unenrollment returns the Thing ID, `action: "unenrolled"`
+and the removed definition IDs in `policy_ids`.
 Generated IDs are stored in the atomic operation receipt. After authentication
 and request admission, exact replay returns that receipt before consulting a
 new catalogue or model. A new request still checks its generation and authority
 inside the final write transaction. Known preparation failures are
 `not_committed`; only uncertainty after attempting a write yields `unknown`.
+
+Unenrollment reads the enrollment, Thing, state and live rule definitions at the
+request's exact generation. It writes deletion tombstones for the enrollment and,
+when present, the Thing and its current state, plus every live definition bound
+to the Thing, and publishes `enrollment.changed`, `thing.changed` when a Thing
+existed and `policy.changed` with `deleted` for each definition. Deleted
+definitions stop scheduling; rule status and history, alerts, observations,
+private evidence and record history are retained, so this is not data erasure.
+An open Property observation for the Thing closes at its next commit. No
+publication intent or physical Action is created, and a removed Thing cannot be
+materialised, given definitions or unenrolled again.
 
 Enrollment requires a resolved observation from the current exact catalogue
 identity. It records the confirming actor privately and issues a random UUIDv4
@@ -283,7 +296,7 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
-## HTTP and stream contract 1.18.0
+## HTTP and stream contract 1.19.0
 
 The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
 2020-12. The independently maintained Elixir audit checks document shape,
@@ -316,6 +329,7 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | `…/policies` | POST create or update a heartbeat or battery rule definition for one Thing |
 | `…/policy_deletions` | POST delete a rule definition with a retained tombstone |
 | `…/alert_acknowledgements` | POST acknowledge one live rule alert once |
+| `…/unenrollments` | POST remove one enrolled asset and its rule definitions from current views |
 | `…/credentials` | GET the administrator audit of this scope's configured credentials, grants, expiry and revocation |
 | `…/things/{id}/policies` | GET the at most eight live rule definitions bound to one Thing |
 | `…/things/{id}/alerts` | GET newest-first alerts of the rules defined for one Thing |

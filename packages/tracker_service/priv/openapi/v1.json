@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "WoTEx Tracker service",
-    "version": "1.18.0",
-    "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries, persisted rule status and administrator-managed heartbeat and battery rule definitions evaluated against committed Thing evidence, acknowledgeable rule alerts listed per Thing for defined rules, and an administrator credential inventory. No scanner, notification delivery or physical interaction is implied."
+    "version": "1.19.0",
+    "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries, persisted rule status and administrator-managed heartbeat and battery rule definitions evaluated against committed Thing evidence, acknowledgeable rule alerts listed per Thing for defined rules, administrator unenrollment and an administrator credential inventory. No scanner, notification delivery or physical interaction is implied."
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "security": [
@@ -4572,6 +4572,89 @@
         }
       }
     },
+    "/api/v1/scopes/{scope}/unenrollments": {
+      "post": {
+        "operationId": "unenroll",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Receipt"
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Receipt"
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnenrollmentRequest"
+              }
+            }
+          },
+          "description": "At most 1 MiB, UTF-8 JSON; duplicate keys and unknown fields are rejected."
+        },
+        "description": "Requires admin authority. Removes one enrolled asset from current views in one commit: its enrollment, Thing, current state and every live rule definition bound to it become deletion tombstones, so those rules stop scheduling. Record history, private evidence, observations and alerts are retained. No publication or physical Action is requested."
+      }
+    },
     "/api/v1/scopes/{scope}/saved_query_deletions": {
       "post": {
         "operationId": "delete_query",
@@ -6031,6 +6114,32 @@
                   {
                     "type": "object",
                     "properties": {
+                      "thing_id": {
+                        "type": "string",
+                        "pattern": "^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                      },
+                      "action": {
+                        "const": "unenrolled"
+                      },
+                      "policy_ids": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "pattern": "^[a-z0-9][a-z0-9-]{0,62}$"
+                        },
+                        "maxItems": 8
+                      }
+                    },
+                    "required": [
+                      "thing_id",
+                      "action",
+                      "policy_ids"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
                       "query_id": {
                         "type": "string",
                         "minLength": 1,
@@ -6861,6 +6970,25 @@
         },
         "required": [
           "credential_id",
+          "expected_generation"
+        ],
+        "additionalProperties": false
+      },
+      "UnenrollmentRequest": {
+        "type": "object",
+        "properties": {
+          "thing_id": {
+            "type": "string",
+            "pattern": "^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+          },
+          "expected_generation": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,18})$",
+            "description": "Canonical decimal integer below 9223372036854775807."
+          }
+        },
+        "required": [
+          "thing_id",
           "expected_generation"
         ],
         "additionalProperties": false

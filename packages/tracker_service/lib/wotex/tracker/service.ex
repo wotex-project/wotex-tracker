@@ -31,6 +31,7 @@ defmodule Wotex.Tracker.Service do
     SavedQuery,
     Snapshot,
     Store,
+    Unenrollment,
     Update
   }
 
@@ -265,6 +266,27 @@ defmodule Wotex.Tracker.Service do
         RuleDefinition,
         :delete,
         "policy"
+      )
+
+  @doc """
+  Removes one enrolled asset from current views through an idempotent administrative mutation.
+
+  The request has exactly `thing_id` and `expected_generation`. The enrollment,
+  Thing, current state and every live rule definition bound to the Thing become
+  deletion tombstones in one commit, so those rules stop scheduling. Record
+  history, private evidence, observations and alerts are retained, and no
+  publication or physical Action is requested.
+  """
+  @spec unenroll(t(), String.t(), String.t(), String.t(), map(), integer()) ::
+          {:ok, map()} | {:error, map()}
+  def unenroll(service, token, scope, operation, request, now),
+    do:
+      admin_mutation(
+        service,
+        {token, scope, operation, request, now},
+        Unenrollment,
+        :delete,
+        "enrollment"
       )
 
   @doc "Lists the at most eight live rule definitions bound to one Thing at the current snapshot."

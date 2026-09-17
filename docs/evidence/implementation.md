@@ -2359,3 +2359,28 @@ An alert page now links the asset protection page of the Thing whose rule
 definition recorded it, or states that the host manages the rule when the alert
 has no Thing. LiveView tests see the link on an alert from a battery definition
 and the host-managed statement on a fixture battery alert.
+
+### Administrator unenrollment — 2026-09-17
+
+HTTP contract 1.19.0 adds `unenroll`, backed by `Service.unenroll/6` and
+`POST …/unenrollments`. An administrator names one Thing and the expected
+generation. The service reads its enrollment, Thing, current state and live rule
+definitions at that generation and commits deletion tombstones for all present
+records, with `enrollment.changed`, `thing.changed` and a deleted
+`policy.changed` event per definition. Deleted definitions stop scheduling. Rule
+status, alerts, observations, private evidence and record history are retained,
+so unenrollment removes the asset from current views without erasing data. No
+publication intent or physical Action is created.
+
+Service tests unenroll a materialised Thing with heartbeat and battery
+definitions, replay the receipt, and find the enrollment, Thing, state and both
+definitions gone, the Thing's definition list and the enrollment list empty and
+nothing scheduled, while rule status, raw observation export and a tombstoned
+enrollment history remain. They reject readers, malformed requests, stale and
+future generations and unknown Things, and refuse to materialise, define rules
+for or unenroll the removed Thing. An open Property observation closes after the
+unenrollment and a Property read returns `not_found`. Removing a never
+materialised enrollment writes only that tombstone and event and leaves other
+assets untouched. The independent HTTP consumer enrolls a second asset, gets 403
+for a reader, unenrolls it, receives 404 for its enrollment and sees the deletion
+in its history.
