@@ -48,6 +48,11 @@ session; service credential revocation also rejects existing views. The Access
 page lets an administrator revoke their current service credential with a
 generation check and explicit confirmation. An uncertain commit redirects to
 sign-in with the operation reference so it survives the revoked session.
+Administrators also see the scope's configured credentials with principal,
+permissions, expiry and revocation status, and can revoke another active
+credential. That flow keeps the credential ID and an operation reference in the
+address, requires confirmation and counts a committed receipt only after the
+reloaded inventory shows the credential revoked.
 
 The host supplies a `Wotex.Tracker.UI.Client` implementation and explicitly
 starts the session store. The local adapter resolves the current service for

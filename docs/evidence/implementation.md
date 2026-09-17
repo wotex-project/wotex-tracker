@@ -2243,3 +2243,30 @@ reader is denied ordinary reads. Store reads reject malformed and more than 32
 IDs. The independent HTTP consumer validates the list against OpenAPI before and
 after revoking the reader, including the reader's 403, the acting administrator
 and the revocation generation.
+
+### Browser credential inventory and revocation — 2026-09-17
+
+The Access page now shows an administrator the service credential inventory for
+the scope: each configured credential's ID, principal, permissions, expiry and
+status, with a revocation's time and acting principal and a marker for this
+browser's own credential. Readers do not see the inventory. An administrator can
+prepare the revocation of another active credential: the page reloads the
+inventory, captures its generation and patches the credential ID and a fresh
+operation reference into the address before the confirmation form appears. The
+current credential keeps its separate self-revocation flow. A committed receipt
+counts as success only when its data names the same credential and the reloaded
+inventory shows it revoked; a later failed check does not make a verified
+revocation uncertain. Unknown replies and failed reads can be checked through
+the retained reference without submitting again.
+
+LiveView tests list both fixture credentials without bearer tokens or digests,
+revoke the reader after an unconfirmed submission is refused, show the revocation
+time and actor, reconnect to the receipt without a second write and deny the
+revoked reader. They reject a stale generation without committing, refuse an
+unrelated operation reference, an invalid reference, a missing reference, the
+current credential and an already revoked credential, and keep the page usable
+through unavailable and malformed inventory replies. A lost revocation reply
+stays unknown while the inventory cannot be read and becomes revoked once it
+can. Reader sessions cannot see the inventory, prepare a revocation or forge a
+confirmation. The optional app host serves the inventory through its real
+loopback listener without disclosing the bearer.

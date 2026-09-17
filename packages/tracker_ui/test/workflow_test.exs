@@ -522,6 +522,154 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     refute has_element?(view, "#revoke-current")
   end
 
+  test "an administrator reviews scope credentials and revokes another after confirmation", c do
+    {:ok, view, html} = live(c.conn, "/access")
+    assert has_element?(view, "caption", "2 configured credentials at scope version 0")
+    assert has_element?(view, "th .identifier", "This browser session")
+    assert has_element?(view, ~s(button[phx-value-id="reader"]), "Prepare to revoke")
+    refute has_element?(view, ~s(button[phx-value-id="admin"]))
+    assert html =~ "viewer"
+    refute html =~ "token_sha256"
+    refute html =~ c.admin
+    refute html =~ c.reader
+
+    view |> element(~s(button[phx-value-id="reader"])) |> render_click()
+    patched = assert_patch(view)
+    assert URI.decode_query(URI.parse(patched).query)["credential"] == "reader"
+    assert has_element?(view, "#revoke-other")
+    refute has_element?(view, ~s(button[phx-value-id="reader"]))
+
+    render_submit(view, "confirm-revoke-other", %{"revoke" => %{}})
+    assert has_element?(view, "[role=alert]", "Check the required fields")
+    assert {:ok, _} = Service.authorize(c.service, c.reader, c.scope, "read", c.now)
+
+    view |> form("#revoke-other", revoke: %{confirmed: "yes"}) |> render_submit()
+    assert has_element?(view, "[role=status]", "Credential reader revoked")
+    refute has_element?(view, "#revoke-other")
+    assert render(view) =~ "Revoked 2023-11-14 22:13:20 UTC by owner"
+
+    assert {:error, :unauthorized} =
+             Service.authorize(c.service, c.reader, c.scope, "read", c.now)
+
+    assert {:ok, _} = Service.authorize(c.service, c.admin, c.scope, "read", c.now)
+
+    {:ok, resumed, _} = live(c.conn, patched)
+    assert has_element?(resumed, "[role=status]", "Credential reader revoked")
+    refute has_element?(resumed, "#revoke-other")
+    render_submit(resumed, "confirm-revoke-other", %{"revoke" => %{"confirmed" => "yes"}})
+    refute has_element?(resumed, "[role=alert]")
+
+    assert {:ok, %{"generation" => "1"}} =
+             Service.credentials(c.service, c.admin, c.scope, c.now)
+
+    {:ok, other, _} = live(c.conn, "/access?credential=reader&operation=" <> Identifier.uuid())
+    assert render(other) =~ "cannot be revoked here"
+    refute has_element?(other, "#revoke-other")
+    render_submit(other, "confirm-revoke-other", %{"revoke" => %{"confirmed" => "yes"}})
+    assert has_element?(other, "[role=alert]", "service changed")
+    other |> element("button", "Check operation outcome") |> render_click()
+    refute has_element?(other, "[role=status]")
+  end
+
+  test "credential revocation recovers lost replies and refuses stale or forged changes", c do
+    {:ok, view, _} = live(c.conn, "/access")
+    view |> element(~s(button[phx-value-id="reader"])) |> render_click()
+    stale_path = assert_patch(view)
+    import_operation = Identifier.uuid()
+
+    assert {:ok, _} =
+             Service.submit(
+               c.service,
+               c.admin,
+               c.scope,
+               import_operation,
+               import_request(),
+               c.now
+             )
+
+    view |> form("#revoke-other", revoke: %{confirmed: "yes"}) |> render_submit()
+    assert has_element?(view, "[role=alert]", "service changed")
+    refute has_element?(view, "#revoke-other")
+    assert {:ok, _} = Service.authorize(c.service, c.reader, c.scope, "read", c.now)
+
+    {:ok, unrelated, _} =
+      live(c.conn, "/access?credential=reader&operation=" <> import_operation)
+
+    assert has_element?(unrelated, "[role=alert]", "different workflow")
+    refute has_element?(unrelated, "#revoke-other")
+
+    {:ok, invalid, _} = live(c.conn, "/access?credential=reader&operation=not-a-uuid")
+    assert has_element?(invalid, "[role=alert]")
+    refute has_element?(invalid, "#revoke-other")
+    {:ok, partial, _} = live(c.conn, "/access?credential=reader")
+    assert has_element?(partial, "[role=alert]")
+
+    render_click(invalid, "prepare-revoke-other", %{"id" => "admin"})
+    assert has_element?(invalid, "[role=alert]", "service changed")
+
+    {:ok, unavailable, _} = live(c.conn, "/access")
+    Agent.update(c.faults, &Map.put(&1, :credentials, :unavailable))
+    unavailable |> element("button", "Refresh access") |> render_click()
+    assert has_element?(unavailable, "[role=status]", "credential list is unavailable")
+    refute has_element?(unavailable, ~s(button[phx-value-id="reader"]))
+    Agent.update(c.faults, &Map.put(&1, :credentials, :unavailable))
+    render_click(unavailable, "prepare-revoke-other", %{"id" => "reader"})
+    assert has_element?(unavailable, "[role=alert]")
+    unavailable |> element("button", "Refresh access") |> render_click()
+    assert has_element?(unavailable, ~s(button[phx-value-id="reader"]))
+
+    Agent.update(c.faults, &Map.put(&1, :credentials, {:reply, {:ok, %{}}}))
+    unavailable |> element("button", "Refresh access") |> render_click()
+    assert has_element?(unavailable, "[role=status]", "credential list is unavailable")
+
+    {:ok, lost, _} = live(c.conn, "/access")
+    lost |> element(~s(button[phx-value-id="reader"])) |> render_click()
+    lost_path = assert_patch(lost)
+    refute lost_path == stale_path
+    Agent.update(c.faults, &Map.put(&1, :revoke, :lost_reply))
+    lost |> form("#revoke-other", revoke: %{confirmed: "yes"}) |> render_submit()
+    assert has_element?(lost, "[role=status]", "Revocation outcome unknown")
+    refute has_element?(lost, "#revoke-other")
+
+    Agent.update(c.faults, &Map.put(&1, :credentials, :unavailable))
+    lost |> element("button", "Check operation outcome") |> render_click()
+    assert has_element?(lost, "[role=status]", "Revocation outcome unknown")
+    lost |> element("button", "Check operation outcome") |> render_click()
+    assert has_element?(lost, "[role=status]", "Credential reader revoked")
+
+    {:ok, reconnect, _} = live(c.conn, lost_path)
+    assert has_element?(reconnect, "[role=status]", "Credential reader revoked")
+    Agent.update(c.faults, &Map.put(&1, :operation, :unavailable))
+    reconnect |> element("button", "Check operation outcome") |> render_click()
+    assert has_element?(reconnect, "[role=status]", "Credential reader revoked")
+    assert has_element?(reconnect, "[role=alert]")
+    reconnect |> element("button", "Check operation outcome") |> render_click()
+    assert has_element?(reconnect, "[role=status]", "Credential reader revoked")
+    refute has_element?(reconnect, "[role=alert]")
+  end
+
+  test "a reader cannot see scope credentials or forge another revocation", c do
+    {:ok, %{"id" => reader}} = Sessions.login(c.sessions, c.reader, c.scope)
+    conn = build_conn() |> init_test_session(%{"browser_session" => reader})
+    {:ok, view, html} = live(conn, "/access")
+    refute html =~ "Credentials in this scope"
+    refute html =~ "owner"
+    render_click(view, "prepare-revoke-other", %{"id" => "admin"})
+    assert has_element?(view, "[role=alert]", "does not permit")
+
+    {:ok, forged, _} = live(conn, "/access?credential=admin&operation=" <> Identifier.uuid())
+    refute has_element?(forged, "#revoke-other")
+    render_submit(forged, "confirm-revoke-other", %{"revoke" => %{"confirmed" => "yes"}})
+    assert has_element?(forged, "[role=alert]", "does not permit")
+    assert {:ok, _} = Service.authorize(c.service, c.admin, c.scope, "read", c.now)
+
+    {:ok, admin_view, _} = live(c.conn, "/access")
+    admin_view |> element(~s(button[phx-value-id="reader"])) |> render_click()
+    admin_view |> element("button", "Cancel revocation") |> render_click()
+    assert_patch(admin_view, "/access")
+    refute has_element?(admin_view, "#revoke-other")
+  end
+
   test "a reader cannot prepare or forge a self-revocation", c do
     {:ok, %{"id" => reader}} = Sessions.login(c.sessions, c.reader, c.scope)
     conn = build_conn() |> init_test_session(%{"browser_session" => reader})

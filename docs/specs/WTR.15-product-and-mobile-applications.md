@@ -20,8 +20,11 @@ claims only for a current `raw` grant. It asks the authorized service again for
 each download and never places raw bytes in the ordinary page. A separate
 access page now shows the current principal, scope, expiry and grant categories,
 explains browser sign-out, and lets an administrator revoke the current service
-credential after explicit confirmation. A full access audit and management of
-other credentials, sessions and devices remain open.
+credential after explicit confirmation. Administrators also see the scope's
+configured credentials with permissions, expiry and revocation status and can
+revoke another active credential through a recoverable, confirmed operation.
+Accesses themselves are not recorded, so a full access audit and management of
+sessions and devices remain open.
 Readers can move forward and revisit up to 32 earlier state-history pages;
 each move reloads that page under current read authority. Refresh starts again
 at the latest snapshot. Temporary failures keep the current page available;

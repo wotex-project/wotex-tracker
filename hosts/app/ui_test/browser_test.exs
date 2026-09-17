@@ -188,6 +188,8 @@ defmodule Wotex.Tracker.Host.BrowserTest do
 
     assert access_page =~ "Access and session"
     assert access_page =~ "owner"
+    assert access_page =~ "Credentials in this scope"
+    refute access_page =~ "token_sha256"
     refute access_page =~ c.token
     refute access_page =~ browser.prompt.api_key
 
