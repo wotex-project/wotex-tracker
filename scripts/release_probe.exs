@@ -121,8 +121,10 @@ defmodule Wotex.Tracker.ReleaseProbe do
       body = %{"thing_id" => thing, "expected_generation" => generation}
       receipt = request(instance, "/materialisations", body: body, operation: operation)
       next_generation = generation |> String.to_integer() |> Kernel.+(1) |> Integer.to_string()
-      expected_event = "property:event:#{next_generation}:#{next_generation}"
-      ^expected_event = cli_sample(instance, thing, first["cursor"])["event"]
+      # One commit can publish several events, so only the generation is fixed here.
+      "property:event:" <> event = cli_sample(instance, thing, first["cursor"])["event"]
+      [sequence, ^next_generation] = String.split(event, ":")
+      {_, ""} = Integer.parse(sequence)
       snapshot = request(instance, "/state")
       td = request(instance, "/things/" <> encode_segment(thing))
       stream = open_stream(instance, snapshot["stream_cursor"])
