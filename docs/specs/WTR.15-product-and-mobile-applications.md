@@ -25,8 +25,9 @@ explains browser sign-out, and lets an administrator revoke the current service
 credential after explicit confirmation. Administrators also see the scope's
 configured credentials with permissions, expiry and revocation status and can
 revoke another active credential through a recoverable, confirmed operation.
-Accesses themselves are not recorded, so a full access audit and management of
-sessions and devices remain open. An administrator can remove an enrolled asset
+Any user can also see this server's browser sessions that hold the same
+credential and end the others. Accesses themselves are not recorded, so a full
+access audit and management of devices remain open. An administrator can remove an enrolled asset
 after reading the consequences and confirming: its enrollment, Thing, state and
 rule definitions leave current views while history, evidence and alerts remain.
 Data deletion and retention management remain open.

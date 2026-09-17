@@ -43,7 +43,9 @@ defmodule Wotex.Tracker.UI.AccessLive do
          other_generation: nil,
          other_outcome: nil,
          other_error: nil,
-         other_closed: false
+         other_closed: false,
+         browser_sessions: nil,
+         sessions_error: nil
        )}
 
   @impl true
@@ -195,6 +197,16 @@ defmodule Wotex.Tracker.UI.AccessLive do
 
   def handle_event("check-revoke-other", _, socket), do: {:noreply, recover_other(socket)}
 
+  def handle_event("end-session", %{"handle" => handle}, socket) when is_binary(handle) do
+    case Sessions.end_session(socket.assigns.sessions, socket.assigns.session_id, handle) do
+      :ok ->
+        {:noreply, socket |> assign(sessions_error: nil) |> load_browser_sessions()}
+
+      {:error, error} ->
+        {:noreply, socket |> load_browser_sessions() |> assign(sessions_error: error)}
+    end
+  end
+
   def handle_event("cancel-revoke-other", _, socket),
     do: {:noreply, push_patch(socket, to: "/access")}
 
@@ -252,6 +264,38 @@ defmodule Wotex.Tracker.UI.AccessLive do
           Sign out ends this browser session. The service credential remains valid until it expires
           or an administrator revokes it. The service checks authority again on each operation.
         </p>
+      </section>
+      <section :if={@access} class="panel" aria-labelledby="browser-sessions-title">
+        <h2 id="browser-sessions-title">Browser sessions with this credential</h2>
+        <p>
+          Sessions on this server that use the same service credential. Ending one signs that
+          browser out; the credential stays valid until it expires or is revoked.
+        </p>
+        <.notice error={@sessions_error} />
+        <p :if={is_nil(@browser_sessions)} role="status">Browser sessions are unavailable.</p>
+        <table :if={@browser_sessions}>
+          <caption>Browser sessions: {length(@browser_sessions)}</caption>
+          <thead>
+            <tr>
+              <th scope="col">Started</th><th scope="col">Expires</th><th scope="col">Session</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr :for={session <- @browser_sessions}>
+              <td>{Presenter.timestamp(%{"value" => session["started_at"]})}</td>
+              <td>{Presenter.timestamp(%{"value" => session["expires_at"]})}</td>
+              <td>
+                <span :if={session["current"]}>This browser</span>
+                <button
+                  :if={!session["current"]}
+                  class="secondary"
+                  phx-click="end-session"
+                  phx-value-handle={session["handle"]}
+                >End session</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </section>
       <section :if={@access && @identity["can_manage_queries"]} class="panel">
         <h2>Revoke this credential</h2>
@@ -397,7 +441,17 @@ defmodule Wotex.Tracker.UI.AccessLive do
           assign(socket, access: nil, error: %{"code" => "storage_unavailable"})
       end
 
-    load_credentials(socket)
+    socket |> load_credentials() |> load_browser_sessions()
+  end
+
+  defp load_browser_sessions(%{assigns: %{access: nil}} = socket),
+    do: assign(socket, browser_sessions: nil)
+
+  defp load_browser_sessions(socket) do
+    case Sessions.list(socket.assigns.sessions, socket.assigns.session_id) do
+      {:ok, %{"items" => items}} -> assign(socket, browser_sessions: items)
+      {:error, error} -> assign(socket, browser_sessions: nil, sessions_error: error)
+    end
   end
 
   defp load_credentials(%{assigns: %{identity: %{"can_manage_queries" => true}}} = socket) do

@@ -51,6 +51,9 @@ that facade.
 browser cookies and LiveView session payloads carry an opaque session identifier.
 Every service request rechecks authority. Logout destroys the presentation
 session; service credential revocation also rejects existing views. The Access
+page lists the live browser sessions on this server that hold the same
+credential and scope, by start and expiry time, and ends another one on request
+without revoking the credential; session identifiers never reach the page. The Access
 page lets an administrator revoke their current service credential with a
 generation check and explicit confirmation. An uncertain commit redirects to
 sign-in with the operation reference so it survives the revoked session.

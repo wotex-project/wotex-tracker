@@ -2453,3 +2453,21 @@ per-Thing definitions it accepts no paging options, and `--thing` remains limite
 to rules, definitions and alerts. The independent CLI consumer lists no statuses
 for its materialised Thing and receives `invalid_arguments` for a cursor with the
 per-Thing status read and for `--thing` with Things.
+
+### Browser session management — 2026-09-17
+
+Each retained browser session now has a random non-secret handle and a wall-clock
+start time. `Sessions.list/2` returns, for a live session, the live sessions that
+hold the same credential and scope with their handle, start and expiry times and
+which one is current. `Sessions.end_session/3` removes another such session by
+handle; the service credential stays valid. Session identifiers and tokens never
+leave the store, and token comparison uses constant time. The Access page lists
+these sessions and offers to end every one except its own.
+
+Session store tests list two administrator sessions but not a reader session,
+disclose no session identifier or token, refuse to end a session of another
+credential, the current session or an unknown handle, end the other
+administrator session so its next request is unauthorized while the current one
+continues, and reject listing or ending from an unknown session. A LiveView test
+ends a second browser session from the Access page, sees one session remain and
+reports an unknown handle.

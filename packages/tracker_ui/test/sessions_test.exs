@@ -55,6 +55,53 @@ defmodule Wotex.Tracker.UI.SessionsTest do
     assert {:error, %{"code" => "unauthorized"}} = Sessions.request(sessions, id, :authorize)
   end
 
+  test "sessions list and end only browser sessions of the same credential" do
+    c = service()
+
+    sessions =
+      start_supervised!(
+        {Sessions, client: {Local, fn -> {:ok, c.service} end}, clock: fn -> c.now end}
+      )
+
+    {:ok, %{"id" => first}} = Sessions.login(sessions, c.admin, c.scope)
+    {:ok, %{"id" => second}} = Sessions.login(sessions, c.admin, c.scope)
+    {:ok, %{"id" => reader}} = Sessions.login(sessions, c.reader, c.scope)
+
+    assert {:ok, %{"items" => items}} = Sessions.list(sessions, first)
+    assert length(items) == 2
+    assert [%{"handle" => current}] = Enum.filter(items, & &1["current"])
+    assert [%{"handle" => other}] = Enum.reject(items, & &1["current"])
+
+    assert Enum.all?(
+             items,
+             &(&1["started_at"] == c.now and &1["expires_at"] == c.now + 3_600_000)
+           )
+
+    for secret <- [first, second, reader, c.admin, c.reader] do
+      refute inspect(items) =~ secret
+    end
+
+    assert {:ok, %{"items" => [%{"handle" => reader_handle}]}} = Sessions.list(sessions, reader)
+
+    for {id, handle} <- [
+          {reader, other},
+          {first, reader_handle},
+          {first, current},
+          {first, "missing"}
+        ] do
+      assert {:error, %{"code" => "not_found"}} = Sessions.end_session(sessions, id, handle)
+    end
+
+    assert :ok = Sessions.end_session(sessions, first, other)
+    assert {:error, %{"code" => "unauthorized"}} = Sessions.request(sessions, second, :authorize)
+    assert {:ok, _} = Sessions.request(sessions, first, :authorize)
+    assert {:ok, %{"items" => [%{"current" => true}]}} = Sessions.list(sessions, first)
+    assert {:error, %{"code" => "unauthorized"}} = Sessions.list(sessions, "missing")
+
+    assert {:error, %{"code" => "unauthorized"}} =
+             Sessions.end_session(sessions, "missing", current)
+  end
+
   test "display helpers preserve unavailable, false, zero and wide integers" do
     assert Presenter.scalar(%{"value" => nil}) == "Unavailable"
     assert Presenter.scalar(%{"value" => false}) == "false"

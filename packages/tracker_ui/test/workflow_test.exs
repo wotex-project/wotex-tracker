@@ -466,6 +466,25 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     refute render(reader_view) =~ c.reader
   end
 
+  test "a browser ends another session of the same credential from the access page", c do
+    {:ok, %{"id" => other}} = Sessions.login(c.sessions, c.admin, c.scope)
+    {:ok, view, html} = live(c.conn, "/access")
+    assert has_element?(view, "caption", "Browser sessions: 2")
+    assert has_element?(view, "td span", "This browser")
+    refute html =~ c.session
+    refute html =~ other
+
+    view |> element("button", "End session") |> render_click()
+    assert has_element?(view, "caption", "Browser sessions: 1")
+    refute has_element?(view, "button", "End session")
+    assert {:error, %{"code" => "unauthorized"}} = Sessions.request(c.sessions, other, :authorize)
+    assert {:ok, _} = Sessions.request(c.sessions, c.session, :authorize)
+
+    render_click(view, "end-session", %{"handle" => "missing"})
+    assert has_element?(view, "[role=alert]", "not available")
+    assert has_element?(view, "caption", "Browser sessions: 1")
+  end
+
   test "an administrator can revoke the current credential after explicit confirmation", c do
     {:ok, view, _} = live(c.conn, "/access")
     assert has_element?(view, "button", "Prepare revocation")

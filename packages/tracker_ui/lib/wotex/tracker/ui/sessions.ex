@@ -60,6 +60,34 @@ defmodule Wotex.Tracker.UI.Sessions do
     :exit, _ -> unavailable()
   end
 
+  @doc """
+  Lists the live browser sessions that hold the same credential and scope as this one.
+
+  Each item has a non-secret `handle`, its wall-clock `started_at` and
+  `expires_at`, and whether it is this session. Session identifiers and
+  credentials never leave the store. An unknown or expired session gets
+  `unauthorized`.
+  """
+  @spec list(GenServer.server(), String.t()) :: Client.result()
+  def list(server, id) do
+    GenServer.call(server, {:list, id})
+  catch
+    :exit, _ -> unavailable()
+  end
+
+  @doc """
+  Ends another browser session that holds the same credential and scope.
+
+  The service credential stays valid. A handle that does not name such a session
+  returns `not_found`; the current session ends through `logout/2`.
+  """
+  @spec end_session(GenServer.server(), String.t(), String.t()) :: :ok | {:error, map()}
+  def end_session(server, id, handle) do
+    GenServer.call(server, {:end_session, id, handle})
+  catch
+    :exit, _ -> unavailable()
+  end
+
   @doc "Destroys this browser session without revoking the underlying service credential."
   @spec logout(GenServer.server(), String.t()) :: :ok
   def logout(server, id) do
@@ -112,7 +140,15 @@ defmodule Wotex.Tracker.UI.Sessions do
 
     if map_size(state.entries) < state.capacity do
       id = Base.url_encode64(:crypto.strong_rand_bytes(32), padding: false)
-      entry = %{token: token, scope: scope, expires: state.monotonic.() + state.ttl}
+
+      entry = %{
+        token: token,
+        scope: scope,
+        expires: state.monotonic.() + state.ttl,
+        handle: Base.url_encode64(:crypto.strong_rand_bytes(12), padding: false),
+        started_at: state.clock.()
+      }
+
       {:reply, {:ok, %{"id" => id}}, put_in(state.entries[id], entry)}
     else
       {:reply, {:error, %{"code" => "capacity"}}, state}
@@ -136,6 +172,49 @@ defmodule Wotex.Tracker.UI.Sessions do
     {:reply, Map.has_key?(state.entries, id), state}
   end
 
+  def handle_call({:list, id}, _, state) do
+    state = prune(state)
+
+    case state.entries[id] do
+      nil ->
+        {:reply, unauthorized(), state}
+
+      current ->
+        items =
+          state.entries
+          |> Enum.filter(fn {_, entry} -> same_credential?(entry, current) end)
+          |> Enum.sort_by(fn {_, entry} -> {entry.started_at, entry.handle} end)
+          |> Enum.map(fn {key, entry} ->
+            %{
+              "handle" => entry.handle,
+              "started_at" => entry.started_at,
+              "expires_at" => entry.started_at + state.ttl,
+              "current" => key == id
+            }
+          end)
+
+        {:reply, {:ok, %{"items" => items}}, state}
+    end
+  end
+
+  def handle_call({:end_session, id, handle}, _, state) do
+    state = prune(state)
+
+    with current when not is_nil(current) <- state.entries[id],
+         {key, _} <-
+           Enum.find(state.entries, fn {key, entry} ->
+             key != id and entry.handle == handle and same_credential?(entry, current)
+           end) do
+      {:reply, :ok, %{state | entries: Map.delete(state.entries, key)}}
+    else
+      nil when is_map_key(state.entries, id) ->
+        {:reply, {:error, %{"code" => "not_found"}}, state}
+
+      _ ->
+        {:reply, unauthorized(), state}
+    end
+  end
+
   def handle_call({:logout, id}, _, state),
     do: {:reply, :ok, %{state | entries: Map.delete(state.entries, id)}}
 
@@ -157,6 +236,12 @@ defmodule Wotex.Tracker.UI.Sessions do
     now = state.monotonic.()
     %{state | entries: Map.reject(state.entries, fn {_, entry} -> now >= entry.expires end)}
   end
+
+  # Tokens are compared in constant time; scope must match exactly.
+  defp same_credential?(entry, current),
+    do:
+      entry.scope == current.scope and byte_size(entry.token) == byte_size(current.token) and
+        :crypto.hash_equals(entry.token, current.token)
 
   defp call({module, context}, token, scope, action, arguments, now),
     do: module.request(context, token, scope, action, arguments, now)
