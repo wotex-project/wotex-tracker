@@ -2219,3 +2219,27 @@ preparation, keep the page usable through a failed list read and recover on
 refresh, and stop preparation at eight definitions. The rule creation test sees
 the newly saved definition in the list. The optional app host renders the page
 heading through its real loopback listener.
+
+### Administrator credential inventory — 2026-09-17
+
+HTTP contract 1.17.0 adds `GET …/credentials`, backed by `Service.credentials/4`.
+An administrator receives, in credential ID order, every host-configured
+credential that grants a permission in the scope: its ID, principal, that
+scope's sorted permissions, expiry, whether it is the calling credential and a
+status. A durable revocation, read at the current committed generation, makes
+the status `revoked` and reports its time, acting principal and generation;
+otherwise the status is `expired` at host time or `active`. The pure
+`Credentials.inventory/2` omits token digests, the secret key and other scopes'
+grants, and the store reads at most 32 named revocation records under the same
+admin reauthorization as other guarded reads. Accesses themselves are not
+recorded, so this is an inventory rather than a complete access audit.
+
+Service tests list three credentials of one scope with exact fields and no
+digest, report a credential expired at its expiry time, list another scope's
+grants for its own administrator, and reject readers, administrators of another
+scope and invalid tokens. After two committed revocations the list reports both
+as revoked, with revocation taking precedence over expiry, while the revoked
+reader is denied ordinary reads. Store reads reject malformed and more than 32
+IDs. The independent HTTP consumer validates the list against OpenAPI before and
+after revoking the reader, including the reader's 403, the acting administrator
+and the revocation generation.

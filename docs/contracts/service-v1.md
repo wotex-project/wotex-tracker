@@ -178,7 +178,15 @@ Clock readings passed to these ports must come from the host, not request JSON.
 The low-level Store handle remains a privileged host port. The public service
 facade authenticates every call, including local calls, and uses guarded read
 ports. A transport must also reauthorize immediately before each stream delivery.
-These primitives are not HTTP/session or complete access-audit acceptance.
+`credentials` and `GET …/credentials` require `admin` and list, in credential ID
+order, every configured credential granting a permission in the scope: its ID,
+principal, that scope's sorted permissions, expiry, `current` flag and
+`status` (`revoked`, `expired` at host time, or `active`). A revocation reports
+its time, acting principal and generation, read at the current committed
+generation. Token digests, secret keys and other scopes' grants are never
+returned, and a revocation of an ID no longer configured is not listed. These
+primitives are not HTTP/session or complete access-audit acceptance; accesses
+themselves are not recorded.
 
 Cursor format `wtrc1` uses AES-256-GCM, fresh 96-bit nonces, an authenticated
 instance/principal/scope/purpose binding and explicit issue/expiry times. Internal
@@ -274,7 +282,7 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
-## HTTP and stream contract 1.16.0
+## HTTP and stream contract 1.17.0
 
 The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
 2020-12. The independently maintained Elixir audit checks document shape,
@@ -307,6 +315,7 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | `…/policies` | POST create or update a heartbeat or battery rule definition for one Thing |
 | `…/policy_deletions` | POST delete a rule definition with a retained tombstone |
 | `…/alert_acknowledgements` | POST acknowledge one live rule alert once |
+| `…/credentials` | GET the administrator audit of this scope's configured credentials, grants, expiry and revocation |
 | `…/things/{id}/policies` | GET the at most eight live rule definitions bound to one Thing |
 | `…/things/{id}/properties/{property}` | GET authorized Runtime Property scalar |
 | `…/things/{id}/properties/{property}/observe` | GET committed Property values as resumable SSE |

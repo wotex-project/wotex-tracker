@@ -127,6 +127,52 @@ defmodule Wotex.Tracker.Service.Read do
     end
   end
 
+  # Revocation is permanent, so each named credential has at most one access record.
+  def revocations(db, scope, ids, authorize) do
+    with true <- Codec.id?(scope) and is_list(ids) and length(ids) <= 32,
+         true <- Enum.all?(ids, &Codec.id?/1) do
+      SQL.execute!(db, "BEGIN")
+
+      try do
+        authorize.()
+        current = Transaction.generation(db, scope)
+
+        rows =
+          if ids == [],
+            do: [],
+            else:
+              SQL.rows!(
+                db,
+                """
+                SELECT id,generation,document FROM records
+                WHERE scope=? AND kind='access' AND generation<=? AND id IN (#{Enum.map_join(ids, ",", fn _ -> "?" end)})
+                ORDER BY id,generation
+                """,
+                [scope, current | ids]
+              )
+
+        {:ok,
+         %{
+           "generation" => Integer.to_string(current),
+           "items" =>
+             rows
+             |> Enum.uniq_by(fn [id | _] -> id end)
+             |> Enum.map(fn [id, generation, document] ->
+               %{
+                 "id" => id,
+                 "generation" => Integer.to_string(generation),
+                 "value" => Codec.decode!(document)
+               }
+             end)
+         }}
+      after
+        SQL.rollback(db)
+      end
+    else
+      _ -> {:error, :invalid_query}
+    end
+  end
+
   def events(db, query, authorize \\ fn -> :ok end)
 
   def events(db, %{scope: scope, after: cursor, limit: limit, now: now} = query, authorize)

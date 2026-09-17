@@ -362,6 +362,40 @@ defmodule Wotex.Tracker.Service do
     Result.normalize(result)
   end
 
+  @doc """
+  Lists this scope's configured credentials with grants, expiry and durable revocation.
+
+  Requires `admin` and reads revocations at the current committed generation.
+  Items include credential IDs and principals so an administrator can audit and
+  revoke access; they omit token digests and other scopes' grants. `status` is
+  `revoked`, `expired` at the supplied receiver time, or `active`, and `current`
+  marks the calling credential. A revocation whose ID no longer appears in the
+  host configuration is not listed.
+  """
+  @spec credentials(t(), String.t(), String.t(), integer()) :: {:ok, map()} | {:error, map()}
+  def credentials(service, token, scope, now) do
+    result =
+      with {:ok, access} <- authorize(service, token, scope, "admin", now),
+           entries = Credentials.inventory(service.credentials, scope),
+           {:ok, page} <-
+             Store.authorized_revocations(
+               service.store,
+               access,
+               Enum.map(entries, & &1.id),
+               now
+             ) do
+        revocations = Map.new(page["items"], &{&1["id"], &1})
+
+        {:ok,
+         %{
+           "generation" => page["generation"],
+           "items" => Enum.map(entries, &credential(&1, revocations[&1.id], access, now))
+         }}
+      end
+
+    Result.normalize(result)
+  end
+
   @doc "Permanently revokes a credential ID in this scope through an idempotent administrative mutation."
   @spec revoke(t(), String.t(), String.t(), String.t(), map(), integer()) ::
           {:ok, map()} | {:error, map()}
@@ -438,6 +472,32 @@ defmodule Wotex.Tracker.Service do
       {:error, :unknown} -> {:error, :storage_unavailable}
       error -> error
     end
+  end
+
+  defp credential(entry, revocation, access, now) do
+    status =
+      cond do
+        revocation -> "revoked"
+        now >= entry.expires_at -> "expired"
+        true -> "active"
+      end
+
+    %{
+      "schema" => "wtr.credential.v1",
+      "credential_id" => entry.id,
+      "principal" => entry.principal,
+      "permissions" => entry.permissions,
+      "expires_at" => entry.expires_at,
+      "status" => status,
+      "current" => entry.id == access.credential_id,
+      "revocation" =>
+        revocation &&
+          %{
+            "at" => revocation["value"]["at"],
+            "by" => revocation["value"]["actor"],
+            "generation" => revocation["generation"]
+          }
+    }
   end
 
   defp resource(resource) when resource in @resources, do: :ok

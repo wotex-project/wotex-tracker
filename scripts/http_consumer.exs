@@ -395,9 +395,30 @@ defmodule Wotex.Tracker.HTTPConsumer do
     {frame, resumed} = next_frame(resumed)
     "3" = frame["data"] |> Codec.decode!() |> Map.fetch!("id")
 
+    request(context, "list_credentials", prefix <> "/credentials", who: :reader, status: 403)
+
+    %{"generation" => "3", "items" => credentials} =
+      data(context, "list_credentials", prefix <> "/credentials")
+
+    [%{"status" => "active", "principal" => administrator}] =
+      Enum.filter(credentials, & &1["current"])
+
+    %{"status" => "active", "current" => false, "revocation" => nil} =
+      Enum.find(credentials, &(&1["credential_id"] == "reader"))
+
+    false = String.contains?(Codec.encode!(credentials), "token_sha256")
+
     data(context, "revoke", prefix <> "/revocations",
       body: %{"credential_id" => "reader", "expected_generation" => "3"}
     )
+
+    %{"generation" => "4", "items" => revoked} =
+      data(context, "list_credentials", prefix <> "/credentials")
+
+    %{
+      "status" => "revoked",
+      "revocation" => %{"by" => ^administrator, "generation" => "4"}
+    } = Enum.find(revoked, &(&1["credential_id"] == "reader"))
 
     :closed = await_close(resumed)
     request(context, "list_state", prefix <> "/state", who: :reader, status: 401)

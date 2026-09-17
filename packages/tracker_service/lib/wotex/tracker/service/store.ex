@@ -145,6 +145,12 @@ defmodule Wotex.Tracker.Service.Store do
   def authorized_policies(store, access, permission, thing, generation, now),
     do: StoreCall.run(store, {:authorized_policies, access, permission, thing, generation, now})
 
+  @doc "Reauthorizes and reads durable revocations of the named credentials at the current generation."
+  @spec authorized_revocations(t(), Access.t(), [String.t()], integer()) ::
+          {:ok, map()} | {:error, atom()}
+  def authorized_revocations(store, access, ids, now),
+    do: StoreCall.run(store, {:authorized_revocations, access, ids, now})
+
   @doc "Reads bounded ascending record versions, retaining explicit deletion tombstones."
   @spec history(t(), map()) :: {:ok, map()} | {:error, atom()}
   def history(store, query), do: StoreCall.run(store, {:history, query})
@@ -493,6 +499,19 @@ defmodule Wotex.Tracker.Service.Store do
           access,
           access_scope(access),
           permission,
+          Authority.now(state.options, now)
+        )
+      end)
+
+  defp dispatch({:authorized_revocations, access, ids, now}, state),
+    do:
+      Read.revocations(state.db, access_scope(access), ids, fn ->
+        Authority.check!(
+          state.db,
+          state.options.credentials,
+          access,
+          access_scope(access),
+          "admin",
           Authority.now(state.options, now)
         )
       end)

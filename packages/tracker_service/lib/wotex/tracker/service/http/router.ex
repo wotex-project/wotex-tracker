@@ -348,6 +348,12 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
     {conn, normalize(result)}
   end
 
+  defp scoped(%{method: "GET"} = conn, ["credentials"], params, context)
+       when map_size(params) == 0 do
+    {service, token, scope, now} = context
+    {conn, Service.credentials(service, token, scope, now)}
+  end
+
   defp scoped(%{method: "GET"} = conn, ["capabilities"], params, context)
        when map_size(params) == 0 do
     {service, token, scope, now} = context

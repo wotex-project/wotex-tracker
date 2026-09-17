@@ -56,6 +56,27 @@ defmodule Wotex.Tracker.Service.Credentials do
     if token?(token), do: {:ok, hash(token)}, else: {:error, :invalid_token}
   end
 
+  @doc """
+  Lists, in ID order, the configured credentials granting any permission in one scope.
+
+  Each item carries the credential ID, principal, that scope's sorted permissions
+  and expiry. Token digests, other scopes' grants and the secret key are omitted.
+  """
+  @spec inventory(t(), term()) :: [map()]
+  def inventory(%__MODULE__{entries: entries}, scope) do
+    entries
+    |> Enum.filter(&Map.has_key?(&1.grants, scope))
+    |> Enum.sort_by(& &1.id)
+    |> Enum.map(
+      &%{
+        id: &1.id,
+        principal: &1.principal,
+        permissions: Enum.sort(Map.fetch!(&1.grants, scope)),
+        expires_at: &1.expires_at
+      }
+    )
+  end
+
   @doc "Authenticates an ephemeral token for exactly one scope and permission at explicit time."
   @spec authenticate(t(), term(), term(), term(), term()) :: {:ok, Access.t()} | {:error, atom()}
   def authenticate(%__MODULE__{} = credentials, token, scope, permission, now) do

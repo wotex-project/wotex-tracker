@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "WoTEx Tracker service",
-    "version": "1.16.0",
-    "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries, persisted rule status and administrator-managed heartbeat and battery rule definitions evaluated against committed Thing evidence, and acknowledgeable rule alerts. No scanner, notification delivery or physical interaction is implied."
+    "version": "1.17.0",
+    "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries, persisted rule status and administrator-managed heartbeat and battery rule definitions evaluated against committed Thing evidence, acknowledgeable rule alerts and an administrator credential inventory. No scanner, notification delivery or physical interaction is implied."
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "security": [
@@ -225,6 +225,71 @@
             }
           }
         }
+      }
+    },
+    "/api/v1/scopes/{scope}/credentials": {
+      "get": {
+        "operationId": "list_credentials",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "generation": {
+                          "type": "string",
+                          "pattern": "^(0|[1-9][0-9]{0,18})$",
+                          "description": "Canonical decimal integer below 9223372036854775807."
+                        },
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Credential"
+                          },
+                          "maxItems": 32
+                        }
+                      },
+                      "required": [
+                        "generation",
+                        "items"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Lists, in credential ID order, the host-configured credentials that grant any permission in this scope, with that scope's permissions, expiry and durable revocation at the current committed generation. Requires admin authority. Token digests, secret keys and other scopes' grants are never returned. A revocation whose credential ID is no longer configured is not listed."
       }
     },
     "/api/v1/scopes/{scope}/analytics/query": {
@@ -7272,6 +7337,103 @@
             "additionalProperties": false
           }
         ]
+      },
+      "Credential": {
+        "description": "Administrator-only audit projection of one host-configured credential in the requested scope. Status is revoked when a durable revocation exists, otherwise expired at the service's receiver time or active.",
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "wtr.credential.v1"
+          },
+          "credential_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          },
+          "principal": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "admin",
+                "enroll",
+                "ingest",
+                "interact",
+                "raw",
+                "read"
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 6,
+            "uniqueItems": true
+          },
+          "expires_at": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "status": {
+            "enum": [
+              "active",
+              "expired",
+              "revoked"
+            ]
+          },
+          "current": {
+            "type": "boolean"
+          },
+          "revocation": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "at": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "by": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256,
+                    "x-max-utf8-bytes": 256
+                  },
+                  "generation": {
+                    "type": "string",
+                    "pattern": "^(0|[1-9][0-9]{0,18})$",
+                    "description": "Canonical decimal integer below 9223372036854775807."
+                  }
+                },
+                "required": [
+                  "at",
+                  "by",
+                  "generation"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "required": [
+          "schema",
+          "credential_id",
+          "principal",
+          "permissions",
+          "expires_at",
+          "status",
+          "current",
+          "revocation"
+        ],
+        "additionalProperties": false
       },
       "RuleDefinition": {
         "description": "Reviewed rule definition. The acting principal is retained privately. Saving a definition evaluates it against the Thing's committed evidence in the same commit, and each later materialisation of that Thing evaluates it again.",
