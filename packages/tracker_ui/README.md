@@ -18,6 +18,11 @@ Readers can list retained saved definitions and rerun them under current
 authorization. An administrator can save a displayed query with a fixed or
 rolling window, edit or delete it, and combine compatible saved series into a
 new exact-table dashboard.
+The Protection page lists the committed status of heartbeat, battery,
+transport-health, motion and geofence rules through the read-only service
+projection, and each rule page pages its retained evaluation history. These
+pages cannot configure, arm, evaluate or acknowledge a rule and show no
+position evidence.
 This is not full application, Pi or mobile acceptance.
 
 `Wotex.Tracker.UI.Local` calls only the public authorized service facade.
@@ -62,7 +67,7 @@ test helpers. Root and service-only consumers do not depend on this package.
 The first cohort exercises real authorized services, duplicate prevention,
 lost-reply recovery, revocation, read-only denial, upload bounds, bounded
 lists/history, CSRF protection and credential custody. Device discovery and
-capture, maps, trips, protection, interactions, privacy controls, analytics,
+capture, maps, trip history, rule configuration and alerts, interactions, privacy controls, analytics,
 remote adapters and cross-surface accessibility remain subsequent work. A
 responsive browser view does not qualify a mobile or Pi application.
 

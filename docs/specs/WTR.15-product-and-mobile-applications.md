@@ -30,6 +30,12 @@ The asset overview, setup and association observation lists likewise retain up
 to 32 earlier page requests, reloading each page under current authority. A
 failed refresh keeps the current page and its back path until a new first page
 loads. Returning to a page from a changed list snapshot requires refresh.
+A Protection page lists each committed deterministic rule status through the
+read-only service projection: heartbeat, battery, transport health, motion and
+trips, and geofence membership. Each rule page shows its thresholds, timing and
+retained evaluation history under current read authority. It omits position
+evidence and cannot configure, arm or acknowledge rules; those Protection
+workflows and alert handling remain open.
 These are required product deliverables and optional installations for consumers
 of the library. An incomplete backend or UI framework cannot waive a product gate.
 

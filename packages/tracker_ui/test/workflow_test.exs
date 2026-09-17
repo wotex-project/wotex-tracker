@@ -8,7 +8,7 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
   alias Phoenix.LiveView.Static
   alias Wotex.Tracker.{QueryResult, QuerySpec}
   alias Wotex.Tracker.Service
-  alias Wotex.Tracker.Service.{Codec, Identifier, Projection, Store, Update}
+  alias Wotex.Tracker.Service.{Codec, Identifier, Projection, RuleFixtures, Store, Update}
   alias Wotex.Tracker.UI.{ErrorHTML, Presenter, PromptPeer, Sessions, TestClient, TestEndpoint}
   @endpoint TestEndpoint
 
@@ -2262,6 +2262,120 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     list |> element("button", "Previous page") |> render_click()
     refute has_element?(list, "[aria-label='Saved dashboards']")
     assert has_element?(list, "[role=alert]")
+  end
+
+  test "protection lists committed rule status without private evidence", c do
+    {:ok, view, html} = live(c.conn, "/protection")
+    assert html =~ ~s(href="/protection")
+    assert has_element?(view, "h2", "No rule status on this page")
+
+    RuleFixtures.commit_all(c.store, c.scope)
+    view |> element("button", "Refresh") |> render_click()
+
+    for {kind, status} <- [
+          {"Low battery", "Low"},
+          {"Geofence", "Inside"},
+          {"Reporting heartbeat", "Overdue"},
+          {"Motion and trips", "Moving"},
+          {"Transport health", "Degraded"}
+        ] do
+      assert has_element?(view, ".card", kind)
+      assert has_element?(view, ".card .reading", status)
+    end
+
+    html = render(view)
+    assert html =~ "Battery voltage: 2.5 V · available · quality: valid"
+    assert html =~ "yard · revision yard-v1"
+    assert html =~ "coordinate_inside"
+    assert html =~ "unavailable · action: unavailable"
+    assert html =~ "Started 2023-11-14 22:13:21 UTC"
+    assert has_element?(view, ~s(a[href="/protection/heartbeat%3Asilence"]), "silence")
+
+    for private <- ~w(capture private-hardware private-receiver latitude longitude bundle) do
+      refute html =~ private
+    end
+
+    Agent.update(c.faults, &Map.put(&1, :list, :unavailable))
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, ".card .reading", "Overdue")
+    assert has_element?(view, "[role=alert]")
+
+    Agent.update(c.faults, &Map.put(&1, :list, {:deny, "forbidden"}))
+    view |> element("button", "Refresh") |> render_click()
+    refute has_element?(view, ".card")
+    assert has_element?(view, "[role=alert]")
+  end
+
+  test "protection list pages can be revisited at one generation", c do
+    for index <- 10..35 do
+      RuleFixtures.commit_heartbeat_versions(c.store, c.scope, "silence-#{index}", 1)
+    end
+
+    {:ok, list, _} = live(c.conn, "/protection")
+    assert has_element?(list, "button", "Next page")
+    refute has_element?(list, "button", "Previous page")
+    list |> element("button", "Next page") |> render_click()
+    assert has_element?(list, ".card h2", "silence-35")
+    refute has_element?(list, "button", "Next page")
+
+    Agent.update(c.faults, &Map.put(&1, :list, :unavailable))
+    list |> element("button", "Previous page") |> render_click()
+    assert has_element?(list, ".card h2", "silence-35")
+    assert has_element?(list, "[role=alert]")
+    list |> element("button", "Previous page") |> render_click()
+    assert has_element?(list, ".card h2", "silence-10")
+    refute has_element?(list, "button", "Previous page")
+
+    list |> element("button", "Next page") |> render_click()
+    RuleFixtures.commit_heartbeat_versions(c.store, c.scope, "silence-36", 1)
+    list |> element("button", "Previous page") |> render_click()
+    assert has_element?(list, ".card h2", "silence-35")
+    assert render(list) =~ "changed since this page loaded"
+    list |> element("button", "Refresh") |> render_click()
+    refute has_element?(list, "button", "Previous page")
+
+    list |> element("button", "Next page") |> render_click()
+    Agent.update(c.faults, &Map.put(&1, :list, {:deny, "unauthorized"}))
+    list |> element("button", "Previous page") |> render_click()
+    refute has_element?(list, "[aria-label='Tracking rules']")
+    assert has_element?(list, "[role=alert]")
+  end
+
+  test "rule detail pages retained evaluations under current authority", c do
+    RuleFixtures.commit_heartbeat_versions(c.store, c.scope, "silence", 27)
+    {:ok, rule, _} = live(c.conn, Presenter.rule_path("heartbeat:silence"))
+    assert has_element?(rule, "h1", "silence")
+    assert has_element?(rule, ".reading", "Reporting on time")
+    assert render(rule) =~ "Maximum silence"
+    assert has_element?(rule, "tbody tr:first-child td:first-child", "1")
+    assert has_element?(rule, "tbody tr:nth-child(2) td:nth-child(2)", "Overdue")
+    refute has_element?(rule, "button", "Previous history page")
+
+    rule |> element("button", "Next history page") |> render_click()
+    assert has_element?(rule, "tbody tr:first-child td:first-child", "26")
+    refute has_element?(rule, "button", "Next history page")
+
+    Agent.update(c.faults, &Map.put(&1, :history, :unavailable))
+    rule |> element("button", "Previous history page") |> render_click()
+    assert has_element?(rule, "tbody tr:first-child td:first-child", "26")
+    assert has_element?(rule, "[role=alert]")
+    rule |> element("button", "Previous history page") |> render_click()
+    assert has_element?(rule, "tbody tr:first-child td:first-child", "1")
+
+    Agent.update(c.faults, &Map.put(&1, :get, :unavailable))
+    rule |> element("button", "Refresh") |> render_click()
+    assert has_element?(rule, ".reading", "Reporting on time")
+    assert has_element?(rule, "[role=alert]")
+
+    Agent.update(c.faults, &Map.put(&1, :history, {:deny, "forbidden"}))
+    rule |> element("button", "Next history page") |> render_click()
+    refute has_element?(rule, ".reading")
+    refute has_element?(rule, "table")
+    assert has_element?(rule, "[role=alert]")
+
+    {:ok, missing, _} = live(c.conn, Presenter.rule_path("heartbeat:missing"))
+    assert has_element?(missing, "h1", "Rule status unavailable")
+    assert render(missing) =~ "The requested record is not available."
   end
 
   test "saved table dashboard keeps multiple series and exposes a failed rerun", c do

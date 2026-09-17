@@ -36,14 +36,29 @@ defmodule Wotex.Tracker.Service.RuleFixtures do
     }
   end
 
-  def commit_heartbeat(store, scope) do
-    policy = heartbeat_policy()
-    heartbeat = Fixtures.observation(%{id: "heartbeat-capture", observed_at: @now})
+  def commit_heartbeat(store, scope), do: commit_heartbeat_versions(store, scope, "silence", 2)
+
+  @doc "Commits alternating current and overdue heartbeat versions for one rule."
+  def commit_heartbeat_versions(store, scope, id, versions) when versions >= 1 do
+    policy = heartbeat_policy(id)
+    heartbeat = Fixtures.observation(%{id: "#{id}-capture-0", observed_at: @now})
     {:ok, baseline} = HeartbeatTransition.evaluate(nil, heartbeat, policy, :live, @now)
-    commit!(store, scope, nil, baseline)
-    due_at = baseline["state"].due_at
-    {:ok, overdue} = HeartbeatTransition.evaluate(baseline["state"], nil, policy, :live, due_at)
-    commit!(store, scope, baseline["state"], overdue)
+    first = commit!(store, scope, nil, baseline)
+
+    Enum.reduce(1..(versions - 1)//1, first, fn index, previous ->
+      {:ok, result} =
+        case previous.status do
+          "current" ->
+            HeartbeatTransition.evaluate(previous, nil, policy, :live, previous.due_at)
+
+          "overdue" ->
+            at = previous.due_at + index
+            capture = Fixtures.observation(%{id: "#{id}-capture-#{index}", observed_at: at})
+            HeartbeatTransition.evaluate(previous, capture, policy, :live, at)
+        end
+
+      commit!(store, scope, previous, result)
+    end)
   end
 
   def commit_battery(store, scope) do
@@ -118,11 +133,11 @@ defmodule Wotex.Tracker.Service.RuleFixtures do
     commit!(store, scope, baseline["state"], entered)
   end
 
-  def heartbeat_policy do
+  def heartbeat_policy(id \\ "silence") do
     {:ok, value} =
       HeartbeatTransition.new(%{
-        id: "silence",
-        revision: "silence-v1",
+        id: id,
+        revision: "#{id}-v1",
         maximum_silence_ms: 10,
         future_skew_ms: 0
       })

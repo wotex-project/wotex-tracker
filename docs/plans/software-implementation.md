@@ -318,7 +318,8 @@ asset's retained state separately and disclose unprovisioned, unavailable and
 prior-source readings without claiming live connectivity.
 Revocation, read-only denial, stale writes, lost replies and real HTTP session
 security are exercised. The UI-enabled bundles also pass an authenticated
-browser asset and restart probe. Complete application, remote adapter,
+browser asset and restart probe. A shared Protection page and per-rule history
+now present committed rule status without evidence or configuration controls. Complete application, remote adapter,
 accessibility, Pi and mobile acceptance remain open.
 
 Implement WTR.15's shared components and `hosts/app/` after Phase 3; use admitted

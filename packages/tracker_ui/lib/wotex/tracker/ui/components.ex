@@ -150,6 +150,108 @@ defmodule Wotex.Tracker.UI.Components do
     """
   end
 
+  attr(:status, :map, required: true)
+
+  def rule_details(assigns) do
+    ~H"""
+    <dl :if={@status["kind"] == "heartbeat"}>
+      <dt>Last receiver observation</dt><dd>
+        {Presenter.timestamp(@status["heartbeat"]["observed_at"])}
+      </dd>
+      <dt>Overdue after</dt><dd>{Presenter.timestamp(@status["heartbeat"]["due_at"])}</dd>
+      <dt>Maximum silence</dt><dd>
+        {Presenter.duration(@status["heartbeat"]["maximum_silence_ms"])}
+      </dd>
+      <dt>Evaluated</dt><dd>{Presenter.timestamp(@status["heartbeat"]["evaluated_at"])}</dd>
+    </dl>
+    <dl :if={@status["kind"] == "battery"}>
+      <dt>Reading</dt>
+      <dd>
+        {Presenter.label(@status["battery"]["measurement"]["kind"])}: {Presenter.scalar(
+          @status["battery"]["measurement"]["value"]
+        )} {Presenter.unit(@status["battery"]["measurement"]["unit"])} · {@status["battery"][
+          "measurement"
+        ]["availability"]} · quality: {@status["battery"]["measurement"]["quality"]}
+      </dd>
+      <dt>Recorded</dt><dd>{Presenter.timestamp(@status["battery"]["observed_at"])}</dd>
+      <dt>Low at or below</dt>
+      <dd>
+        {Presenter.scalar(@status["battery"]["low_threshold"])} {Presenter.unit(
+          @status["battery"]["measurement"]["unit"]
+        )}
+      </dd>
+      <dt>Clears at or above</dt>
+      <dd>
+        {Presenter.scalar(@status["battery"]["clear_threshold"])} {Presenter.unit(
+          @status["battery"]["measurement"]["unit"]
+        )}
+      </dd>
+      <dt>Maximum reading age</dt><dd>{Presenter.duration(@status["battery"]["maximum_age_ms"])}</dd>
+      <dt>Suspect readings</dt>
+      <dd>{if @status["battery"]["accept_suspect"], do: "Accepted", else: "Not accepted"}</dd>
+      <dt>Evaluated</dt><dd>{Presenter.timestamp(@status["battery"]["evaluated_at"])}</dd>
+    </dl>
+    <dl :if={@status["kind"] == "transport_degradation"}>
+      <dt>Latest route decision</dt>
+      <dd>
+        {@status["transport_degradation"]["decision_status"]} · action: {@status[
+          "transport_degradation"
+        ]["decision_action"]}
+      </dd>
+      <dt>Selected route</dt>
+      <dd>{@status["transport_degradation"]["selected_candidate_id"] || "None"}</dd>
+      <dt>Healthy routes</dt>
+      <dd>{Enum.join(@status["transport_degradation"]["healthy_candidate_ids"], ", ")}</dd>
+      <dt>Decided</dt><dd>{Presenter.timestamp(@status["transport_degradation"]["decided_at"])}</dd>
+      <dt>Maximum decision age</dt>
+      <dd>{Presenter.duration(@status["transport_degradation"]["maximum_decision_age_ms"])}</dd>
+      <dt>Evaluated</dt><dd>
+        {Presenter.timestamp(@status["transport_degradation"]["evaluated_at"])}
+      </dd>
+    </dl>
+    <dl :if={@status["kind"] == "motion"}>
+      <dt>Active trip</dt>
+      <dd :if={@status["motion"]["active_trip"]}>
+        Started {Presenter.timestamp(@status["motion"]["active_trip"]["started_at"])}, confirmed {Presenter.timestamp(
+          @status["motion"]["active_trip"]["confirmed_at"]
+        )}
+      </dd>
+      <dd :if={!@status["motion"]["active_trip"]}>No active trip</dd>
+      <dt>Pending change</dt>
+      <dd :if={@status["motion"]["candidate_status"]}>
+        {Presenter.rule_status(@status["motion"]["candidate_status"])} since {Presenter.timestamp(
+          @status["motion"]["candidate_since"]
+        )}
+      </dd>
+      <dd :if={!@status["motion"]["candidate_status"]}>None</dd>
+      <dt>Last position outcome</dt><dd>{@status["motion"]["last_received_outcome"]}</dd>
+      <dt>Dwell before moving / stopped</dt>
+      <dd>
+        {Presenter.duration(@status["motion"]["minimum_movement_ms"])} / {Presenter.duration(
+          @status["motion"]["minimum_stop_ms"]
+        )}
+      </dd>
+    </dl>
+    <dl :if={@status["kind"] == "geofence"}>
+      <dt>Fence</dt>
+      <dd>
+        {@status["geofence"]["fence"]["id"]} · revision {@status["geofence"]["fence"]["revision"]}
+      </dd>
+      <dt>Membership evidence</dt>
+      <dd>{@status["geofence"]["membership_reason"] || "No valid membership yet"}</dd>
+      <dt>Membership time</dt>
+      <dd>
+        {if @status["geofence"]["membership_event_at"],
+          do: Presenter.timestamp(@status["geofence"]["membership_event_at"]),
+          else: "Unknown"}
+      </dd>
+      <dt>Last position outcome</dt><dd>{@status["geofence"]["last_received_outcome"]}</dd>
+      <dt>Maximum transition gap</dt>
+      <dd>{Presenter.duration(@status["geofence"]["max_transition_gap_ms"])}</dd>
+    </dl>
+    """
+  end
+
   defp timestamp(value), do: Presenter.timestamp(%{"value" => value})
 
   defp points(%{"series" => [%{"points" => points}]}), do: points

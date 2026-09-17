@@ -2017,3 +2017,22 @@ allowlist. A history page with more versions than its `limit` therefore raised
 while issuing the next cursor, which HTTP reported as an internal error. The
 cursor now admits `saved_queries`; the saved-query lifecycle test pages its two
 edits and deletion tombstone with a continuation.
+
+### Browser rule status — 2026-09-17
+
+The shared browser adds a Protection navigation entry. `/protection` pages the
+service `rules` projection with the same bounded 32-page return path as other
+lists, and `/protection/{kind}:{rule_id}` shows one rule's current committed
+status, thresholds and timing with paged evaluation history. Each card and
+detail explains that status is a committed deterministic evaluation, not live
+device connectivity, and that these pages cannot change, arm or acknowledge a
+rule. Status text is always shown; no color carries meaning.
+
+LiveView tests commit all five rule kinds and check their statuses, battery
+reading, fence revision, route decision and trip start while refuting capture
+IDs, hardware identifiers, coordinates and evidence bundles. They page 26 rules
+with a transient failure, a changed generation and a terminal denial, and page
+27 heartbeat versions with transient history and state failures, denial and a
+missing rule. The optional app host serves `/protection` through its real
+loopback listener without disclosing the bearer. Rule configuration, alert
+acknowledgement, maps and physical-surface acceptance remain open.

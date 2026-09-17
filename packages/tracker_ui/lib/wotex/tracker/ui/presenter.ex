@@ -75,6 +75,57 @@ defmodule Wotex.Tracker.UI.Presenter do
   def dashboard_path(id) when is_binary(id),
     do: "/dashboards/" <> URI.encode(id, &URI.char_unreserved?/1)
 
+  @doc "Builds the local path for one persisted rule status."
+  @spec rule_path(String.t()) :: String.t()
+  def rule_path(id) when is_binary(id),
+    do: "/protection/" <> URI.encode(id, &URI.char_unreserved?/1)
+
+  @doc "Names a closed rule kind without implying the rule is armed or configurable here."
+  @spec rule_kind(String.t()) :: String.t()
+  def rule_kind(kind),
+    do:
+      Map.get(
+        %{
+          "battery" => "Low battery",
+          "geofence" => "Geofence",
+          "heartbeat" => "Reporting heartbeat",
+          "motion" => "Motion and trips",
+          "transport_degradation" => "Transport health"
+        },
+        kind,
+        kind
+      )
+
+  @doc "Labels a closed rule status, keeping unknown distinct from a negative result."
+  @spec rule_status(String.t()) :: String.t()
+  def rule_status(status),
+    do:
+      Map.get(
+        %{
+          "current" => "Reporting on time",
+          "overdue" => "Overdue",
+          "normal" => "Normal",
+          "low" => "Low",
+          "healthy" => "Healthy",
+          "degraded" => "Degraded",
+          "stationary" => "Stationary",
+          "moving" => "Moving",
+          "inside" => "Inside",
+          "outside" => "Outside",
+          "uncertain" => "Uncertain",
+          "unknown" => "Unknown"
+        },
+        status,
+        status
+      )
+
+  @doc "Formats a tagged millisecond duration without rounding it into a coarser unit."
+  @spec duration(term()) :: String.t()
+  def duration(%{"type" => "integer", "value" => value}) when is_integer(value),
+    do: "#{value} ms"
+
+  def duration(_), do: "Unknown"
+
   @doc "Formats a tagged public scalar without converting unavailable values to zero."
   @spec scalar(term()) :: String.t()
   def scalar(%{"value" => nil}), do: "Unavailable"
