@@ -281,7 +281,7 @@ defmodule Wotex.Tracker.UI.BrowseLive do
       summary =
         case Auth.request(socket, :get, %{"resource" => "state", "id" => row["id"]}) do
           {:ok, %{"value" => state}} ->
-            %{status: :recorded, state: state}
+            rules(socket, row["id"], state)
 
           {:error, %{"code" => "not_found"}} ->
             %{status: :unprovisioned, state: nil}
@@ -301,6 +301,20 @@ defmodule Wotex.Tracker.UI.BrowseLive do
   end
 
   defp summaries(_, _), do: {:ok, %{}}
+
+  # Rule status is secondary to readings, so its failure does not hide them.
+  defp rules(socket, id, state) do
+    case Auth.request(socket, :thing_rules, %{"thing" => id}) do
+      {:ok, %{"items" => items}} when is_list(items) ->
+        %{status: :recorded, state: state, rules: items}
+
+      {:error, %{"code" => code} = error} when code in ~w(forbidden unauthorized) ->
+        {:error, error}
+
+      _ ->
+        %{status: :recorded, state: state, rules: :unavailable}
+    end
+  end
 
   attr(:summary, :map, required: true)
   attr(:enrollment, :map, required: true)
@@ -327,6 +341,16 @@ defmodule Wotex.Tracker.UI.BrowseLive do
           </li>
         </ul>
         <p class="muted">Retained readings; current device connectivity is unknown.</p>
+        <p :if={@summary.rules == :unavailable} role="status">Rule status unavailable.</p>
+        <p :if={@summary.rules == []} class="muted">No protection rules defined.</p>
+        <ul :if={is_list(@summary.rules) && @summary.rules != []} class="summary-values rule-summary">
+          <li :for={rule <- @summary.rules}>
+            {Presenter.rule_kind(rule["value"]["kind"])}: {Presenter.rule_status(
+              rule["value"]["status"]
+            )}
+            <strong :if={Presenter.rule_attention?(rule["value"]["status"])}> · needs attention</strong>
+          </li>
+        </ul>
       </div>
     </div>
     """

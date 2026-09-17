@@ -2429,3 +2429,19 @@ rule read, drops the battery status after deleting its definition, returns
 nothing for an unknown Thing and rejects an empty Thing and an invalid token.
 The independent HTTP consumer checks the battery status against OpenAPI and the
 individual rule read.
+
+### Browser rule status on assets — 2026-09-17
+
+Provisioned asset cards on the overview now read `Service.thing_rules/5` after
+their committed state and list each defined rule's kind and status. Low,
+overdue, degraded and outside statuses are marked as needing attention. A card
+without definitions says so, a failed status read keeps the retained readings
+and states that rule status is unavailable, and lost read authority clears the
+list as before. The asset protection page shows the same status beside each
+definition, `Not evaluated` for a definition without status and `Unavailable`
+when the status read fails.
+
+LiveView tests show a provisioned card with no rules, then a low battery rule
+marked as needing attention, keep the temperature reading through an unavailable
+status read and clear the cards on a forbidden one. The protection page test sees
+low and on-time statuses and an unavailable status column.

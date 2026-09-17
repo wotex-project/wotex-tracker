@@ -8,7 +8,9 @@ The asset page can read declared scalar Properties from the authorized committed
 service snapshot and discloses that the read does not contact the device.
 The browser overview now reads each asset's latest authorized committed state
 separately, showing retained measurements and their provenance or an explicit
-unprovisioned/unavailable state. It does not claim live connectivity.
+unprovisioned/unavailable state. It does not claim live connectivity. Each
+provisioned card also lists the committed status of the asset's defined rules and
+marks low battery or overdue reporting as needing attention.
 The asset detail can export the currently displayed bounded state-history page
 as JSON after reauthorizing and matching its committed snapshot. This is a
 page export. It can also traverse and export a complete retained state history

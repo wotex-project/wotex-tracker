@@ -34,6 +34,7 @@ defmodule Wotex.Tracker.UI.RuleCreateLive do
          asset: nil,
          thing: nil,
          definitions: nil,
+         statuses: nil,
          maximum: @maximum_definitions,
          alerts: nil,
          alert_params: nil,
@@ -208,7 +209,9 @@ defmodule Wotex.Tracker.UI.RuleCreateLive do
             </caption>
             <thead>
               <tr>
-                <th scope="col">Rule</th><th scope="col">Revision</th><th scope="col">Settings</th>
+                <th scope="col">Rule</th><th scope="col">Status</th><th scope="col">Revision</th><th scope="col">
+                  Settings
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -219,6 +222,7 @@ defmodule Wotex.Tracker.UI.RuleCreateLive do
                   </a>
                   <span class="identifier">{definition["id"]}</span>
                 </td>
+                <td>{status_label(@statuses, definition)}</td>
                 <td>{definition["revision"]}</td>
                 <td>{Presenter.rule_parameters(definition["kind"], definition["parameters"])}</td>
               </tr>
@@ -354,7 +358,9 @@ defmodule Wotex.Tracker.UI.RuleCreateLive do
   defp definitions(socket) do
     case Auth.request(socket, :thing_policies, %{"thing" => socket.assigns.id}) do
       {:ok, %{"items" => items}} ->
-        assign(socket, definitions: Enum.map(items, & &1["value"]))
+        socket
+        |> assign(definitions: Enum.map(items, & &1["value"]))
+        |> statuses()
 
       {:error, error} ->
         assign(socket, definitions: nil, error: error)
@@ -386,6 +392,26 @@ defmodule Wotex.Tracker.UI.RuleCreateLive do
 
       _ ->
         assign(socket, alerts_error: %{"code" => "storage_unavailable"})
+    end
+  end
+
+  # Status is read separately, so a failed read leaves definitions visible.
+  defp statuses(socket) do
+    case Auth.request(socket, :thing_rules, %{"thing" => socket.assigns.id}) do
+      {:ok, %{"items" => items}} when is_list(items) ->
+        assign(socket, statuses: Map.new(items, &{&1["id"], &1["value"]}))
+
+      _ ->
+        assign(socket, statuses: nil)
+    end
+  end
+
+  defp status_label(nil, _), do: "Unavailable"
+
+  defp status_label(statuses, definition) do
+    case statuses[definition["kind"] <> ":" <> definition["id"]] do
+      %{"status" => status} -> Presenter.rule_status(status)
+      _ -> "Not evaluated"
     end
   end
 

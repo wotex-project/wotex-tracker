@@ -94,6 +94,36 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert state["value"]["measurements"] != []
   end
 
+  test "asset overview shows each provisioned asset's rule status", c do
+    thing = provisioned(c)
+    {:ok, view, _} = live(c.conn, "/")
+    assert has_element?(view, ".card p", "No protection rules defined.")
+
+    {:ok, _} =
+      Service.save_policy(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        battery_rule(thing, "3", {3.0, 3.2}),
+        c.now
+      )
+
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, ".rule-summary li", "Low battery: Low")
+    assert has_element?(view, ".rule-summary li strong", "needs attention")
+
+    Agent.update(c.faults, &Map.put(&1, :thing_rules, :unavailable))
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, ".card [role=status]", "Rule status unavailable")
+    assert has_element?(view, ".card .summary-values li", "Temperature: 24.3 °C")
+
+    Agent.update(c.faults, &Map.put(&1, :thing_rules, {:deny, "forbidden"}))
+    view |> element("button", "Refresh") |> render_click()
+    refute has_element?(view, ".card")
+    assert has_element?(view, "[role=alert]")
+  end
+
   test "asset overview distinguishes unprovisioned, retained and unavailable readings", c do
     {thing, _} = enrolled(c)
     {:ok, view, _} = live(c.conn, "/")
@@ -2687,6 +2717,8 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
              "Low at or below 3.0 V · clears at or above 3.2 V · maximum reading age 86400000 ms"
 
     assert html =~ "Maximum silence 3600500 ms"
+    assert has_element?(view, "td", ~r/^\s*Low\s*$/)
+    assert has_element?(view, "td", ~r/^\s*Reporting on time\s*$/)
     assert has_element?(view, "button", "Prepare rule")
     assert Presenter.rule_parameters("motion", %{}) == "Parameters unavailable"
 
@@ -2701,6 +2733,11 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert has_element?(reader_view, "caption", "2 of 8 rule definitions for this asset")
     assert render(reader_view) =~ "cannot add rules"
     refute has_element?(reader_view, "button", "Prepare rule")
+
+    Agent.update(c.faults, &Map.put(&1, :thing_rules, :unavailable))
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, "td", ~r/^\s*Unavailable\s*$/)
+    assert has_element?(view, "caption", "2 of 8 rule definitions for this asset")
 
     Agent.update(c.faults, &Map.put(&1, :thing_policies, :unavailable))
     view |> element("button", "Refresh") |> render_click()

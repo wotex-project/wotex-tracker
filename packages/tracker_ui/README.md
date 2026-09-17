@@ -14,6 +14,10 @@ service snapshot, with no physical-device freshness claim.
 Asset cards now read each latest committed state separately. They show retained
 measurement values and provenance, distinguish unprovisioned from temporarily
 unavailable summaries, and make no live-connectivity claim.
+Provisioned cards also list the committed status of each defined rule, read in
+one snapshot per asset, and mark low, overdue, degraded or outside statuses as
+needing attention; a failed status read keeps the readings visible. The
+protection page shows the same status beside each definition.
 Readers can list retained saved definitions and rerun them under current
 authorization. An administrator can save a displayed query with a fixed or
 rolling window, edit or delete it, and combine compatible saved series into a

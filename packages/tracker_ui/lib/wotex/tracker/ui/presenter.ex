@@ -115,6 +115,10 @@ defmodule Wotex.Tracker.UI.Presenter do
 
   def rule_parameters(_, _), do: "Parameters unavailable"
 
+  @doc "Reports whether a rule status describes a condition an operator should review."
+  @spec rule_attention?(term()) :: boolean()
+  def rule_attention?(status), do: status in ~w(overdue low degraded outside)
+
   @doc "Labels a closed rule status, keeping unknown distinct from a negative result."
   @spec rule_status(String.t()) :: String.t()
   def rule_status(status),
