@@ -57,7 +57,8 @@ defmodule Wotex.Tracker.Service.RecoveryTest do
   test "timeout retains its reservation until completion; a late reply does not pollute caller mailbox" do
     {store, _} = store(timeout: 30, fault: blocking_fault(self()))
     assert {:error, :unknown} = Store.mutate(store, update())
-    assert_received {:blocked, writer}
+    # The 30 ms caller deadline can expire before the writer reaches its fault.
+    assert_receive {:blocked, writer}
     assert :ets.info(store.slots, :size) == 1
     send(writer, :continue)
     eventually(fn -> :ets.info(store.slots, :size) == 0 end)
