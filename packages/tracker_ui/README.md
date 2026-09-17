@@ -25,7 +25,8 @@ pages show no position evidence and cannot arm or acknowledge a rule.
 A provisioned asset's protection page lists its live rule definitions with
 their revision and stored settings, linking each to its rule status. An
 administrator can add a heartbeat or low-battery-voltage rule there until the
-asset has eight definitions. The form captures the scope generation, keeps an operation
+asset has eight definitions. The same page lists, newest first and ten at a time,
+the alerts recorded by those definitions, with a bounded path back to newer pages. The form captures the scope generation, keeps an operation
 reference in the address, derives the rule ID from it and verifies the saved
 definition's asset before reporting success. The service evaluates the rule;
 the page sends no notification. A rule page shows its service definition and

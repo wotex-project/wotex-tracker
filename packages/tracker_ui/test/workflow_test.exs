@@ -2731,6 +2731,82 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     refute has_element?(view, "#rule-definition")
   end
 
+  test "an asset's protection page pages the alerts of its defined rules", c do
+    thing = provisioned(c)
+    path = Presenter.path(:asset, thing) <> "/protection"
+    {:ok, view, _} = live(c.conn, path)
+    assert has_element?(view, "p", "No alerts on this page.")
+
+    generation =
+      Enum.reduce(1..12, "3", fn index, generation ->
+        thresholds = if rem(index, 2) == 1, do: {3.0, 3.2}, else: {2.5, 2.8}
+        request = battery_rule(thing, generation, thresholds)
+
+        {:ok, %{"generation" => next}} =
+          Service.save_policy(c.service, c.admin, c.scope, Identifier.uuid(), request, c.now)
+
+        next
+      end)
+
+    {:ok, %{"items" => all}} =
+      Service.thing_alerts(c.service, c.reader, c.scope, thing, %{"limit" => 100}, c.now)
+
+    assert length(all) > 10
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, "caption", "Alerts at scope version #{generation}")
+    assert has_element?(view, ~s(a[href="#{Presenter.alert_path(hd(all)["id"])}"]))
+    refute has_element?(view, "button", "Newer alerts")
+
+    Agent.update(c.faults, &Map.put(&1, :thing_alerts, :unavailable))
+    view |> element("button", "Older alerts") |> render_click()
+    assert has_element?(view, "[role=alert]")
+    assert has_element?(view, ~s(a[href="#{Presenter.alert_path(hd(all)["id"])}"]))
+
+    view |> element("button", "Older alerts") |> render_click()
+    older = Enum.drop(all, 10)
+    assert has_element?(view, ~s(a[href="#{Presenter.alert_path(hd(older)["id"])}"]))
+    refute has_element?(view, ~s(a[href="#{Presenter.alert_path(hd(all)["id"])}"]))
+    view |> element("button", "Newer alerts") |> render_click()
+    assert has_element?(view, ~s(a[href="#{Presenter.alert_path(hd(all)["id"])}"]))
+
+    view |> element("button", "Older alerts") |> render_click()
+
+    {:ok, _} =
+      Service.save_policy(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        battery_rule(thing, generation, {3.0, 3.2}),
+        c.now
+      )
+
+    view |> element("button", "Newer alerts") |> render_click()
+    assert has_element?(view, "[role=alert]", "service changed")
+    assert has_element?(view, ~s(a[href="#{Presenter.alert_path(hd(older)["id"])}"]))
+
+    {:ok, %{"id" => reader}} = Sessions.login(c.sessions, c.reader, c.scope)
+    reader_conn = build_conn() |> init_test_session(%{"browser_session" => reader})
+    {:ok, reader_view, _} = live(reader_conn, path)
+    assert has_element?(reader_view, "h2", "Alerts for this asset")
+    assert has_element?(reader_view, "button", "Older alerts")
+
+    Agent.update(c.faults, &Map.put(&1, :thing_alerts, :unavailable))
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, "[role=status]", "Alerts are unavailable")
+    refute has_element?(view, "button", "Older alerts")
+
+    Agent.update(c.faults, &Map.put(&1, :thing_alerts, {:reply, {:ok, %{}}}))
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, "[role=status]", "Alerts are unavailable")
+
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, "button", "Older alerts")
+    Agent.update(c.faults, &Map.put(&1, :thing_alerts, {:deny, "forbidden"}))
+    view |> element("button", "Older alerts") |> render_click()
+    assert has_element?(view, "[role=status]", "Alerts are unavailable")
+  end
+
   test "rule creation rejects readers, invalid input, stale snapshots and duplicate writes", c do
     {thing, _} = enrolled(c)
     path = Presenter.path(:asset, thing) <> "/protection"
@@ -4033,6 +4109,23 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
 
   defp operation_from(path),
     do: path |> URI.parse() |> Map.fetch!(:query) |> URI.decode_query() |> Map.fetch!("operation")
+
+  defp battery_rule(thing, generation, {low, clear}),
+    do: %{
+      "id" => "low-battery",
+      "kind" => "battery",
+      "thing_id" => thing,
+      "parameters" => %{
+        "measurement_kind" => "batteryVoltage",
+        "unit" => "V",
+        "low_threshold" => low,
+        "clear_threshold" => clear,
+        "maximum_age_ms" => 86_400_000,
+        "future_skew_ms" => 60_000,
+        "accept_suspect" => false
+      },
+      "expected_generation" => generation
+    }
 
   # Commits one unrelated observation so a following view sees a new scope event.
   defp commit_change(c, id) do

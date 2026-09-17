@@ -326,8 +326,8 @@ browser asset and restart probe. A shared Protection page and per-rule history
 now present committed rule status without evidence. Administrators can add,
 edit and delete heartbeat and low-battery-voltage rules for a provisioned asset
 in the browser, and review and acknowledge their alerts. Each provisioned asset
-lists its live rule definitions and stops offering new rules at the service's
-eight-definition limit. Complete application, remote adapter,
+lists its live rule definitions, stops offering new rules at the service's
+eight-definition limit and pages the alerts those definitions recorded. Complete application, remote adapter,
 accessibility, Pi and mobile acceptance remain open.
 
 Implement WTR.15's shared components and `hosts/app/` after Phase 3; use admitted

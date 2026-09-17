@@ -4,7 +4,9 @@ defmodule Wotex.Tracker.UI.RuleCreateLive do
 
   The page reads the asset's live definitions at one committed snapshot under
   current `read` authority and links each to its rule status. A Thing admits at
-  most eight definitions, so a full asset offers no new rule.
+  most eight definitions, so a full asset offers no new rule. The page also pages
+  the alerts recorded for those definitions, newest first, with a bounded path back
+  through earlier pages.
 
   Preparing a rule captures the current scope generation and puts a fresh
   operation reference in the page address. The rule ID is derived from that
@@ -20,6 +22,8 @@ defmodule Wotex.Tracker.UI.RuleCreateLive do
 
   # HTTP contract 1.12.0 admits at most eight live definitions per Thing.
   @maximum_definitions 8
+  @alert_page_size 10
+  @alert_back_limit 32
 
   @impl true
   def mount(_, _, socket),
@@ -31,6 +35,10 @@ defmodule Wotex.Tracker.UI.RuleCreateLive do
          thing: nil,
          definitions: nil,
          maximum: @maximum_definitions,
+         alerts: nil,
+         alert_params: nil,
+         alert_back: [],
+         alerts_error: nil,
          operation: nil,
          generation: nil,
          outcome: nil,
@@ -132,6 +140,34 @@ defmodule Wotex.Tracker.UI.RuleCreateLive do
 
   def handle_event("check-operation", _, socket), do: {:noreply, recover(socket)}
   def handle_event("refresh", _, socket), do: {:noreply, load(socket)}
+
+  def handle_event("next-alerts", _, %{assigns: %{alerts: %{"cursor" => cursor}}} = socket)
+      when is_binary(cursor) do
+    next = alerts(socket, %{"cursor" => cursor})
+
+    if next.assigns.alert_params == %{"cursor" => cursor} do
+      back = [socket.assigns.alert_params | socket.assigns.alert_back]
+      {:noreply, assign(next, alert_back: Enum.take(back, @alert_back_limit))}
+    else
+      {:noreply, next}
+    end
+  end
+
+  def handle_event("previous-alerts", _, %{assigns: %{alert_back: [params | rest]}} = socket) do
+    previous = alerts(socket, params)
+
+    cond do
+      previous.assigns.alert_params != params ->
+        {:noreply, previous}
+
+      previous.assigns.alerts["generation"] != socket.assigns.alerts["generation"] ->
+        {:noreply, assign(socket, alerts_error: %{"code" => "conflict"})}
+
+      true ->
+        {:noreply, assign(previous, alert_back: rest)}
+    end
+  end
+
   def handle_event(_, _, socket), do: {:noreply, socket}
 
   @impl true
@@ -194,6 +230,53 @@ defmodule Wotex.Tracker.UI.RuleCreateLive do
           before adding another.
         </p>
       </section>
+      <section :if={@thing} class="panel" aria-labelledby="asset-alerts-title">
+        <h2 id="asset-alerts-title">Alerts for this asset</h2>
+        <p>
+          Alerts recorded by this asset's defined rules, newest first. Alerts from host-managed rules
+          appear only in the full alert list.
+        </p>
+        <.notice error={@alerts_error} />
+        <p :if={is_nil(@alerts)} role="status">Alerts are unavailable. Refresh to retry.</p>
+        <p :if={@alerts && @alerts["items"] == []}>No alerts on this page.</p>
+        <div
+          :if={@alerts && @alerts["items"] != []}
+          class="table-scroll"
+          tabindex="0"
+          role="region"
+          aria-labelledby="asset-alerts-title"
+        >
+          <table>
+            <caption>Alerts at scope version {@alerts["generation"]}</caption>
+            <thead>
+              <tr>
+                <th scope="col">Alert</th><th scope="col">Rule</th><th scope="col">Recorded</th><th scope="col">
+                  Review
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr :for={row <- @alerts["items"]}>
+                <td>
+                  <a href={Presenter.alert_path(row["id"])}>
+                    {Presenter.alert_kind(row["value"]["event"]["kind"])}
+                  </a>
+                </td>
+                <td>{row["value"]["rule"]["id"]}</td>
+                <td>{Presenter.timestamp(%{"value" => row["value"]["created_at"]})}</td>
+                <td>{Presenter.alert_state(row["value"])}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <button :if={@alert_back != []} class="secondary" phx-click="previous-alerts">
+          Newer alerts
+        </button>
+        <button :if={@alerts && @alerts["cursor"]} class="secondary" phx-click="next-alerts">
+          Older alerts
+        </button>
+        <a href="/protection/alerts">All alerts</a>
+      </section>
       <section :if={@thing} class="panel" aria-labelledby="add-rule-title">
         <h2 id="add-rule-title">Add a rule</h2>
         <p :if={!@identity["can_manage_queries"]}>
@@ -251,6 +334,7 @@ defmodule Wotex.Tracker.UI.RuleCreateLive do
       socket
       |> assign(asset: asset, thing: thing, error: nil)
       |> definitions()
+      |> first_alerts()
     else
       {:error, error} -> assign(socket, asset: nil, thing: nil, definitions: nil, error: error)
     end
@@ -274,6 +358,34 @@ defmodule Wotex.Tracker.UI.RuleCreateLive do
 
       {:error, error} ->
         assign(socket, definitions: nil, error: error)
+    end
+  end
+
+  defp first_alerts(%{assigns: %{thing: nil}} = socket),
+    do: assign(socket, alerts: nil, alert_params: nil, alert_back: [], alerts_error: nil)
+
+  defp first_alerts(socket) do
+    first = alerts(assign(socket, alerts: nil), %{"limit" => @alert_page_size})
+
+    if first.assigns.alert_params == %{"limit" => @alert_page_size},
+      do: assign(first, alert_back: []),
+      else: first
+  end
+
+  # A failed page keeps the displayed page; an authority failure clears it.
+  defp alerts(socket, params) do
+    case Auth.request(socket, :thing_alerts, %{"thing" => socket.assigns.id, "params" => params}) do
+      {:ok, %{"items" => items} = page} when is_list(items) ->
+        assign(socket, alerts: page, alert_params: params, alerts_error: nil)
+
+      {:error, %{"code" => code} = error} when code in ~w(forbidden unauthorized) ->
+        assign(socket, alerts: nil, alert_params: nil, alert_back: [], alerts_error: error)
+
+      {:error, error} ->
+        assign(socket, alerts_error: error)
+
+      _ ->
+        assign(socket, alerts_error: %{"code" => "storage_unavailable"})
     end
   end
 

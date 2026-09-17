@@ -2324,3 +2324,20 @@ alert. The independent HTTP consumer sees no alert after a normal battery
 baseline, one bound alert after editing the thresholds to low, an empty list for
 an unknown Thing, 400 and 401 outcomes, and the same alert after the definition
 is deleted.
+
+### Browser per-asset alerts — 2026-09-17
+
+A provisioned asset's protection page now pages the alerts of its defined rules
+through `Service.thing_alerts/6`, ten at a time and newest first. Each row links
+the alert, names its rule, shows its recorded time and whether it needs review.
+Moving to older alerts keeps up to 32 earlier page requests; returning reloads
+that page under current read authority and refuses a page from a changed
+snapshot. A failed page keeps the displayed alerts with a notice, a failed first
+page or malformed reply shows that alerts are unavailable, and lost read
+authority clears them.
+
+LiveView tests raise more than ten alerts by editing a battery definition's
+thresholds, then page older and newer alerts, keep the first page through an
+unavailable older page, refuse returning to a newer page after another commit,
+show the list to a reader, and cover unavailable, malformed and forbidden
+replies.
