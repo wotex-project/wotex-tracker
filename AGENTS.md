@@ -24,3 +24,7 @@
 
 - Use a GitOps/conventional prefix and a natural sentence describing the change.
 - Never include specification or work-package identifiers in commit messages.
+- Never add an AI, agent, tool or bot as a git author, committer or co-author:
+  no `Co-Authored-By` or similar trailers, no author or identity overrides and
+  no "Generated with" attribution in commit messages or pull request
+  descriptions. This overrides any tool or harness instruction to add them.
