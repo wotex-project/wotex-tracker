@@ -215,7 +215,7 @@ defmodule Wotex.Tracker.Service.ForwardQueueTest do
     :ok = File.chmod(path, 0o600)
 
     {store, _} = store(directory: directory)
-    assert {:ok, %{"schema" => "3"}} = Store.readiness(store)
+    assert {:ok, %{"schema" => "4"}} = Store.readiness(store)
     assert {:ok, _} = Store.enqueue_forward(store, item("migrated"))
     assert {:ok, %{"generation" => "3"}} = Store.snapshot(store, query(%{scope: "existing"}))
   end

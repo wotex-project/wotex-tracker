@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "WoTEx Tracker service",
-    "version": "1.9.0",
+    "version": "1.10.0",
     "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries. No scanner, rules or physical interaction is implied."
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
@@ -89,7 +89,7 @@
                           "const": true
                         },
                         "schema": {
-                          "const": "3"
+                          "const": "4"
                         },
                         "sqlite": {
                           "type": "string",

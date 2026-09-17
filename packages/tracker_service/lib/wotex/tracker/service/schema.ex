@@ -3,6 +3,14 @@ defmodule Wotex.Tracker.Service.Schema do
 
   alias Wotex.Tracker.Service.SQL
 
+  # Every supported older version upgrades to schema 4 in one startup transaction.
+  @migrations %{
+    1 => ~w(1-to-2.sql 2-to-3.sql 3-to-4.sql),
+    2 => ~w(2-to-3.sql 3-to-4.sql),
+    3 => ~w(3-to-4.sql),
+    4 => []
+  }
+
   def initialize(db, options) do
     SQL.execute!(db, "PRAGMA busy_timeout=#{options.busy_timeout}")
     SQL.execute!(db, "PRAGMA foreign_keys=ON; PRAGMA synchronous=FULL")
@@ -17,17 +25,9 @@ defmodule Wotex.Tracker.Service.Schema do
         [[0]] ->
           create(db)
 
-        [[1]] ->
+        [[version]] when is_map_key(@migrations, version) ->
           require_value!(SQL.rows!(db, "PRAGMA application_id"), [[1_465_143_857]])
-          migrate(db, "1-to-2.sql")
-          migrate(db, "2-to-3.sql")
-
-        [[2]] ->
-          require_value!(SQL.rows!(db, "PRAGMA application_id"), [[1_465_143_857]])
-          migrate(db, "2-to-3.sql")
-
-        [[3]] ->
-          require_value!(SQL.rows!(db, "PRAGMA application_id"), [[1_465_143_857]])
+          Enum.each(@migrations[version], &migrate(db, &1))
 
         _ ->
           throw({:storage, :unsupported_schema})
@@ -50,7 +50,7 @@ defmodule Wotex.Tracker.Service.Schema do
 
     :wotex_tracker_service
     |> :code.priv_dir()
-    |> Path.join("schema/3.sql")
+    |> Path.join("schema/4.sql")
     |> File.read!()
     |> then(&SQL.execute!(db, &1))
   end

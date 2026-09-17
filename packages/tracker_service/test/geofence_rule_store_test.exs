@@ -60,7 +60,7 @@ defmodule Wotex.Tracker.Service.GeofenceRuleStoreTest do
     assert intent["physical_action_dispatch"] == "prohibited"
 
     assert {:ok, %{"items" => [%{"id" => "geofence:yard-membership"}]}} =
-             Store.snapshot(reopened, query())
+             Store.snapshot(reopened, query(%{kind: "rules"}))
   end
 
   test "geofence transition admission rejects stable and altered results" do

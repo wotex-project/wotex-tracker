@@ -4,6 +4,7 @@ defmodule Wotex.Tracker.Service.HeartbeatRuleStoreTest do
   import Wotex.Tracker.Service.Fixtures
 
   alias Wotex.Tracker.HeartbeatTransition
+  alias Wotex.Tracker.Service
   alias Wotex.Tracker.Service.{RuleTransition, Store}
 
   test "heartbeat state and overdue intent commit atomically across restart" do
@@ -47,7 +48,29 @@ defmodule Wotex.Tracker.Service.HeartbeatRuleStoreTest do
     assert intent["physical_action_dispatch"] == "prohibited"
 
     assert {:ok, %{"items" => [%{"id" => "heartbeat:heartbeat-rule"}]}} =
-             Store.snapshot(reopened, query())
+             Store.snapshot(reopened, query(%{kind: "rules"}))
+  end
+
+  test "rule history stays out of public asset state resources" do
+    c = service()
+    policy = policy()
+    heartbeat = observation(%{id: "heartbeat", observed_at: now()})
+    {:ok, baseline_result} = HeartbeatTransition.evaluate(nil, heartbeat, policy, :live, now())
+    {:ok, baseline} = RuleTransition.new(c.scope, nil, baseline_result)
+    assert {:ok, %{"generation" => "1"}} = Store.commit_rule(c.store, baseline)
+
+    assert {:ok, %{"generation" => "1", "items" => []}} =
+             Service.list(c.service, c.reader, c.scope, "state", %{}, c.now)
+
+    for operation <- [
+          &Service.get(c.service, c.reader, c.scope, "state", &1, c.now),
+          &Service.history(c.service, c.reader, c.scope, "state", &1, %{}, c.now)
+        ] do
+      assert {:error, %{"code" => "not_found"}} = operation.("heartbeat:heartbeat-rule")
+    end
+
+    assert {:ok, %{"items" => [%{"id" => "heartbeat:heartbeat-rule", "generation" => "1"}]}} =
+             Store.snapshot(c.store, query(%{kind: "rules"}))
   end
 
   test "heartbeat transition admission rejects stable and changed results" do

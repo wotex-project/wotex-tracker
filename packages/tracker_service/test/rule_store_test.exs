@@ -48,7 +48,7 @@ defmodule Wotex.Tracker.Service.RuleStoreTest do
     assert envelope == %{"type" => "tracker.event", "data" => result["event"]}
 
     assert {:ok, %{"items" => [%{"id" => "transport_degradation:health"}]}} =
-             Store.snapshot(store, query())
+             Store.snapshot(store, query(%{kind: "rules"}))
 
     GenServer.stop(store.pid)
     {reopened, _} = store(directory: directory)
@@ -148,9 +148,52 @@ defmodule Wotex.Tracker.Service.RuleStoreTest do
     :ok = File.chmod(path, 0o600)
 
     {store, _} = store(directory: directory)
-    assert {:ok, %{"schema" => "3"}} = Store.readiness(store)
+    assert {:ok, %{"schema" => "4"}} = Store.readiness(store)
     assert {:ok, %{"generation" => "3"}} = Store.snapshot(store, query(%{scope: "existing"}))
     assert {:ok, %{"generation" => "1"}} = Store.commit_rule(store, transitions().baseline)
+  end
+
+  test "schema three moves only rule history out of public asset state" do
+    directory = directory()
+    path = Path.join(directory, "tracker.db")
+    {:ok, db} = Sqlite3.open(path)
+    schema = File.read!(Application.app_dir(:wotex_tracker_service, "priv/schema/3.sql"))
+    :ok = Sqlite3.execute(db, schema)
+
+    :ok =
+      Sqlite3.execute(db, """
+      INSERT INTO scopes VALUES('existing',3),('other',1);
+      INSERT INTO rule_states VALUES('existing','heartbeat','silence','state-2','{}',2,1,'transition-2');
+      INSERT INTO records VALUES('existing','state','heartbeat:silence',1,'{"rule":1}');
+      INSERT INTO records VALUES('existing','state','heartbeat:silence',2,'{"rule":2}');
+      INSERT INTO records VALUES('existing','state','urn:uuid:asset',3,'{"public":{}}');
+      INSERT INTO records VALUES('other','state','heartbeat:silence',1,'{"public":{}}');
+      """)
+
+    :ok = Sqlite3.close(db)
+    :ok = File.chmod(path, 0o600)
+
+    {store, _} = store(directory: directory)
+    assert {:ok, %{"schema" => "4"}} = Store.readiness(store)
+
+    assert {:ok, %{"items" => [%{"id" => "urn:uuid:asset"}]}} =
+             Store.snapshot(store, query(%{scope: "existing"}))
+
+    assert {:ok, %{"items" => [%{"id" => "heartbeat:silence", "generation" => "2"}]}} =
+             Store.snapshot(store, query(%{scope: "existing", kind: "rules"}))
+
+    assert {:ok, %{"items" => [%{"value" => %{"rule" => 1}}, %{"value" => %{"rule" => 2}}]}} =
+             Store.history(store, %{
+               scope: "existing",
+               kind: "rules",
+               id: "heartbeat:silence",
+               generation: nil,
+               after: "0",
+               limit: 10
+             })
+
+    assert {:ok, %{"items" => [%{"id" => "heartbeat:silence"}]}} =
+             Store.snapshot(store, query(%{scope: "other"}))
   end
 
   test "transition admission rejects stable results, mutation and invalid queries" do

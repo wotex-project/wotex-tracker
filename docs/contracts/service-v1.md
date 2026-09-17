@@ -22,10 +22,12 @@ a quiet scope's last event predates retention. Subsequent events still obey
 retention. The HTTP layer must bind this pair, principal, scope and issue/expiry
 time in its authenticated cursor; raw storage tokens do not grant authority.
 
-Schema version 3 is created transactionally using `PRAGMA user_version`.
-Version 1 upgrades through the forward-queue schema and then the rule-state
-schema in the same startup transaction; version 2 adds only the rule-state
-tables. Existing scopes, operations, observations, records, events,
+Schema version 4 is created transactionally using `PRAGMA user_version`.
+Version 1 upgrades through the forward-queue, rule-state and rule-history
+schemas in the same startup transaction; version 2 starts at the rule-state
+tables and version 3 applies only the rule-history move. That move reassigns
+existing rule versions from the public asset `state` record kind to the
+private `rules` kind; asset state, scopes, operations, observations, events,
 publications and queue items remain unchanged. Unknown newer schemas fail
 startup. Migrations may never silently reset data.
 WAL, `synchronous=FULL`, foreign keys, a 1,000 ms busy timeout, 1,000-page
@@ -93,8 +95,9 @@ remain until explicit scoped cleanup; cleanup never removes pending items.
 The same privileged store accepts a revalidated transport-health, heartbeat,
 low-battery, motion/trip or geofence transition. It compares the expected prior state identity inside
 `BEGIN IMMEDIATE`, then
-writes the canonical rule state, immutable state history, deduplicated event
-intent and public event at one scope generation. An exact retry returns the
+writes the canonical rule state, immutable rule history, deduplicated event
+intent and public event at one scope generation. Rule history uses the `rules`
+record kind, so public asset `state` pages, reads and history never return it. An exact retry returns the
 original generation. A stale prior identity or a reused event ID with different
 content conflicts without a partial write. Live event intents retain that a
 physical Action still needs separate authorization; replay event intents retain
@@ -259,7 +262,7 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
-## HTTP and stream contract 1.9.0
+## HTTP and stream contract 1.10.0
 
 The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
 2020-12. The independently maintained Elixir audit checks document shape,
@@ -279,7 +282,7 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | --- | --- |
 | `/health/live` | GET public liveness |
 | `/api/v1/openapi.json` | GET public machine contract |
-| `/api/v1/scopes/{scope}/health/ready` | GET authenticated writable-store check |
+| `/api/v1/scopes/{scope}/health/ready` | GET authenticated writable-store check reporting store schema `4` |
 | `/api/v1/scopes/{scope}/capabilities` | GET explicit available/unsupported/unconfigured status |
 | `…/analytics/query` | POST one read-only structured measurement query against a committed snapshot |
 | `…/analytics/pages` | POST one snapshot-pinned bucket page with an encrypted continuation |

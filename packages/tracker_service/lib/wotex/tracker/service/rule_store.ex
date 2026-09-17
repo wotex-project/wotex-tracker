@@ -177,7 +177,7 @@ defmodule Wotex.Tracker.Service.RuleStore do
 
     SQL.rows!(db, "INSERT INTO records VALUES(?,?,?,?,?)", [
       transition.scope,
-      "state",
+      "rules",
       transition.record_id,
       next_generation,
       Codec.encode!(transition.document)

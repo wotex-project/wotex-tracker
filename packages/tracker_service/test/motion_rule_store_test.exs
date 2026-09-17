@@ -69,7 +69,7 @@ defmodule Wotex.Tracker.Service.MotionRuleStoreTest do
     assert intent["physical_action_dispatch"] == "prohibited"
 
     assert {:ok, %{"items" => [%{"id" => "motion:motion-rule"}]}} =
-             Store.snapshot(reopened, query())
+             Store.snapshot(reopened, query(%{kind: "rules"}))
   end
 
   test "motion transition admission rejects stable and changed results" do

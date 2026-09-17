@@ -45,8 +45,9 @@ as an unauthenticated HTTP queue.
 The privileged `Store` port can also atomically persist validated
 `TransportDegradation`, `HeartbeatTransition`, `BatteryTransition`,
 `MotionTransition` and `GeofenceTransition` results. `RuleTransition` rechecks the pure result; the SQLite
-commit compares the prior state identity and records canonical state, state
-history, a stable event intent and its event at one scope generation. Motion
+commit compares the prior state identity and records canonical state, private
+rule history, a stable event intent and its event at one scope generation. Rule
+history is never listed as public asset `state`. Motion
 and geofence state retain deduplicated registries of their complete
 evidence-bound samples.
 Exact retries are idempotent, stale writers conflict, and restart recovery reads
@@ -176,7 +177,7 @@ and key paths. Explicit `:proxy` mode requires an HTTPS public origin and a
 protected proxy-to-listener network; forwarded headers never supply authority or
 Forms. No remote exposure is inferred.
 
-OpenAPI **3.1.0**, contract revision **1.9.0**, is packaged at
+OpenAPI **3.1.0**, contract revision **1.10.0**, is packaged at
 `priv/openapi/v1.json` and served at `/api/v1/openapi.json`. Liveness is
 `/health/live`; authenticated resources are under `/api/v1/scopes/{scope}`.
 Use `Authorization: Bearer …`, and a UUIDv4 `Idempotency-Key` for POST mutations.

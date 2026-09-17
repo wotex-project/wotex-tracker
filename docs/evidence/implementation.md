@@ -1973,3 +1973,17 @@ bearer or raw credential ID and explains that sign-out ends only the browser
 session. Workflow tests cover admin and read-only views, transient failure,
 denial and non-disclosure; the real loopback host serves the route. A historical
 access audit and revocation management remain open.
+
+### Private rule history storage — 2026-09-17
+
+Persisted rule transitions previously appended their history under the public
+asset `state` record kind. A reader listing `state` therefore saw rule record
+IDs with `null` values, and reading or paging that ID returned an empty public
+projection. Store schema 4 now keeps rule versions under a private `rules`
+record kind that no public resource reads. The transactional 3-to-4 migration
+moves only records whose ID matches a canonical rule state in the same scope;
+asset state and other scopes remain unchanged. Readiness reports schema `4`
+under HTTP contract revision 1.10.0, and snapshot analytics require that schema.
+Store tests upgrade a version-3 database with mixed rule and asset history, and
+a service test confirms that public `state` list, get and history no longer
+disclose committed heartbeat history.

@@ -52,7 +52,7 @@ defmodule Wotex.Tracker.Service.BatteryRuleStoreTest do
     assert intent["physical_action_dispatch"] == "prohibited"
 
     assert {:ok, %{"items" => [%{"id" => "battery:battery-rule"}]}} =
-             Store.snapshot(reopened, query())
+             Store.snapshot(reopened, query(%{kind: "rules"}))
   end
 
   test "battery transition admission rejects stable and changed results" do

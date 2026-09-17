@@ -8,7 +8,8 @@ defmodule Wotex.Tracker.Service.Read do
   def fetch(db, query, authorize \\ fn -> :ok end) do
     with %{scope: scope, kind: kind, id: id, generation: generation} when map_size(query) == 4 <-
            query,
-         true <- Codec.id?(scope) and Codec.id?(id) and kind in ["observations" | Update.kinds()],
+         true <-
+           Codec.id?(scope) and Codec.id?(id) and (kind == "observations" or record_kind?(kind)),
          {:ok, version} <- requested_generation(db, %{generation: generation}) do
       SQL.execute!(db, "BEGIN")
 
@@ -182,7 +183,7 @@ defmodule Wotex.Tracker.Service.Read do
          } = query
        )
        when map_size(query) == 6 do
-    Codec.id?(scope) and Codec.id?(id) and kind in Update.kinds() and
+    Codec.id?(scope) and Codec.id?(id) and record_kind?(kind) and
       (is_nil(generation) or is_binary(generation)) and is_binary(position) and
       is_integer(limit) and limit in 1..100
   end
@@ -254,12 +255,15 @@ defmodule Wotex.Tracker.Service.Read do
            query
        )
        when map_size(query) == 5 do
-    Codec.id?(scope) and kind in ["observations" | Update.kinds()] and
+    Codec.id?(scope) and (kind == "observations" or record_kind?(kind)) and
       (is_nil(generation) or is_binary(generation)) and
       (after_id == "" or Codec.id?(after_id)) and is_integer(limit) and limit in 1..100
   end
 
   defp valid_query?(_), do: false
+
+  # Rule history is written only by the rule transaction, never by a generic update.
+  defp record_kind?(kind), do: kind == "rules" or kind in Update.kinds()
 
   defp requested_generation(_db, %{generation: nil}), do: {:ok, nil}
   defp requested_generation(_db, query), do: Codec.generation(query.generation)
