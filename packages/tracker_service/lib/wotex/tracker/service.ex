@@ -12,6 +12,7 @@ defmodule Wotex.Tracker.Service do
   alias Wotex.Tracker.Decoders.RuuviRawV2
 
   alias Wotex.Tracker.Service.{
+    Alert,
     AnalyticsPage,
     Association,
     Codec,
@@ -33,7 +34,7 @@ defmodule Wotex.Tracker.Service do
     Update
   }
 
-  @resources ~w(observations resolutions evidence state enrollments things saved_queries rules policies)
+  @resources ~w(observations resolutions evidence state enrollments things saved_queries rules policies alerts)
   @derive {Inspect, only: [:base_url]}
   @enforce_keys [:store, :credentials, :catalogue, :model, :base_url]
   defstruct @enforce_keys
@@ -266,6 +267,19 @@ defmodule Wotex.Tracker.Service do
         "policy"
       )
 
+  @doc "Acknowledges one live rule alert once without changing rule state or dispatching an Action."
+  @spec acknowledge_alert(t(), String.t(), String.t(), String.t(), map(), integer()) ::
+          {:ok, map()} | {:error, map()}
+  def acknowledge_alert(service, token, scope, operation, request, now),
+    do:
+      admin_mutation(
+        service,
+        {token, scope, operation, request, now},
+        Alert,
+        :acknowledge,
+        "alert"
+      )
+
   @doc "Executes the admitted query from a saved definition after current read authorization."
   @spec execute_saved_query(t(), String.t(), String.t(), String.t(), integer()) ::
           {:ok, map()} | {:error, map()}
@@ -469,12 +483,16 @@ defmodule Wotex.Tracker.Service do
 
   defp admit_admin(module, :save, request), do: module.admit_save(request)
   defp admit_admin(module, :delete, request), do: module.admit_delete(request)
+  defp admit_admin(module, :acknowledge, request), do: module.admit_acknowledge(request)
 
   defp prepare_admin(module, :save, service, access, operation, request, now),
     do: module.prepare_save(service, access, operation, request, now)
 
   defp prepare_admin(module, :delete, service, access, operation, request, now),
     do: module.prepare_delete(service, access, operation, request, now)
+
+  defp prepare_admin(module, :acknowledge, service, access, operation, request, now),
+    do: module.prepare_acknowledge(service, access, operation, request, now)
 
   defp storage_kind("observations"), do: "resolutions"
   defp storage_kind(resource), do: resource

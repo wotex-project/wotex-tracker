@@ -18,7 +18,7 @@ defmodule Wotex.Tracker.HTTPTest do
     RuleFixtures.commit_all(context.store, context.scope)
     server = start_supervised!({Server, options(context)})
     output = run_consumer(context, server, %{"mode" => "rules"})
-    assert output =~ "HTTP_CONSUMER_PASS openapi=true rule_status=true"
+    assert output =~ "HTTP_CONSUMER_PASS openapi=true rule_status=true alerts=true"
     assert {:ok, capacity} = Server.child(server, :capacity)
     assert_capacity_released(capacity)
   end

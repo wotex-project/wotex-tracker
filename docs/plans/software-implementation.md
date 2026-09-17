@@ -251,8 +251,8 @@ the read-only service `rules` resource without receiving its private evidence.
 Administrators can now persist versioned heartbeat and battery rule definitions
 for enrolled Things through the service. Saving a definition and materialising
 its Thing evaluate it atomically against committed evidence, and the scheduler
-ages the resulting state. Other rule kinds, arming, notification and alert
-acknowledgement remain open.
+ages the resulting state. Every rule event becomes a public alert, and administrators can acknowledge a
+live alert once. Other rule kinds, arming and notification delivery remain open.
 
 Implement explicit time/freshness, quality selection, motion/trips/stops,
 geofence membership/transitions, heartbeat, suspicious movement, low-battery,

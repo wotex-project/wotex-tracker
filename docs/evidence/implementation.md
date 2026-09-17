@@ -2151,3 +2151,22 @@ A service test commits all five rule kinds, reads their public events and finds
 no capture ID or private reference field, while each public event equals the
 projection of its stored intent. A version-4 database migration test confirms
 that only `tracker.event` data loses those fields.
+
+### Acknowledgeable rule alerts — 2026-09-17
+
+Store schema 6 and HTTP contract 1.15.0 add public `alerts`. Every rule event
+intent, whether from a stored transition, a definition or materialisation
+evaluation, or an event-only rule, writes an alert record in its own
+transaction. IDs embed an inverted generation so pages list newest alerts first.
+Alerts carry the reviewed event, rule reference, mode, dispatch flag, evaluation
+time and generation. The 5-to-6 migration backfills alerts for existing intents.
+
+An administrator can acknowledge a live alert once through the ordinary receipt
+contract. The acknowledgement records a time and actor pseudonym and publishes
+`alert.acknowledged`; it changes no rule state and dispatches nothing. Service
+tests list all five rule kinds' alerts newest first with exact projections and no
+private references, replay the acknowledgement receipt, and reject reader,
+second, stale, missing and malformed acknowledgements and replay-mode alerts.
+A migration test backfills an alert equal to one written by the current store.
+The independent HTTP consumer lists, acknowledges, fetches and pages an alert
+against OpenAPI, including 403 and 409 outcomes.

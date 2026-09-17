@@ -22,14 +22,16 @@ a quiet scope's last event predates retention. Subsequent events still obey
 retention. The HTTP layer must bind this pair, principal, scope and issue/expiry
 time in its authenticated cursor; raw storage tokens do not grant authority.
 
-Schema version 5 is created transactionally using `PRAGMA user_version`.
-Version 1 upgrades through the forward-queue, rule-state, rule-history and
-rule-event projection schemas in the same startup transaction; later versions
-start at their next step. The version 3 step reassigns existing rule versions
+Schema version 6 is created transactionally using `PRAGMA user_version`.
+Version 1 upgrades through the forward-queue, rule-state, rule-history,
+rule-event projection and alert schemas in the same startup transaction; later
+versions start at their next step. The version 3 step reassigns existing rule versions
 from the public asset `state` record kind to the private `rules` kind. The
 version 4 step removes private capture, evidence, sample, fact and decision
 references from stored public `tracker.event` documents; rule event intents keep
-their complete private copy. Other scopes, operations, observations, events,
+their complete private copy. The version 5 step backfills one unacknowledged
+alert record for every existing rule event intent, identical to a newly written
+alert. Other scopes, operations, observations, events,
 records, publications and queue items remain unchanged. Unknown newer schemas
 fail startup. Migrations may never silently reset data.
 WAL, `synchronous=FULL`, foreign keys, a 1,000 ms busy timeout, 1,000-page
@@ -272,7 +274,7 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
-## HTTP and stream contract 1.14.0
+## HTTP and stream contract 1.15.0
 
 The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
 2020-12. The independently maintained Elixir audit checks document shape,
@@ -292,11 +294,11 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | --- | --- |
 | `/health/live` | GET public liveness |
 | `/api/v1/openapi.json` | GET public machine contract |
-| `/api/v1/scopes/{scope}/health/ready` | GET authenticated writable-store check reporting store schema `5` |
+| `/api/v1/scopes/{scope}/health/ready` | GET authenticated writable-store check reporting store schema `6` |
 | `/api/v1/scopes/{scope}/capabilities` | GET explicit available/unsupported/unconfigured status; rules report `heartbeat_battery_definitions` |
 | `…/analytics/query` | POST one read-only structured measurement query against a committed snapshot |
 | `…/analytics/pages` | POST one snapshot-pinned bucket page with an encrypted continuation |
-| `…/observations`, `…/resolutions`, `…/evidence`, `…/state`, `…/enrollments`, `…/things`, `…/saved_queries`, `…/rules`, `…/policies` | GET public snapshot pages |
+| `…/observations`, `…/resolutions`, `…/evidence`, `…/state`, `…/enrollments`, `…/things`, `…/saved_queries`, `…/rules`, `…/policies`, `…/alerts` | GET public snapshot pages |
 | `…/{resource}/{id}` | GET one public value |
 | `…/{resource}/{id}/history` | GET ascending committed public versions, including deletion records |
 | `…/saved_queries` | POST create or update an owned absolute or rolling query definition |
@@ -304,6 +306,7 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | `…/saved_queries/{id}/execute` | GET execute the stored query under current read authority |
 | `…/policies` | POST create or update a heartbeat or battery rule definition for one Thing |
 | `…/policy_deletions` | POST delete a rule definition with a retained tombstone |
+| `…/alert_acknowledgements` | POST acknowledge one live rule alert once |
 | `…/things/{id}/properties/{property}` | GET authorized Runtime Property scalar |
 | `…/things/{id}/properties/{property}/observe` | GET committed Property values as resumable SSE |
 | `…/observations/{id}/raw`, `…/evidence/{id}/raw` | GET raw-permission native JSON downloads |
@@ -637,6 +640,26 @@ definition keeps its last status and history, is reported as retired to the host
 scheduler, and is no longer scheduled or ticked. Saving the same binding again
 reactivates it with a new revision. Imported observations alone never evaluate a
 Thing's rules; they must first be explicitly associated and materialised.
+
+## Rule alerts
+
+Every recorded rule event intent writes a `wtr.alert.v1` record in the same
+transaction and generation as the intent and its public event. Its ID is
+`alert-`, the zero-padded difference between the maximum signed 64-bit
+generation and the commit generation, `-` and the event ID, so ordinary ascending
+ID pages list the newest alerts first. The alert carries the reviewed public
+event, the rule kind and ID, live or replay mode, the physical-action dispatch
+flag, the evaluation time, the commit generation and `acknowledgement: null`.
+List, get and history require `read`.
+
+`acknowledge_alert` requires `admin`, a UUIDv4 operation ID and exactly
+`alert_id` and `expected_generation`, with the ordinary receipt and replay
+contract. Only a live, unacknowledged alert can be acknowledged; a replay alert
+or a second acknowledgement conflicts. The new alert version records the
+acknowledgement time and a scope pseudonym of the actor, keeps the principal
+private and publishes `alert.acknowledged` with the alert ID. Acknowledgement
+changes no rule state or definition, is not a notification receipt and never
+authorizes or dispatches a physical Action.
 
 ## Public rule status
 

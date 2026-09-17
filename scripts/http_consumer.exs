@@ -42,7 +42,7 @@ defmodule Wotex.Tracker.HTTPConsumer do
   # Rule status needs host-seeded rule transitions, so it runs against a separate store.
   defp run(context, %{"mode" => "rules"}) do
     rule_workflow(context, context.scope)
-    IO.puts("HTTP_CONSUMER_PASS openapi=true rule_status=true")
+    IO.puts("HTTP_CONSUMER_PASS openapi=true rule_status=true alerts=true")
   end
 
   defp run(context, descriptor) do
@@ -310,6 +310,40 @@ defmodule Wotex.Tracker.HTTPConsumer do
     for private <- ~w(capture private-hardware latitude longitude bundle payload) do
       false = String.contains?(bytes, private)
     end
+
+    alert_workflow(context, prefix)
+  end
+
+  defp alert_workflow(context, prefix) do
+    {%{"data" => page}, bytes} =
+      request(context, "list_alerts", prefix <> "/alerts", who: :reader)
+
+    ["geofence.entered", "trip.started", "transport.degraded", "battery.low", "heartbeat.overdue"] =
+      Enum.map(page["items"], & &1["value"]["event"]["kind"])
+
+    for private <- ~w(capture _evidence_id _observation_id _sample_identity) do
+      false = String.contains?(bytes, private)
+    end
+
+    [newest | _] = page["items"]
+    body = %{"alert_id" => newest["id"], "expected_generation" => page["generation"]}
+    path = prefix <> "/alert_acknowledgements"
+    request(context, "acknowledge_alert", path, body: body, who: :reader, status: 403)
+
+    %{"data" => %{"action" => "acknowledged"}} =
+      data(context, "acknowledge_alert", path, body: body)
+
+    request(context, "acknowledge_alert", path, body: body, status: 409)
+    alert_path = prefix <> "/alerts/" <> encode_segment(newest["id"])
+
+    %{"acknowledgement" => %{"by" => "wtr1_" <> _}} =
+      data(context, "get_alerts", alert_path)["value"]
+
+    [nil, %{}] =
+      context
+      |> data("history_alerts", alert_path <> "/history", who: :reader)
+      |> Map.fetch!("items")
+      |> Enum.map(& &1["value"]["acknowledgement"])
   end
 
   defp rule_pages(_context, _rules, %{"cursor" => nil}, items), do: items

@@ -27,7 +27,8 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
     "saved_queries" => {:save_query, "admin"},
     "saved_query_deletions" => {:delete_query, "admin"},
     "policies" => {:save_policy, "admin"},
-    "policy_deletions" => {:delete_policy, "admin"}
+    "policy_deletions" => {:delete_policy, "admin"},
+    "alert_acknowledgements" => {:acknowledge_alert, "admin"}
   }
 
   @impl true

@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "WoTEx Tracker service",
-    "version": "1.14.0",
-    "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries, persisted rule status and administrator-managed heartbeat and battery rule definitions evaluated against committed Thing evidence. No scanner, notification delivery or physical interaction is implied."
+    "version": "1.15.0",
+    "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries, persisted rule status and administrator-managed heartbeat and battery rule definitions evaluated against committed Thing evidence, and acknowledgeable rule alerts. No scanner, notification delivery or physical interaction is implied."
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "security": [
@@ -89,7 +89,7 @@
                           "const": true
                         },
                         "schema": {
-                          "const": "5"
+                          "const": "6"
                         },
                         "sqlite": {
                           "type": "string",
@@ -755,7 +755,7 @@
             }
           }
         },
-        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 5."
+        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 6."
       }
     },
     "/api/v1/scopes/{scope}/resolutions": {
@@ -1092,7 +1092,7 @@
             }
           }
         },
-        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 5."
+        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 6."
       }
     },
     "/api/v1/scopes/{scope}/evidence": {
@@ -1429,7 +1429,7 @@
             }
           }
         },
-        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 5."
+        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 6."
       }
     },
     "/api/v1/scopes/{scope}/state": {
@@ -1766,7 +1766,7 @@
             }
           }
         },
-        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 5."
+        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 6."
       }
     },
     "/api/v1/scopes/{scope}/enrollments": {
@@ -2183,7 +2183,7 @@
             }
           }
         },
-        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 5."
+        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 6."
       }
     },
     "/api/v1/scopes/{scope}/things": {
@@ -2520,7 +2520,7 @@
             }
           }
         },
-        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 5."
+        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 6."
       }
     },
     "/api/v1/scopes/{scope}/saved_queries": {
@@ -2937,7 +2937,7 @@
             }
           }
         },
-        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 5."
+        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 6."
       }
     },
     "/api/v1/scopes/{scope}/rules": {
@@ -3241,7 +3241,7 @@
             }
           }
         },
-        "description": "Ascending immutable committed rule status versions. Rule history has no deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 5."
+        "description": "Ascending immutable committed rule status versions. Rule history has no deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 6."
       }
     },
     "/api/v1/scopes/{scope}/policies": {
@@ -3658,7 +3658,311 @@
             }
           }
         },
-        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 5."
+        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 6."
+      }
+    },
+    "/api/v1/scopes/{scope}/alerts": {
+      "get": {
+        "operationId": "list_alerts",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 256,
+                                "x-max-utf8-bytes": 256
+                              },
+                              "generation": {
+                                "type": "string",
+                                "pattern": "^(0|[1-9][0-9]{0,18})$",
+                                "description": "Canonical decimal integer below 9223372036854775807."
+                              },
+                              "value": {
+                                "$ref": "#/components/schemas/Alert"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "generation",
+                              "value"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "maxItems": 100
+                        },
+                        "generation": {
+                          "type": "string",
+                          "pattern": "^(0|[1-9][0-9]{0,18})$",
+                          "description": "Canonical decimal integer below 9223372036854775807."
+                        },
+                        "cursor": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 4096,
+                              "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "stream_cursor": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 4096,
+                          "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "generation",
+                        "cursor",
+                        "stream_cursor"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scopes/{scope}/alerts/{id}": {
+      "get": {
+        "operationId": "get_alerts",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 256,
+                          "x-max-utf8-bytes": 256
+                        },
+                        "generation": {
+                          "type": "string",
+                          "pattern": "^(0|[1-9][0-9]{0,18})$",
+                          "description": "Canonical decimal integer below 9223372036854775807."
+                        },
+                        "value": {
+                          "$ref": "#/components/schemas/Alert"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "generation",
+                        "value"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scopes/{scope}/alerts/{id}/history": {
+      "get": {
+        "operationId": "history_alerts",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/ID"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 256,
+                                "x-max-utf8-bytes": 256
+                              },
+                              "generation": {
+                                "type": "string",
+                                "pattern": "^(0|[1-9][0-9]{0,18})$",
+                                "description": "Canonical decimal integer below 9223372036854775807."
+                              },
+                              "value": {
+                                "$ref": "#/components/schemas/Alert"
+                              },
+                              "deleted": {
+                                "const": false
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "generation",
+                              "value",
+                              "deleted"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "maxItems": 100
+                        },
+                        "generation": {
+                          "type": "string",
+                          "pattern": "^(0|[1-9][0-9]{0,18})$",
+                          "description": "Canonical decimal integer below 9223372036854775807."
+                        },
+                        "cursor": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 4096,
+                              "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "stream_cursor": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 4096,
+                          "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "generation",
+                        "cursor",
+                        "stream_cursor"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Ascending immutable committed alert versions: the recorded alert and at most one acknowledgement. Alerts have no deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 6."
       }
     },
     "/api/v1/scopes/{scope}/things/{id}/properties/{property}": {
@@ -4161,6 +4465,88 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/DeleteRuleDefinitionRequest"
+              }
+            }
+          },
+          "description": "At most 1 MiB, UTF-8 JSON; duplicate keys and unknown fields are rejected."
+        }
+      }
+    },
+    "/api/v1/scopes/{scope}/alert_acknowledgements": {
+      "post": {
+        "operationId": "acknowledge_alert",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Receipt"
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Receipt"
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcknowledgeAlertRequest"
               }
             }
           },
@@ -5412,6 +5798,25 @@
                     },
                     "required": [
                       "policy_id",
+                      "action"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "alert_id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256,
+                        "x-max-utf8-bytes": 256
+                      },
+                      "action": {
+                        "const": "acknowledged"
+                      }
+                    },
+                    "required": [
+                      "alert_id",
                       "action"
                     ],
                     "additionalProperties": false
@@ -7115,6 +7520,178 @@
         },
         "required": [
           "id",
+          "expected_generation"
+        ],
+        "additionalProperties": false
+      },
+      "Alert": {
+        "description": "Alert for one recorded rule event. Its ID sorts newest first. Only a live, unacknowledged alert can be acknowledged; acknowledgement records a pseudonymous actor and time, changes no rule state and dispatches nothing.",
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "wtr.alert.v1"
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^alert-[0-9]{19}-.{1,200}$"
+          },
+          "event_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          },
+          "event": {
+            "type": "object",
+            "description": "Reviewed rule event. Capture IDs, evidence IDs and digests of private observations, samples, bundles, facts and transport decisions are never present.",
+            "properties": {
+              "schema": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "x-max-utf8-bytes": 256
+              },
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "x-max-utf8-bytes": 256
+              },
+              "kind": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "x-max-utf8-bytes": 256
+              },
+              "rule_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "x-max-utf8-bytes": 256
+              }
+            },
+            "required": [
+              "schema",
+              "id",
+              "kind",
+              "rule_id"
+            ],
+            "propertyNames": {
+              "not": {
+                "pattern": "(_observation_id|_observation_identity|_evidence_id|_sample_identity|_bundle_identity|_fact_identity|_decision_identity|^motion_state_identity)$"
+              }
+            },
+            "additionalProperties": {
+              "$ref": "#/components/schemas/NativeJSON"
+            }
+          },
+          "rule": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "enum": [
+                  "battery",
+                  "geofence",
+                  "heartbeat",
+                  "motion",
+                  "transport_degradation",
+                  "suspicious_movement"
+                ]
+              },
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "x-max-utf8-bytes": 256
+              }
+            },
+            "required": [
+              "kind",
+              "id"
+            ],
+            "additionalProperties": false
+          },
+          "mode": {
+            "enum": [
+              "live",
+              "replay"
+            ]
+          },
+          "physical_action_dispatch": {
+            "enum": [
+              "none",
+              "prohibited",
+              "separate_authorization_required"
+            ]
+          },
+          "created_at": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "generation": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,18})$",
+            "description": "Canonical decimal integer below 9223372036854775807."
+          },
+          "acknowledgement": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "at": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "by": {
+                    "type": "string",
+                    "pattern": "^wtr1_[A-Za-z0-9_-]+$"
+                  }
+                },
+                "required": [
+                  "at",
+                  "by"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "schema",
+          "id",
+          "event_id",
+          "event",
+          "rule",
+          "mode",
+          "physical_action_dispatch",
+          "created_at",
+          "generation",
+          "acknowledgement"
+        ],
+        "additionalProperties": false
+      },
+      "AcknowledgeAlertRequest": {
+        "type": "object",
+        "properties": {
+          "alert_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          },
+          "expected_generation": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,18})$",
+            "description": "Canonical decimal integer below 9223372036854775807."
+          }
+        },
+        "required": [
+          "alert_id",
           "expected_generation"
         ],
         "additionalProperties": false

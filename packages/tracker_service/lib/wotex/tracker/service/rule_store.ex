@@ -2,6 +2,7 @@ defmodule Wotex.Tracker.Service.RuleStore do
   @moduledoc false
 
   alias Wotex.Tracker.Service.{
+    Alert,
     Codec,
     RuleEvent,
     RuleEventProjection,
@@ -120,32 +121,7 @@ defmodule Wotex.Tracker.Service.RuleStore do
     generation = Transaction.generation(db, intent.scope)
     if generation >= 9_223_372_036_854_775_806, do: throw({:storage, :capacity_exceeded})
     next_generation = generation + 1
-    capacity!(db, "rule_event_intents", 1, options.max_rows)
-    capacity!(db, "events", 1, options.max_rows)
-    id = RuleEvent.event_identity(intent)
-    document = Codec.encode!(intent.event)
-
-    SQL.rows!(db, "INSERT INTO rule_event_intents VALUES(?,?,?,?,?,?,?,?,?,?)", [
-      intent.scope,
-      id,
-      Codec.digest(intent.event),
-      intent.kind,
-      intent.rule_id,
-      next_generation,
-      intent.evaluated_at,
-      document,
-      intent.mode,
-      intent.action
-    ])
-
-    envelope = %{"type" => "tracker.event", "data" => RuleEventProjection.public(intent.event)}
-
-    SQL.rows!(db, "INSERT INTO events(scope,generation,created_at,document) VALUES(?,?,?,?)", [
-      intent.scope,
-      next_generation,
-      intent.evaluated_at,
-      Codec.encode!(envelope)
-    ])
+    record_event(db, intent, next_generation, options)
 
     SQL.rows!(
       db,
@@ -262,35 +238,45 @@ defmodule Wotex.Tracker.Service.RuleStore do
   defp write_event(_db, %{event: nil}, _generation, _disposition, _options), do: :ok
   defp write_event(_db, _transition, _generation, "duplicate", _options), do: :ok
 
-  defp write_event(db, transition, generation, "recorded", options) do
+  defp write_event(db, transition, generation, "recorded", options),
+    do: record_event(db, transition, generation, options)
+
+  # Writes the private intent, its reviewed public event and its alert at one generation.
+  defp record_event(db, source, generation, options) do
     capacity!(db, "rule_event_intents", 1, options.max_rows)
     capacity!(db, "events", 1, options.max_rows)
-    id = RuleTransition.event_identity(transition)
-    document = Codec.encode!(transition.event)
+    capacity!(db, "records", 1, options.max_rows)
+    event = source.event
+    id = event["id"]
 
     SQL.rows!(db, "INSERT INTO rule_event_intents VALUES(?,?,?,?,?,?,?,?,?,?)", [
-      transition.scope,
+      source.scope,
       id,
-      Codec.digest(transition.event),
-      transition.kind,
-      transition.rule_id,
+      Codec.digest(event),
+      source.kind,
+      source.rule_id,
       generation,
-      transition.evaluated_at,
-      document,
-      transition.mode,
-      transition.action
+      source.evaluated_at,
+      Codec.encode!(event),
+      source.mode,
+      source.action
     ])
 
-    envelope = %{
-      "type" => "tracker.event",
-      "data" => RuleEventProjection.public(transition.event)
-    }
+    envelope = %{"type" => "tracker.event", "data" => RuleEventProjection.public(event)}
 
     SQL.rows!(db, "INSERT INTO events(scope,generation,created_at,document) VALUES(?,?,?,?)", [
-      transition.scope,
+      source.scope,
       generation,
-      transition.evaluated_at,
+      source.evaluated_at,
       Codec.encode!(envelope)
+    ])
+
+    SQL.rows!(db, "INSERT INTO records VALUES(?,?,?,?,?)", [
+      source.scope,
+      "alerts",
+      Alert.id(generation, id),
+      generation,
+      Codec.encode!(Alert.record(event, source, generation))
     ])
   end
 
