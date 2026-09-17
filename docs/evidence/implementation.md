@@ -2404,3 +2404,12 @@ They refuse reader preparation and forged submission, surface a stale generation
 after another commit, reject an unrelated or invalid operation reference, keep an
 unavailable reply uncertain, and recover a lost reply once the enrollment can be
 read as removed.
+
+### Command-line unenrollment — 2026-09-17
+
+`trackerctl unenroll THING --confirm --generation N` calls
+`POST …/unenrollments` with the ordinary operation identity and receipt output.
+Without `--confirm` it exits with status 2 and `confirmation_required` before any
+request. The independent CLI consumer refuses the unconfirmed form, unenrolls its
+associated and materialised Thing at generation 7, receives the unenrolled
+receipt and then lists no Things before revoking its own credential.

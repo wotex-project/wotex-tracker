@@ -276,12 +276,28 @@ defmodule Wotex.Tracker.Host.CLIConsumer do
 
     ["2", "6"] = Enum.map(enrollment_history, & &1["generation"])
 
+    [%{"error" => %{"code" => "confirmation_required"}}] =
+      call(context, ["unenroll", thing, "--generation", "7"], 2)
+
+    [%{"data" => %{"data" => %{"thing_id" => ^thing, "action" => "unenrolled"}}}] =
+      call(context, [
+        "unenroll",
+        thing,
+        "--confirm",
+        "--generation",
+        "7",
+        "--operation",
+        Identifier.uuid()
+      ])
+
+    [%{"data" => %{"items" => []}}] = call(context, ["list", "things"])
+
     [%{"data" => %{"outcome" => "committed"}}] =
       call(context, [
         "revoke",
         "operator",
         "--generation",
-        "7",
+        "8",
         "--operation",
         Identifier.uuid()
       ])
@@ -290,7 +306,7 @@ defmodule Wotex.Tracker.Host.CLIConsumer do
 
     IO.puts(
       "CLI_CONSUMER_PASS workflow=true explicit_association=true history=true " <>
-        "sse=true property_observation=true native_types=true self_revocation=true rule_status=true"
+        "sse=true property_observation=true native_types=true self_revocation=true rule_status=true unenrollment=true"
     )
   end
 

@@ -599,6 +599,19 @@ defmodule Wotex.Tracker.Host.CLI do
     }
   end
 
+  defp parse_command(["unenroll", thing | arguments]) do
+    options = mutation_options(arguments, confirm: :boolean)
+    # Removal cannot be undone, so the CLI requires the same explicit confirmation as the browser.
+    unless options[:confirm] == true, do: usage("confirmation_required")
+
+    %{
+      name: :unenroll,
+      value: identifier(thing),
+      generation: options.generation,
+      operation: options.operation
+    }
+  end
+
   defp parse_command([name, value | arguments]) when name in ["materialize", "revoke"] do
     options = mutation_options(arguments)
 
@@ -699,7 +712,7 @@ defmodule Wotex.Tracker.Host.CLI do
     do: events_target(base, command)
 
   defp command_target(%{name: name} = command, base)
-       when name in [:import, :enroll, :associate, :materialize, :revoke],
+       when name in [:import, :enroll, :associate, :materialize, :revoke, :unenroll],
        do: mutation_target(base, command)
 
   defp resource_target(base, command, item?) do
@@ -796,6 +809,10 @@ defmodule Wotex.Tracker.Host.CLI do
         :revoke ->
           {"revocations",
            %{"credential_id" => command.value, "expected_generation" => command.generation}}
+
+        :unenroll ->
+          {"unenrollments",
+           %{"thing_id" => command.value, "expected_generation" => command.generation}}
       end
 
     bytes = Codec.encode!(body)
