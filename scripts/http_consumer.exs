@@ -78,7 +78,7 @@ defmodule Wotex.Tracker.HTTPConsumer do
     snapshot = data(context, "list_state", prefix <> "/state", who: :reader)
     "0" = snapshot["generation"]
 
-    observation = observation("private-client-observation")
+    observation = observation("private-client-observation", descriptor["now"])
     import = %{"observation" => observation, "expected_generation" => "0"}
 
     {%{"error" => %{"outcome" => "not_committed"}}, _bytes} =
@@ -548,7 +548,7 @@ defmodule Wotex.Tracker.HTTPConsumer do
     saved = %{
       "id" => "independent-temperature",
       "title" => "Independent temperature",
-      "query" => query(thing, 1_700_000_000_000, "independent-temperature-history", 1),
+      "query" => query(thing, observation["observed_at"], "independent-temperature-history", 1),
       "visualization" => %{"type" => "line", "show_legend" => true, "show_points" => false},
       "expected_generation" => "9"
     }
@@ -696,11 +696,12 @@ defmodule Wotex.Tracker.HTTPConsumer do
     Map.put(query, "identity", "wtr-json-v1:sha256:" <> Codec.digest(query))
   end
 
-  defp observation(id) do
+  # Observation time follows the peer clock so time-bounded rules evaluate a fresh reading.
+  defp observation(id, now) do
     %{
       "schema" => "wtr.observation.v1",
       "id" => id,
-      "observed_at" => 1_700_000_000_000,
+      "observed_at" => now,
       "ingress" => "ble",
       "source" => %{
         "integer" => 1,

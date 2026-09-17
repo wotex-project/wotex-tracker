@@ -298,7 +298,7 @@ defmodule Wotex.Tracker.ReleaseProbe do
       "scope" => @scope,
       "token" => token,
       "reader" => reader,
-      "now" => 1_700_000_000_000
+      "now" => System.system_time(:millisecond)
     })
 
     browser = if browser?, do: browser_configuration(directory), else: nil
