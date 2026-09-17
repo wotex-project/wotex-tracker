@@ -133,6 +133,7 @@ defmodule Wotex.Tracker.Service.RuleDefinitionTest do
              {"policy.changed", "saved"},
              {"policy.changed", "saved"},
              {"policy.changed", "saved"},
+             {"tracker.event", nil},
              {"policy.changed", "deleted"}
            ]
   end

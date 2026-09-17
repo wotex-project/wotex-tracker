@@ -280,7 +280,7 @@ defmodule Wotex.Tracker.HTTPConsumer do
     prefix = "/api/v1/scopes/" <> encode_segment(scope)
     rules = prefix <> "/rules"
 
-    %{"rules" => "read_only"} =
+    %{"rules" => "heartbeat_battery_definitions"} =
       data(context, "capabilities", prefix <> "/capabilities", who: :reader)
 
     request(context, "list_rules", rules, who: nil, status: 401)
@@ -565,6 +565,13 @@ defmodule Wotex.Tracker.HTTPConsumer do
 
     %{"items" => [%{"id" => "independent-battery", "value" => ^definition}]} =
       data(context, "list_policies", prefix <> "/policies")
+
+    %{"generation" => "12", "value" => status} =
+      data(context, "get_rules", prefix <> "/rules/battery%3Aindependent-battery")
+
+    %{"status" => "normal", "rule" => %{"revision" => "12", "identity" => identity}} = status
+    ^identity = definition["policy_identity"]
+    %{"type" => "number", "value" => 2.977} = status["battery"]["measurement"]["value"]
 
     %{"generation" => "13", "data" => %{"action" => "deleted"}} =
       data(context, "delete_policy", prefix <> "/policy_deletions",

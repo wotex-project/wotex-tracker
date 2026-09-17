@@ -4,7 +4,16 @@ defmodule Wotex.Tracker.Service.Materialize do
   alias Wotex.Tracker
   alias Wotex.Tracker.Decoders.RuuviRawV2
   alias Wotex.Tracker.{Evidence, EvidenceBundle, Identity, Observation}
-  alias Wotex.Tracker.Service.{Codec, Delivery, Identifier, Projection, Snapshot, Update}
+
+  alias Wotex.Tracker.Service.{
+    Codec,
+    Delivery,
+    Identifier,
+    Projection,
+    RuleEvaluation,
+    Snapshot,
+    Update
+  }
 
   def admit(%{"thing_id" => "urn:uuid:" <> id, "expected_generation" => generation} = request)
       when map_size(request) == 2 do
@@ -27,8 +36,33 @@ defmodule Wotex.Tracker.Service.Materialize do
              now
            ),
          {:ok, imported} <- import(service, access, enrollment["value"], request, now),
-         {:ok, materialised} <- build(service, access, enrollment["value"], imported, operation) do
-      update(access, operation, request, enrollment["value"], imported, materialised, now)
+         {:ok, materialised} <- build(service, access, enrollment["value"], imported, operation),
+         {:ok, definitions} <-
+           RuleEvaluation.definitions(
+             service,
+             access,
+             "enroll",
+             request["thing_id"],
+             request["expected_generation"],
+             now
+           ),
+         {:ok, rules} <-
+           RuleEvaluation.transitions(
+             service,
+             access.scope,
+             definitions,
+             imported.observation,
+             materialised.bundle,
+             now
+           ) do
+      update(
+        access,
+        operation,
+        {request, now},
+        enrollment["value"],
+        {imported, materialised},
+        rules
+      )
     end
   end
 
@@ -121,7 +155,7 @@ defmodule Wotex.Tracker.Service.Materialize do
     })
   end
 
-  defp update(access, operation, request, enrollment, imported, materialised, now) do
+  defp update(access, operation, {request, now}, enrollment, {imported, materialised}, rules) do
     id = request["thing_id"]
     td = Wotex.ThingDescription.to_map(materialised.td)
 
@@ -151,6 +185,7 @@ defmodule Wotex.Tracker.Service.Materialize do
       request: %{"operation" => "materialize", "body" => request},
       observation: nil,
       publication: nil,
+      rules: rules,
       response: %{"thing_id" => id, "materialisation_id" => materialised.identity},
       records: [
         %{

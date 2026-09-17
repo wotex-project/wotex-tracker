@@ -249,7 +249,9 @@ and notification delivery remain for geofence and suspicious-movement evaluation
 Readers can inspect every persisted rule kind's current status and history through
 the read-only service `rules` resource without receiving its private evidence.
 Administrators can now persist versioned heartbeat and battery rule definitions
-for enrolled Things through the service. Their evaluation, arming and alert
+for enrolled Things through the service. Saving a definition and materialising
+its Thing evaluate it atomically against committed evidence, and the scheduler
+ages the resulting state. Other rule kinds, arming, notification and alert
 acknowledgement remain open.
 
 Implement explicit time/freshness, quality selection, motion/trips/stops,

@@ -140,10 +140,10 @@ defmodule Wotex.Tracker.Service.Store do
   def authorized_analytics_at(_, _, _, _, _), do: {:error, :invalid_query}
 
   @doc "Reauthorizes and reads the live rule definitions bound to one Thing at a generation."
-  @spec authorized_policies(t(), Access.t(), String.t(), String.t(), integer()) ::
+  @spec authorized_policies(t(), Access.t(), String.t(), String.t(), String.t(), integer()) ::
           {:ok, [map()]} | {:error, atom()}
-  def authorized_policies(store, access, thing, generation, now),
-    do: StoreCall.run(store, {:authorized_policies, access, thing, generation, now})
+  def authorized_policies(store, access, permission, thing, generation, now),
+    do: StoreCall.run(store, {:authorized_policies, access, permission, thing, generation, now})
 
   @doc "Reads bounded ascending record versions, retaining explicit deletion tombstones."
   @spec history(t(), map()) :: {:ok, map()} | {:error, atom()}
@@ -152,7 +152,13 @@ defmodule Wotex.Tracker.Service.Store do
   @doc "Reauthorizes record history inside the same immutable SQLite read snapshot."
   @spec authorized_history(t(), Access.t(), map(), integer()) :: {:ok, map()} | {:error, atom()}
   def authorized_history(store, access, query, now),
-    do: StoreCall.run(store, {:authorized_history, access, query, now})
+    do: authorized_history(store, access, "read", query, now)
+
+  @doc "Reauthorizes record history for an explicit permission inside one read snapshot."
+  @spec authorized_history(t(), Access.t(), String.t(), map(), integer()) ::
+          {:ok, map()} | {:error, atom()}
+  def authorized_history(store, access, permission, query, now),
+    do: StoreCall.run(store, {:authorized_history, access, permission, query, now})
 
   @doc "Reauthorizes resumed event reads inside their database snapshot."
   @spec authorized_events(t(), Access.t(), map()) :: {:ok, map()} | {:error, atom()}
@@ -452,7 +458,7 @@ defmodule Wotex.Tracker.Service.Store do
   defp dispatch({:fetch, query}, state), do: Read.fetch(state.db, query)
   defp dispatch({:history, query}, state), do: Read.history(state.db, query)
 
-  defp dispatch({:authorized_history, access, query, now}, state),
+  defp dispatch({:authorized_history, access, permission, query, now}, state),
     do:
       Read.history(state.db, query, fn ->
         Authority.check!(
@@ -460,7 +466,7 @@ defmodule Wotex.Tracker.Service.Store do
           state.options.credentials,
           access,
           query.scope,
-          "read",
+          permission,
           Authority.now(state.options, now)
         )
       end)
@@ -478,7 +484,7 @@ defmodule Wotex.Tracker.Service.Store do
         )
       end)
 
-  defp dispatch({:authorized_policies, access, thing, generation, now}, state),
+  defp dispatch({:authorized_policies, access, permission, thing, generation, now}, state),
     do:
       Read.policies(state.db, access_scope(access), thing, generation, fn ->
         Authority.check!(
@@ -486,7 +492,7 @@ defmodule Wotex.Tracker.Service.Store do
           state.options.credentials,
           access,
           access_scope(access),
-          "read",
+          permission,
           Authority.now(state.options, now)
         )
       end)

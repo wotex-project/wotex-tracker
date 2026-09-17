@@ -6,16 +6,19 @@ defmodule Wotex.Tracker.Service.Update do
   records and public event projections; a client cannot supply arbitrary derived
   state. `request` contains the complete admitted caller intent used for scoped
   idempotency, excluding server-generated results. A nil record value is a
-  historical tombstone. Nothing deletes evidence implicitly.
+  historical tombstone. Nothing deletes evidence implicitly. Optional `rules` are
+  revalidated rule transitions derived from the same admitted inputs; they commit
+  at this update's generation or not at all.
   """
 
   alias Wotex.Tracker.Observation
-  alias Wotex.Tracker.Service.{Access, Authority, Codec}
+  alias Wotex.Tracker.Service.{Access, Authority, Codec, RuleTransition}
 
   @kinds ~w(enrollments things state policies saved_queries evidence resolutions access)
   @keys ~w(principal scope operation_id expected_generation request now observation records events publication)a
   @enforce_keys @keys
-  defstruct @keys ++ [authority: nil, response: nil]
+  @optional [:authority, :response, :rules]
+  defstruct @keys ++ [authority: nil, response: nil, rules: []]
 
   @type t :: %__MODULE__{
           principal: String.t(),
@@ -29,7 +32,8 @@ defmodule Wotex.Tracker.Service.Update do
           events: [map()],
           publication: map() | nil,
           authority: Access.t() | nil,
-          response: map() | nil
+          response: map() | nil,
+          rules: [RuleTransition.t()]
         }
 
   @doc "Admits one bounded transaction; derived records must already be authorized."
@@ -37,8 +41,8 @@ defmodule Wotex.Tracker.Service.Update do
   def new(input) do
     with true <-
            is_map(input) and not is_struct(input) and
-             map_size(input) in length(@keys)..(length(@keys) + 2) and
-             Enum.sort(Map.keys(Map.drop(input, [:authority, :response]))) == Enum.sort(@keys),
+             map_size(input) in length(@keys)..(length(@keys) + length(@optional)) and
+             Enum.sort(Map.keys(Map.drop(input, @optional))) == Enum.sort(@keys),
          true <- Authority.valid?(Map.get(input, :authority)),
          true <- response?(Map.get(input, :response)),
          true <- Enum.all?([input.principal, input.scope, input.operation_id], &Codec.id?/1),
@@ -50,6 +54,7 @@ defmodule Wotex.Tracker.Service.Update do
          true <- unique_records?(input.records),
          true <- bounded?(input.events, 16) and Enum.all?(input.events, &event?/1),
          true <- publication?(input.publication),
+         true <- rules?(Map.get(input, :rules, []), input.scope),
          {:ok, _} <- Codec.encode(wire_size(input, observation)) do
       {:ok, struct!(__MODULE__, %{input | observation: observation})}
     else
@@ -86,6 +91,12 @@ defmodule Wotex.Tracker.Service.Update do
 
   defp event?(_), do: false
 
+  defp rules?(rules, scope) do
+    bounded?(rules, 8) and
+      Enum.all?(rules, &(match?({:ok, _}, RuleTransition.validate(&1)) and &1.scope == scope)) and
+      length(Enum.uniq_by(rules, &{&1.kind, &1.rule_id})) == length(rules)
+  end
+
   defp publication?(nil), do: true
 
   defp publication?(%{thing_id: id, deployment_id: revision, td: td} = publication)
@@ -107,6 +118,7 @@ defmodule Wotex.Tracker.Service.Update do
       end
 
     input
+    |> Map.delete(:rules)
     |> Map.update(:authority, nil, &Authority.projection/1)
     |> Map.update!(:records, &Enum.map(&1, fn record -> stringify(record) end))
     |> Map.update!(:publication, fn value -> if value, do: stringify(value), else: nil end)

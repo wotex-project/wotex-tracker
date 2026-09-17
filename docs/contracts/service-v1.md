@@ -263,7 +263,7 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
-## HTTP and stream contract 1.12.0
+## HTTP and stream contract 1.13.0
 
 The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
 2020-12. The independently maintained Elixir audit checks document shape,
@@ -284,7 +284,7 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | `/health/live` | GET public liveness |
 | `/api/v1/openapi.json` | GET public machine contract |
 | `/api/v1/scopes/{scope}/health/ready` | GET authenticated writable-store check reporting store schema `4` |
-| `/api/v1/scopes/{scope}/capabilities` | GET explicit available/unsupported/unconfigured status; persisted rule status is `read_only` |
+| `/api/v1/scopes/{scope}/capabilities` | GET explicit available/unsupported/unconfigured status; rules report `heartbeat_battery_definitions` |
 | `…/analytics/query` | POST one read-only structured measurement query against a committed snapshot |
 | `…/analytics/pages` | POST one snapshot-pinned bucket page with an encrypted continuation |
 | `…/observations`, `…/resolutions`, `…/evidence`, `…/state`, `…/enrollments`, `…/things`, `…/saved_queries`, `…/rules`, `…/policies` | GET public snapshot pages |
@@ -593,23 +593,51 @@ Preparation reads the requested snapshot. The Thing must exist there. A battery
 definition must name a declared numeric Thing Property with exactly the same
 unit; otherwise it returns `unsupported` rather than accepting a rule that could
 never qualify evidence. An existing ID keeps its kind and Thing; changing either
-conflicts. One Thing can have at most eight live definitions; editing an existing
-one remains allowed at that limit, and a ninth returns `capacity_exceeded`.
+conflicts. A deleted ID can be defined again only for its first version's kind
+and Thing, so one rule history never mixes evidence from different assets. One
+Thing can have at most eight live definitions; editing an existing one remains
+allowed at that limit, and a ninth returns `capacity_exceeded`.
 
 The stored record retains the acting principal privately and projects
 `wtr.rule-definition.v1` with ID, kind, Thing, revision, policy identity, exact
 parameters and creation/update times. A deletion is a tombstone; earlier versions
 stay readable in history. Both mutations publish `policy.changed` with the ID and
-`saved` or `deleted`. This slice validates and persists definitions only: it does
-not evaluate them, change existing rule status or schedule deadlines.
+`saved` or `deleted`.
+
+### Definition evaluation
+
+Saving a definition evaluates it in the same transaction against the evidence
+committed by the Thing's latest materialisation at the requested snapshot. The
+stored claims and their single source observation are restored through the pure
+constructors. A heartbeat rule consumes that receiver observation; a battery rule
+consumes the declared measurement as a complete `MeasurementSample`. A new rule
+establishes a baseline, and an edit recomputes with the new revision.
+
+Materialising a Thing evaluates every live definition bound to it against the
+newly built observation and evidence bundle. The materialisation records, rule
+state, rule history, event intents and public events commit at one generation or
+not at all; replaying the same operation returns the original receipt without
+another evaluation. Evaluation uses live mode and the service host time. Unchanged
+results write nothing, a Thing evidence set without the declared battery
+measurement leaves that rule unchanged, and a conflicting evidence identity fails
+the mutation. Every recorded event intent still requires separate authorization
+before any physical effect; no notification is sent.
+
+The rule scheduler continues to age heartbeat and battery state. A deleted
+definition keeps its last status and history, is reported as retired to the host
+scheduler, and is no longer scheduled or ticked. Saving the same binding again
+reactivates it with a new revision. Imported observations alone never evaluate a
+Thing's rules; they must first be explicitly associated and materialised.
 
 ## Public rule status
 
 `rules` is a read-only public resource over committed rule history. Its IDs are
 `{kind}:{rule_id}` for `battery`, `geofence`, `heartbeat`, `motion` and
 `transport_degradation`. List, get and history use the ordinary snapshot page,
-cursor and `read` authorization contract; no request can create, edit, arm or
-evaluate a rule. Service capabilities report `rules` as `read_only`.
+cursor and `read` authorization contract. Status changes only through a rule
+definition mutation, a Thing materialisation or the host scheduler; there is no
+direct status write, arming or acknowledgement request. Service capabilities
+report `rules` as `heartbeat_battery_definitions`.
 
 Each `wtr.rule-status.v1` value first restores the stored document through its
 pure state constructor. A document that fails restoration or names another rule

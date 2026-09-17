@@ -359,7 +359,7 @@ defmodule Wotex.Tracker.Service.RuleScheduler do
 
   defp tick(job, store) do
     with {:ok, durable} <- Store.rule_state(store, job.scope, job.kind, job.rule_id),
-         true <- durable["state_identity"] == job.state_identity,
+         true <- durable["state_identity"] == job.state_identity and not durable["retired"],
          {:ok, previous, result} <- evaluate(job.kind, durable["state"], job.due_at),
          true <- result["state_changed"],
          {:ok, transition} <- RuleTransition.new(job.scope, previous, result),

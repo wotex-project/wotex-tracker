@@ -48,3 +48,9 @@ local monotonic deadlines without serializing a monotonic value. Aging low state
 to unknown records no recovery event. A future sample that first becomes eligible
 may record the same deterministic low transition as direct live evaluation, but
 the resulting physical Action still requires separate authorization.
+
+A service battery definition names a declared numeric Thing Property and exact
+unit, such as RAWv2 `batteryVoltage` in `V`. The service builds the measurement
+sample from the Thing's materialised evidence bundle whenever the definition is
+saved or the Thing is materialised, and commits any changed state with that
+mutation. It never converts voltage to a percentage.

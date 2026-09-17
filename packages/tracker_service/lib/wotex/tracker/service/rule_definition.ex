@@ -6,7 +6,7 @@ defmodule Wotex.Tracker.Service.RuleDefinition do
   # generation and validates it through the pure constructor before storage.
 
   alias Wotex.Tracker.{BatteryTransition, HeartbeatTransition}
-  alias Wotex.Tracker.Service.{Codec, Store, Update}
+  alias Wotex.Tracker.Service.{Codec, RuleEvaluation, Store, Update}
 
   @save_fields ~w(id kind thing_id parameters expected_generation)
   @delete_fields ~w(id expected_generation)
@@ -48,10 +48,30 @@ defmodule Wotex.Tracker.Service.RuleDefinition do
     # Admission already constructed this exact policy from the same request.
     {:ok, policy} = policy(request["kind"], request["id"], revision, request["parameters"])
 
+    definition = %{kind: request["kind"], thing_id: request["thing_id"], policy: policy}
+
     with {:ok, thing} <- fetch(service, access, "things", request["thing_id"], request, now),
          :ok <- supported(request, thing["value"]["public"]),
          {:ok, created_at} <- existing(service, access, request, now),
-         :ok <- capacity(service, access, request, now) do
+         :ok <- capacity(service, access, request, now),
+         {:ok, observation, bundle} <-
+           RuleEvaluation.committed_input(
+             service,
+             access,
+             "admin",
+             request["thing_id"],
+             request["expected_generation"],
+             now
+           ),
+         {:ok, rules} <-
+           RuleEvaluation.transitions(
+             service,
+             access.scope,
+             [definition],
+             observation,
+             bundle,
+             now
+           ) do
       public = %{
         "schema" => "wtr.rule-definition.v1",
         "id" => request["id"],
@@ -64,7 +84,13 @@ defmodule Wotex.Tracker.Service.RuleDefinition do
         "updated_at" => now
       }
 
-      update(access, operation, request, now, %{"actor" => access.principal, "public" => public})
+      update(
+        access,
+        operation,
+        {request, now},
+        %{"actor" => access.principal, "public" => public},
+        rules
+      )
     end
   end
 
@@ -72,7 +98,7 @@ defmodule Wotex.Tracker.Service.RuleDefinition do
     case fetch(service, access, "policies", request["id"], request, now) do
       {:ok, row} ->
         with {:ok, _definition} <- definition(row["value"], request["id"]),
-             do: update(access, operation, request, now, nil)
+             do: update(access, operation, {request, now}, nil, [])
 
       error ->
         error
@@ -149,8 +175,35 @@ defmodule Wotex.Tracker.Service.RuleDefinition do
   defp existing(service, access, request, now) do
     case fetch(service, access, "policies", request["id"], request, now) do
       {:ok, row} -> same_binding(row["value"], request)
-      {:error, :not_found} -> {:ok, nil}
+      {:error, :not_found} -> lineage(service, access, request, now)
       error -> error
+    end
+  end
+
+  # A deleted ID can be defined again only for its original kind and Thing, so one
+  # rule history never mixes evidence from different assets.
+  defp lineage(service, access, request, now) do
+    query = %{
+      scope: access.scope,
+      kind: "policies",
+      id: request["id"],
+      generation: request["expected_generation"],
+      after: "0",
+      limit: 1
+    }
+
+    case Store.authorized_history(service.store, access, "admin", query, now) do
+      {:ok, %{"items" => [%{"value" => first}]}} ->
+        with {:ok, _created_at} <- same_binding(first, request), do: {:ok, nil}
+
+      {:error, :not_found} ->
+        {:ok, nil}
+
+      {:error, :invalid_cursor} ->
+        {:error, :conflict}
+
+      error ->
+        error
     end
   end
 
@@ -171,6 +224,7 @@ defmodule Wotex.Tracker.Service.RuleDefinition do
     case Store.authorized_policies(
            service.store,
            access,
+           "admin",
            request["thing_id"],
            request["expected_generation"],
            now
@@ -201,7 +255,7 @@ defmodule Wotex.Tracker.Service.RuleDefinition do
     end)
   end
 
-  defp update(access, operation, request, now, value) do
+  defp update(access, operation, {request, now}, value, rules) do
     action = if value, do: "saved", else: "deleted"
 
     Update.new(%{
@@ -218,6 +272,7 @@ defmodule Wotex.Tracker.Service.RuleDefinition do
       observation: nil,
       publication: nil,
       response: %{"policy_id" => request["id"], "action" => action},
+      rules: rules,
       records: [%{kind: "policies", id: request["id"], value: value}],
       events: [
         %{"type" => "policy.changed", "data" => %{"id" => request["id"], "action" => action}}

@@ -49,3 +49,9 @@ a newer state. The default explicit HTTP host supervises one scheduler, while
 package loading still starts nothing. An overdue intent retains
 `separate_authorization_required`; the scheduler never performs a notification or
 physical Action.
+
+An administrator can also bind a heartbeat definition to an enrolled Thing through
+the service `policies` resource. The service evaluates it against the Thing's
+latest materialised receiver observation when the definition is saved and
+whenever the Thing is materialised again, in the same transaction. Deleting the
+definition stops scheduling while keeping its status history.

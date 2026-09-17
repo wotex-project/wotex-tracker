@@ -2066,3 +2066,28 @@ ninth definition and invalid deletion, while still allowing edits at the limit.
 The independent HTTP consumer validates save, 401/409/501 outcomes, get, list,
 delete, 404 and history against OpenAPI. Definitions are not yet evaluated;
 status, events and deadlines are unchanged by saving them.
+
+### Rule definition evaluation — 2026-09-17
+
+Heartbeat and battery definitions now drive rule state. Saving a definition
+restores the Thing's committed evidence claims and their single receiver
+observation, evaluates the policy in live mode and stages any changed rule
+state, history, event intent and public event in the same update transaction.
+Materialising a Thing does the same for every live definition bound to it, using
+the newly built observation and bundle. HTTP contract 1.13.0 reports rules as
+`heartbeat_battery_definitions`. A deleted definition's rule is excluded from
+scheduling and reported to the host scheduler as retired, while its status and
+history remain readable. An ID can be defined again only with its first
+version's kind and Thing.
+
+Service tests establish a heartbeat baseline and a low battery baseline from
+the RAWv2 fixture's 2.977 V reading, then recompute the battery rule to normal
+with a live `battery.recomputed` intent that still requires separate
+authorization. A later associated capture reporting 2.4 V becomes low when
+materialised, at the materialisation's own generation, and replaying that
+operation adds no rule version. Deleting a definition removes it from the
+schedule; saving the same binding reactivates it with a new creation time and
+revision, while another Thing and future snapshots conflict. A staged transition
+with a stale prior state commits nothing, and an update rejects foreign-scope or
+duplicate rule transitions. The independent HTTP consumer confirms the evaluated
+battery status and policy identity after saving a definition.

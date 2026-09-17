@@ -3,6 +3,11 @@ defmodule Wotex.Tracker.Service.RuleStore do
 
   alias Wotex.Tracker.Service.{Codec, RuleEvent, RuleTransition, SQL, Transaction}
 
+  @retired "SELECT 1 FROM records p WHERE p.scope=s.scope AND p.kind='policies' " <>
+             "AND p.id=s.rule_id AND p.document='null' AND p.generation=(" <>
+             "SELECT max(q.generation) FROM records q " <>
+             "WHERE q.scope=p.scope AND q.kind='policies' AND q.id=p.id)"
+
   def commit(db, transition, options) do
     transaction(db, options, fn ->
       db
@@ -37,20 +42,35 @@ defmodule Wotex.Tracker.Service.RuleStore do
   defp commit_state(_stored, _db, _transition, _options),
     do: throw({:storage, :rule_conflict})
 
+  # Writes rule state inside an already admitted update transaction and generation.
+  def stage(db, transitions, generation, options) do
+    Enum.each(transitions, fn transition ->
+      case state_row(db, transition.scope, transition.kind, transition.rule_id) do
+        nil when is_nil(transition.expected_state_identity) -> :ok
+        %{state_identity: identity} when identity == transition.expected_state_identity -> :ok
+        _ -> throw({:storage, :conflict})
+      end
+
+      write_at(db, transition, generation, options)
+    end)
+  end
+
   def status(db, scope, kind, rule_id) do
     case state_row(db, scope, kind, rule_id) do
       nil -> {:error, :not_found}
-      stored -> {:ok, project_state(stored)}
+      stored -> {:ok, project_state(stored, retired?(db, scope, rule_id))}
     end
   end
 
+  # A rule whose public definition was deleted keeps its history but is not scheduled.
   def scheduled(db, limit) when is_integer(limit) and limit in 1..1_024 do
     rows =
       SQL.rows!(
         db,
-        "SELECT scope,kind,rule_id,state_identity,document FROM rule_states " <>
-          "WHERE kind IN ('heartbeat','battery','transport_degradation') " <>
-          "ORDER BY scope,kind,rule_id LIMIT ?",
+        "SELECT s.scope,s.kind,s.rule_id,s.state_identity,s.document FROM rule_states s " <>
+          "WHERE s.kind IN ('heartbeat','battery','transport_degradation') AND NOT EXISTS (" <>
+          @retired <>
+          ") ORDER BY s.scope,s.kind,s.rule_id LIMIT ?",
         [limit + 1]
       )
 
@@ -151,6 +171,27 @@ defmodule Wotex.Tracker.Service.RuleStore do
     generation = Transaction.generation(db, transition.scope)
     if generation >= 9_223_372_036_854_775_806, do: throw({:storage, :capacity_exceeded})
     next_generation = generation + 1
+    event_disposition = write_at(db, transition, next_generation, options)
+
+    SQL.rows!(
+      db,
+      "INSERT INTO scopes VALUES(?,?) ON CONFLICT(scope) DO UPDATE SET generation=excluded.generation",
+      [transition.scope, next_generation]
+    )
+
+    receipt(
+      %{
+        generation: next_generation,
+        state_identity: transition.state_identity,
+        transition_identity: transition.identity
+      },
+      transition,
+      "accepted",
+      event_disposition
+    )
+  end
+
+  defp write_at(db, transition, next_generation, options) do
     event_disposition = prepare_event(db, transition)
     state_insert = is_nil(state_row(db, transition.scope, transition.kind, transition.rule_id))
     capacity!(db, "rule_states", if(state_insert, do: 1, else: 0), options.max_rows)
@@ -184,23 +225,18 @@ defmodule Wotex.Tracker.Service.RuleStore do
     ])
 
     write_event(db, transition, next_generation, event_disposition, options)
+    event_disposition
+  end
 
+  defp retired?(db, scope, rule_id) do
     SQL.rows!(
       db,
-      "INSERT INTO scopes VALUES(?,?) ON CONFLICT(scope) DO UPDATE SET generation=excluded.generation",
-      [transition.scope, next_generation]
-    )
-
-    receipt(
-      %{
-        generation: next_generation,
-        state_identity: transition.state_identity,
-        transition_identity: transition.identity
-      },
-      transition,
-      "accepted",
-      event_disposition
-    )
+      "SELECT 1 FROM (SELECT ? AS scope, ? AS rule_id) s WHERE EXISTS (" <> @retired <> ")",
+      [
+        scope,
+        rule_id
+      ]
+    ) != []
   end
 
   defp prepare_event(_db, %{event: nil}), do: "none"
@@ -298,8 +334,9 @@ defmodule Wotex.Tracker.Service.RuleStore do
     end
   end
 
-  defp project_state(stored),
+  defp project_state(stored, retired),
     do: %{
+      "retired" => retired,
       "schema" => "wtr.rule-state.v1",
       "scope" => stored.scope,
       "kind" => stored.kind,

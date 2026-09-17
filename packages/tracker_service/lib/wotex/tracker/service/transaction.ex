@@ -2,7 +2,7 @@ defmodule Wotex.Tracker.Service.Transaction do
   @moduledoc false
 
   alias Wotex.Tracker.Observation
-  alias Wotex.Tracker.Service.{Authority, Codec, Operation, SQL}
+  alias Wotex.Tracker.Service.{Authority, Codec, Operation, RuleStore, SQL}
 
   @retention 604_800_000
 
@@ -146,6 +146,7 @@ defmodule Wotex.Tracker.Service.Transaction do
     end)
 
     publication = write_publication(db, update, generation, options)
+    RuleStore.stage(db, update.rules, generation, options)
 
     SQL.rows!(
       db,
