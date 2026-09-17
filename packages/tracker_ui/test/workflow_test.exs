@@ -2752,6 +2752,9 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
       Service.thing_alerts(c.service, c.reader, c.scope, thing, %{"limit" => 100}, c.now)
 
     assert length(all) > 10
+    {:ok, detail, _} = live(c.conn, Presenter.alert_path(hd(all)["id"]))
+    assert has_element?(detail, ~s(a[href="#{path}"]), "Asset protection and alerts")
+    refute render(detail) =~ "No asset binding"
     view |> element("button", "Refresh") |> render_click()
     assert has_element?(view, "caption", "Alerts at scope version #{generation}")
     assert has_element?(view, ~s(a[href="#{Presenter.alert_path(hd(all)["id"])}"]))
@@ -3193,6 +3196,7 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
 
     [_, _, _, %{"id" => battery}, %{"id" => heartbeat}] = alerts
     {:ok, stale, _} = live(c.conn, Presenter.alert_path(battery))
+    assert render(stale) =~ "No asset binding"
     stale |> element("button", "Prepare acknowledgement") |> render_click()
     assert_patch(stale)
 

@@ -2352,3 +2352,10 @@ options for per-Thing definitions with exit status 2 and `invalid_arguments`. Th
 independent CLI consumer checks empty definition and alert lists for the scope
 and the materialised Thing and both rejected forms. The CLI still cannot create,
 change or acknowledge anything.
+
+### Alert asset links — 2026-09-17
+
+An alert page now links the asset protection page of the Thing whose rule
+definition recorded it, or states that the host manages the rule when the alert
+has no Thing. LiveView tests see the link on an alert from a battery definition
+and the host-managed statement on a fixture battery alert.

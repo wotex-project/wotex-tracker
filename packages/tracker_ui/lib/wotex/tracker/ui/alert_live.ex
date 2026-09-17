@@ -106,6 +106,18 @@ defmodule Wotex.Tracker.UI.AlertLive do
             </a>
             · revision {@alert["event"]["rule_revision"] || "unknown"}
           </dd>
+          <dt>Asset</dt>
+          <dd>
+            <a
+              :if={@alert["thing_id"]}
+              href={Presenter.path(:asset, @alert["thing_id"]) <> "/protection"}
+            >
+              Asset protection and alerts
+            </a>
+            <span :if={is_nil(@alert["thing_id"])}>
+              No asset binding; the host manages this rule directly
+            </span>
+          </dd>
           <dt :if={@alert["event"]["from_status"]}>Status change</dt>
           <dd :if={@alert["event"]["from_status"]}>
             {Presenter.rule_status(@alert["event"]["from_status"])} to {Presenter.rule_status(
