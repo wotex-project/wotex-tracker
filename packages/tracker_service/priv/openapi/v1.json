@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "WoTEx Tracker service",
-    "version": "1.13.0",
+    "version": "1.14.0",
     "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries, persisted rule status and administrator-managed heartbeat and battery rule definitions evaluated against committed Thing evidence. No scanner, notification delivery or physical interaction is implied."
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
@@ -89,7 +89,7 @@
                           "const": true
                         },
                         "schema": {
-                          "const": "4"
+                          "const": "5"
                         },
                         "sqlite": {
                           "type": "string",
@@ -755,7 +755,7 @@
             }
           }
         },
-        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 4."
+        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 5."
       }
     },
     "/api/v1/scopes/{scope}/resolutions": {
@@ -1092,7 +1092,7 @@
             }
           }
         },
-        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 4."
+        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 5."
       }
     },
     "/api/v1/scopes/{scope}/evidence": {
@@ -1429,7 +1429,7 @@
             }
           }
         },
-        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 4."
+        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 5."
       }
     },
     "/api/v1/scopes/{scope}/state": {
@@ -1766,7 +1766,7 @@
             }
           }
         },
-        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 4."
+        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 5."
       }
     },
     "/api/v1/scopes/{scope}/enrollments": {
@@ -2183,7 +2183,7 @@
             }
           }
         },
-        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 4."
+        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 5."
       }
     },
     "/api/v1/scopes/{scope}/things": {
@@ -2520,7 +2520,7 @@
             }
           }
         },
-        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 4."
+        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 5."
       }
     },
     "/api/v1/scopes/{scope}/saved_queries": {
@@ -2937,7 +2937,7 @@
             }
           }
         },
-        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 4."
+        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 5."
       }
     },
     "/api/v1/scopes/{scope}/rules": {
@@ -3241,7 +3241,7 @@
             }
           }
         },
-        "description": "Ascending immutable committed rule status versions. Rule history has no deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 4."
+        "description": "Ascending immutable committed rule status versions. Rule history has no deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 5."
       }
     },
     "/api/v1/scopes/{scope}/policies": {
@@ -3658,7 +3658,7 @@
             }
           }
         },
-        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 4."
+        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 5."
       }
     },
     "/api/v1/scopes/{scope}/things/{id}/properties/{property}": {

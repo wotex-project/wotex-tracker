@@ -13,7 +13,7 @@ defmodule Wotex.Tracker.Service.GeofenceCrossingRuleEventTest do
     PositionSample
   }
 
-  alias Wotex.Tracker.Service.{RuleEvent, Store}
+  alias Wotex.Tracker.Service.{RuleEvent, RuleEventProjection, Store}
 
   test "inferred crossing intent commits once and survives restart" do
     {store, directory} = store()
@@ -36,7 +36,10 @@ defmodule Wotex.Tracker.Service.GeofenceCrossingRuleEventTest do
     assert {:ok, %{"items" => [%{"event" => envelope}]}} =
              Store.events(store, replay())
 
-    assert envelope == %{"type" => "tracker.event", "data" => result["event"]}
+    assert envelope == %{
+             "type" => "tracker.event",
+             "data" => RuleEventProjection.public(result["event"])
+           }
 
     GenServer.stop(store.pid)
     {reopened, _} = store(directory: directory)

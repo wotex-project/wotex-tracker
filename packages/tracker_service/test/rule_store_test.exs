@@ -14,7 +14,7 @@ defmodule Wotex.Tracker.Service.RuleStoreTest do
     TransportPolicy
   }
 
-  alias Wotex.Tracker.Service.{RuleTransition, Store}
+  alias Wotex.Tracker.Service.{RuleEventProjection, RuleTransition, Store}
 
   test "state, deduplication and event intent commit at one generation and survive restart" do
     {store, directory} = store()
@@ -45,7 +45,10 @@ defmodule Wotex.Tracker.Service.RuleStoreTest do
     assert {:ok, %{"items" => [%{"event" => envelope}]}} =
              Store.events(store, replay(%{now: now() + 1}))
 
-    assert envelope == %{"type" => "tracker.event", "data" => result["event"]}
+    assert envelope == %{
+             "type" => "tracker.event",
+             "data" => RuleEventProjection.public(result["event"])
+           }
 
     assert {:ok, %{"items" => [%{"id" => "transport_degradation:health"}]}} =
              Store.snapshot(store, query(%{kind: "rules"}))
@@ -148,7 +151,7 @@ defmodule Wotex.Tracker.Service.RuleStoreTest do
     :ok = File.chmod(path, 0o600)
 
     {store, _} = store(directory: directory)
-    assert {:ok, %{"schema" => "4"}} = Store.readiness(store)
+    assert {:ok, %{"schema" => "5"}} = Store.readiness(store)
     assert {:ok, %{"generation" => "3"}} = Store.snapshot(store, query(%{scope: "existing"}))
     assert {:ok, %{"generation" => "1"}} = Store.commit_rule(store, transitions().baseline)
   end
@@ -174,7 +177,7 @@ defmodule Wotex.Tracker.Service.RuleStoreTest do
     :ok = File.chmod(path, 0o600)
 
     {store, _} = store(directory: directory)
-    assert {:ok, %{"schema" => "4"}} = Store.readiness(store)
+    assert {:ok, %{"schema" => "5"}} = Store.readiness(store)
 
     assert {:ok, %{"items" => [%{"id" => "urn:uuid:asset"}]}} =
              Store.snapshot(store, query(%{scope: "existing"}))

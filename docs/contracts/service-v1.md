@@ -22,14 +22,16 @@ a quiet scope's last event predates retention. Subsequent events still obey
 retention. The HTTP layer must bind this pair, principal, scope and issue/expiry
 time in its authenticated cursor; raw storage tokens do not grant authority.
 
-Schema version 4 is created transactionally using `PRAGMA user_version`.
-Version 1 upgrades through the forward-queue, rule-state and rule-history
-schemas in the same startup transaction; version 2 starts at the rule-state
-tables and version 3 applies only the rule-history move. That move reassigns
-existing rule versions from the public asset `state` record kind to the
-private `rules` kind; asset state, scopes, operations, observations, events,
-publications and queue items remain unchanged. Unknown newer schemas fail
-startup. Migrations may never silently reset data.
+Schema version 5 is created transactionally using `PRAGMA user_version`.
+Version 1 upgrades through the forward-queue, rule-state, rule-history and
+rule-event projection schemas in the same startup transaction; later versions
+start at their next step. The version 3 step reassigns existing rule versions
+from the public asset `state` record kind to the private `rules` kind. The
+version 4 step removes private capture, evidence, sample, fact and decision
+references from stored public `tracker.event` documents; rule event intents keep
+their complete private copy. Other scopes, operations, observations, events,
+records, publications and queue items remain unchanged. Unknown newer schemas
+fail startup. Migrations may never silently reset data.
 WAL, `synchronous=FULL`, foreign keys, a 1,000 ms busy timeout, 1,000-page
 auto-checkpoint and a 262,144-page database ceiling are mandatory. Page size is
 4,096 bytes. Checkpoint is an explicit administrative operation. Backup uses
@@ -104,6 +106,13 @@ physical Action still needs separate authorization; replay event intents retain
 that dispatch is prohibited. The current port does not schedule evaluation,
 deliver notifications or expose rule mutation over HTTP. Current rule status is
 read-only through the reviewed `rules` projection below.
+
+The public `tracker.event` copy is a reviewed projection. It keeps the event
+ID, kind, reason, rule and policy identities and revisions, statuses, event and
+evaluation times, trip and fence context, candidate route IDs and crossing
+disclosures. It omits caller capture IDs, evidence IDs and digests of private
+observations, samples, bundles, facts and transport decisions. Those references
+remain only in the privileged rule event intent.
 
 Event-only rules use the same intent and public-event tables without manufacturing
 canonical state. The prepared host value retains complete closed inputs and the
@@ -263,7 +272,7 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
-## HTTP and stream contract 1.13.0
+## HTTP and stream contract 1.14.0
 
 The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
 2020-12. The independently maintained Elixir audit checks document shape,
@@ -283,7 +292,7 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | --- | --- |
 | `/health/live` | GET public liveness |
 | `/api/v1/openapi.json` | GET public machine contract |
-| `/api/v1/scopes/{scope}/health/ready` | GET authenticated writable-store check reporting store schema `4` |
+| `/api/v1/scopes/{scope}/health/ready` | GET authenticated writable-store check reporting store schema `5` |
 | `/api/v1/scopes/{scope}/capabilities` | GET explicit available/unsupported/unconfigured status; rules report `heartbeat_battery_definitions` |
 | `…/analytics/query` | POST one read-only structured measurement query against a committed snapshot |
 | `…/analytics/pages` | POST one snapshot-pinned bucket page with an encrypted continuation |

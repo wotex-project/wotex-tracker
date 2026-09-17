@@ -3,12 +3,13 @@ defmodule Wotex.Tracker.Service.Schema do
 
   alias Wotex.Tracker.Service.SQL
 
-  # Every supported older version upgrades to schema 4 in one startup transaction.
+  # Every supported older version upgrades to schema 5 in one startup transaction.
   @migrations %{
-    1 => ~w(1-to-2.sql 2-to-3.sql 3-to-4.sql),
-    2 => ~w(2-to-3.sql 3-to-4.sql),
-    3 => ~w(3-to-4.sql),
-    4 => []
+    1 => ~w(1-to-2.sql 2-to-3.sql 3-to-4.sql 4-to-5.sql),
+    2 => ~w(2-to-3.sql 3-to-4.sql 4-to-5.sql),
+    3 => ~w(3-to-4.sql 4-to-5.sql),
+    4 => ~w(4-to-5.sql),
+    5 => []
   }
 
   def initialize(db, options) do
@@ -50,7 +51,7 @@ defmodule Wotex.Tracker.Service.Schema do
 
     :wotex_tracker_service
     |> :code.priv_dir()
-    |> Path.join("schema/4.sql")
+    |> Path.join("schema/5.sql")
     |> File.read!()
     |> then(&SQL.execute!(db, &1))
   end

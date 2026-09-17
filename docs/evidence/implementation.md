@@ -2135,3 +2135,19 @@ another kind is not treated as the host rule's definition; unrelated receipts,
 invalid operation references, transport failures and failed verification reads
 stay uncertain. Form conversion tests cover thresholds, bounds and suspect
 readings.
+
+### Reviewed public rule events — 2026-09-17
+
+Rule transitions and event-only rules copied their complete pure event into the
+public `tracker.event` stream. Heartbeat events therefore disclosed caller
+capture IDs, and other kinds disclosed evidence IDs and digests of private
+samples, bundles, facts and transport decisions that ordinary projections never
+show. Public events now use a reviewed projection that omits those references;
+the privileged rule event intent keeps the complete event. Store schema 5 applies
+the same removal to stored `tracker.event` documents, leaves other events
+unchanged, and HTTP contract 1.14.0 reports that schema through readiness.
+
+A service test commits all five rule kinds, reads their public events and finds
+no capture ID or private reference field, while each public event equals the
+projection of its stored intent. A version-4 database migration test confirms
+that only `tracker.event` data loses those fields.

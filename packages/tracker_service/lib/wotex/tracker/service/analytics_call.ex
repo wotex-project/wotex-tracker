@@ -254,7 +254,7 @@ defmodule Wotex.Tracker.Service.AnalyticsCall do
 
   defp require_schema!(db) do
     case {SQL.rows!(db, "PRAGMA application_id"), SQL.rows!(db, "PRAGMA user_version")} do
-      {[[1_465_143_857]], [[4]]} -> :ok
+      {[[1_465_143_857]], [[5]]} -> :ok
       _ -> throw({:storage, :unsupported_schema})
     end
   end

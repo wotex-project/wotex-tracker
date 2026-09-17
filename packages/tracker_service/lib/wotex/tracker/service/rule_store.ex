@@ -1,7 +1,14 @@
 defmodule Wotex.Tracker.Service.RuleStore do
   @moduledoc false
 
-  alias Wotex.Tracker.Service.{Codec, RuleEvent, RuleTransition, SQL, Transaction}
+  alias Wotex.Tracker.Service.{
+    Codec,
+    RuleEvent,
+    RuleEventProjection,
+    RuleTransition,
+    SQL,
+    Transaction
+  }
 
   @retired "SELECT 1 FROM records p WHERE p.scope=s.scope AND p.kind='policies' " <>
              "AND p.id=s.rule_id AND p.document='null' AND p.generation=(" <>
@@ -131,7 +138,7 @@ defmodule Wotex.Tracker.Service.RuleStore do
       intent.action
     ])
 
-    envelope = %{"type" => "tracker.event", "data" => intent.event}
+    envelope = %{"type" => "tracker.event", "data" => RuleEventProjection.public(intent.event)}
 
     SQL.rows!(db, "INSERT INTO events(scope,generation,created_at,document) VALUES(?,?,?,?)", [
       intent.scope,
@@ -274,7 +281,10 @@ defmodule Wotex.Tracker.Service.RuleStore do
       transition.action
     ])
 
-    envelope = %{"type" => "tracker.event", "data" => transition.event}
+    envelope = %{
+      "type" => "tracker.event",
+      "data" => RuleEventProjection.public(transition.event)
+    }
 
     SQL.rows!(db, "INSERT INTO events(scope,generation,created_at,document) VALUES(?,?,?,?)", [
       transition.scope,
