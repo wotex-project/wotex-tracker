@@ -2561,6 +2561,192 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert has_element?(reader_view, "[role=alert]")
   end
 
+  test "an administrator edits and deletes a rule definition without repeating writes", c do
+    thing = provisioned(c)
+
+    battery = %{
+      "id" => "low-battery",
+      "kind" => "battery",
+      "thing_id" => thing,
+      "parameters" => %{
+        "measurement_kind" => "batteryVoltage",
+        "unit" => "V",
+        "low_threshold" => 3.0,
+        "clear_threshold" => 3.2,
+        "maximum_age_ms" => 86_400_000,
+        "future_skew_ms" => 60_000,
+        "accept_suspect" => false
+      },
+      "expected_generation" => "3"
+    }
+
+    {:ok, _} = Service.save_policy(c.service, c.admin, c.scope, Identifier.uuid(), battery, c.now)
+    path = Presenter.rule_path("battery:low-battery")
+
+    {:ok, %{"id" => reader}} = Sessions.login(c.sessions, c.reader, c.scope)
+    reader_conn = build_conn() |> init_test_session(%{"browser_session" => reader})
+    {:ok, reader_view, _} = live(reader_conn, path)
+    assert render(reader_view) =~ "revision 4"
+    refute has_element?(reader_view, "button", "Prepare edit")
+    render_click(reader_view, "prepare-manage", %{"intent" => "edit"})
+    assert has_element?(reader_view, "[role=alert]")
+
+    {:ok, view, _} = live(c.conn, path)
+    assert has_element?(view, ".reading", "Low")
+    view |> element("button", "Prepare edit") |> render_click()
+    edit_path = assert_patch(view)
+    assert has_element?(view, "#rule-low[value='3.0']")
+    assert has_element?(view, "#rule-age[value='86400']")
+
+    view |> form("#edit-rule", rule: %{low_threshold: "3.3"}) |> render_submit()
+    assert render(view) =~ "Check the required fields"
+
+    view
+    |> form("#edit-rule", rule: %{low_threshold: "2.5", clear_threshold: "2.8"})
+    |> render_submit()
+
+    assert has_element?(view, "[role=status]", "Rule definition updated")
+    assert has_element?(view, ".reading", "Normal")
+    assert render(view) =~ "revision 5"
+    refute has_element?(view, "#edit-rule")
+
+    {:ok, resumed, _} = live(c.conn, edit_path)
+    assert has_element?(resumed, "[role=status]", "Rule definition updated")
+    refute has_element?(resumed, "#edit-rule")
+
+    {:ok, stale, _} = live(c.conn, path)
+    stale |> element("button", "Prepare delete") |> render_click()
+    assert_patch(stale)
+
+    {:ok, _} =
+      Service.submit(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        import_request(%{id: "observation-late"}, "5"),
+        c.now
+      )
+
+    stale |> element("button", "Delete rule definition") |> render_click()
+    assert render(stale) =~ "changed since this page loaded"
+
+    {:ok, delete, _} = live(c.conn, path)
+    delete |> element("button", "Prepare delete") |> render_click()
+    assert_patch(delete)
+    Agent.update(c.faults, &Map.put(&1, :delete_policy, :lost_reply))
+    delete |> element("button", "Delete rule definition") |> render_click()
+    assert has_element?(delete, "[role=status]", "Operation outcome unknown")
+    refute has_element?(delete, "button", "Delete rule definition")
+    delete |> element("button", "Check operation outcome") |> render_click()
+    assert has_element?(delete, "[role=status]", "Rule definition deleted")
+    assert render(delete) =~ "No active service definition"
+    assert has_element?(delete, ".reading", "Normal")
+    assert {:ok, []} = Store.scheduled_rules(c.store, 10)
+
+    assert {:error, %{"code" => "not_found"}} =
+             Service.get(c.service, c.admin, c.scope, "policies", "low-battery", c.now)
+
+    precise = %{
+      "id" => "precise-silence",
+      "kind" => "heartbeat",
+      "thing_id" => thing,
+      "parameters" => %{"maximum_silence_ms" => 1_500, "future_skew_ms" => 0},
+      "expected_generation" => "7"
+    }
+
+    {:ok, _} = Service.save_policy(c.service, c.admin, c.scope, Identifier.uuid(), precise, c.now)
+    {:ok, precise_view, _} = live(c.conn, Presenter.rule_path("heartbeat:precise-silence"))
+    assert render(precise_view) =~ "edit them through the service API"
+    refute has_element?(precise_view, "button", "Prepare edit")
+    assert has_element?(precise_view, "button", "Prepare delete")
+    render_click(precise_view, "prepare-manage", %{"intent" => "edit"})
+    assert has_element?(precise_view, "[role=alert]")
+  end
+
+  test "rule management keeps unrelated, failed and foreign definitions out of changes", c do
+    {thing, enroll_operation} = enrolled(c)
+    materialize(c, thing, "2")
+    RuleFixtures.commit_heartbeat(c.store, c.scope)
+
+    foreign = %{
+      "id" => "silence",
+      "kind" => "battery",
+      "thing_id" => thing,
+      "parameters" => %{
+        "measurement_kind" => "batteryVoltage",
+        "unit" => "V",
+        "low_threshold" => 2.5,
+        "clear_threshold" => 2.8,
+        "maximum_age_ms" => 86_400_000,
+        "future_skew_ms" => 60_000,
+        "accept_suspect" => false
+      },
+      "expected_generation" => "5"
+    }
+
+    {:ok, _} = Service.save_policy(c.service, c.admin, c.scope, Identifier.uuid(), foreign, c.now)
+    {:ok, host_rule, _} = live(c.conn, Presenter.rule_path("heartbeat:silence"))
+    assert render(host_rule) =~ "No active service definition"
+    refute has_element?(host_rule, "button", "Prepare delete")
+
+    {:ok, orphan, _} =
+      live(
+        c.conn,
+        Presenter.rule_path("heartbeat:silence") <>
+          "?manage_operation=#{Identifier.uuid()}&manage_intent=delete"
+      )
+
+    refute has_element?(orphan, "button", "Delete rule definition")
+
+    path = Presenter.rule_path("battery:silence")
+    {:ok, view, _} = live(c.conn, path)
+    render_click(view, "unknown-event", %{})
+    render_click(view, "prepare-manage", %{"intent" => "archive"})
+    assert has_element?(view, "[role=alert]")
+    render_submit(view, "edit", %{"rule" => %{"low_threshold" => "2.4"}})
+    assert has_element?(view, "[role=alert]")
+
+    Agent.update(c.faults, &Map.put(&1, :list, :unavailable))
+    view |> element("button", "Prepare edit") |> render_click()
+    assert has_element?(view, "[role=alert]")
+    refute has_element?(view, "#edit-rule")
+
+    view |> element("button", "Prepare edit") |> render_click()
+    prepared = assert_patch(view)
+    {:ok, reconnected, _} = live(c.conn, prepared)
+    assert has_element?(reconnected, "#edit-rule")
+
+    Agent.update(c.faults, &Map.put(&1, :save_policy, :unavailable))
+    reconnected |> form("#edit-rule", rule: %{low_threshold: "2.4"}) |> render_submit()
+    assert has_element?(reconnected, "[role=status]", "Operation outcome unknown")
+
+    {:ok, lost, _} = live(c.conn, path)
+    lost |> element("button", "Prepare edit") |> render_click()
+    assert_patch(lost)
+    Agent.update(c.faults, &Map.put(&1, :save_policy, :lost_reply))
+    lost |> form("#edit-rule", rule: %{low_threshold: "2.4"}) |> render_submit()
+    Agent.update(c.faults, &Map.put(&1, :get, :unavailable))
+    lost |> element("button", "Check operation outcome") |> render_click()
+    assert has_element?(lost, "[role=status]", "Operation outcome unknown")
+    lost |> element("button", "Check operation outcome") |> render_click()
+    assert has_element?(lost, "[role=status]", "Rule definition updated")
+
+    {:ok, unrelated, _} =
+      live(c.conn, path <> "?manage_operation=#{enroll_operation}&manage_intent=edit")
+
+    assert render(unrelated) =~ "belongs to a different workflow"
+
+    for query <- [
+          "?manage_operation=not-a-uuid&manage_intent=edit",
+          "?manage_operation=#{Identifier.uuid()}&manage_intent=archive"
+        ] do
+      {:ok, invalid, _} = live(c.conn, path <> query)
+      assert has_element?(invalid, "[role=alert]")
+      refute has_element?(invalid, "#edit-rule")
+    end
+  end
+
   test "saved table dashboard keeps multiple series and exposes a failed rerun", c do
     {thing, _} = enrolled(c)
 

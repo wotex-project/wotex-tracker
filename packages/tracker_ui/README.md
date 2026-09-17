@@ -26,7 +26,10 @@ An administrator can add a heartbeat or low-battery-voltage rule from a
 provisioned asset. The form captures the scope generation, keeps an operation
 reference in the address, derives the rule ID from it and verifies the saved
 definition's asset before reporting success. The service evaluates the rule;
-the page sends no notification.
+the page sends no notification. A rule page shows its service definition and
+lets an administrator prepare an edit or deletion with the same generation check
+and recoverable operation reference. Parameters that are not whole seconds are
+not offered for browser editing, so a save cannot silently round them.
 This is not full application, Pi or mobile acceptance.
 
 `Wotex.Tracker.UI.Local` calls only the public authorized service facade.

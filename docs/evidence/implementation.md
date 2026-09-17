@@ -2112,3 +2112,26 @@ surface a stale generation without committing; recover a lost reply without a
 second write; and keep unrelated receipts, transport failures and failed
 verification reads uncertain. The optional app host serves the page through its
 real loopback listener without disclosing the bearer.
+
+### Browser rule editing and deletion — 2026-09-17
+
+A rule status page now reads the service definition with the same ID and kind.
+It links the defined asset, shows the definition revision and says when the
+displayed status came from another revision. Host-managed rules and rules whose
+definition was deleted state that no active definition exists. Administrators
+can prepare an edit or deletion: the page captures the scope generation, patches
+an operation reference and intent into the address and renders only the chosen
+control. Edits reuse the shared seconds-and-volts form, keep the kind and asset,
+and are offered only when stored durations are whole seconds for a
+`batteryVoltage` or heartbeat rule. A committed receipt counts only after
+reloading shows the definition present after an edit or absent after deletion.
+
+LiveView tests edit a low battery rule to normal thresholds, see revision 5 and
+the recomputed status, reconnect to the receipt, refuse a stale deletion after
+another commit, and recover a lost deletion reply without a second write while
+the rule leaves the host schedule. Readers and forged events cannot prepare
+changes; sub-second parameters are not browser-editable; a same-ID definition of
+another kind is not treated as the host rule's definition; unrelated receipts,
+invalid operation references, transport failures and failed verification reads
+stay uncertain. Form conversion tests cover thresholds, bounds and suspect
+readings.

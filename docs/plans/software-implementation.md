@@ -323,8 +323,9 @@ prior-source readings without claiming live connectivity.
 Revocation, read-only denial, stale writes, lost replies and real HTTP session
 security are exercised. The UI-enabled bundles also pass an authenticated
 browser asset and restart probe. A shared Protection page and per-rule history
-now present committed rule status without evidence. Administrators can add
-heartbeat and low-battery-voltage rules to a provisioned asset in the browser. Complete application, remote adapter,
+now present committed rule status without evidence. Administrators can add,
+edit and delete heartbeat and low-battery-voltage rules for a provisioned asset
+in the browser. Complete application, remote adapter,
 accessibility, Pi and mobile acceptance remain open.
 
 Implement WTR.15's shared components and `hosts/app/` after Phase 3; use admitted
