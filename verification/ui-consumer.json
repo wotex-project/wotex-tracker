@@ -12,12 +12,12 @@
     "ex_json_schema-0.11.0.tar": "23ea702a36d46906d3fd723a8aeac0b80e5d76c6165fdcb37d83b2df94062f28",
     "makeup_elixir-1.0.1.tar": "7284900d412a3e5cfd97fdaed4f5ed389b8f2b4cb49efc0eb3bd10e2febf9507",
     "fine-0.1.6.tar": "5638eb4495488e885ebec167fa57973e5c35e1a50c344eb7666c90ec1c4e3b12",
-    "wotex_runtime-0.1.0.tar": "4f986b3da215481f415c4c0cbe1a8e42c1ff1f2ee36ff2d25874c691d0837aaf",
+    "wotex_runtime-0.1.0.tar": "b74dbbfa99d0cacdae616b2dd61760a4d722bb1f9049f2668e50841879223940",
     "wotex-0.1.0.tar": "390d8f0f4e6c163f9345f8182cca79263e72619a1e230d7003528a533b20b631",
     "dialyxir-1.4.8.tar": "cbd5a851571e5dfeb32aaf2e840bfa98b7864cb3071bf2ef5d95d1276b12e072",
     "plug_crypto-2.2.0.tar": "83a95744ab1c75876542b6fab135fcc176280e0f301a111c1f757fddcec95d2c",
     "db_connection-2.10.2.tar": "510b14482330f1af6490a2fa0efd8d4f1435d1529b165647df22ac0f2df0fa93",
-    "wotex_tracker_service-0.1.0.tar": "7f8ae3b2578e68d5c3396c17ca2fbca2a31c3f222c345ca9ccf475b44e9357ea",
+    "wotex_tracker_service-0.1.0.tar": "7aee5c886bc6a99082971618e8e19a215f09de8473401fcd7540dddd7908fbbe",
     "yamerl-0.10.0.tar": "346adb2963f1051dc837a2364e4acf6eb7d80097c0f53cbdc3046ec8ec4b4e6e",
     "ex_check-0.16.0.tar": "4d809b72a18d405514dda4809257d8e665ae7cf37a7aee3be6b74a34dec310f5",
     "doctor-0.23.0.tar": "b8eb63380fa14d9aced609671600359b1fd057da167339c5031b683eb2bac973",
@@ -26,7 +26,7 @@
     "file_system-1.1.1.tar": "7a15ff97dfe526aeefb090a7a9d3d03aa907e100e262a0f8f7746b78f8f87a5d",
     "nimble_parsec-1.4.2.tar": "4b21398942dda052b403bbe1da991ccd03a053668d147d53fb8c4e0efe09c973",
     "phoenix-1.8.14.tar": "2782ff375824b2b5e41561fbae4764ee7b875af6898483bca49f24a9d1e37816",
-    "wotex_tracker_ui-0.1.0.tar": "357856c7211d646a9f7c4caa7ca3e6b4dcadf681864ba7b648ee51a62a2e83e4",
+    "wotex_tracker_ui-0.1.0.tar": "d411df2dfda550007cb0f25d0ab68249393d6794d61e7596766cec05c58800ef",
     "cc_precompiler-0.1.11.tar": "3427232caf0835f94680e5bcf082408a70b48ad68a5f5c0b02a3bea9f3a075b9",
     "earmark_parser-1.4.46.tar": "9c44636e8a1c68c62f526b2dcd85d941dbbcee7ab82cf64ba06ce28bef8e89f5",
     "phoenix_html-4.3.0.tar": "3eaa290a78bab0f075f791a46a981bbe769d94bc776869f4f3063a14f30497ad",
@@ -45,7 +45,7 @@
     "exqlite-0.40.0.tar": "f83350f2d29a38be1fd38f39081dd36f41fc51bbacf0f4c2927d01308ae331d0",
     "telemetry-1.4.2.tar": "928f6495066506077862c0d1646609eed891a4326bee3126ba54b60af61febb1",
     "jason-1.4.5.tar": "b0c823996102bcd0239b3c2444eb00409b72f6a140c1950bc8b457d836b30684",
-    "wotex_tracker-0.1.0.tar": "ba38890b8e5dcd39fba15f6cd436c5db5157913c40c3abf032d6d713a8cf34d5",
+    "wotex_tracker-0.1.0.tar": "b4192575641fa9da4b66ba3c741075509eb5b0460bc9ff82c1994bf42bc83a14",
     "phoenix_live_view-1.2.11.tar": "c4087267cbd4dc4ed7ac36512a97830af8e9c857ca7cb22557f8640fc5f9d306",
     "credo-1.7.19.tar": "2d8bc95d5a7bb99dd2613621d4f08c6a3575c3fd4b62e6a2b48a100352a557b8",
     "phoenix_template-1.0.4.tar": "2c0c81f0e5c6753faf5cca2f229c9709919aba34fab866d3bc05060c9c444206",
@@ -56,42 +56,42 @@
   "consumers": [
     {
       "elixir": "1.18.4-otp-27",
-      "lock_sha256": "9bdb78e5418fa37a10bd1ee7642ff065a751f5784317203ff6191b39ad0ff9af",
+      "lock_sha256": "5225bd6035e3959c6e1093c005348b44ea1ea95e0b0ec5663a2a506020e8bc18",
       "mode": "fresh",
       "otp": "27.3.4.15",
       "result": "pass"
     },
     {
       "elixir": "1.18.4-otp-27",
-      "lock_sha256": "9bdb78e5418fa37a10bd1ee7642ff065a751f5784317203ff6191b39ad0ff9af",
+      "lock_sha256": "5225bd6035e3959c6e1093c005348b44ea1ea95e0b0ec5663a2a506020e8bc18",
       "mode": "locked",
       "otp": "27.3.4.15",
       "result": "pass"
     },
     {
       "elixir": "1.18.4-otp-27",
-      "lock_sha256": "101daf417cdb602f29581066401cd89459e0d814d82123ae76756e67b2a0506d",
+      "lock_sha256": "2f8d7307a9b057bfaa6f39f2472745d6851452b837f6b2819d07e40bfa7cfe97",
       "mode": "minimum",
       "otp": "27.3.4.15",
       "result": "pass"
     },
     {
       "elixir": "1.20.4-otp-29",
-      "lock_sha256": "9bdb78e5418fa37a10bd1ee7642ff065a751f5784317203ff6191b39ad0ff9af",
+      "lock_sha256": "5225bd6035e3959c6e1093c005348b44ea1ea95e0b0ec5663a2a506020e8bc18",
       "mode": "fresh",
       "otp": "29.0.4",
       "result": "pass"
     },
     {
       "elixir": "1.20.4-otp-29",
-      "lock_sha256": "9bdb78e5418fa37a10bd1ee7642ff065a751f5784317203ff6191b39ad0ff9af",
+      "lock_sha256": "5225bd6035e3959c6e1093c005348b44ea1ea95e0b0ec5663a2a506020e8bc18",
       "mode": "locked",
       "otp": "29.0.4",
       "result": "pass"
     },
     {
       "elixir": "1.20.4-otp-29",
-      "lock_sha256": "101daf417cdb602f29581066401cd89459e0d814d82123ae76756e67b2a0506d",
+      "lock_sha256": "2f8d7307a9b057bfaa6f39f2472745d6851452b837f6b2819d07e40bfa7cfe97",
       "mode": "minimum",
       "otp": "29.0.4",
       "result": "pass"
@@ -99,7 +99,7 @@
   ],
   "host": {
     "darwin-arm64": {
-      "archive_sha256": "c081a4851d399d515acd1b8c2a23053d1a4827dee8b0cb0413ac76bc84f84814",
+      "archive_sha256": "63e3d2a8459f2dbcaef65e38c87d6d652701330bb233b856dd95be792629c833",
       "native_client_sha256": "1717e17a2b4649eff4728376ec5bd5e62a456848ea16ff9cafce252d52789193",
       "native_compiler": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
       "platform": "aarch64-apple-darwin",
@@ -117,18 +117,18 @@
         "restart_and_idempotency": "pass",
         "retained_revocation": "pass",
         "runtime_licenses": "pass",
-        "shutdown_seconds": 1.039,
+        "shutdown_seconds": 1.077,
         "sigkill_recovery": "pass",
         "sigterm_active_stream": "pass",
         "sqlite_full_rollback": "pass"
       },
-      "source_sha256": "0802475955a13e6b739b589501ee611ef49c5d51549384543c46dfc9f7b23c99"
+      "source_sha256": "f0f5b86db3633c83b631a0bcd73d84cf074159f1b25ab8a5e81dff174847f2b3"
     },
     "linux-arm64": {
-      "archive_sha256": "fb01cbe2d80d01362fda33c48698b8e2f057d9f468e08dcc6ee8b51aaaee8ceb",
+      "archive_sha256": "156b000cf49a7d8433fd15482ef29e192a7e4999227749df3ac27189af6a6b3e",
       "base_builder": "hexpm/elixir@sha256:473f77ee88977dc8cc5d05fb91080a308be86be3fc27d50aef9a837d07c8268b",
       "base_runtime": "debian@sha256:88200866dfff7ea7f5cbcb6ec7c8a701889efe6fe859fe64d6990e4b07ea4171",
-      "builder_image_id": "sha256:f895f28aebe83077ed0db9dce3f9dc73f33af17fbaf246079455339252a99f4d",
+      "builder_image_id": "sha256:397d80f36cd18b5f4f167d8b728b1ebaa5198e86327e1cf25cc3fb8775a092d0",
       "builder_packages": [
         "gcc\t4:12.2.0-3",
         "libc6:arm64\t2.36-9+deb12u14",
@@ -136,7 +136,7 @@
         "make\t4.3-4.1"
       ],
       "compiler": "gcc (Debian 12.2.0-14+deb12u1) 12.2.0",
-      "image_id": "sha256:bbca8748e558a62080c1367e9e95a2980ac3d42be3fbaeed2db37e7ae987d826",
+      "image_id": "sha256:be51c5eef6cd5e1708d3510adf729f782b2b5978db783f66f5ace3f3de94deae",
       "image_tag": "wotex-tracker-ui:0.1.0-linux-arm64-local",
       "native_builder": "rust@sha256:2775a09d208ff0d7c1f50490c45b62db929e87ba1dcbc3f2132ac71a704bcdd3",
       "native_client_sha256": "ec8ba1d52467c6fae8f7d24ce72f1bd3d0292647dd2ce7948c11d65595480319",
@@ -155,12 +155,12 @@
         "restart_and_idempotency": "pass",
         "retained_revocation": "pass",
         "runtime_licenses": "pass",
-        "shutdown_seconds": 1.087,
+        "shutdown_seconds": 1.067,
         "sigkill_recovery": "pass",
         "sigterm_active_stream": "pass",
         "sqlite_full_rollback": "pass"
       },
-      "source_sha256": "0802475955a13e6b739b589501ee611ef49c5d51549384543c46dfc9f7b23c99"
+      "source_sha256": "f0f5b86db3633c83b631a0bcd73d84cf074159f1b25ab8a5e81dff174847f2b3"
     },
     "published": false
   },
@@ -168,7 +168,7 @@
   "upstream_revision": "eadc6c9f9c285faf9324b8a7396a001381098b6c",
   "upstream_revisions": {
     "wotex": "eadc6c9f9c285faf9324b8a7396a001381098b6c",
-    "wotex_binding_http": "c150da67867933eb3fb040cc5049d11eb75d3f6a",
-    "wotex_runtime": "65d0b521ccb6b7838fe37bf26bf9dac65b40cc68"
+    "wotex_binding_http": "4c0d9104e81079bfdef610c003a9c700549bdbd9",
+    "wotex_runtime": "f98604a20fa9ca8aacc7d089758a1bbb30ecbe30"
   }
 }
