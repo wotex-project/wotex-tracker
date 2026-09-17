@@ -247,11 +247,8 @@ defmodule Wotex.Tracker.UI.AssetLive do
       <a :if={@state} class="button" href={Presenter.path(:asset, @id) <> "/analytics"}>
         Explore measurement history
       </a>
-      <a
-        :if={@thing && @identity["can_manage_queries"]}
-        href={Presenter.path(:asset, @id) <> "/protection"}
-      >
-        Add a protection rule
+      <a :if={@thing} href={Presenter.path(:asset, @id) <> "/protection"}>
+        Protection rules
       </a>
       <section :if={@state} class="panel">
         <h2>Tracking capabilities</h2>

@@ -81,6 +81,9 @@ defmodule Wotex.Tracker.UI.Local do
   defp dispatch(service, token, scope, :get, args, now),
     do: Service.get(service, token, scope, args["resource"], args["id"], now)
 
+  defp dispatch(service, token, scope, :thing_policies, args, now),
+    do: Service.thing_policies(service, token, scope, args["thing"], now)
+
   defp dispatch(service, token, scope, :read_property, args, now) do
     {:ok, context} =
       Context.new(

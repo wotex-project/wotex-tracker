@@ -36,7 +36,9 @@ trips, and geofence membership. Each rule page shows its thresholds, timing and
 retained evaluation history under current read authority. It omits position
 evidence. An administrator can add a heartbeat or low-battery-voltage rule to a
 provisioned asset with a recoverable operation reference, then edit or delete
-it from the rule page; the service evaluates it from committed evidence.
+it from the rule page; the service evaluates it from committed evidence. The
+asset's protection page lists its live definitions at one committed snapshot for
+any reader and offers no new rule once the asset has eight.
 Recorded rule events appear as newest-first alerts, and an administrator can
 acknowledge a live alert once without changing the rule or dispatching an
 Action. Geofences, movement rules, arming and notification delivery remain open.

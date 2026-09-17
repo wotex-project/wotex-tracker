@@ -1,6 +1,10 @@
 defmodule Wotex.Tracker.UI.RuleCreateLive do
   @moduledoc """
-  Lets an administrator add a heartbeat or battery rule to one provisioned asset.
+  Lists one provisioned asset's rule definitions and lets an administrator add one.
+
+  The page reads the asset's live definitions at one committed snapshot under
+  current `read` authority and links each to its rule status. A Thing admits at
+  most eight definitions, so a full asset offers no new rule.
 
   Preparing a rule captures the current scope generation and puts a fresh
   operation reference in the page address. The rule ID is derived from that
@@ -14,6 +18,9 @@ defmodule Wotex.Tracker.UI.RuleCreateLive do
   alias Wotex.Tracker.Service.Identifier
   alias Wotex.Tracker.UI.{Auth, Presenter, RuleForm}
 
+  # HTTP contract 1.12.0 admits at most eight live definitions per Thing.
+  @maximum_definitions 8
+
   @impl true
   def mount(_, _, socket),
     do:
@@ -22,6 +29,8 @@ defmodule Wotex.Tracker.UI.RuleCreateLive do
          id: nil,
          asset: nil,
          thing: nil,
+         definitions: nil,
+         maximum: @maximum_definitions,
          operation: nil,
          generation: nil,
          outcome: nil,
@@ -43,9 +52,16 @@ defmodule Wotex.Tracker.UI.RuleCreateLive do
   def handle_event(
         "prepare",
         _,
-        %{assigns: %{operation: nil, thing: %{}, identity: %{"can_manage_queries" => true}}} =
-          socket
-      ) do
+        %{
+          assigns: %{
+            operation: nil,
+            thing: %{},
+            definitions: definitions,
+            identity: %{"can_manage_queries" => true}
+          }
+        } = socket
+      )
+      when is_list(definitions) and length(definitions) < @maximum_definitions do
     case Auth.request(socket, :list, %{"resource" => "policies", "params" => %{"limit" => 1}}) do
       {:ok, %{"generation" => generation}} ->
         socket = assign(socket, generation: generation, error: nil)
@@ -61,6 +77,21 @@ defmodule Wotex.Tracker.UI.RuleCreateLive do
         {:noreply, assign(socket, error: error)}
     end
   end
+
+  def handle_event(
+        "prepare",
+        _,
+        %{
+          assigns: %{
+            operation: nil,
+            thing: %{},
+            definitions: definitions,
+            identity: %{"can_manage_queries" => true}
+          }
+        } = socket
+      )
+      when is_list(definitions),
+      do: {:noreply, assign(socket, error: %{"code" => "capacity_exceeded"})}
 
   def handle_event("prepare", _, socket),
     do: {:noreply, assign(socket, error: %{"code" => "forbidden"})}
@@ -100,6 +131,7 @@ defmodule Wotex.Tracker.UI.RuleCreateLive do
        )}
 
   def handle_event("check-operation", _, socket), do: {:noreply, recover(socket)}
+  def handle_event("refresh", _, socket), do: {:noreply, load(socket)}
   def handle_event(_, _, socket), do: {:noreply, socket}
 
   @impl true
@@ -108,45 +140,93 @@ defmodule Wotex.Tracker.UI.RuleCreateLive do
     <main id="main" class="workspace narrow">
       <a href={Presenter.path(:asset, @id)}>← Asset details</a>
       <p class="eyebrow">Protection</p>
-      <h1>{if @asset, do: "Add a rule for #{@asset["title"]}", else: "Asset unavailable"}</h1>
+      <div class="heading">
+        <h1>{if @asset, do: "Rules for #{@asset["title"]}", else: "Asset unavailable"}</h1>
+        <button class="secondary" phx-click="refresh">Refresh</button>
+      </div>
       <p>
         The service evaluates a rule from this asset's committed evidence when it is saved and
         whenever the asset is provisioned again. Alerts are recorded, not sent, and no physical
         Action is requested.
       </p>
       <.notice error={@error} />
-      <p :if={@asset && !@identity["can_manage_queries"]}>
-        Your credential can inspect rule status but cannot add rules.
-      </p>
       <p :if={@asset && is_nil(@thing)}>
         Provision this asset before adding a rule; rules need its committed evidence.
       </p>
-      <button
-        :if={@thing && @identity["can_manage_queries"] && is_nil(@operation)}
-        phx-click="prepare"
-      >Prepare rule</button>
-      <.form
-        :if={
-          @thing && @identity["can_manage_queries"] && @operation && @generation && is_nil(@outcome)
-        }
-        for={%{}}
-        id="rule-definition"
-        phx-submit="save"
-      >
-        <fieldset>
-          <legend>Rule</legend>
-          <label>
-            <input type="radio" name="rule[kind]" value="heartbeat" checked />
-            Reporting heartbeat: alert when no newer capture is committed in time
-          </label>
-          <label :if={RuleForm.battery?(@thing)}>
-            <input type="radio" name="rule[kind]" value="battery" />
-            Low battery voltage, with separate low and recovery thresholds
-          </label>
-        </fieldset>
-        <RuleForm.fields heartbeat={true} battery={RuleForm.battery?(@thing)} />
-        <button type="submit" phx-disable-with="Saving…">Save rule</button>
-      </.form>
+      <section :if={@thing} class="panel" aria-labelledby="asset-rules-title">
+        <h2 id="asset-rules-title">Defined rules</h2>
+        <p :if={is_nil(@definitions)} role="status">
+          Defined rules are unavailable. Refresh to retry.
+        </p>
+        <p :if={@definitions == []}>No rules are defined for this asset.</p>
+        <div
+          :if={@definitions not in [nil, []]}
+          class="table-scroll"
+          tabindex="0"
+          role="region"
+          aria-labelledby="asset-rules-title"
+        >
+          <table>
+            <caption>
+              {length(@definitions)} of {@maximum} rule definitions for this asset
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Rule</th><th scope="col">Revision</th><th scope="col">Settings</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr :for={definition <- @definitions}>
+                <td>
+                  <a href={Presenter.rule_path(definition["kind"] <> ":" <> definition["id"])}>
+                    {Presenter.rule_kind(definition["kind"])}
+                  </a>
+                  <span class="identifier">{definition["id"]}</span>
+                </td>
+                <td>{definition["revision"]}</td>
+                <td>{Presenter.rule_parameters(definition["kind"], definition["parameters"])}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p :if={is_list(@definitions) && length(@definitions) >= @maximum} role="status">
+          This asset has the maximum of {@maximum} rule definitions. Delete one from its rule page
+          before adding another.
+        </p>
+      </section>
+      <section :if={@thing} class="panel" aria-labelledby="add-rule-title">
+        <h2 id="add-rule-title">Add a rule</h2>
+        <p :if={!@identity["can_manage_queries"]}>
+          Your credential can inspect rule status but cannot add rules.
+        </p>
+        <button
+          :if={
+            @identity["can_manage_queries"] && is_nil(@operation) && is_list(@definitions) &&
+              length(@definitions) < @maximum
+          }
+          phx-click="prepare"
+        >Prepare rule</button>
+        <.form
+          :if={@identity["can_manage_queries"] && @operation && @generation && is_nil(@outcome)}
+          for={%{}}
+          id="rule-definition"
+          phx-submit="save"
+        >
+          <fieldset>
+            <legend>Rule</legend>
+            <label>
+              <input type="radio" name="rule[kind]" value="heartbeat" checked />
+              Reporting heartbeat: alert when no newer capture is committed in time
+            </label>
+            <label :if={RuleForm.battery?(@thing)}>
+              <input type="radio" name="rule[kind]" value="battery" />
+              Low battery voltage, with separate low and recovery thresholds
+            </label>
+          </fieldset>
+          <RuleForm.fields heartbeat={true} battery={RuleForm.battery?(@thing)} />
+          <button type="submit" phx-disable-with="Saving…">Save rule</button>
+        </.form>
+      </section>
       <section :if={@operation} class="operation">
         <p :if={@outcome} role="status">
           {if @outcome["outcome"] == "committed", do: "Rule saved", else: "Rule outcome unknown"}
@@ -168,9 +248,11 @@ defmodule Wotex.Tracker.UI.RuleCreateLive do
     with {:ok, %{"value" => asset}} <-
            Auth.request(socket, :get, %{"resource" => "enrollments", "id" => socket.assigns.id}),
          {:ok, thing} <- thing(socket) do
-      assign(socket, asset: asset, thing: thing)
+      socket
+      |> assign(asset: asset, thing: thing, error: nil)
+      |> definitions()
     else
-      {:error, error} -> assign(socket, asset: nil, thing: nil, error: error)
+      {:error, error} -> assign(socket, asset: nil, thing: nil, definitions: nil, error: error)
     end
   end
 
@@ -179,6 +261,19 @@ defmodule Wotex.Tracker.UI.RuleCreateLive do
       {:ok, %{"value" => thing}} -> {:ok, thing}
       {:error, %{"code" => "not_found"}} -> {:ok, nil}
       error -> error
+    end
+  end
+
+  defp definitions(%{assigns: %{thing: nil}} = socket), do: assign(socket, definitions: nil)
+
+  # A failed read leaves the list unknown, so the page offers no rule it cannot count.
+  defp definitions(socket) do
+    case Auth.request(socket, :thing_policies, %{"thing" => socket.assigns.id}) do
+      {:ok, %{"items" => items}} ->
+        assign(socket, definitions: Enum.map(items, & &1["value"]))
+
+      {:error, error} ->
+        assign(socket, definitions: nil, error: error)
     end
   end
 
@@ -244,7 +339,9 @@ defmodule Wotex.Tracker.UI.RuleCreateLive do
 
     case Auth.request(socket, :get, %{"resource" => "policies", "id" => id}) do
       {:ok, %{"value" => %{"thing_id" => ^asset} = saved}} ->
-        assign(socket, outcome: receipt, saved: saved, error: nil)
+        socket
+        |> assign(outcome: receipt, saved: saved, error: nil)
+        |> definitions()
 
       {:error, error} ->
         assign(socket, outcome: %{"outcome" => "unknown"}, error: error)

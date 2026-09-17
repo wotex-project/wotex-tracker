@@ -2395,9 +2395,10 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
       live(c.conn, Presenter.path(:asset, thing) <> "?operation=" <> Identifier.uuid())
 
     path = Presenter.path(:asset, thing) <> "/protection"
-    assert has_element?(asset, ~s(a[href="#{path}"]), "Add a protection rule")
+    assert has_element?(asset, ~s(a[href="#{path}"]), "Protection rules")
 
     {:ok, view, _} = live(c.conn, path)
+    assert has_element?(view, "p", "No rules are defined for this asset.")
     refute has_element?(view, "#rule-definition")
     view |> element("button", "Prepare rule") |> render_click()
     patched = assert_patch(view)
@@ -2419,6 +2420,8 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert has_element?(view, "[role=status]", "Rule saved")
     rule_id = "battery:rule-" <> operation
     assert has_element?(view, ~s(a[href="#{Presenter.rule_path(rule_id)}"]), "Open rule status")
+    assert has_element?(view, "caption", "1 of 8 rule definitions for this asset")
+    assert has_element?(view, ~s(td a[href="#{Presenter.rule_path(rule_id)}"]), "Low battery")
     refute has_element?(view, "#rule-definition")
 
     assert {:ok, %{"value" => %{"status" => "low", "battery" => battery}}} =
@@ -2433,6 +2436,104 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
 
     {:ok, status, _} = live(c.conn, Presenter.rule_path(rule_id))
     assert has_element?(status, ".reading", "Low")
+  end
+
+  test "an asset's protection page lists its rule definitions up to the limit", c do
+    thing = provisioned(c)
+    path = Presenter.path(:asset, thing) <> "/protection"
+
+    battery = %{
+      "id" => "low-battery",
+      "kind" => "battery",
+      "thing_id" => thing,
+      "parameters" => %{
+        "measurement_kind" => "batteryVoltage",
+        "unit" => "V",
+        "low_threshold" => 3.0,
+        "clear_threshold" => 3.2,
+        "maximum_age_ms" => 86_400_000,
+        "future_skew_ms" => 60_000,
+        "accept_suspect" => false
+      },
+      "expected_generation" => "3"
+    }
+
+    heartbeat = %{
+      "id" => "silence-1",
+      "kind" => "heartbeat",
+      "thing_id" => thing,
+      "parameters" => %{"maximum_silence_ms" => 3_600_500, "future_skew_ms" => 0},
+      "expected_generation" => "4"
+    }
+
+    {:ok, _} = Service.save_policy(c.service, c.admin, c.scope, Identifier.uuid(), battery, c.now)
+
+    {:ok, %{"generation" => generation}} =
+      Service.save_policy(c.service, c.admin, c.scope, Identifier.uuid(), heartbeat, c.now)
+
+    {:ok, view, _} = live(c.conn, path)
+    assert has_element?(view, "caption", "2 of 8 rule definitions for this asset")
+
+    assert has_element?(
+             view,
+             ~s(td a[href="#{Presenter.rule_path("battery:low-battery")}"]),
+             "Low battery"
+           )
+
+    assert has_element?(
+             view,
+             ~s(td a[href="#{Presenter.rule_path("heartbeat:silence-1")}"]),
+             "Reporting heartbeat"
+           )
+
+    html = render(view)
+
+    assert html =~
+             "Low at or below 3.0 V · clears at or above 3.2 V · maximum reading age 86400000 ms"
+
+    assert html =~ "Maximum silence 3600500 ms"
+    assert has_element?(view, "button", "Prepare rule")
+    assert Presenter.rule_parameters("motion", %{}) == "Parameters unavailable"
+
+    {:ok, %{"id" => reader}} = Sessions.login(c.sessions, c.reader, c.scope)
+    reader_conn = build_conn() |> init_test_session(%{"browser_session" => reader})
+
+    {:ok, reader_asset, _} =
+      live(reader_conn, Presenter.path(:asset, thing) <> "?operation=" <> Identifier.uuid())
+
+    assert has_element?(reader_asset, ~s(a[href="#{path}"]), "Protection rules")
+    {:ok, reader_view, _} = live(reader_conn, path)
+    assert has_element?(reader_view, "caption", "2 of 8 rule definitions for this asset")
+    assert render(reader_view) =~ "cannot add rules"
+    refute has_element?(reader_view, "button", "Prepare rule")
+
+    Agent.update(c.faults, &Map.put(&1, :thing_policies, :unavailable))
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, "[role=status]", "Defined rules are unavailable")
+    refute has_element?(view, "caption")
+    refute has_element?(view, "button", "Prepare rule")
+    render_click(view, "prepare", %{})
+    refute has_element?(view, "#rule-definition")
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, "caption", "2 of 8 rule definitions for this asset")
+    refute has_element?(view, "[role=alert]")
+
+    Enum.reduce(2..7, generation, fn index, current ->
+      request = %{heartbeat | "id" => "silence-#{index}", "expected_generation" => current}
+
+      {:ok, %{"generation" => next}} =
+        Service.save_policy(c.service, c.admin, c.scope, Identifier.uuid(), request, c.now)
+
+      next
+    end)
+
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, "caption", "8 of 8 rule definitions for this asset")
+    assert render(view) =~ "maximum of 8 rule definitions"
+    refute has_element?(view, "button", "Prepare rule")
+    render_click(view, "prepare", %{})
+    assert has_element?(view, "[role=alert]", "already has eight rule definitions")
+    refute has_element?(view, "#rule-definition")
   end
 
   test "rule creation rejects readers, invalid input, stale snapshots and duplicate writes", c do

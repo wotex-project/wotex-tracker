@@ -2200,3 +2200,22 @@ order, so a client need not scan every definition in the scope. A service test
 separates two Things' definitions, drops a deleted definition, omits the private
 actor and returns an empty list for an unknown Thing; the independent HTTP
 consumer checks the list after saving and deleting a battery rule.
+
+### Browser asset rule definitions — 2026-09-17
+
+A provisioned asset's page now links every reader to `/assets/{id}/protection`.
+That page reads the asset's live definitions through `Service.thing_policies/5`
+at one committed snapshot and lists each definition's kind, ID, revision and
+stored settings without rounding durations, linking it to its rule status. It
+states how many of the eight permitted definitions exist. At eight it offers no
+new rule, and a forged preparation reports the capacity limit instead of opening
+the form. A failed list read leaves the count unknown, so the page offers no new
+rule until a refresh succeeds. A committed save reloads the list before
+reporting success.
+
+LiveView tests list a battery and a heartbeat definition with exact settings and
+status links for an administrator and a reader, refuse the reader any rule
+preparation, keep the page usable through a failed list read and recover on
+refresh, and stop preparation at eight definitions. The rule creation test sees
+the newly saved definition in the list. The optional app host renders the page
+heading through its real loopback listener.

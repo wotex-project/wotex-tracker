@@ -17,6 +17,8 @@ defmodule Wotex.Tracker.UI.Presenter do
       "This operation was already submitted with different details. Inspect its existing outcome.",
     "unresolved" => "This observation has no supported exact profile and cannot be enrolled.",
     "invalid_request" => "Check the required fields and confirmation.",
+    "capacity_exceeded" =>
+      "This asset already has eight rule definitions. Delete one before adding another.",
     "not_found" => "The requested record is not available.",
     "cursor_expired" => "This page has expired. Refresh to start a new snapshot.",
     "operation_expired" =>
@@ -95,6 +97,23 @@ defmodule Wotex.Tracker.UI.Presenter do
         kind,
         kind
       )
+
+  @doc "Summarizes a heartbeat or battery definition's stored parameters without rounding them."
+  @spec rule_parameters(String.t(), term()) :: String.t()
+  def rule_parameters("heartbeat", %{"maximum_silence_ms" => silence}) when is_integer(silence),
+    do: "Maximum silence " <> duration(%{"type" => "integer", "value" => silence})
+
+  def rule_parameters(
+        "battery",
+        %{"low_threshold" => low, "clear_threshold" => clear, "unit" => unit} = parameters
+      )
+      when is_number(low) and is_number(clear) and is_binary(unit) do
+    "Low at or below #{low} #{unit(unit)} · clears at or above #{clear} #{unit(unit)} · " <>
+      "maximum reading age " <>
+      duration(%{"type" => "integer", "value" => parameters["maximum_age_ms"]})
+  end
+
+  def rule_parameters(_, _), do: "Parameters unavailable"
 
   @doc "Labels a closed rule status, keeping unknown distinct from a negative result."
   @spec rule_status(String.t()) :: String.t()
