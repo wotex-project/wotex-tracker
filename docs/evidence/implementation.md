@@ -2471,3 +2471,23 @@ administrator session so its next request is unauthorized while the current one
 continues, and reject listing or ending from an unknown session. A LiveView test
 ends a second browser session from the Access page, sees one session remain and
 reports an unknown handle.
+
+### Incident snapshot saved queries — 2026-09-17
+
+HTTP contract 1.21.0 adds a snapshot window to saved queries. A save with
+`{"kind":"snapshot","generation":G,"result_identity":R}` requires G to equal its
+expected generation, reruns the absolute query at G through the pinned analytics
+path and stores `wtr.saved-query.v3` only if the result identity is R. Executing
+the definition reruns the query at G and returns that result, or
+`revision_mismatch` when retained data no longer reproduces R. An incident
+snapshot therefore stays fixed while later commits change a live query over the
+same bounds.
+
+A service test saves the displayed mean at generation 1 after rejecting a forged
+identity, a generation different from the expected one, an extra window field
+and a non-canonical generation. After another reading changes the live mean
+from 12.5 to 16.25, executing the snapshot still returns the displayed result;
+a snapshot pinned at the later generation with the earlier identity conflicts;
+and a stored identity changed below the store API reports `revision_mismatch`.
+The independent HTTP consumer saves a snapshot of a displayed query after a 409
+for a forged identity and executes it to the same result.

@@ -296,7 +296,7 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
-## HTTP and stream contract 1.20.0
+## HTTP and stream contract 1.21.0
 
 The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
 2020-12. The independently maintained Elixir audit checks document shape,
@@ -361,7 +361,14 @@ can update or delete it. An absolute definition keeps schema
 `wtr.saved-query.v2`; its positive duration is capped at 31 days and must equal
 the stored template query range. Each execution replaces the template bounds
 with `[host_now + 1 - duration, host_now + 1)`, re-admits the query and returns
-those resolved bounds and their content identity. Copying or reading a
+those resolved bounds and their content identity. A snapshot window
+`{"kind":"snapshot","generation","result_identity"}` produces schema
+`wtr.saved-query.v3`, an incident snapshot. Its generation must equal the save's
+`expected_generation`; before storing, the service reruns the absolute query at
+that generation and conflicts unless the result has `result_identity`, so the
+snapshot is exactly the result the client displayed. Each execution reruns the
+query at the pinned generation and returns `revision_mismatch` if the retained
+data no longer reproduces that identity. Copying or reading a
 definition cannot widen authority: execution independently authenticates the
 caller, checks `read` inside the query snapshot and applies the normal
 concurrency, rate and deadline limits. Dashboard sharing policy remains outside

@@ -584,6 +584,41 @@ defmodule Wotex.Tracker.HTTPConsumer do
 
     policy_workflow(context, prefix, thing)
     unenrollment_workflow(context, prefix, observation["observed_at"])
+    snapshot_workflow(context, prefix, thing, observation["observed_at"])
+  end
+
+  # An incident snapshot pins the displayed result to the generation it was read at.
+  defp snapshot_workflow(context, prefix, thing, now) do
+    query = query(thing, now, "independent-incident", 1)
+    displayed = data(context, "query_analytics", prefix <> "/analytics/query", body: query)
+
+    %{"generation" => generation} =
+      data(context, "list_saved_queries", prefix <> "/saved_queries")
+
+    snapshot = %{
+      "id" => "independent-incident",
+      "title" => "Independent incident",
+      "window" => %{
+        "kind" => "snapshot",
+        "generation" => generation,
+        "result_identity" => displayed["identity"]
+      },
+      "query" => query,
+      "visualization" => %{"type" => "table", "show_legend" => false, "show_points" => false},
+      "expected_generation" => generation
+    }
+
+    request(context, "save_query", prefix <> "/saved_queries",
+      body: put_in(snapshot, ["window", "result_identity"], "forged"),
+      status: 409
+    )
+
+    %{"data" => %{"action" => "saved"}} =
+      data(context, "save_query", prefix <> "/saved_queries", body: snapshot)
+
+    path = prefix <> "/saved_queries/independent-incident"
+    %{"schema" => "wtr.saved-query.v3"} = data(context, "get_saved_queries", path)["value"]
+    ^displayed = data(context, "execute_saved_query", path <> "/execute")
   end
 
   defp policy_workflow(context, prefix, thing) do

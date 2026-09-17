@@ -377,7 +377,8 @@ defmodule Wotex.Tracker.Service do
       with {:ok, access} <- authorize(service, token, scope, "read", now),
            {:ok, row} <- fetch(service, access, "saved_queries", id, nil, "read", now),
            {:ok, spec} <- SavedQuery.query(row["value"], id, now),
-           do: Store.authorized_analytics(service.store, access, spec, now)
+           {:ok, pin} <- SavedQuery.pin(row["value"], id),
+           do: run_saved(service, access, spec, pin, now)
 
     Result.normalize(result)
   end
@@ -698,6 +699,18 @@ defmodule Wotex.Tracker.Service do
            limit: limit
          }},
       else: {:error, :invalid_request}
+  end
+
+  defp run_saved(service, access, spec, nil, now),
+    do: Store.authorized_analytics(service.store, access, spec, now)
+
+  # An incident snapshot reruns at its pinned generation and must reproduce its result.
+  defp run_saved(service, access, spec, {generation, identity}, now) do
+    case Store.authorized_analytics_at(service.store, access, spec, now, generation) do
+      {:ok, %{"identity" => ^identity} = result} -> {:ok, result}
+      {:ok, _} -> {:error, :revision_mismatch}
+      error -> error
+    end
   end
 
   # Each status is read at the definitions' generation, so the list is one snapshot.

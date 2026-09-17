@@ -9,6 +9,7 @@ defmodule Wotex.Tracker.Service.SavedQuery do
   @delete_fields ~w(id expected_generation)
   @public_fields ~w(schema id title owner created_at updated_at window query visualization)
   @rolling_window_fields ~w(kind duration_ms)
+  @snapshot_window_fields ~w(kind generation result_identity)
   @visualization_fields ~w(type show_legend show_points)
   @visualization_types ~w(line area points table)
   @maximum_window_ms 2_678_400_000
@@ -37,6 +38,32 @@ defmodule Wotex.Tracker.Service.SavedQuery do
   end
 
   def prepare_save(service, access, operation, request, now) do
+    with :ok <- pinned_result(service, access, request, now),
+         do: save_or_update(service, access, operation, request, now)
+  end
+
+  # An incident snapshot must reproduce the displayed result at its pinned generation.
+  defp pinned_result(
+         service,
+         access,
+         %{"window" => %{"kind" => "snapshot"} = window} = request,
+         now
+       ) do
+    {:ok, spec} = QuerySpec.from_map(request["query"])
+    {:ok, generation} = Codec.generation(window["generation"])
+    expected = window["result_identity"]
+
+    case Store.authorized_analytics_at(service.store, access, spec, now, generation) do
+      {:ok, %{"identity" => ^expected}} -> :ok
+      {:ok, _} -> {:error, :conflict}
+      {:error, :invalid_cursor} -> {:error, :conflict}
+      error -> error
+    end
+  end
+
+  defp pinned_result(_service, _access, _request, _now), do: :ok
+
+  defp save_or_update(service, access, operation, request, now) do
     case current(service, access, request, now) do
       {:ok, row} ->
         case existing(row, access.principal, request["id"]) do
@@ -74,6 +101,16 @@ defmodule Wotex.Tracker.Service.SavedQuery do
          do: resolve(spec, window, now)
   end
 
+  @doc false
+  # Returns the pinned generation and result identity of an incident snapshot, or nil.
+  def pin(record, id) do
+    case definition(record, id) do
+      {:ok, _spec, {:snapshot, generation, identity}} -> {:ok, {generation, identity}}
+      {:ok, _spec, _window} -> {:ok, nil}
+      error -> error
+    end
+  end
+
   defp definition(%{"owner" => owner, "public" => public} = record, id)
        when map_size(record) == 2 and is_binary(owner) do
     with true <- exact?(public, @public_fields),
@@ -96,6 +133,7 @@ defmodule Wotex.Tracker.Service.SavedQuery do
   defp save_update(service, access, operation, request, created_at, now) do
     {schema, window} =
       case request do
+        %{"window" => %{"kind" => "snapshot"} = snapshot} -> {"wtr.saved-query.v3", snapshot}
         %{"window" => rolling} -> {"wtr.saved-query.v2", rolling}
         _ -> {"wtr.saved-query.v1", "absolute"}
       end
@@ -202,6 +240,13 @@ defmodule Wotex.Tracker.Service.SavedQuery do
 
   defp request_window(request, spec) do
     case request do
+      %{"window" => %{"kind" => "snapshot", "generation" => generation} = window} ->
+        # The snapshot is pinned at the generation the save itself is conditioned on.
+        case {snapshot_window(window), request["expected_generation"]} do
+          {{:ok, _}, ^generation} -> :ok
+          _ -> {:error, :invalid_request}
+        end
+
       %{"window" => window} ->
         case rolling_window(window, spec) do
           {:ok, _duration} -> :ok
@@ -219,7 +264,20 @@ defmodule Wotex.Tracker.Service.SavedQuery do
   defp stored_window(%{"schema" => "wtr.saved-query.v2", "window" => window}, spec),
     do: rolling_window(window, spec)
 
+  defp stored_window(%{"schema" => "wtr.saved-query.v3", "window" => window}, _spec),
+    do: snapshot_window(window)
+
   defp stored_window(_, _), do: {:error, :storage_unavailable}
+
+  defp snapshot_window(window) do
+    with true <- exact?(window, @snapshot_window_fields) and window["kind"] == "snapshot",
+         {:ok, generation} <- Codec.generation(window["generation"]),
+         true <- Codec.id?(window["result_identity"]) do
+      {:ok, {:snapshot, generation, window["result_identity"]}}
+    else
+      _ -> {:error, :invalid_window}
+    end
+  end
 
   defp rolling_window(window, spec) do
     duration = if is_map(window), do: window["duration_ms"]
@@ -249,6 +307,7 @@ defmodule Wotex.Tracker.Service.SavedQuery do
   end
 
   defp resolve(_spec, {:rolling, _duration}, _now), do: {:error, :invalid_query}
+  defp resolve(spec, {:snapshot, _generation, _identity}, _now), do: {:ok, spec}
 
   defp exact?(value, fields),
     do:

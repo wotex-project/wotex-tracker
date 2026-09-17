@@ -3,6 +3,7 @@ defmodule Wotex.Tracker.Service.SavedQueryTest do
 
   import Wotex.Tracker.Service.Fixtures
 
+  alias Exqlite.Sqlite3
   alias Wotex.Tracker.QuerySpec
   alias Wotex.Tracker.Service
   alias Wotex.Tracker.Service.{Codec, Credentials, Identifier, Projection, Store, Update}
@@ -425,6 +426,74 @@ defmodule Wotex.Tracker.Service.SavedQueryTest do
            ]
   end
 
+  test "incident snapshots pin a displayed result to its committed generation", context do
+    put_state(context, "sensor", context.now, 12.5)
+    query = query_document(context.now)
+
+    {:ok, displayed} =
+      Service.analytics(context.service, context.reader, context.scope, query, context.now)
+
+    snapshot = %{
+      "kind" => "snapshot",
+      "generation" => "1",
+      "result_identity" => displayed["identity"]
+    }
+
+    request = query |> save_request("1") |> Map.put("window", snapshot)
+
+    assert {:error, %{"code" => "conflict"}} =
+             save(context, %{request | "window" => %{snapshot | "result_identity" => "forged"}})
+
+    for invalid <- [
+          %{request | "expected_generation" => "0"},
+          %{request | "window" => Map.put(snapshot, "extra", true)},
+          %{request | "window" => %{snapshot | "generation" => "01"}}
+        ] do
+      assert {:error, %{"code" => "invalid_request"}} = save(context, invalid)
+    end
+
+    assert {:ok, %{"generation" => "2"}} = save(context, request)
+
+    assert {:ok, %{"value" => definition}} =
+             Service.get(
+               context.service,
+               context.reader,
+               context.scope,
+               "saved_queries",
+               "workshop-temperature",
+               context.now
+             )
+
+    assert definition["schema"] == "wtr.saved-query.v3"
+    assert definition["window"] == snapshot
+
+    put_state(context, "sensor", context.now, 20.0, "2")
+
+    {:ok, live} =
+      Service.analytics(context.service, context.reader, context.scope, query, context.now)
+
+    assert get_in(live, ["series", Access.at(0), "points", Access.at(0), "value"]) === 16.25
+    refute live["identity"] == displayed["identity"]
+    assert {:ok, ^displayed} = execute(context, "workshop-temperature")
+
+    late = %{
+      request
+      | "id" => "late-snapshot",
+        "expected_generation" => "3",
+        "window" => %{snapshot | "generation" => "3"}
+    }
+
+    assert {:error, %{"code" => "conflict"}} = save(context, late)
+
+    [[_]] =
+      sql(
+        context,
+        "UPDATE records SET document=json_set(document,'$.public.window.result_identity','forged') WHERE kind='saved_queries' RETURNING id"
+      )
+
+    assert {:error, %{"code" => "revision_mismatch"}} = execute(context, "workshop-temperature")
+  end
+
   test "HTTP exposes saved definitions and executes them without another model step", context do
     Application.ensure_all_started(:inets)
     server = start_supervised!({Server, server_options(context)})
@@ -472,6 +541,34 @@ defmodule Wotex.Tracker.Service.SavedQueryTest do
            ]
   end
 
+  defp save(context, request),
+    do:
+      Service.save_query(
+        context.service,
+        context.admin,
+        context.scope,
+        Identifier.uuid(),
+        request,
+        context.now
+      )
+
+  defp execute(context, id),
+    do:
+      Service.execute_saved_query(context.service, context.reader, context.scope, id, context.now)
+
+  defp sql(context, statement) do
+    {:ok, db} = Sqlite3.open(Path.join(context.directory, "tracker.db"))
+
+    try do
+      {:ok, prepared} = Sqlite3.prepare(db, statement)
+      {:ok, rows} = Sqlite3.fetch_all(db, prepared)
+      :ok = Sqlite3.release(db, prepared)
+      rows
+    after
+      Sqlite3.close(db)
+    end
+  end
+
   defp save_request(query, generation) do
     %{
       "id" => "workshop-temperature",
@@ -509,7 +606,7 @@ defmodule Wotex.Tracker.Service.SavedQueryTest do
     document
   end
 
-  defp put_state(context, id, event_at, value) do
+  defp put_state(context, id, event_at, value, generation \\ "0") do
     {:ok, access} =
       Service.authorize(context.service, context.admin, context.scope, "ingest", context.now)
 
@@ -519,8 +616,8 @@ defmodule Wotex.Tracker.Service.SavedQueryTest do
         scope: context.scope,
         authority: access,
         operation_id: Identifier.uuid(),
-        expected_generation: "0",
-        request: %{"operation" => "state-fixture"},
+        expected_generation: generation,
+        request: %{"operation" => "state-fixture", "value" => value},
         now: context.now,
         observation: nil,
         records: [
