@@ -631,6 +631,13 @@ defmodule Wotex.Tracker.HTTPConsumer do
       data(context, "get_rules", prefix <> "/rules/battery%3Aindependent-battery")
 
     %{"status" => "normal", "rule" => %{"revision" => "12", "identity" => identity}} = status
+
+    %{
+      "generation" => "12",
+      "items" => [%{"id" => "battery:independent-battery", "value" => ^status}]
+    } =
+      data(context, "list_thing_rules", prefix <> "/things/" <> encode_segment(thing) <> "/rules")
+
     ^identity = definition["policy_identity"]
     %{"type" => "number", "value" => 2.977} = status["battery"]["measurement"]["value"]
     thing_alerts = prefix <> "/things/" <> encode_segment(thing) <> "/alerts"

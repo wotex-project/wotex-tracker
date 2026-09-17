@@ -117,6 +117,8 @@ The service assigns each revision from its commit generation, validates the
 policy through the pure constructor and requires a battery rule to name a
 declared numeric Property in the same unit. A Thing has at most eight definitions,
 listed for readers through `Service.thing_policies/5` and `GET …/things/{id}/policies`.
+`Service.thing_rules/5` and `GET …/things/{id}/rules` return their committed
+statuses at the same snapshot.
 Saving a definition evaluates it against the Thing's committed evidence, and each
 materialisation of that Thing evaluates its definitions in the same transaction.
 A deleted definition keeps its status history but is no longer scheduled.
@@ -209,7 +211,7 @@ and key paths. Explicit `:proxy` mode requires an HTTPS public origin and a
 protected proxy-to-listener network; forwarded headers never supply authority or
 Forms. No remote exposure is inferred.
 
-OpenAPI **3.1.0**, contract revision **1.19.0**, is packaged at
+OpenAPI **3.1.0**, contract revision **1.20.0**, is packaged at
 `priv/openapi/v1.json` and served at `/api/v1/openapi.json`. Liveness is
 `/health/live`; authenticated resources are under `/api/v1/scopes/{scope}`.
 Use `Authorization: Bearer …`, and a UUIDv4 `Idempotency-Key` for POST mutations.

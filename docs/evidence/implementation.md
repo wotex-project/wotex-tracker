@@ -2413,3 +2413,19 @@ Without `--confirm` it exits with status 2 and `confirmation_required` before an
 request. The independent CLI consumer refuses the unconfirmed form, unenrolls its
 associated and materialised Thing at generation 7, receives the unenrolled
 receipt and then lists no Things before revoking its own credential.
+
+### Per-Thing rule statuses — 2026-09-17
+
+HTTP contract 1.20.0 adds `GET …/things/{id}/rules`, backed by
+`Service.thing_rules/5`. Under `read` it returns, in definition ID order, the
+reviewed status of every live rule definition bound to one Thing as `kind:id`
+items. Each status is read at the generation of the definition list, so the
+response describes one committed snapshot. A definition without recorded status
+is omitted, and an unknown Thing has none.
+
+A service test lists no statuses before definitions exist, then a low battery
+and a current heartbeat status after saving both, each equal to its individual
+rule read, drops the battery status after deleting its definition, returns
+nothing for an unknown Thing and rejects an empty Thing and an invalid token.
+The independent HTTP consumer checks the battery status against OpenAPI and the
+individual rule read.

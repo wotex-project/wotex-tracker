@@ -311,6 +311,28 @@ defmodule Wotex.Tracker.Service do
   end
 
   @doc """
+  Reads the committed status of every rule defined for one Thing at one snapshot.
+
+  Requires `read`. Items follow the Thing's live definitions in ID order, are
+  identified as `kind:id` and carry the reviewed rule status projection read at the
+  same generation as the definitions. A definition without recorded status is
+  omitted; an unknown Thing has none.
+  """
+  @spec thing_rules(t(), String.t(), String.t(), String.t(), integer()) ::
+          {:ok, map()} | {:error, map()}
+  def thing_rules(service, token, scope, thing, now) do
+    result =
+      with {:ok, access} <- authorize(service, token, scope, "read", now),
+           {:ok, page} <-
+             Store.authorized_policies(service.store, access, "read", thing, nil, now),
+           {:ok, items} <- rule_statuses(service, access, page, now) do
+        {:ok, %{"generation" => page["generation"], "items" => items}}
+      end
+
+    Result.normalize(result)
+  end
+
+  @doc """
   Pages, newest first, the alerts of rules defined for one Thing at a bound snapshot.
 
   Requires `read`. `params` accepts `limit` (1 to 100, default 25) and a
@@ -676,6 +698,26 @@ defmodule Wotex.Tracker.Service do
            limit: limit
          }},
       else: {:error, :invalid_request}
+  end
+
+  # Each status is read at the definitions' generation, so the list is one snapshot.
+  defp rule_statuses(service, access, page, now) do
+    page["items"]
+    |> Enum.reduce_while({:ok, []}, fn row, {:ok, statuses} ->
+      id = row["value"]["public"]["kind"] <> ":" <> row["id"]
+
+      with {:ok, status} <- fetch(service, access, "rules", id, page["generation"], "read", now),
+           {:ok, value} <- Projection.public("rules", id, status["value"]) do
+        {:cont, {:ok, [%{"id" => id, "value" => value} | statuses]}}
+      else
+        {:error, :not_found} -> {:cont, {:ok, statuses}}
+        error -> {:halt, error}
+      end
+    end)
+    |> then(fn
+      {:ok, statuses} -> {:ok, Enum.reverse(statuses)}
+      error -> error
+    end)
   end
 
   # A Thing's alert cursor binds that Thing, so a page cannot continue for another one.

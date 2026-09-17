@@ -296,7 +296,7 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
-## HTTP and stream contract 1.19.0
+## HTTP and stream contract 1.20.0
 
 The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
 2020-12. The independently maintained Elixir audit checks document shape,
@@ -333,6 +333,7 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | `…/credentials` | GET the administrator audit of this scope's configured credentials, grants, expiry and revocation |
 | `…/things/{id}/policies` | GET the at most eight live rule definitions bound to one Thing |
 | `…/things/{id}/alerts` | GET newest-first alerts of the rules defined for one Thing |
+| `…/things/{id}/rules` | GET the committed status of every rule defined for one Thing at one snapshot |
 | `…/things/{id}/properties/{property}` | GET authorized Runtime Property scalar |
 | `…/things/{id}/properties/{property}/observe` | GET committed Property values as resumable SSE |
 | `…/observations/{id}/raw`, `…/evidence/{id}/raw` | GET raw-permission native JSON downloads |
@@ -642,7 +643,10 @@ parameters and creation/update times. A deletion is a tombstone; earlier version
 stay readable in history. Both mutations publish `policy.changed` with the ID and
 `saved` or `deleted`. `thing_policies` and `GET …/things/{id}/policies` return, in
 ID order and under `read`, the live definitions bound to one Thing at the current
-snapshot with that generation; an unknown Thing has none.
+snapshot with that generation; an unknown Thing has none. `thing_rules` and
+`GET …/things/{id}/rules` return, under `read`, the reviewed status of each of
+those definitions as `kind:id` items read at the definitions' generation, omitting
+a definition without recorded status.
 
 ### Definition evaluation
 

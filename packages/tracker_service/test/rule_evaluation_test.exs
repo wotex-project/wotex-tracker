@@ -355,6 +355,39 @@ defmodule Wotex.Tracker.Service.RuleEvaluationTest do
              )
   end
 
+  test "one read returns the status of every rule defined for a Thing", c do
+    assert {:ok, %{"generation" => "3", "items" => []}} = thing_rules(c, c.thing)
+    assert {:ok, _} = save(c, heartbeat(c.thing, "3"), c.now)
+    assert {:ok, _} = save(c, battery(c.thing, "4", {3.0, 3.2}), c.now)
+
+    assert {:ok, %{"generation" => "5", "items" => items}} = thing_rules(c, c.thing)
+    assert Enum.map(items, & &1["id"]) == ["battery:low-battery", "heartbeat:sensor-silence"]
+    assert Enum.map(items, & &1["value"]["status"]) == ["low", "current"]
+
+    for %{"id" => id, "value" => value} <- items do
+      assert {:ok, %{"value" => ^value}} = rule(c, id)
+    end
+
+    assert {:ok, %{"generation" => "6"}} =
+             Service.delete_policy(
+               c.service,
+               c.admin,
+               c.scope,
+               Identifier.uuid(),
+               %{"id" => "low-battery", "expected_generation" => "5"},
+               c.now
+             )
+
+    assert {:ok, %{"generation" => "6", "items" => [%{"id" => "heartbeat:sensor-silence"}]}} =
+             thing_rules(c, c.thing)
+
+    assert {:ok, %{"items" => []}} = thing_rules(c, "urn:uuid:" <> Identifier.uuid())
+    assert {:error, %{"code" => "invalid_query"}} = thing_rules(c, "")
+
+    assert {:error, %{"code" => "unauthorized"}} =
+             Service.thing_rules(c.service, "invalid", c.scope, c.thing, c.now)
+  end
+
   test "alerts of defined rules are bound to their Thing and paged per Thing", c do
     assert {:ok, _} = save(c, battery(c.thing, "3", {3.0, 3.2}), c.now)
     assert {:ok, _} = save(c, battery(c.thing, "4", {2.5, 2.8}), c.now + 1)
@@ -415,6 +448,9 @@ defmodule Wotex.Tracker.Service.RuleEvaluationTest do
       do: collect(c, thing, %{"cursor" => cursor}, acc ++ items),
       else: acc ++ items
   end
+
+  defp thing_rules(c, thing),
+    do: Service.thing_rules(c.service, c.reader, c.scope, thing, c.now)
 
   defp thing_alerts(c, thing, params),
     do: Service.thing_alerts(c.service, c.reader, c.scope, thing, params, c.now)
