@@ -412,7 +412,7 @@ defmodule Wotex.Tracker.Host.CLI do
   alias Wotex.Tracker.Host.CLI.Transport
   alias Wotex.Tracker.Service.{Codec, Identifier}
 
-  @resources ~w(observations resolutions evidence enrollments things state rules)
+  @resources ~w(observations resolutions evidence enrollments things state rules policies alerts)
   @raw_resources ~w(observations evidence)
   @grants ~w(read raw ingest enroll admin interact)
 
@@ -535,13 +535,21 @@ defmodule Wotex.Tracker.Host.CLI do
     do: %{name: String.to_atom(name)}
 
   defp parse_command(["list", resource | arguments]) do
-    options = parse_options(arguments, limit: :integer, cursor: :string)
+    options = parse_options(arguments, limit: :integer, cursor: :string, thing: :string)
+    thing = if options[:thing], do: identifier(options[:thing])
+
+    # Only rule definitions and alerts have per-Thing reads; definitions are not paged.
+    if thing &&
+         (resource not in ~w(policies alerts) or
+            (resource == "policies" and (options[:limit] || options[:cursor]))),
+       do: usage("invalid_arguments")
 
     %{
       name: :list,
       resource: resource(resource, @resources),
       limit: options[:limit],
-      cursor: options[:cursor]
+      cursor: options[:cursor],
+      thing: thing
     }
   end
 
@@ -695,7 +703,15 @@ defmodule Wotex.Tracker.Host.CLI do
        do: mutation_target(base, command)
 
   defp resource_target(base, command, item?) do
-    path = base <> "/" <> command.resource
+    path =
+      case command do
+        %{thing: thing} when is_binary(thing) ->
+          base <> "/things/" <> encode_segment(thing) <> "/" <> command.resource
+
+        _ ->
+          base <> "/" <> command.resource
+      end
+
     path = if item?, do: path <> "/" <> encode_segment(command.id), else: path
 
     path =

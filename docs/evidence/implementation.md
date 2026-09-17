@@ -2341,3 +2341,14 @@ thresholds, then page older and newer alerts, keep the first page through an
 unavailable older page, refuse returning to a newer page after another commit,
 show the list to a reader, and cover unavailable, malformed and forbidden
 replies.
+
+### Command-line rule definitions and alerts — 2026-09-17
+
+`trackerctl` now accepts `policies` and `alerts` for `list`, `inspect` and
+`history`. `list policies --thing THING` reads one Thing's live definitions and
+`list alerts --thing THING` pages its alerts with the ordinary `--limit` and
+`--cursor` options. The CLI rejects `--thing` for other resources and paging
+options for per-Thing definitions with exit status 2 and `invalid_arguments`. The
+independent CLI consumer checks empty definition and alert lists for the scope
+and the materialised Thing and both rejected forms. The CLI still cannot create,
+change or acknowledge anything.

@@ -149,6 +149,20 @@ defmodule Wotex.Tracker.Host.CLIConsumer do
     [24.3] = call(context, ["read", thing, "temperature"])
     [100_044] = call(context, ["read", thing, "pressure"])
 
+    [%{"data" => %{"items" => []}}] = call(context, ["list", "policies", "--thing", thing])
+    [%{"data" => %{"items" => []}}] = call(context, ["list", "policies"])
+
+    [%{"data" => %{"items" => [], "cursor" => nil}}] =
+      call(context, ["list", "alerts", "--thing", thing, "--limit", "2"])
+
+    [%{"data" => %{"items" => []}}] = call(context, ["list", "alerts"])
+
+    [%{"error" => %{"code" => "invalid_arguments"}}] =
+      call(context, ["list", "rules", "--thing", thing], 2)
+
+    [%{"error" => %{"code" => "invalid_arguments"}}] =
+      call(context, ["list", "policies", "--thing", thing, "--limit", "1"], 2)
+
     [%{"error" => %{"code" => "not_found"}}] =
       call(context, ["read", thing, "missing"], 1)
 
