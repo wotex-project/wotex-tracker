@@ -2,36 +2,25 @@ defmodule Wotex.Tracker.HTTPTest do
   @moduledoc false
   use ExUnit.Case, async: true
   import Wotex.Tracker.Service.Fixtures
-  alias Wotex.Tracker.Service.{Codec, Store}
+  alias Wotex.Tracker.Service.{Codec, RuleFixtures, Store}
   alias Wotex.Tracker.Service.HTTP.{Capacity, Server}
 
   test "an independent HTTP/SSE process executes the authenticated workflow" do
     context = service()
     server = start_supervised!({Server, options(context)})
-    assert {:ok, {{127, 0, 0, 1}, port}} = Server.listener_info(server)
-    path = Path.join(context.directory, "client.json")
-
-    File.write!(
-      path,
-      Codec.encode!(%{
-        "url" => "http://127.0.0.1:#{port}",
-        "token" => context.admin,
-        "reader" => context.reader,
-        "scope" => context.scope,
-        "now" => context.now
-      })
-    )
-
-    File.chmod!(path, 0o600)
-    elixir = System.find_executable("elixir") || flunk("Elixir executable is unavailable")
-    code_paths = Enum.flat_map(:code.get_path(), fn value -> ["-pa", List.to_string(value)] end)
-    script = Path.expand("../../scripts/http_consumer.exs")
-    {output, status} = System.cmd(elixir, code_paths ++ [script, path], stderr_to_stdout: true)
-    assert status == 0, output
-    assert output =~ "HTTP_CONSUMER_PASS"
+    assert run_consumer(context, server, %{}) =~ "HTTP_CONSUMER_PASS"
     assert {:ok, capacity} = Server.child(server, :capacity)
     assert_capacity_released(capacity)
-    File.rm!(path)
+  end
+
+  test "an independent HTTP process inspects persisted rule status" do
+    context = service()
+    RuleFixtures.commit_all(context.store, context.scope)
+    server = start_supervised!({Server, options(context)})
+    output = run_consumer(context, server, %{"mode" => "rules"})
+    assert output =~ "HTTP_CONSUMER_PASS openapi=true rule_status=true"
+    assert {:ok, capacity} = Server.child(server, :capacity)
+    assert_capacity_released(capacity)
   end
 
   test "instances use distinct listeners and stores; invalid exposure and configuration fail closed" do
@@ -66,6 +55,33 @@ defmodule Wotex.Tracker.HTTPTest do
 
     assert {:error, :invalid_configuration} = Server.start_link([])
     assert {:error, :invalid_configuration} = Server.start_link(nil)
+  end
+
+  defp run_consumer(context, server, descriptor) do
+    assert {:ok, {{127, 0, 0, 1}, port}} = Server.listener_info(server)
+    path = Path.join(context.directory, "client.json")
+
+    File.write!(
+      path,
+      Codec.encode!(
+        Map.merge(descriptor, %{
+          "url" => "http://127.0.0.1:#{port}",
+          "token" => context.admin,
+          "reader" => context.reader,
+          "scope" => context.scope,
+          "now" => context.now
+        })
+      )
+    )
+
+    File.chmod!(path, 0o600)
+    elixir = System.find_executable("elixir") || flunk("Elixir executable is unavailable")
+    code_paths = Enum.flat_map(:code.get_path(), fn value -> ["-pa", List.to_string(value)] end)
+    script = Path.expand("../../scripts/http_consumer.exs")
+    {output, status} = System.cmd(elixir, code_paths ++ [script, path], stderr_to_stdout: true)
+    File.rm!(path)
+    assert status == 0, output
+    output
   end
 
   defp assert_capacity_released(capacity, attempts \\ 100) do

@@ -351,7 +351,7 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
            "import" => "available",
            "ble_scan" => "unsupported",
            "cellular" => "unsupported",
-           "rules" => "unsupported",
+           "rules" => "read_only",
            "analytics" => "structured_queries",
            "runtime" => %{
              "readproperty" => "available",

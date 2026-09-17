@@ -1,9 +1,25 @@
 defmodule Wotex.Tracker.Service.Projection do
   @moduledoc false
 
-  alias Wotex.Tracker.Service.{Codec, Credentials}
+  alias Wotex.Tracker.Service.{Codec, Credentials, RuleStatus}
 
-  def resource(_, nil), do: nil
+  def public(_, _id, nil), do: {:ok, nil}
+  def public("rules", id, value), do: RuleStatus.project(id, value)
+  def public(resource, _id, value), do: {:ok, resource(resource, value)}
+
+  def public_items(resource, items) do
+    Enum.reduce_while(items, {:ok, []}, fn item, {:ok, projected} ->
+      case public(resource, item["id"], item["value"]) do
+        {:ok, value} -> {:cont, {:ok, [%{item | "value" => value} | projected]}}
+        error -> {:halt, error}
+      end
+    end)
+    |> then(fn
+      {:ok, projected} -> {:ok, Enum.reverse(projected)}
+      error -> error
+    end)
+  end
+
   def resource("observations", value), do: value["public"]["observation"]
   def resource("resolutions", value), do: value["public"]["resolution"]
   def resource(_, value), do: value["public"]

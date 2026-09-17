@@ -32,7 +32,7 @@ defmodule Wotex.Tracker.Service do
     Update
   }
 
-  @resources ~w(observations resolutions evidence state enrollments things saved_queries)
+  @resources ~w(observations resolutions evidence state enrollments things saved_queries rules)
   @derive {Inspect, only: [:base_url]}
   @enforce_keys [:store, :credentials, :catalogue, :model, :base_url]
   defstruct @enforce_keys
@@ -176,13 +176,9 @@ defmodule Wotex.Tracker.Service do
     result =
       with {:ok, access} <- authorize(service, token, scope, "read", now),
            :ok <- resource(resource),
-           {:ok, row} <- fetch(service, access, storage_kind(resource), id, nil, "read", now) do
-        {:ok,
-         %{
-           "generation" => row["generation"],
-           "id" => id,
-           "value" => public(resource, row["value"])
-         }}
+           {:ok, row} <- fetch(service, access, storage_kind(resource), id, nil, "read", now),
+           {:ok, value} <- Projection.public(resource, id, row["value"]) do
+        {:ok, %{"generation" => row["generation"], "id" => id, "value" => value}}
       end
 
     Result.normalize(result)
@@ -447,7 +443,6 @@ defmodule Wotex.Tracker.Service do
 
   defp storage_kind("observations"), do: "resolutions"
   defp storage_kind(resource), do: resource
-  defp public(resource, value), do: Projection.resource(resource, value)
 
   defp fetch(service, access, kind, id, generation, permission, now),
     do: Snapshot.fetch(service, access, kind, id, generation, permission, now)
@@ -504,6 +499,11 @@ defmodule Wotex.Tracker.Service do
   end
 
   defp page_result(service, access, resource, page, limit, now) do
+    with {:ok, items} <- Projection.public_items(resource, page["items"]),
+         do: {:ok, page_document(service, access, resource, page, items, limit, now)}
+  end
+
+  defp page_document(service, access, resource, page, items, limit, now) do
     key = Credentials.derive_key(service.credentials, :cursor)
 
     next =
@@ -538,16 +538,12 @@ defmodule Wotex.Tracker.Service do
         now
       )
 
-    items =
-      Enum.map(page["items"], fn row -> %{row | "value" => public(resource, row["value"])} end)
-
-    {:ok,
-     %{
-       "items" => items,
-       "generation" => page["generation"],
-       "cursor" => next,
-       "stream_cursor" => stream
-     }}
+    %{
+      "items" => items,
+      "generation" => page["generation"],
+      "cursor" => next,
+      "stream_cursor" => stream
+    }
   end
 
   defp binding(service, access, purpose),

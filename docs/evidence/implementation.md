@@ -1987,3 +1987,25 @@ under HTTP contract revision 1.10.0, and snapshot analytics require that schema.
 Store tests upgrade a version-3 database with mixed rule and asset history, and
 a service test confirms that public `state` list, get and history no longer
 disclose committed heartbeat history.
+
+### Read-only public rule status — 2026-09-17
+
+The service facade and HTTP contract 1.11.0 now expose a `rules` resource for
+committed heartbeat, battery, transport-health, motion and geofence state. List,
+get and history reuse the snapshot-bound page and history cursors and require
+current `read` authority. Every stored document is restored through its pure
+state constructor before a closed `wtr.rule-status.v1` projection is returned;
+a damaged or mismatched document returns `storage_unavailable`. The projection
+contains rule and state identities, status, times, thresholds, active trip
+summary and fence identity, but no receiver observation, evidence bundle,
+sample, coordinate, distance or transport ledger. Capabilities report rules as
+`read_only`; configuration, arming, evaluation and alert acknowledgement remain
+unsupported.
+
+Service tests commit all five rule kinds, check exact heartbeat and battery
+projections, page across a later commit, return both heartbeat versions, reject
+foreign cursors and identifiers, reauthorize after revocation and fail closed on
+damaged latest or historical versions. Baseline motion and bounded-geofence
+tests cover a missing trip and missing valid membership. A separate BEAM HTTP
+consumer validates capabilities, paged list, get, history, 400/401/404 outcomes
+and response bytes against OpenAPI while a supervised rule scheduler runs.

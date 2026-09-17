@@ -95,7 +95,14 @@ An `enroll` grant can derive initial state/evidence for the same Thing in its
 materialisation transaction. It cannot import observations or export raw data.
 Resource reads need `read`; raw exports need `raw`; revocation needs `admin`.
 Scanner and public rule management remain explicitly unsupported. Analytics is
-reported as `structured_queries`.
+reported as `structured_queries`, and persisted rule status as `read_only`.
+
+`GET …/rules`, `…/rules/{kind}:{rule_id}` and its `/history` return reviewed
+`wtr.rule-status.v1` projections of committed heartbeat, battery, transport,
+motion and geofence state under current `read` authority. Each stored document is
+restored through its pure constructor first; a damaged document returns
+`storage_unavailable`. Observations, evidence bundles, samples and coordinates
+are never included.
 
 `Service.analytics/5` and `POST …/analytics/query` accept the closed
 `wtr.query-spec.v1` document. The service rechecks `read` authority inside a
@@ -177,7 +184,7 @@ and key paths. Explicit `:proxy` mode requires an HTTPS public origin and a
 protected proxy-to-listener network; forwarded headers never supply authority or
 Forms. No remote exposure is inferred.
 
-OpenAPI **3.1.0**, contract revision **1.10.0**, is packaged at
+OpenAPI **3.1.0**, contract revision **1.11.0**, is packaged at
 `priv/openapi/v1.json` and served at `/api/v1/openapi.json`. Liveness is
 `/health/live`; authenticated resources are under `/api/v1/scopes/{scope}`.
 Use `Authorization: Bearer …`, and a UUIDv4 `Idempotency-Key` for POST mutations.

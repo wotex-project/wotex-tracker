@@ -102,7 +102,8 @@ original generation. A stale prior identity or a reused event ID with different
 content conflicts without a partial write. Live event intents retain that a
 physical Action still needs separate authorization; replay event intents retain
 that dispatch is prohibited. The current port does not schedule evaluation,
-deliver notifications or expose rule mutation over HTTP.
+deliver notifications or expose rule mutation over HTTP. Current rule status is
+read-only through the reviewed `rules` projection below.
 
 Event-only rules use the same intent and public-event tables without manufacturing
 canonical state. The prepared host value retains complete closed inputs and the
@@ -262,7 +263,7 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
-## HTTP and stream contract 1.10.0
+## HTTP and stream contract 1.11.0
 
 The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
 2020-12. The independently maintained Elixir audit checks document shape,
@@ -283,10 +284,10 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | `/health/live` | GET public liveness |
 | `/api/v1/openapi.json` | GET public machine contract |
 | `/api/v1/scopes/{scope}/health/ready` | GET authenticated writable-store check reporting store schema `4` |
-| `/api/v1/scopes/{scope}/capabilities` | GET explicit available/unsupported/unconfigured status |
+| `/api/v1/scopes/{scope}/capabilities` | GET explicit available/unsupported/unconfigured status; persisted rule status is `read_only` |
 | `…/analytics/query` | POST one read-only structured measurement query against a committed snapshot |
 | `…/analytics/pages` | POST one snapshot-pinned bucket page with an encrypted continuation |
-| `…/observations`, `…/resolutions`, `…/evidence`, `…/state`, `…/enrollments`, `…/things`, `…/saved_queries` | GET public snapshot pages |
+| `…/observations`, `…/resolutions`, `…/evidence`, `…/state`, `…/enrollments`, `…/things`, `…/saved_queries`, `…/rules` | GET public snapshot pages |
 | `…/{resource}/{id}` | GET one public value |
 | `…/{resource}/{id}/history` | GET ascending committed public versions, including deletion records |
 | `…/saved_queries` | POST create or update an owned absolute or rolling query definition |
@@ -541,7 +542,7 @@ the explicit numeric-loopback peer, not arbitrary remote deployment.
 ## Public resource history
 
 `GET …/{resource}/{id}/history` covers observations, resolutions, evidence
-summaries, enrollment, Things and canonical state. It requires current `read`
+summaries, enrollment, Things, canonical state, saved queries and rule status. It requires current `read`
 authority and returns only the same reviewed public projections as inspection.
 It accepts `limit` (1–100, default 25) and an optional encrypted `cursor`; it
 accepts no arbitrary SQL, field expression or private evidence filter.
@@ -562,6 +563,35 @@ inside its SQLite snapshot. Later commits cannot enter an in-progress page set.
 The stream cursor starts after the event high-water mark in that same snapshot;
 event retention/replay rules remain in force. History responses share the 4 MiB
 ceiling: reduce the requested page size on `response_too_large`.
+
+## Public rule status
+
+`rules` is a read-only public resource over committed rule history. Its IDs are
+`{kind}:{rule_id}` for `battery`, `geofence`, `heartbeat`, `motion` and
+`transport_degradation`. List, get and history use the ordinary snapshot page,
+cursor and `read` authorization contract; no request can create, edit, arm or
+evaluate a rule. Service capabilities report `rules` as `read_only`.
+
+Each `wtr.rule-status.v1` value first restores the stored document through its
+pure state constructor. A document that fails restoration or names another rule
+returns `storage_unavailable`, not a partial projection. The value contains the
+rule ID, revision and content identity, the state identity, a closed status and
+one object named by `kind`:
+
+| Kind | Status | Kind object |
+| --- | --- | --- |
+| `heartbeat` | `current`, `overdue` | last receiver observation time, due and evaluation times, maximum silence |
+| `battery` | `unknown`, `normal`, `low` | public measurement projection, observation and evaluation times, thresholds, freshness and suspect policy |
+| `transport_degradation` | `healthy`, `degraded`, `unknown` | decision status/action, selected candidate ID, decision and evaluation times, healthy candidates and maximum age |
+| `motion` | `unknown`, `stationary`, `moving` | pending status and start time, last received outcome, active trip ID/start/confirmation and dwell durations |
+| `geofence` | `inside`, `outside`, `uncertain`, `unknown` | fence ID/revision/identity, membership reason and event time, last received outcome and transition gap |
+
+Times, durations and numeric thresholds use the tagged scalar representation.
+A geofence without a valid membership reports `unknown` with null reason and
+time. The projection omits receiver observations, evidence and sample bundles,
+source identifiers, coordinates, accuracy, distances and raw transport ledgers.
+Those remain private evidence; the projection is not an authorization to read
+them. Public events for rule transitions keep their existing event contract.
 
 ## Source references
 

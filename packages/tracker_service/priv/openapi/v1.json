@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "WoTEx Tracker service",
-    "version": "1.10.0",
-    "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries. No scanner, rules or physical interaction is implied."
+    "version": "1.11.0",
+    "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries and read-only persisted rule status. No scanner, rule management or physical interaction is implied."
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "security": [
@@ -163,7 +163,7 @@
                           "const": "unsupported"
                         },
                         "rules": {
-                          "const": "unsupported"
+                          "const": "read_only"
                         },
                         "analytics": {
                           "const": "structured_queries"
@@ -2940,6 +2940,310 @@
         "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 3."
       }
     },
+    "/api/v1/scopes/{scope}/rules": {
+      "get": {
+        "operationId": "list_rules",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 256,
+                                "x-max-utf8-bytes": 256
+                              },
+                              "generation": {
+                                "type": "string",
+                                "pattern": "^(0|[1-9][0-9]{0,18})$",
+                                "description": "Canonical decimal integer below 9223372036854775807."
+                              },
+                              "value": {
+                                "$ref": "#/components/schemas/RuleStatus"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "generation",
+                              "value"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "maxItems": 100
+                        },
+                        "generation": {
+                          "type": "string",
+                          "pattern": "^(0|[1-9][0-9]{0,18})$",
+                          "description": "Canonical decimal integer below 9223372036854775807."
+                        },
+                        "cursor": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 4096,
+                              "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "stream_cursor": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 4096,
+                          "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "generation",
+                        "cursor",
+                        "stream_cursor"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scopes/{scope}/rules/{id}": {
+      "get": {
+        "operationId": "get_rules",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 256,
+                          "x-max-utf8-bytes": 256
+                        },
+                        "generation": {
+                          "type": "string",
+                          "pattern": "^(0|[1-9][0-9]{0,18})$",
+                          "description": "Canonical decimal integer below 9223372036854775807."
+                        },
+                        "value": {
+                          "$ref": "#/components/schemas/RuleStatus"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "generation",
+                        "value"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scopes/{scope}/rules/{id}/history": {
+      "get": {
+        "operationId": "history_rules",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/ID"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 256,
+                                "x-max-utf8-bytes": 256
+                              },
+                              "generation": {
+                                "type": "string",
+                                "pattern": "^(0|[1-9][0-9]{0,18})$",
+                                "description": "Canonical decimal integer below 9223372036854775807."
+                              },
+                              "value": {
+                                "$ref": "#/components/schemas/RuleStatus"
+                              },
+                              "deleted": {
+                                "const": false
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "generation",
+                              "value",
+                              "deleted"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "maxItems": 100
+                        },
+                        "generation": {
+                          "type": "string",
+                          "pattern": "^(0|[1-9][0-9]{0,18})$",
+                          "description": "Canonical decimal integer below 9223372036854775807."
+                        },
+                        "cursor": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 4096,
+                              "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "stream_cursor": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 4096,
+                          "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "generation",
+                        "cursor",
+                        "stream_cursor"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Ascending immutable committed resource versions, including explicit deletion tombstones. Cursor binds principal, scope, resource, ID, snapshot generation and page size for seven days. Later commits are excluded; stream_cursor starts after the same snapshot. Missing history returns 404. Record storage has a fixed capacity and no automatic historical deletion in schema 3."
+      }
+    },
     "/api/v1/scopes/{scope}/things/{id}/properties/{property}": {
       "get": {
         "operationId": "read_property",
@@ -5450,6 +5754,516 @@
               "query",
               "visualization",
               "expected_generation"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "VersionedReference": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          },
+          "revision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          },
+          "identity": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          }
+        },
+        "required": [
+          "id",
+          "revision",
+          "identity"
+        ],
+        "additionalProperties": false
+      },
+      "RuleStatus": {
+        "description": "Reviewed status of one persisted deterministic rule. Observations, evidence bundles, samples and coordinates are not included; times and numeric policy values use the tagged Scalar form.",
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "schema": {
+                "const": "wtr.rule-status.v1"
+              },
+              "kind": {
+                "const": "battery"
+              },
+              "rule": {
+                "$ref": "#/components/schemas/VersionedReference"
+              },
+              "state_identity": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "x-max-utf8-bytes": 256
+              },
+              "status": {
+                "enum": [
+                  "unknown",
+                  "normal",
+                  "low"
+                ]
+              },
+              "battery": {
+                "type": "object",
+                "properties": {
+                  "measurement": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256,
+                        "x-max-utf8-bytes": 256
+                      },
+                      "unit": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256,
+                        "x-max-utf8-bytes": 256
+                      },
+                      "value": {
+                        "$ref": "#/components/schemas/Scalar"
+                      },
+                      "availability": {
+                        "enum": [
+                          "available",
+                          "unavailable"
+                        ]
+                      },
+                      "quality": {
+                        "enum": [
+                          "valid",
+                          "suspect",
+                          "unavailable"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "unit",
+                      "value",
+                      "availability",
+                      "quality"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "observed_at": {
+                    "$ref": "#/components/schemas/Scalar"
+                  },
+                  "evaluated_at": {
+                    "$ref": "#/components/schemas/Scalar"
+                  },
+                  "low_threshold": {
+                    "$ref": "#/components/schemas/Scalar"
+                  },
+                  "clear_threshold": {
+                    "$ref": "#/components/schemas/Scalar"
+                  },
+                  "maximum_age_ms": {
+                    "$ref": "#/components/schemas/Scalar"
+                  },
+                  "accept_suspect": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "measurement",
+                  "observed_at",
+                  "evaluated_at",
+                  "low_threshold",
+                  "clear_threshold",
+                  "maximum_age_ms",
+                  "accept_suspect"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "schema",
+              "kind",
+              "rule",
+              "state_identity",
+              "status",
+              "battery"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "schema": {
+                "const": "wtr.rule-status.v1"
+              },
+              "kind": {
+                "const": "geofence"
+              },
+              "rule": {
+                "$ref": "#/components/schemas/VersionedReference"
+              },
+              "state_identity": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "x-max-utf8-bytes": 256
+              },
+              "status": {
+                "enum": [
+                  "inside",
+                  "outside",
+                  "uncertain",
+                  "unknown"
+                ]
+              },
+              "geofence": {
+                "type": "object",
+                "properties": {
+                  "fence": {
+                    "$ref": "#/components/schemas/VersionedReference"
+                  },
+                  "membership_reason": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256,
+                        "x-max-utf8-bytes": 256
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "membership_event_at": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/Scalar"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "last_received_outcome": {
+                    "enum": [
+                      "accepted",
+                      "duplicate",
+                      "historical",
+                      "unknown"
+                    ]
+                  },
+                  "max_transition_gap_ms": {
+                    "$ref": "#/components/schemas/Scalar"
+                  }
+                },
+                "required": [
+                  "fence",
+                  "membership_reason",
+                  "membership_event_at",
+                  "last_received_outcome",
+                  "max_transition_gap_ms"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "schema",
+              "kind",
+              "rule",
+              "state_identity",
+              "status",
+              "geofence"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "schema": {
+                "const": "wtr.rule-status.v1"
+              },
+              "kind": {
+                "const": "heartbeat"
+              },
+              "rule": {
+                "$ref": "#/components/schemas/VersionedReference"
+              },
+              "state_identity": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "x-max-utf8-bytes": 256
+              },
+              "status": {
+                "enum": [
+                  "current",
+                  "overdue"
+                ]
+              },
+              "heartbeat": {
+                "type": "object",
+                "properties": {
+                  "observed_at": {
+                    "$ref": "#/components/schemas/Scalar"
+                  },
+                  "due_at": {
+                    "$ref": "#/components/schemas/Scalar"
+                  },
+                  "evaluated_at": {
+                    "$ref": "#/components/schemas/Scalar"
+                  },
+                  "maximum_silence_ms": {
+                    "$ref": "#/components/schemas/Scalar"
+                  }
+                },
+                "required": [
+                  "observed_at",
+                  "due_at",
+                  "evaluated_at",
+                  "maximum_silence_ms"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "schema",
+              "kind",
+              "rule",
+              "state_identity",
+              "status",
+              "heartbeat"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "schema": {
+                "const": "wtr.rule-status.v1"
+              },
+              "kind": {
+                "const": "motion"
+              },
+              "rule": {
+                "$ref": "#/components/schemas/VersionedReference"
+              },
+              "state_identity": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "x-max-utf8-bytes": 256
+              },
+              "status": {
+                "enum": [
+                  "unknown",
+                  "stationary",
+                  "moving"
+                ]
+              },
+              "motion": {
+                "type": "object",
+                "properties": {
+                  "candidate_status": {
+                    "anyOf": [
+                      {
+                        "enum": [
+                          "stationary",
+                          "moving"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "candidate_since": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/Scalar"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "last_received_outcome": {
+                    "enum": [
+                      "accepted",
+                      "duplicate",
+                      "historical",
+                      "unknown"
+                    ]
+                  },
+                  "active_trip": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 256,
+                            "x-max-utf8-bytes": 256
+                          },
+                          "started_at": {
+                            "$ref": "#/components/schemas/Scalar"
+                          },
+                          "confirmed_at": {
+                            "$ref": "#/components/schemas/Scalar"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "started_at",
+                          "confirmed_at"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "minimum_movement_ms": {
+                    "$ref": "#/components/schemas/Scalar"
+                  },
+                  "minimum_stop_ms": {
+                    "$ref": "#/components/schemas/Scalar"
+                  }
+                },
+                "required": [
+                  "candidate_status",
+                  "candidate_since",
+                  "last_received_outcome",
+                  "active_trip",
+                  "minimum_movement_ms",
+                  "minimum_stop_ms"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "schema",
+              "kind",
+              "rule",
+              "state_identity",
+              "status",
+              "motion"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "schema": {
+                "const": "wtr.rule-status.v1"
+              },
+              "kind": {
+                "const": "transport_degradation"
+              },
+              "rule": {
+                "$ref": "#/components/schemas/VersionedReference"
+              },
+              "state_identity": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "x-max-utf8-bytes": 256
+              },
+              "status": {
+                "enum": [
+                  "healthy",
+                  "degraded",
+                  "unknown"
+                ]
+              },
+              "transport_degradation": {
+                "type": "object",
+                "properties": {
+                  "decision_status": {
+                    "enum": [
+                      "selected",
+                      "deferred",
+                      "unavailable",
+                      "acknowledged",
+                      "pending",
+                      "unknown"
+                    ]
+                  },
+                  "decision_action": {
+                    "enum": [
+                      "send",
+                      "store_and_retry",
+                      "unavailable",
+                      "none",
+                      "wait",
+                      "hold"
+                    ]
+                  },
+                  "selected_candidate_id": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256,
+                        "x-max-utf8-bytes": 256
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "decided_at": {
+                    "$ref": "#/components/schemas/Scalar"
+                  },
+                  "evaluated_at": {
+                    "$ref": "#/components/schemas/Scalar"
+                  },
+                  "healthy_candidate_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 256,
+                      "x-max-utf8-bytes": 256
+                    },
+                    "maxItems": 64
+                  },
+                  "maximum_decision_age_ms": {
+                    "$ref": "#/components/schemas/Scalar"
+                  }
+                },
+                "required": [
+                  "decision_status",
+                  "decision_action",
+                  "selected_candidate_id",
+                  "decided_at",
+                  "evaluated_at",
+                  "healthy_candidate_ids",
+                  "maximum_decision_age_ms"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "schema",
+              "kind",
+              "rule",
+              "state_identity",
+              "status",
+              "transport_degradation"
             ],
             "additionalProperties": false
           }

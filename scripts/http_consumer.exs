@@ -11,13 +11,7 @@ defmodule Wotex.Tracker.HTTPConsumer do
     {:ok, _} = Application.ensure_all_started(:inets)
     descriptor = descriptor_path |> File.read!() |> Codec.decode!()
     context = load_contract(descriptor)
-    workflow(context, descriptor)
-
-    IO.puts(
-      "HTTP_CONSUMER_PASS openapi=true enrollment=true materialisation=true " <>
-        "native_types=true history=true replay=true revoked_stream_closed=true " <>
-        "property_observation=true analytics_pagination=true saved_queries=true"
-    )
+    run(context, descriptor)
   end
 
   def main(_arguments), do: raise("usage: http_consumer.exs DESCRIPTOR")
@@ -43,6 +37,22 @@ defmodule Wotex.Tracker.HTTPConsumer do
       schema: Schema.resolve(specification),
       operations: operations
     })
+  end
+
+  # Rule status needs host-seeded rule transitions, so it runs against a separate store.
+  defp run(context, %{"mode" => "rules"}) do
+    rule_workflow(context, context.scope)
+    IO.puts("HTTP_CONSUMER_PASS openapi=true rule_status=true")
+  end
+
+  defp run(context, descriptor) do
+    workflow(context, descriptor)
+
+    IO.puts(
+      "HTTP_CONSUMER_PASS openapi=true enrollment=true materialisation=true " <>
+        "native_types=true history=true replay=true revoked_stream_closed=true " <>
+        "property_observation=true analytics_pagination=true saved_queries=true"
+    )
   end
 
   defp workflow(context, descriptor) do
@@ -263,6 +273,53 @@ defmodule Wotex.Tracker.HTTPConsumer do
     true = Enum.any?(evidence, &(get_in(&1, ["claim", "strategy"]) == "operator-pseudonym-v1"))
     event_stream_workflow(context, prefix, snapshot, td)
     post_stream_workflow(context, prefix, thing, observation, td)
+  end
+
+  defp rule_workflow(context, scope) do
+    prefix = "/api/v1/scopes/" <> encode_segment(scope)
+    rules = prefix <> "/rules"
+
+    %{"rules" => "read_only"} =
+      data(context, "capabilities", prefix <> "/capabilities", who: :reader)
+
+    request(context, "list_rules", rules, who: nil, status: 401)
+    request(context, "list_rules", rules <> "?limit=0", who: :reader, status: 400)
+    first = data(context, "list_rules", rules <> "?limit=2", who: :reader)
+    items = rule_pages(context, rules, first, first["items"])
+
+    ["battery", "geofence", "heartbeat", "motion", "transport_degradation"] =
+      Enum.map(items, & &1["value"]["kind"])
+
+    ["low", "inside", "overdue", "moving", "degraded"] =
+      Enum.map(items, & &1["value"]["status"])
+
+    heartbeat = Enum.find(items, &(&1["id"] == "heartbeat:silence"))
+    heartbeat_path = rules <> "/" <> encode_segment(heartbeat["id"])
+    fetched = data(context, "get_rules", heartbeat_path, who: :reader)
+    true = fetched["value"] == heartbeat["value"]
+    %{"type" => "integer", "value" => _} = fetched["value"]["heartbeat"]["due_at"]
+    request(context, "get_rules", rules <> "/heartbeat%3Amissing", who: :reader, status: 404)
+    history = data(context, "history_rules", heartbeat_path <> "/history", who: :reader)
+
+    [{"current", false}, {"overdue", false}] =
+      Enum.map(history["items"], &{&1["value"]["status"], &1["deleted"]})
+
+    {_value, bytes} = request(context, "list_rules", rules, who: :reader)
+
+    for private <- ~w(capture private-hardware latitude longitude bundle payload) do
+      false = String.contains?(bytes, private)
+    end
+  end
+
+  defp rule_pages(_context, _rules, %{"cursor" => nil}, items), do: items
+
+  defp rule_pages(context, rules, %{"cursor" => cursor}, items) do
+    page =
+      data(context, "list_rules", rules <> "?cursor=" <> URI.encode_www_form(cursor),
+        who: :reader
+      )
+
+    rule_pages(context, rules, page, items ++ page["items"])
   end
 
   defp event_stream_workflow(context, prefix, snapshot, td) do

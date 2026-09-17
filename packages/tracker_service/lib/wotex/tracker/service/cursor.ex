@@ -108,7 +108,7 @@ defmodule Wotex.Tracker.Service.Cursor do
            data
        )
        when map_size(data) == 4 do
-    kind in ~w(observations resolutions evidence enrollments things state policies saved_queries) and
+    kind in ~w(observations resolutions evidence enrollments things state policies saved_queries rules) and
       match?({:ok, _}, Codec.generation(generation)) and (after_id == "" or Codec.id?(after_id)) and
       is_integer(limit) and limit in 1..100
   end
@@ -139,7 +139,8 @@ defmodule Wotex.Tracker.Service.Cursor do
          } = data
        )
        when map_size(data) == 6 do
-    resource in ~w(observations resolutions evidence enrollments things state) and Codec.id?(id) and
+    resource in ~w(observations resolutions evidence enrollments things state rules) and
+      Codec.id?(id) and
       match?({:ok, _}, Codec.generation(generation)) and
       match?({:ok, _}, Codec.generation(position)) and
       is_integer(limit) and limit in 1..100

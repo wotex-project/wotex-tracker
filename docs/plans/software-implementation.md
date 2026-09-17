@@ -246,6 +246,9 @@ atomically persists this rule's canonical state, history and stable event intent
 with optimistic prior-state identity and restart recovery. Decision
 freshness/future-skew scheduling is now implemented. Input-triggered orchestration
 and notification delivery remain for geofence and suspicious-movement evaluation.
+Readers can inspect every persisted rule kind's current status and history through
+the read-only service `rules` resource without receiving its private evidence.
+Public rule configuration, arming and alert acknowledgement remain open.
 
 Implement explicit time/freshness, quality selection, motion/trips/stops,
 geofence membership/transitions, heartbeat, suspicious movement, low-battery,

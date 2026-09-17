@@ -90,18 +90,15 @@ defmodule Wotex.Tracker.Service.History do
         now
       )
 
-    items =
-      Enum.map(page["items"], fn item ->
-        %{item | "value" => Projection.resource(resource, item["value"])}
-      end)
-
-    {:ok,
-     %{
-       "items" => items,
-       "generation" => page["generation"],
-       "cursor" => next,
-       "stream_cursor" => stream
-     }}
+    with {:ok, items} <- Projection.public_items(resource, page["items"]) do
+      {:ok,
+       %{
+         "items" => items,
+         "generation" => page["generation"],
+         "cursor" => next,
+         "stream_cursor" => stream
+       }}
+    end
   end
 
   defp key(service), do: Credentials.derive_key(service.credentials, :cursor)
