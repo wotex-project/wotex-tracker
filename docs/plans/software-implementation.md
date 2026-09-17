@@ -393,15 +393,16 @@ historical exploration. A valid/suspect quality selector feeds the same closed
 query and persists with a saved definition. The optional browser host records
 closed LiveView render durations in the same volatile collector. Reconnect and
 OS-native resource events,
-subscription-driven refresh, general dashboard composition and sharing, prompting and the physical UI
+follow-live refresh outside saved dashboards, general dashboard composition and sharing, prompting and the physical UI
 acceptance gates remain.
 The shared browser can also list saved query definitions and rerun one under
 current read authority. Administrators can save a displayed graph with a fixed
 or rolling window and recover a lost reply by operation reference. They can
 edit its title/view or delete it with the same generation and receipt rules.
-An open saved dashboard can rerun automatically every 30 seconds, retaining a
-marked stale result through a temporary failure and clearing it if the
-definition or read authority disappears.
+An open saved dashboard can follow committed changes: it checks the committed
+event cursor every 5 seconds, reruns only after a commit, reruns a rolling
+window every 30 seconds, retains a marked stale result through a temporary
+failure and clears it if the definition or read authority disappears.
 The currently displayed query result can also be exported as its exact closed
 JSON document without selecting a new snapshot.
 Administrators can select two to eight saved definitions with identical query

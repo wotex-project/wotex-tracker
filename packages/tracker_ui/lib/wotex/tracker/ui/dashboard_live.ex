@@ -2,9 +2,12 @@ defmodule Wotex.Tracker.UI.DashboardLive do
   @moduledoc """
   Runs and displays one saved query under current read authority.
 
-  The page can refresh an open result every 30 seconds and discloses a stale
-  result when a temporary refresh fails. Readers can switch between an exact
-  table and gap-preserving chart views without changing the definition.
+  While following, the page checks the scope's committed events every 5 seconds
+  and reruns the query only after a commit, coalescing every pending change into
+  one run from a fresh snapshot cursor. A rolling window also reruns after six
+  quiet checks. A temporary check or run failure keeps a marked stale result and
+  retries on each later check. Readers can switch between an exact table and
+  gap-preserving chart views without changing the definition.
   Administrators can edit its title or view and delete it with generation and
   operation checks; a deleted or unauthorized definition is cleared.
   """
@@ -13,7 +16,8 @@ defmodule Wotex.Tracker.UI.DashboardLive do
   import Wotex.Tracker.UI.Components
   alias Wotex.Tracker.Service.Identifier
   alias Wotex.Tracker.UI.{Auth, Chart, Presenter, QueryExport, QueryWindow}
-  @refresh_interval_ms 30_000
+  @refresh_interval_ms 5_000
+  @rolling_quiet_checks 6
 
   @impl true
   def mount(_, _, socket) do
@@ -35,7 +39,9 @@ defmodule Wotex.Tracker.UI.DashboardLive do
        refresh_epoch: 0,
        refresh_timer: nil,
        refresh_status: nil,
-       refresh_error: nil
+       refresh_error: nil,
+       follow_cursor: nil,
+       quiet_checks: 0
      )}
   end
 
@@ -63,7 +69,7 @@ defmodule Wotex.Tracker.UI.DashboardLive do
         socket
         |> assign(refresh_epoch: socket.assigns.refresh_epoch + 1)
         |> schedule_refresh()
-        |> refresh_follow()
+        |> follow_latest()
 
       {:noreply, socket}
     else
@@ -231,7 +237,7 @@ defmodule Wotex.Tracker.UI.DashboardLive do
   @impl true
   def handle_info({:auto_refresh, epoch}, socket) do
     if is_reference(socket.assigns.refresh_timer) and epoch == socket.assigns.refresh_epoch do
-      socket = socket |> refresh_follow() |> reschedule_refresh()
+      socket = socket |> check_changes() |> reschedule_refresh()
       {:noreply, socket}
     else
       {:noreply, socket}
@@ -257,7 +263,10 @@ defmodule Wotex.Tracker.UI.DashboardLive do
       <.notice error={@manage_error} />
       <section :if={@definition} class="panel" aria-label="Automatic refresh">
         <h2>Automatic refresh</h2>
-        <p>Recheck this saved definition and rerun it every 30 seconds while this page is open.</p>
+        <p>
+          While this page is open, check every 5 seconds for commits in this scope and rerun the
+          saved definition only after one. A rolling window also reruns every 30 seconds.
+        </p>
         <button :if={is_nil(@refresh_timer)} phx-click="start-auto-refresh">
           Start auto-refresh
         </button>
@@ -265,10 +274,10 @@ defmodule Wotex.Tracker.UI.DashboardLive do
           Stop auto-refresh
         </button>
         <p :if={@refresh_timer && @refresh_status == :current} role="status">
-          Auto-refresh active; showing the latest successful query snapshot.
+          Auto-refresh active; following committed changes from the latest successful query snapshot.
         </p>
         <p :if={@refresh_timer && @refresh_status == :stale} role="status">
-          The displayed result is stale. Auto-refresh will retry in 30 seconds.
+          The displayed result is stale. Auto-refresh will check again in 5 seconds.
         </p>
         <.notice error={@refresh_error} />
       </section>
@@ -569,6 +578,62 @@ defmodule Wotex.Tracker.UI.DashboardLive do
     end
   end
 
+  # The snapshot cursor is taken before the run, so no later commit is missed. It
+  # advances only after a successful run, so a failed run retries on the next check.
+  defp follow_latest(socket) do
+    case Auth.request(socket, :list, %{"resource" => "saved_queries", "params" => %{"limit" => 1}}) do
+      {:ok, %{"stream_cursor" => cursor}} when is_binary(cursor) ->
+        socket = refresh_follow(socket)
+
+        if socket.assigns.refresh_status == :current and
+             is_reference(socket.assigns.refresh_timer),
+           do: assign(socket, follow_cursor: cursor, quiet_checks: 0),
+           else: socket
+
+      {:error, error} ->
+        refresh_failure(socket, error)
+
+      _ ->
+        refresh_failure(socket, %{"code" => "storage_unavailable"})
+    end
+  end
+
+  defp check_changes(%{assigns: %{follow_cursor: nil}} = socket), do: follow_latest(socket)
+
+  # A stale result retries from a fresh snapshot even when no newer commit exists.
+  defp check_changes(%{assigns: %{refresh_status: :stale}} = socket), do: follow_latest(socket)
+
+  defp check_changes(socket) do
+    case Auth.request(socket, :events, %{"cursor" => socket.assigns.follow_cursor}) do
+      {:ok, %{"items" => []}} ->
+        quiet(socket)
+
+      {:ok, %{"items" => [_ | _]}} ->
+        follow_latest(socket)
+
+      {:error, %{"code" => code}} when code in ~w(cursor_expired invalid_cursor) ->
+        follow_latest(socket)
+
+      {:error, error} ->
+        refresh_failure(socket, error)
+
+      _ ->
+        refresh_failure(socket, %{"code" => "storage_unavailable"})
+    end
+  end
+
+  # A rolling window moves without commits, so it still reruns after quiet checks.
+  defp quiet(socket) do
+    checks = socket.assigns.quiet_checks + 1
+
+    if rolling?(socket.assigns.definition) and checks >= @rolling_quiet_checks,
+      do: follow_latest(socket),
+      else: assign(socket, quiet_checks: checks)
+  end
+
+  defp rolling?(%{"window" => %{"kind" => "rolling"}}), do: true
+  defp rolling?(_), do: false
+
   defp refresh_failure(socket, %{"code" => code} = error)
        when code in ~w(forbidden not_found unauthorized) do
     socket
@@ -604,7 +669,9 @@ defmodule Wotex.Tracker.UI.DashboardLive do
       refresh_epoch: socket.assigns.refresh_epoch + 1,
       refresh_timer: nil,
       refresh_status: nil,
-      refresh_error: nil
+      refresh_error: nil,
+      follow_cursor: nil,
+      quiet_checks: 0
     )
   end
 

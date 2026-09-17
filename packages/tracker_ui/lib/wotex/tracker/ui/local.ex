@@ -75,6 +75,9 @@ defmodule Wotex.Tracker.UI.Local do
     end
   end
 
+  defp dispatch(service, token, scope, :events, args, now),
+    do: Service.events(service, token, scope, args["cursor"], now)
+
   defp dispatch(service, token, scope, :credentials, _, now),
     do: Service.credentials(service, token, scope, now)
 

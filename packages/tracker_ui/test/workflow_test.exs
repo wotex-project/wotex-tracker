@@ -2258,7 +2258,13 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert has_element?(detail, "circle.chart-point")
     refute has_element?(detail, "path.chart-line")
 
+    # A quiet check does not rerun the query.
     Agent.update(c.faults, &Map.put(&1, :execute_saved_query, :unavailable))
+    send(detail.pid, {:auto_refresh, 1})
+    assert render(detail) =~ "Auto-refresh active"
+    assert Agent.get(c.faults, &Map.get(&1, :execute_saved_query)) == :unavailable
+
+    commit_change(c, "follow-1")
     send(detail.pid, {:auto_refresh, 1})
     assert render(detail) =~ "displayed result is stale"
     assert render(detail) =~ "24.3"
@@ -2268,10 +2274,51 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert render(detail) =~ "displayed result is stale"
     assert has_element?(detail, "circle.chart-point")
 
+    # The unconsumed commit is retried on the next check.
     send(detail.pid, {:auto_refresh, 1})
     assert render(detail) =~ "Auto-refresh active"
     refute render(detail) =~ "displayed result is stale"
     assert has_element?(detail, "button[phx-value-view='points'][aria-pressed='true']")
+
+    send(detail.pid, {:auto_refresh, 1})
+    assert Agent.get(c.faults, &Map.has_key?(&1, :execute_saved_query)) == false
+    Agent.update(c.faults, &Map.put(&1, :execute_saved_query, :unavailable))
+
+    # A rolling window reruns after six quiet checks.
+    for _ <- 1..4, do: send(detail.pid, {:auto_refresh, 1})
+    assert render(detail) =~ "Auto-refresh active"
+    send(detail.pid, {:auto_refresh, 1})
+    assert render(detail) =~ "displayed result is stale"
+    send(detail.pid, {:auto_refresh, 1})
+    assert render(detail) =~ "Auto-refresh active"
+
+    for fault <- [:unavailable, {:reply, {:ok, %{}}}] do
+      Agent.update(c.faults, &Map.put(&1, :events, fault))
+      send(detail.pid, {:auto_refresh, 1})
+      assert render(detail) =~ "displayed result is stale"
+      send(detail.pid, {:auto_refresh, 1})
+      assert render(detail) =~ "Auto-refresh active"
+    end
+
+    Agent.update(
+      c.faults,
+      &Map.put(&1, :events, {:reply, {:error, %{"code" => "cursor_expired"}}})
+    )
+
+    Agent.update(c.faults, &Map.put(&1, :execute_saved_query, :unavailable))
+    send(detail.pid, {:auto_refresh, 1})
+    assert render(detail) =~ "displayed result is stale"
+    send(detail.pid, {:auto_refresh, 1})
+    assert render(detail) =~ "Auto-refresh active"
+
+    for {fault, index} <- Enum.with_index([:unavailable, {:reply, {:ok, %{}}}]) do
+      commit_change(c, "follow-list-#{index}")
+      Agent.update(c.faults, &Map.put(&1, :list, fault))
+      send(detail.pid, {:auto_refresh, 1})
+      assert render(detail) =~ "displayed result is stale"
+      send(detail.pid, {:auto_refresh, 1})
+      assert render(detail) =~ "Auto-refresh active"
+    end
 
     detail |> element("button", "Stop auto-refresh") |> render_click()
     assert has_element?(detail, "button", "Start auto-refresh")
@@ -3986,6 +4033,22 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
 
   defp operation_from(path),
     do: path |> URI.parse() |> Map.fetch!(:query) |> URI.decode_query() |> Map.fetch!("operation")
+
+  # Commits one unrelated observation so a following view sees a new scope event.
+  defp commit_change(c, id) do
+    {:ok, %{"generation" => generation}} =
+      Service.list(c.service, c.admin, c.scope, "observations", %{"limit" => 1}, c.now)
+
+    {:ok, %{"outcome" => "committed"}} =
+      Service.submit(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        import_request(%{id: "observation-" <> id}, generation),
+        c.now
+      )
+  end
 
   defp imported(c) do
     {:ok, result} =

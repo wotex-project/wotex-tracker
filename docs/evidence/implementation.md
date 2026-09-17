@@ -2279,3 +2279,24 @@ The independent CLI consumer checks against the provisioned host that the
 operator credential created by `init` is listed as the current, active,
 unrevoked `operator` credential at generation 0, and that an extra argument
 is rejected with exit status 2 and `invalid_arguments`.
+
+### Commit-following saved dashboards — 2026-09-17
+
+Automatic refresh on a saved dashboard now follows committed changes instead of
+rerunning every 30 seconds. Starting it reads the saved-query list for its
+`stream_cursor` before running the query, so any commit not visible to that run
+is after the cursor. Every 5 seconds the page reads one committed event batch
+through `Service.events/5`. An empty batch changes nothing, except that a
+rolling window reruns after six quiet checks because its bounds move with time.
+A non-empty batch, an expired or invalid cursor, or a displayed stale result
+takes a fresh cursor and reruns the query once, coalescing all pending commits.
+The cursor advances only after a successful run, so a failed check or run keeps
+the marked stale result and retries at the next check. Losing read authority or
+the definition still stops following and clears the result.
+
+LiveView tests show a quiet check running no query, a committed observation
+rerunning it, failed runs and failed definition reads keeping the stale result
+until a later check recovers without a new commit, a rolling window rerunning on
+its sixth quiet check, unavailable and malformed event batches, an expired
+cursor and unavailable or malformed snapshot reads recovering on the next check.
+Changed definitions still reload, and deletion and revocation still stop following.

@@ -34,13 +34,15 @@ The shared browser now submits a bounded structured numeric query for one asset
 and renders snapshot-bound line, area and point graphs with separate paths at
 gaps, time-window controls and an exact table with exclusion counts. The browser
 also exposes a closed valid/suspect reading-quality filter that persists in
-saved definitions. Scheduled subscription-driven refresh, dashboard composition and cross-surface graph acceptance
+saved definitions. Dashboard composition and cross-surface graph acceptance
 remain. Readers can list and rerun saved definitions through the same service
 facade; administrators can save the current fixed or rolling graph with a
 generation check and stable operation receipt, then edit its title/view or
 delete it with another checked operation. Ownership and query authority stay
-with the service. An open dashboard can also rerun automatically every 30
-seconds, distinguishing a temporary stale result from an invalidated read.
+with the service. An open dashboard can follow committed changes: it checks the
+scope's committed event cursor every 5 seconds, reruns only after a commit and
+reruns a rolling window every 30 seconds, distinguishing a temporary stale
+result from an invalidated read. The per-asset analytics page has no follow mode.
 The saved-dashboard list can revisit up to 32 earlier authorized pages; a
 changed list generation requires a new first-page refresh.
 The browser can combine two to eight compatible saved definitions with distinct
