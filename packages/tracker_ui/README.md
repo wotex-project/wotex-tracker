@@ -113,7 +113,9 @@ The quality selector allows valid, suspect, or both admitted qualities; invalid
 readings remain excluded. A saved query retains the selected quality filter.
 The save control prepares a stable operation reference in the URL, captures the
 current scope generation and submits the admitted query plus visualization
-through the authorized service. It verifies a committed receipt against the
+through the authorized service. The window policy can be a fixed time range rerun on the latest
+data, a rolling window, or an incident snapshot of the exact displayed result;
+the service refuses a snapshot when a commit superseded the displayed result. It verifies a committed receipt against the
 saved definition's asset series and suppresses duplicate writes after an
 uncertain reply. This is historical inspection with explicit refresh; follow-live refresh on this
 page, general dashboard composition and a live public-provider prompt run are

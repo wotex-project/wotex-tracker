@@ -2491,3 +2491,18 @@ a snapshot pinned at the later generation with the earlier identity conflicts;
 and a stored identity changed below the store API reports `revision_mismatch`.
 The independent HTTP consumer saves a snapshot of a displayed query after a 409
 for a forged identity and executes it to the same result.
+
+### Browser incident snapshots — 2026-09-17
+
+The asset analytics save form now offers three window policies: a fixed time
+range rerun on the latest data, a rolling window, and an incident snapshot of the
+exact displayed result. The snapshot option sends the prepared scope generation
+and the displayed result identity, so the service stores it only if nothing
+superseded that result. The former label that called the absolute policy an
+incident window was misleading, because that policy reruns on new data.
+
+A LiveView test refuses a snapshot after a commit landed between displaying the
+result and preparing the save, leaves no saved query, then saves a fresh result
+as `wtr.saved-query.v3` pinned at generation 4. After another commit the saved
+snapshot still executes to the same result identity, and its dashboard page runs
+it.

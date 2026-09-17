@@ -399,7 +399,9 @@ follow-live refresh outside saved dashboards, general dashboard composition and 
 acceptance gates remain.
 The shared browser can also list saved query definitions and rerun one under
 current read authority. Administrators can save a displayed graph with a fixed
-or rolling window and recover a lost reply by operation reference. They can
+or rolling window and recover a lost reply by operation reference.
+They can also save it as an incident snapshot pinned to its committed generation
+and result identity, which later commits do not change. They can
 edit its title/view or delete it with the same generation and receipt rules.
 An open saved dashboard can follow committed changes: it checks the committed
 event cursor every 5 seconds, reruns only after a commit, reruns a rolling

@@ -38,7 +38,10 @@ saved definitions. Dashboard composition and cross-surface graph acceptance
 remain. Readers can list and rerun saved definitions through the same service
 facade; administrators can save the current fixed or rolling graph with a
 generation check and stable operation receipt, then edit its title/view or
-delete it with another checked operation. Ownership and query authority stay
+delete it with another checked operation. An incident snapshot pins a saved
+result to the committed generation it was displayed at: the service stores it
+only when the rerun reproduces the displayed result identity, and later runs
+return that same result or report that retained data no longer reproduces it. Ownership and query authority stay
 with the service. An open dashboard can follow committed changes: it checks the
 scope's committed event cursor every 5 seconds, reruns only after a commit and
 reruns a rolling window every 30 seconds, distinguishing a temporary stale

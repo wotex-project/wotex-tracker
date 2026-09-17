@@ -1420,6 +1420,54 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert length(page["items"]) == 1
   end
 
+  test "an incident snapshot saves the exact displayed result and refuses a superseded one", c do
+    thing = provisioned(c)
+    path = Presenter.path(:asset, thing) <> "/analytics"
+    {:ok, view, _} = live(c.conn, path)
+    view |> form("#analytics-query", query: %{view: "line"}) |> render_submit()
+    commit_change(c, "before-snapshot")
+    view |> element("button", "Prepare save") |> render_click()
+    assert_patch(view)
+
+    view
+    |> form("#save-dashboard", save: %{title: "Superseded incident", window: "snapshot"})
+    |> render_submit()
+
+    assert has_element?(view, "[role=alert]", "service changed")
+
+    assert {:ok, %{"items" => []}} =
+             Service.list(c.service, c.admin, c.scope, "saved_queries", %{}, c.now)
+
+    {:ok, fresh, _} = live(c.conn, path)
+    fresh |> form("#analytics-query", query: %{view: "line"}) |> render_submit()
+    fresh |> element("button", "Prepare save") |> render_click()
+    patched = assert_patch(fresh)
+
+    fresh
+    |> form("#save-dashboard", save: %{title: "Workshop incident", window: "snapshot"})
+    |> render_submit()
+
+    assert render(fresh) =~ "Dashboard saved"
+    dashboard = "dashboard-" <> URI.decode_query(URI.parse(patched).query)["save_operation"]
+
+    {:ok, %{"value" => saved}} =
+      Service.get(c.service, c.admin, c.scope, "saved_queries", dashboard, c.now)
+
+    assert saved["schema"] == "wtr.saved-query.v3"
+
+    assert %{"kind" => "snapshot", "generation" => "4", "result_identity" => identity} =
+             saved["window"]
+
+    commit_change(c, "after-snapshot")
+
+    assert {:ok, %{"identity" => ^identity}} =
+             Service.execute_saved_query(c.service, c.reader, c.scope, dashboard, c.now)
+
+    {:ok, detail, _} = live(c.conn, Presenter.dashboard_path(dashboard))
+    detail |> element("button", "Run saved query") |> render_click()
+    assert has_element?(detail, "h2", "Query result")
+  end
+
   test "read-only, stale and uncertain saves never create another dashboard", c do
     {thing, _} = enrolled(c)
 

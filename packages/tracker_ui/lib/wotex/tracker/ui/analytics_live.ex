@@ -178,7 +178,7 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
         } = socket
       )
       when is_binary(title) and is_binary(operation) and is_binary(generation) and
-             window in ~w(absolute rolling) do
+             window in ~w(absolute rolling snapshot) do
     socket = assign(socket, save_title: title)
     request = save_request(socket, title, window)
 
@@ -349,8 +349,9 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
           <input id="save-title" type="text" name="save[title]" value={@save_title} required />
           <label for="save-window">Window policy</label>
           <select id="save-window" name="save[window]">
-            <option value="absolute">Fixed incident window</option>
+            <option value="absolute">Fixed time range, rerun on the latest data</option>
             <option value="rolling">Rolling window ending at each run</option>
+            <option value="snapshot">Incident snapshot of this exact result</option>
           </select>
           <button type="submit" phx-disable-with="Saving…">Save dashboard</button>
         </.form>
@@ -530,13 +531,24 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
       "expected_generation" => socket.assigns.save_generation
     }
 
-    if window == "rolling",
-      do:
+    case window do
+      "rolling" ->
         Map.put(request, "window", %{
           "kind" => "rolling",
           "duration_ms" => query["to_at"] - query["from_at"]
-        }),
-      else: request
+        })
+
+      # The service accepts the snapshot only if this result is reproduced at the prepared generation.
+      "snapshot" ->
+        Map.put(request, "window", %{
+          "kind" => "snapshot",
+          "generation" => socket.assigns.save_generation,
+          "result_identity" => socket.assigns.result["identity"]
+        })
+
+      "absolute" ->
+        request
+    end
   end
 
   defp load_save_generation(%{assigns: %{save_operation: nil}} = socket), do: socket
