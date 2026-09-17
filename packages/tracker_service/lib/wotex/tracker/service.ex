@@ -529,6 +529,33 @@ defmodule Wotex.Tracker.Service do
     Result.normalize(result)
   end
 
+  @doc """
+  Pages the caller's own unexpired operation receipts in this scope, newest first.
+
+  Requires `read`. `params` accepts `limit` (1 to 100, default 25) and a `cursor`
+  that binds the first page's generation, so later commits are excluded. Each
+  item carries the operation ID, commit generation, recording and expiry times
+  and the stored receipt. Receipts of other principals and expired receipts are
+  never listed; only committed outcomes have receipts.
+  """
+  @spec operations(t(), String.t(), String.t(), map(), integer()) ::
+          {:ok, map()} | {:error, map()}
+  def operations(service, token, scope, params, now) do
+    result =
+      with {:ok, access} <- authorize(service, token, scope, "read", now),
+           {:ok, query} <- operation_query(service, access, params, now),
+           {:ok, page} <- Store.authorized_operations(service.store, access, query, now) do
+        {:ok,
+         %{
+           "generation" => page["generation"],
+           "items" => page["items"],
+           "cursor" => operation_cursor(service, access, page, query.limit, now)
+         }}
+      end
+
+    Result.normalize(result)
+  end
+
   @doc "Authenticates current scope authority; transports must repeat this before every delivery."
   @spec authorize(t(), term(), term(), String.t(), integer()) ::
           {:ok, Wotex.Tracker.Service.Access.t()} | {:error, atom()}
@@ -731,6 +758,56 @@ defmodule Wotex.Tracker.Service do
       {:ok, statuses} -> {:ok, Enum.reverse(statuses)}
       error -> error
     end)
+  end
+
+  defp operation_query(service, access, %{"cursor" => cursor} = params, now)
+       when map_size(params) <= 2 do
+    with true <- Enum.all?(Map.keys(params), &(&1 in ["limit", "cursor"])),
+         {:ok, data} <-
+           Cursor.open(
+             Credentials.derive_key(service.credentials, :cursor),
+             binding(service, access, "page"),
+             cursor,
+             now
+           ),
+         true <-
+           data["kind"] == "operations" and
+             Map.get(params, "limit", data["limit"]) == data["limit"] do
+      {:ok, %{generation: data["generation"], after: data["after"], limit: data["limit"]}}
+    else
+      false -> {:error, :invalid_cursor}
+      error -> error
+    end
+  end
+
+  defp operation_query(_service, _access, params, _now)
+       when is_map(params) and map_size(params) <= 1 do
+    limit = Map.get(params, "limit", 25)
+
+    if Enum.all?(Map.keys(params), &(&1 == "limit")) and is_integer(limit) and limit in 1..100,
+      do: {:ok, %{generation: nil, after: nil, limit: limit}},
+      else: {:error, :invalid_request}
+  end
+
+  defp operation_query(_, _, _, _), do: {:error, :invalid_request}
+
+  defp operation_cursor(_service, _access, %{"next" => nil}, _limit, _now), do: nil
+
+  defp operation_cursor(service, access, page, limit, now) do
+    {:ok, cursor} =
+      Cursor.issue(
+        Credentials.derive_key(service.credentials, :cursor),
+        binding(service, access, "page"),
+        %{
+          "kind" => "operations",
+          "generation" => page["generation"],
+          "after" => page["next"],
+          "limit" => limit
+        },
+        now
+      )
+
+    cursor
   end
 
   # A Thing's alert cursor binds that Thing, so a page cannot continue for another one.

@@ -145,6 +145,12 @@ defmodule Wotex.Tracker.Service.Store do
   def authorized_policies(store, access, permission, thing, generation, now),
     do: StoreCall.run(store, {:authorized_policies, access, permission, thing, generation, now})
 
+  @doc "Reauthorizes and pages the caller's unexpired operation receipts newest first in one snapshot."
+  @spec authorized_operations(t(), Access.t(), map(), integer()) ::
+          {:ok, map()} | {:error, atom()}
+  def authorized_operations(store, access, query, now),
+    do: StoreCall.run(store, {:authorized_operations, access, query, now})
+
   @doc "Reauthorizes and reads durable revocations of the named credentials at the current generation."
   @spec authorized_revocations(t(), Access.t(), [String.t()], integer()) ::
           {:ok, map()} | {:error, atom()}
@@ -502,6 +508,25 @@ defmodule Wotex.Tracker.Service.Store do
           Authority.now(state.options, now)
         )
       end)
+
+  defp dispatch({:authorized_operations, access, query, now}, state) do
+    now = Authority.now(state.options, now)
+
+    Read.operations(
+      state.db,
+      Map.merge(query, %{scope: access_scope(access), principal: access.principal, now: now}),
+      fn ->
+        Authority.check!(
+          state.db,
+          state.options.credentials,
+          access,
+          access_scope(access),
+          "read",
+          now
+        )
+      end
+    )
+  end
 
   defp dispatch({:authorized_revocations, access, ids, now}, state),
     do:

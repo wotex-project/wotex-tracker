@@ -60,6 +60,12 @@ content conflicts. A duplicate observation ID with different content conflicts.
 An identical observation under a new key may record that operation without a new
 generation, event or state transition. This prevents repeated live effects.
 
+`operations` and `GET …/operations` page, under `read`, the caller's own
+unexpired receipts in the scope newest first by commit generation and operation
+ID, each with its recording and expiry times; the cursor binds the first page's
+generation, principal and page size. Clients use it to find recent work after
+losing an operation reference.
+
 Operation outcomes are `not_committed`, `committed` (with generation and separate
 publication status), or `unknown`. A lost reply is unknown; clients query the
 same operation identity and never automatically retry a physical Action.
@@ -296,7 +302,7 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
-## HTTP and stream contract 1.21.0
+## HTTP and stream contract 1.22.0
 
 The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
 2020-12. The independently maintained Elixir audit checks document shape,
@@ -338,6 +344,7 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | `…/things/{id}/properties/{property}/observe` | GET committed Property values as resumable SSE |
 | `…/observations/{id}/raw`, `…/evidence/{id}/raw` | GET raw-permission native JSON downloads |
 | `…/observations`, `…/enrollments`, `…/associations`, `…/materialisations`, `…/revocations` | POST corresponding domain mutation |
+| `…/operations` | GET the caller's own unexpired receipts, newest first |
 | `…/operations/{operation}` | GET same-principal durable receipt |
 | `…/events` | GET bounded replay with a required cursor |
 | `…/events/stream` | GET resumable SSE |

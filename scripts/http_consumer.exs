@@ -152,6 +152,14 @@ defmodule Wotex.Tracker.HTTPConsumer do
 
     ^imported = data(context, "operation_status", prefix <> "/operations/" <> operation)
 
+    %{"items" => [%{"operation_id" => ^operation, "receipt" => ^imported}], "cursor" => nil} =
+      data(context, "list_operations", prefix <> "/operations")
+
+    %{"items" => []} =
+      data(context, "list_operations", prefix <> "/operations?limit=1", who: :reader)
+
+    request(context, "list_operations", prefix <> "/operations?limit=0", status: 400)
+
     request(context, "import_observation", prefix <> "/observations",
       body: put_in(import, ["expected_generation"], "1"),
       operation: operation,

@@ -173,6 +173,86 @@ defmodule Wotex.Tracker.Service.Read do
     end
   end
 
+  # Receipts page newest first by commit generation within one caller, scope and snapshot.
+  def operations(
+        db,
+        %{
+          scope: scope,
+          principal: principal,
+          generation: generation,
+          after: after_key,
+          limit: limit,
+          now: now
+        } = query,
+        authorize
+      )
+      when map_size(query) == 6 do
+    with true <- operation_bounds?(scope, principal, now, limit),
+         {:ok, requested} <- requested_generation(db, %{generation: generation}),
+         {:ok, position} <- operation_position(after_key) do
+      SQL.execute!(db, "BEGIN")
+
+      try do
+        authorize.()
+        current = Transaction.generation(db, scope)
+        version = requested || current
+        if version > current, do: throw({:storage, :invalid_cursor})
+        {after_generation, after_id} = position || {version + 1, ""}
+
+        rows =
+          SQL.rows!(
+            db,
+            """
+            SELECT id,result,expires_at,CAST(json_extract(result,'$.generation') AS INTEGER) AS g
+            FROM operations WHERE scope=? AND principal=? AND expires_at>? AND g<=?
+            AND (g<? OR (g=? AND id<?)) ORDER BY g DESC, id DESC LIMIT ?
+            """,
+            [scope, principal, now, version, after_generation, after_generation, after_id, limit]
+          )
+
+        items = Enum.map(rows, &operation_item/1)
+        next = if length(items) == limit, do: operation_key(List.last(items))
+        bounded(%{"generation" => Integer.to_string(version), "items" => items, "next" => next})
+      after
+        SQL.rollback(db)
+      end
+    else
+      _ -> {:error, :invalid_query}
+    end
+  end
+
+  def operations(_, _, _), do: {:error, :invalid_query}
+
+  defp operation_bounds?(scope, principal, now, limit),
+    do:
+      Codec.id?(scope) and Codec.id?(principal) and Codec.time?(now) and is_integer(limit) and
+        limit in 1..100
+
+  defp operation_item([id, result, expires, commit]),
+    do: %{
+      "operation_id" => id,
+      "generation" => Integer.to_string(commit),
+      "recorded_at" => expires - @retention,
+      "expires_at" => expires,
+      "receipt" => Codec.decode!(result)
+    }
+
+  defp operation_key(%{"generation" => commit, "operation_id" => id}), do: commit <> ":" <> id
+
+  defp operation_position(nil), do: {:ok, nil}
+
+  defp operation_position(key) when is_binary(key) do
+    with [commit, id] <- String.split(key, ":", parts: 2),
+         {:ok, generation} <- Codec.generation(commit),
+         true <- Codec.id?(id) do
+      {:ok, {generation, id}}
+    else
+      _ -> :error
+    end
+  end
+
+  defp operation_position(_), do: :error
+
   def events(db, query, authorize \\ fn -> :ok end)
 
   def events(db, %{scope: scope, after: cursor, limit: limit, now: now} = query, authorize)

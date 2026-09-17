@@ -348,6 +348,16 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
     {:raw, conn, result, "application/vnd.wotex.tracker." <> type <> "+json"}
   end
 
+  defp scoped(%{method: "GET"} = conn, ["operations"], params, context) do
+    {service, token, scope, now} = context
+
+    result =
+      with {:ok, params} <- list_params(params),
+           do: Service.operations(service, token, scope, params, now)
+
+    {conn, result}
+  end
+
   defp scoped(%{method: "GET"} = conn, ["operations", id], params, context)
        when map_size(params) == 0 do
     {service, token, scope, now} = context

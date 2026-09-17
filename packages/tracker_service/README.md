@@ -25,7 +25,8 @@ Every facade operation authenticates an ephemeral bearer token and exact scope.
 The facade supports imported observations, public inspection and paginated
 snapshots, encrypted event cursors, privileged byte-preserving raw exports,
 operator-confirmed enrollment and reassociation, materialisation, structured
-measurement analytics, revocation and operation-status lookup. Mutations take a
+measurement analytics, revocation and operation-status lookup. `Service.operations/5` and
+`GET …/operations` page the caller's own recent receipts newest first. Mutations take a
 lowercase UUIDv4 operation ID and a decimal-string
 expected generation. The original committed receipt is replayed before new
 profile/model work, including its generated Thing ID. Unknown outcomes require
@@ -215,7 +216,7 @@ and key paths. Explicit `:proxy` mode requires an HTTPS public origin and a
 protected proxy-to-listener network; forwarded headers never supply authority or
 Forms. No remote exposure is inferred.
 
-OpenAPI **3.1.0**, contract revision **1.21.0**, is packaged at
+OpenAPI **3.1.0**, contract revision **1.22.0**, is packaged at
 `priv/openapi/v1.json` and served at `/api/v1/openapi.json`. Liveness is
 `/health/live`; authenticated resources are under `/api/v1/scopes/{scope}`.
 Use `Authorization: Bearer …`, and a UUIDv4 `Idempotency-Key` for POST mutations.

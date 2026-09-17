@@ -2506,3 +2506,22 @@ result and preparing the save, leaves no saved query, then saves a fresh result
 as `wtr.saved-query.v3` pinned at generation 4. After another commit the saved
 snapshot still executes to the same result identity, and its dashboard page runs
 it.
+
+### Recent operation receipts — 2026-09-17
+
+HTTP contract 1.22.0 adds `GET …/operations`, backed by `Service.operations/5`.
+Under `read` it pages the caller's own unexpired receipts in the scope, newest
+first by commit generation and operation ID, with each operation ID, generation,
+recording and expiry times and the stored receipt. The cursor binds the first
+page's generation, principal, purpose and page size, so a page sequence excludes
+later commits. Other principals' receipts and expired receipts are never listed.
+A client that lost an operation reference can find its recent committed work.
+
+A service test pages an enrollment and an import receipt one at a time, each
+equal to the original receipt with its recording and expiry times, while a
+materialisation committed between pages stays out of that sequence and leads a
+fresh first page. The reader sees no receipts, receipts disappear at expiry, and
+a changed page size, a malformed cursor, another principal's cursor, a resource
+page cursor, malformed parameters and an invalid token are rejected. The
+independent HTTP consumer lists its import receipt after the operation status
+lookup, sees no receipts for the reader and gets 400 for a zero page size.
