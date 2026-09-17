@@ -78,6 +78,7 @@ With those global options before the command, the available commands are:
 | `list things`, `read THING temperature` | Inspect TDs and read Properties |
 | `observe THING temperature --seconds 30 --max-events 100` | Committed Property values; resume explicitly with `--cursor` |
 | `history state THING --limit 25` | Immutable history; resume with `--cursor` |
+| `list rules`, `inspect rules KIND:RULE`, `history rules KIND:RULE` | Read-only committed rule status without private evidence |
 | `events --cursor CURSOR` | Bounded replay from a snapshot/event cursor |
 | `events --cursor CURSOR --stream --seconds 30 --max-events 100` | Bounded SSE delivery |
 | `raw observations ID --output export.json` | Original native JSON bytes to a new 0600 file |

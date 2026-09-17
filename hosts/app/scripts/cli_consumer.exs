@@ -25,8 +25,17 @@ defmodule Wotex.Tracker.Host.CLIConsumer do
 
     [%{"data" => %{"writable" => true}}] = call(context, ["ready"])
 
-    [%{"data" => %{"runtime" => %{"readproperty" => "available"}}}] =
+    [%{"data" => %{"runtime" => %{"readproperty" => "available"}, "rules" => "read_only"}}] =
       call(context, ["capabilities"])
+
+    [%{"data" => %{"items" => [], "cursor" => nil, "generation" => "0"}}] =
+      call(context, ["list", "rules", "--limit", "1"])
+
+    [%{"error" => %{"code" => "not_found"}}] =
+      call(context, ["inspect", "rules", "heartbeat:missing"], 1)
+
+    [%{"error" => %{"code" => "not_found"}}] =
+      call(context, ["history", "rules", "heartbeat:missing"], 1)
 
     [%{"data" => snapshot}] = call(context, ["list", "state"])
     observation_path = Path.join(Path.dirname(descriptor["token_file"]), "observation.json")
@@ -240,7 +249,7 @@ defmodule Wotex.Tracker.Host.CLIConsumer do
 
     IO.puts(
       "CLI_CONSUMER_PASS workflow=true explicit_association=true history=true " <>
-        "sse=true property_observation=true native_types=true self_revocation=true"
+        "sse=true property_observation=true native_types=true self_revocation=true rule_status=true"
     )
   end
 

@@ -2036,3 +2036,12 @@ with a transient failure, a changed generation and a terminal denial, and page
 missing rule. The optional app host serves `/protection` through its real
 loopback listener without disclosing the bearer. Rule configuration, alert
 acknowledgement, maps and physical-surface acceptance remain open.
+
+### Command-line rule status — 2026-09-17
+
+`trackerctl` now accepts `rules` for `list`, `inspect` and `history`, using the
+same bounded HTTP client, output and exit contract as other public resources.
+The independent CLI consumer checks against the provisioned host that
+capabilities report rules as `read_only`, an empty scope returns an empty rule
+page at generation 0, and missing rule inspection and history return
+`not_found`. The CLI cannot create or evaluate rules.

@@ -412,7 +412,7 @@ defmodule Wotex.Tracker.Host.CLI do
   alias Wotex.Tracker.Host.CLI.Transport
   alias Wotex.Tracker.Service.{Codec, Identifier}
 
-  @resources ~w(observations resolutions evidence enrollments things state)
+  @resources ~w(observations resolutions evidence enrollments things state rules)
   @raw_resources ~w(observations evidence)
   @grants ~w(read raw ingest enroll admin interact)
 
