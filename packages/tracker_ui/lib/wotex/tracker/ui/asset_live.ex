@@ -247,10 +247,16 @@ defmodule Wotex.Tracker.UI.AssetLive do
       <a :if={@state} class="button" href={Presenter.path(:asset, @id) <> "/analytics"}>
         Explore measurement history
       </a>
+      <a
+        :if={@thing && @identity["can_manage_queries"]}
+        href={Presenter.path(:asset, @id) <> "/protection"}
+      >
+        Add a protection rule
+      </a>
       <section :if={@state} class="panel">
         <h2>Tracking capabilities</h2>
         <p>
-          This environmental-sensor profile does not supply position, motion, armed state or physical Actions. Battery voltage is a reading, not a battery percentage.
+          This environmental-sensor profile does not supply position, motion, armed state or physical Actions. Battery voltage is a reading, not a battery percentage. Heartbeat and low-battery-voltage rules can use its committed captures.
         </p>
       </section>
       <section :if={@history} class="panel" aria-labelledby="history-title">

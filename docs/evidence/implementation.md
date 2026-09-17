@@ -2091,3 +2091,24 @@ revision, while another Thing and future snapshots conflict. A staged transition
 with a stale prior state commits nothing, and an update rejects foreign-scope or
 duplicate rule transitions. The independent HTTP consumer confirms the evaluated
 battery status and policy identity after saving a definition.
+
+### Browser rule creation — 2026-09-17
+
+A provisioned asset now links administrators to `/assets/{id}/protection`.
+Preparing a rule reads the current scope generation and patches a fresh
+operation reference into the address before the form appears. The form offers
+a reporting heartbeat for any provisioned asset and a low-battery-voltage rule
+only when the Thing declares numeric `batteryVoltage` in volts. Seconds and
+volts are validated locally, converted to the closed service parameters and
+submitted once with the operation-derived rule ID. A committed receipt counts as
+success only after the saved definition names the same asset; an unknown or
+failed reply hides the form and can be checked through the retained receipt.
+
+LiveView tests save a battery rule whose 3.0 V low threshold evaluates the RAWv2
+fixture's 2.977 V reading as low, then reconnect to the receipt and open the
+rule status. They refuse unprovisioned assets, reader sessions and forged
+events; reject malformed seconds and thresholds before calling the service;
+surface a stale generation without committing; recover a lost reply without a
+second write; and keep unrelated receipts, transport failures and failed
+verification reads uncertain. The optional app host serves the page through its
+real loopback listener without disclosing the bearer.

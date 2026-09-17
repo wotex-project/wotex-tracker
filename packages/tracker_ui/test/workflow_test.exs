@@ -2378,6 +2378,189 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert render(missing) =~ "The requested record is not available."
   end
 
+  test "an administrator adds an evaluated battery rule and reconnects to its receipt", c do
+    thing = provisioned(c)
+
+    {:ok, asset, _} =
+      live(c.conn, Presenter.path(:asset, thing) <> "?operation=" <> Identifier.uuid())
+
+    path = Presenter.path(:asset, thing) <> "/protection"
+    assert has_element?(asset, ~s(a[href="#{path}"]), "Add a protection rule")
+
+    {:ok, view, _} = live(c.conn, path)
+    refute has_element?(view, "#rule-definition")
+    view |> element("button", "Prepare rule") |> render_click()
+    patched = assert_patch(view)
+    operation = operation_from(patched)
+
+    view
+    |> form("#rule-definition",
+      rule: %{
+        kind: "battery",
+        low_threshold: "3.0",
+        clear_threshold: "3.2",
+        maximum_age_seconds: "86400",
+        future_skew_seconds: "60",
+        maximum_silence_seconds: "3600"
+      }
+    )
+    |> render_submit()
+
+    assert has_element?(view, "[role=status]", "Rule saved")
+    rule_id = "battery:rule-" <> operation
+    assert has_element?(view, ~s(a[href="#{Presenter.rule_path(rule_id)}"]), "Open rule status")
+    refute has_element?(view, "#rule-definition")
+
+    assert {:ok, %{"value" => %{"status" => "low", "battery" => battery}}} =
+             Service.get(c.service, c.reader, c.scope, "rules", rule_id, c.now)
+
+    assert battery["low_threshold"] == %{"type" => "number", "value" => 3.0}
+    assert battery["maximum_age_ms"] == %{"type" => "integer", "value" => 86_400_000}
+
+    {:ok, resumed, _} = live(c.conn, patched)
+    assert has_element?(resumed, "[role=status]", "Rule saved")
+    refute has_element?(resumed, "#rule-definition")
+
+    {:ok, status, _} = live(c.conn, Presenter.rule_path(rule_id))
+    assert has_element?(status, ".reading", "Low")
+  end
+
+  test "rule creation rejects readers, invalid input, stale snapshots and duplicate writes", c do
+    {thing, _} = enrolled(c)
+    path = Presenter.path(:asset, thing) <> "/protection"
+    {:ok, unprovisioned, _} = live(c.conn, path)
+    assert render(unprovisioned) =~ "Provision this asset before adding a rule"
+    refute has_element?(unprovisioned, "button", "Prepare rule")
+
+    materialize(c, thing, "2")
+    {:ok, %{"id" => reader}} = Sessions.login(c.sessions, c.reader, c.scope)
+    reader_conn = build_conn() |> init_test_session(%{"browser_session" => reader})
+    {:ok, reader_view, _} = live(reader_conn, path)
+    assert render(reader_view) =~ "cannot add rules"
+    refute has_element?(reader_view, "button", "Prepare rule")
+    render_click(reader_view, "prepare", %{})
+    assert has_element?(reader_view, "[role=alert]")
+
+    {:ok, view, _} = live(c.conn, path)
+    view |> element("button", "Prepare rule") |> render_click()
+    patched = assert_patch(view)
+
+    for invalid <- [
+          %{kind: "battery", low_threshold: "low", clear_threshold: "3.2"},
+          %{kind: "battery", low_threshold: "3.2", clear_threshold: "3.0"},
+          %{kind: "heartbeat", maximum_silence_seconds: "604801"},
+          %{kind: "heartbeat", maximum_silence_seconds: "1.5"}
+        ] do
+      view |> form("#rule-definition", rule: invalid) |> render_submit()
+      assert render(view) =~ "Check the required fields"
+      assert has_element?(view, "#rule-definition")
+    end
+
+    render_submit(view, "save", %{"rule" => %{"kind" => "motion", "future_skew_seconds" => "0"}})
+    assert has_element?(view, "#rule-definition")
+
+    {:ok, _} =
+      Service.submit(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        import_request(%{id: "observation-late"}, "3"),
+        c.now
+      )
+
+    view |> form("#rule-definition", rule: %{kind: "heartbeat"}) |> render_submit()
+    assert render(view) =~ "changed since this page loaded"
+
+    assert {:ok, %{"items" => []}} =
+             Service.list(c.service, c.admin, c.scope, "policies", %{}, c.now)
+
+    {:ok, fresh, _} = live(c.conn, path)
+    fresh |> element("button", "Prepare rule") |> render_click()
+    fresh_path = assert_patch(fresh)
+    Agent.update(c.faults, &Map.put(&1, :save_policy, :lost_reply))
+    fresh |> form("#rule-definition", rule: %{kind: "heartbeat"}) |> render_submit()
+    assert has_element?(fresh, "[role=status]", "Rule outcome unknown")
+    refute has_element?(fresh, "#rule-definition")
+    fresh |> element("button", "Check operation outcome") |> render_click()
+    assert has_element?(fresh, "[role=status]", "Rule saved")
+
+    render_submit(fresh, "save", %{"rule" => %{"kind" => "heartbeat"}})
+
+    assert {:ok, %{"items" => [_]}} =
+             Service.list(c.service, c.admin, c.scope, "policies", %{}, c.now)
+
+    {:ok, unrelated, _} = live(c.conn, path <> "?operation=" <> operation_from(patched))
+    refute has_element?(unrelated, "[role=status]")
+    assert has_element?(unrelated, "#rule-definition")
+
+    {:ok, reused, _} = live(c.conn, path <> "?operation=" <> operation_from(fresh_path))
+    assert has_element?(reused, "[role=status]", "Rule saved")
+
+    {:ok, invalid, _} = live(c.conn, path <> "?operation=not-a-uuid")
+    assert has_element?(invalid, "[role=alert]")
+    refute has_element?(invalid, "#rule-definition")
+  end
+
+  test "rule creation keeps uncertain and unrelated outcomes from submitting again", c do
+    {thing, enroll_operation} = enrolled(c)
+    materialize(c, thing, "2")
+    path = Presenter.path(:asset, thing) <> "/protection"
+
+    {:ok, missing, _} =
+      live(c.conn, Presenter.path(:asset, "urn:uuid:" <> Identifier.uuid()) <> "/protection")
+
+    assert has_element?(missing, "h1", "Asset unavailable")
+
+    {:ok, view, _} = live(c.conn, path)
+    Agent.update(c.faults, &Map.put(&1, :list, :unavailable))
+    view |> element("button", "Prepare rule") |> render_click()
+    assert has_element?(view, "[role=alert]")
+    refute has_element?(view, "#rule-definition")
+    render_click(view, "unknown-event", %{})
+
+    {:ok, unrelated, _} = live(c.conn, path <> "?operation=" <> enroll_operation)
+    assert render(unrelated) =~ "belongs to a different workflow"
+
+    {:ok, failing, _} = live(c.conn, path)
+    failing |> element("button", "Prepare rule") |> render_click()
+    assert_patch(failing)
+
+    render_submit(failing, "save", %{
+      "rule" => %{"kind" => "heartbeat", "future_skew_seconds" => ["60"]}
+    })
+
+    render_submit(failing, "save", %{
+      "rule" => %{"kind" => "battery", "future_skew_seconds" => "60"}
+    })
+
+    assert has_element?(failing, "#rule-definition")
+
+    Agent.update(c.faults, &Map.put(&1, :save_policy, :unavailable))
+    failing |> form("#rule-definition", rule: %{kind: "heartbeat"}) |> render_submit()
+    assert has_element?(failing, "[role=status]", "Rule outcome unknown")
+
+    assert {:ok, %{"items" => []}} =
+             Service.list(c.service, c.admin, c.scope, "policies", %{}, c.now)
+
+    {:ok, lost, _} = live(c.conn, path)
+    lost |> element("button", "Prepare rule") |> render_click()
+    assert_patch(lost)
+    Agent.update(c.faults, &Map.put(&1, :save_policy, :lost_reply))
+    lost |> form("#rule-definition", rule: %{kind: "heartbeat"}) |> render_submit()
+    Agent.update(c.faults, &Map.put(&1, :get, :unavailable))
+    lost |> element("button", "Check operation outcome") |> render_click()
+    assert has_element?(lost, "[role=status]", "Rule outcome unknown")
+    lost |> element("button", "Check operation outcome") |> render_click()
+    assert has_element?(lost, "[role=status]", "Rule saved")
+
+    {:ok, %{"id" => reader}} = Sessions.login(c.sessions, c.reader, c.scope)
+    reader_conn = build_conn() |> init_test_session(%{"browser_session" => reader})
+    {:ok, reader_view, _} = live(reader_conn, path <> "?operation=" <> Identifier.uuid())
+    render_submit(reader_view, "save", %{"rule" => %{"kind" => "heartbeat"}})
+    assert has_element?(reader_view, "[role=alert]")
+  end
+
   test "saved table dashboard keeps multiple series and exposes a failed rerun", c do
     {thing, _} = enrolled(c)
 
@@ -3150,6 +3333,27 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
       refute has_element?(view, "button", "Provision Thing")
     end
   end
+
+  defp provisioned(c) do
+    {thing, _} = enrolled(c)
+    materialize(c, thing, "2")
+    thing
+  end
+
+  defp materialize(c, thing, generation) do
+    {:ok, _} =
+      Service.materialize(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"thing_id" => thing, "expected_generation" => generation},
+        c.now
+      )
+  end
+
+  defp operation_from(path),
+    do: path |> URI.parse() |> Map.fetch!(:query) |> URI.decode_query() |> Map.fetch!("operation")
 
   defp imported(c) do
     {:ok, result} =

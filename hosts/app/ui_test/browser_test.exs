@@ -198,6 +198,18 @@ defmodule Wotex.Tracker.Host.BrowserTest do
     assert protection =~ "No rule status on this page"
     refute protection =~ c.token
 
+    {200, _, rule_form} =
+      request(
+        :get,
+        origin <> Presenter.path(:asset, thing) <> "/protection",
+        [{~c"cookie", browser_cookie}],
+        nil
+      )
+
+    assert rule_form =~ "Add a rule for Workshop sensor"
+    assert rule_form =~ "Provision this asset before adding a rule"
+    refute rule_form =~ c.token
+
     host_client = {fn -> {:ok, service} end, fn -> {:ok, api} end}
 
     assert {:error, %{"code" => "forbidden"}} =

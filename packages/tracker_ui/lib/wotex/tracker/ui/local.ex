@@ -121,6 +121,12 @@ defmodule Wotex.Tracker.UI.Local do
   defp dispatch(service, token, scope, :delete_query, args, now),
     do: Service.delete_query(service, token, scope, args["operation"], args["request"], now)
 
+  defp dispatch(service, token, scope, :save_policy, args, now),
+    do: Service.save_policy(service, token, scope, args["operation"], args["request"], now)
+
+  defp dispatch(service, token, scope, :delete_policy, args, now),
+    do: Service.delete_policy(service, token, scope, args["operation"], args["request"], now)
+
   defp dispatch(service, token, scope, :enroll, args, now),
     do: Service.enroll(service, token, scope, args["operation"], args["request"], now)
 

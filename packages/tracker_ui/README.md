@@ -21,8 +21,12 @@ new exact-table dashboard.
 The Protection page lists the committed status of heartbeat, battery,
 transport-health, motion and geofence rules through the read-only service
 projection, and each rule page pages its retained evaluation history. These
-pages cannot configure, arm, evaluate or acknowledge a rule and show no
-position evidence.
+pages show no position evidence and cannot arm or acknowledge a rule.
+An administrator can add a heartbeat or low-battery-voltage rule from a
+provisioned asset. The form captures the scope generation, keeps an operation
+reference in the address, derives the rule ID from it and verifies the saved
+definition's asset before reporting success. The service evaluates the rule;
+the page sends no notification.
 This is not full application, Pi or mobile acceptance.
 
 `Wotex.Tracker.UI.Local` calls only the public authorized service facade.
