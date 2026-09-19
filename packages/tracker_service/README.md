@@ -195,6 +195,14 @@ bounded exact page with up to 1,000 graph samples and reports the number of
 earlier matching samples left only in the exact pages. Continuations reject
 changed filters/windows, collector restart and expiry rather than silently
 changing the graph snapshot.
+Hosts that need remote delivery can explicitly supervise `OperationalExporter`
+with a collector and an `OperationalExportAdapter`. It exports ascending batches
+of at most 1,000 sanitized samples, retains only one batch, times out adapter
+work and retries without advancing its acknowledgement checkpoint. Batch
+continuity distinguishes an initial retained snapshot, normal progress, an
+exactly counted retention gap and collector restart with unknowable loss. The
+host adapter owns endpoint credentials, transport and idempotency; its context
+is redacted from exporter inspection. The default server starts no exporter.
 The optional browser host contributes sanitized root LiveView `render.stop`
 durations to this collector. Reconnect and native host-resource coverage remain
 with the adapters that own those operations.

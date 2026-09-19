@@ -340,6 +340,102 @@ defmodule Wotex.Tracker.Service.OperationalHistoryTest do
     assert hd(samples)["sequence"] == 8
   end
 
+  test "export batches resume without duplicates and disclose retention and restart gaps" do
+    clock = :atomics.new(1, [])
+    :atomics.put(clock, 1, 1_000)
+
+    collector =
+      start_supervised!(
+        Supervisor.child_spec(
+          {OperationalHistory,
+           max_samples: 4, retention_ms: 50, clock: fn -> :atomics.get(clock, 1) end},
+          id: make_ref(),
+          restart: :temporary
+        )
+      )
+
+    for _ <- 1..3, do: OperationalTelemetry.request(:health, 200, System.monotonic_time())
+
+    eventually(fn ->
+      match?({:ok, %{"samples" => [_, _, _]}}, OperationalHistory.snapshot(collector))
+    end)
+
+    assert {:ok,
+            %{
+              "schema" => "wtr.operational-export.v1",
+              "continuity" => "snapshot",
+              "lost_before" => 0,
+              "through" => 3,
+              "more" => true,
+              "samples" => [%{"sequence" => 1}, %{"sequence" => 2}],
+              "checkpoint" => first
+            }} = OperationalHistory.export_batch(collector, limit: 2)
+
+    :atomics.put(clock, 1, 1_001)
+    OperationalTelemetry.request(:health, 200, System.monotonic_time())
+
+    assert {:ok,
+            %{
+              "continuity" => "continuous",
+              "through" => 4,
+              "more" => false,
+              "samples" => [%{"sequence" => 3}, %{"sequence" => 4}],
+              "checkpoint" => second
+            }} = OperationalHistory.export_batch(collector, checkpoint: first, limit: 2)
+
+    assert {:ok,
+            %{
+              "continuity" => "continuous",
+              "samples" => [],
+              "checkpoint" => ^second
+            }} = OperationalHistory.export_batch(collector, checkpoint: second, limit: 2)
+
+    assert {:error, :invalid_cursor} =
+             OperationalHistory.export_batch(collector,
+               checkpoint: %{second | "after" => 99},
+               limit: 2
+             )
+
+    :atomics.put(clock, 1, 1_052)
+    OperationalTelemetry.request(:health, 200, System.monotonic_time())
+
+    assert {:ok,
+            %{
+              "continuity" => "retention_gap",
+              "lost_before" => 2,
+              "samples" => [%{"sequence" => 5}],
+              "checkpoint" => retained
+            }} = OperationalHistory.export_batch(collector, checkpoint: first, limit: 2)
+
+    GenServer.stop(collector)
+
+    replacement =
+      start_supervised!(
+        Supervisor.child_spec(
+          {OperationalHistory, clock: fn -> :atomics.get(clock, 1) end},
+          id: make_ref(),
+          restart: :temporary
+        )
+      )
+
+    assert {:ok,
+            %{
+              "continuity" => "collector_restart",
+              "lost_before" => nil,
+              "samples" => [],
+              "checkpoint" => replacement_checkpoint
+            }} = OperationalHistory.export_batch(replacement, checkpoint: retained, limit: 2)
+
+    refute replacement_checkpoint["epoch"] == retained["epoch"]
+    assert replacement_checkpoint["after"] == 0
+    assert {:error, :invalid_query} = OperationalHistory.export_batch(replacement, limit: 0)
+
+    assert {:error, :invalid_cursor} =
+             OperationalHistory.export_batch(replacement,
+               checkpoint: Map.put(replacement_checkpoint, "extra", true)
+             )
+  end
+
   test "ingest, commit, queue, publication and resource boundaries emit bounded outcomes" do
     context = service()
 
@@ -442,6 +538,7 @@ defmodule Wotex.Tracker.Service.OperationalHistoryTest do
 
     {:ok, store} = Server.child(server, :store)
     {:ok, sampler} = Server.child(server, :resource_sampler)
+    assert {:error, :storage_unavailable} = Server.child(server, :operational_exporter)
     {:ok, %{"epoch" => epoch}} = Server.operational_history(server)
     Process.exit(sampler, :kill)
 

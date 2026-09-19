@@ -2598,3 +2598,29 @@ passed where applicable. Tests cover elapsed bounds, fixed high-water membership
 changed filters, retention expiry, the 1,000-sample disclosure boundary, sparse
 measurements, elapsed-time coordinates, authorization, paging and malformed
 responses.
+
+### Checkpointed operational export — 2026-09-19
+
+The collector now exposes ascending `wtr.operational-export.v1` batches through
+an epoch-and-sequence checkpoint. A first read is explicitly a retained snapshot;
+ordinary continuation emits no duplicate acknowledged sequence. Falling behind
+retention reports the exact missing sequence count before resuming at the earliest
+retained sample. A collector restart uses a new epoch and reports unknowable loss
+rather than presenting a false continuous stream. Future, malformed and
+over-specified checkpoints are rejected.
+
+`OperationalExporter` is an optional host-supervised delivery loop over that
+contract. It holds at most one batch, invokes the host adapter in a separate
+monitored process with a finite timeout and advances only on acknowledgement.
+Unavailable, rejected, crashing and sleeping adapters retry from the prior
+checkpoint without blocking the collector or telemetry caller. Adapter context
+is omitted from process inspection. The default HTTP host starts no exporter and
+no remote service is needed for local operation.
+
+The complete service gate passed 2 properties and 202 tests at 95.0% production
+line coverage. Compiler, unused-dependency, formatter, dependency audit, strict
+Credo, ExDoc, Dialyzer, boundary checks, OpenAPI validation, 81-member package
+archive inspection, licenses and the 419-file stack-language policy all passed.
+Tests cover ordered multi-batch delivery, no duplicate acknowledged samples,
+retention and restart continuity, invalid checkpoints, retry identity, adapter
+rejection, crash, timeout, configuration closure and diagnostic redaction.

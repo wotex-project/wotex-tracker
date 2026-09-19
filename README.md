@@ -114,7 +114,9 @@ store health. An explicitly supervised collector gives the default HTTP host a
 bounded volatile ETS history with a restart epoch; loading either library
 installs no handler and starts no process. An enabled administrator view plots
 closed measurements over pinned one-, five- or fifteen-minute windows with
-elapsed-time spacing, disclosed projection limits and exact table pages.
+elapsed-time spacing, disclosed projection limits and exact table pages. Hosts
+may explicitly add the bounded asynchronous exporter boundary; no remote metrics
+service starts by default.
 
 Start with the [WTR specification index](docs/specs/WTR-index.md) and the [software implementation sequence](docs/plans/software-implementation.md).
 

@@ -395,6 +395,10 @@ collector. Host-only operational pages pin its epoch and high-water sequence.
 The shared operational view also binds a closed UTC time window to that snapshot,
 spaces discrete marks by elapsed time and discloses its 1,000-point projection
 limit while retaining exact 25-row pages.
+An optional asynchronous exporter drains sanitized samples in bounded batches
+through a host adapter. Its acknowledgement checkpoint survives ordinary retries
+and explicitly reports retention gaps or collector restart; destination transport,
+authorization and any remote query adapter remain host policy.
 The shared browser now executes a bounded per-asset structured query and shows
 its committed snapshot, bucket values and exclusions in line/area/point graphs
 and an accessible table. Gap-separated paths and time-window controls support

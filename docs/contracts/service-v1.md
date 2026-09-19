@@ -535,6 +535,24 @@ smaller or explicitly admitted finite limits. This is an in-process host
 contract, not an HTTP operation or a durable history promise. Loading the
 package attaches no telemetry handler.
 
+`OperationalHistory.export_batch/2` reads ascending sanitized samples after an
+optional `wtr.operational-checkpoint.v1`. Every response is a bounded
+`wtr.operational-export.v1` document carrying the collector epoch, current
+high-water sequence, samples, a next checkpoint and whether more retained rows
+are immediately available. The first read is labelled `snapshot`. A checkpoint
+behind the earliest retained sequence yields `retention_gap` with the exact
+number lost; a changed epoch yields `collector_restart` with unknowable loss.
+Malformed or future checkpoints are invalid.
+
+`OperationalExporter` is an optional explicitly started process over that read.
+It holds one batch, calls a host-supplied `OperationalExportAdapter` outside the
+collector with a finite deadline and advances only after `:ok`. Rejection,
+unavailability, adapter crash and timeout cause retry from the acknowledged checkpoint.
+Adapter context is omitted from inspection. The destination must deduplicate by
+epoch/checkpoint and owns credentials, authorization, transport and its remote
+retention/query policy. No exporter is started by package loading or by the
+default HTTP host.
+
 ## Runtime Property read contract
 
 The service builds an upstream `ExposedThing` from the committed TD and handlers

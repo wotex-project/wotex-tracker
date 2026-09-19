@@ -47,6 +47,15 @@ defmodule Wotex.Tracker.Service.OperationalHistory do
     :exit, _ -> {:error, :unavailable}
   end
 
+  @doc "Returns the next bounded export batch after a restart-aware checkpoint."
+  @spec export_batch(pid(), keyword()) ::
+          {:ok, map()} | {:error, :invalid_query | :invalid_cursor | :unavailable}
+  def export_batch(pid, options \\ []) when is_pid(pid) and is_list(options) do
+    GenServer.call(pid, {:export_batch, options})
+  catch
+    :exit, _ -> {:error, :unavailable}
+  end
+
   @impl true
   def init(options) do
     with {:ok, config} <- config(options),
@@ -130,6 +139,20 @@ defmodule Wotex.Tracker.Service.OperationalHistory do
       {{:ok, query}, {:ok, now}} ->
         state = prune(state, now)
         {:reply, window_page_result(state, query, now), state}
+
+      {{:error, _} = error, _} ->
+        {:reply, error, state}
+
+      _ ->
+        {:reply, {:error, :unavailable}, state}
+    end
+  end
+
+  def handle_call({:export_batch, options}, _from, state) do
+    case {export_query(options), current_time(state)} do
+      {{:ok, query}, {:ok, now}} ->
+        state = prune(state, now)
+        {:reply, export_result(state, query, now), state}
 
       {{:error, _} = error, _} ->
         {:reply, error, state}
@@ -268,6 +291,80 @@ defmodule Wotex.Tracker.Service.OperationalHistory do
        }}
     end
   end
+
+  defp export_result(state, query, now) do
+    with {:ok, position} <- export_position(state, query.checkpoint) do
+      matches =
+        state.table
+        |> :ets.tab2list()
+        |> Enum.filter(fn {sequence, _} -> sequence > position.after end)
+        |> Enum.take(query.limit + 1)
+
+      items = matches |> Enum.take(query.limit) |> Enum.map(&elem(&1, 1))
+      next_after = if items == [], do: state.sequence, else: List.last(items)["sequence"]
+
+      {:ok,
+       %{
+         "schema" => "wtr.operational-export.v1",
+         "epoch" => state.epoch,
+         "captured_at" => now,
+         "volatile" => true,
+         "continuity" => position.continuity,
+         "lost_before" => position.lost_before,
+         "through" => state.sequence,
+         "more" => length(matches) > query.limit,
+         "samples" => items,
+         "checkpoint" => checkpoint(state.epoch, next_after)
+       }}
+    end
+  end
+
+  defp export_position(state, nil) do
+    {:ok, %{after: earliest(state) - 1, continuity: "snapshot", lost_before: 0}}
+  end
+
+  defp export_position(
+         state,
+         %{
+           "schema" => "wtr.operational-checkpoint.v1",
+           "epoch" => epoch,
+           "after" => after_sequence
+         } = checkpoint
+       )
+       when map_size(checkpoint) == 3 and is_binary(epoch) and is_integer(after_sequence) and
+              after_sequence >= 0 do
+    export_position(state, epoch, after_sequence)
+  end
+
+  defp export_position(_, _), do: {:error, :invalid_cursor}
+
+  defp export_position(state, epoch, _after_sequence) when epoch != state.epoch,
+    do: {:ok, %{after: earliest(state) - 1, continuity: "collector_restart", lost_before: nil}}
+
+  defp export_position(state, _epoch, after_sequence) when after_sequence > state.sequence,
+    do: {:error, :invalid_cursor}
+
+  defp export_position(state, _epoch, after_sequence) do
+    retained_after = earliest(state) - 1
+
+    if after_sequence < retained_after do
+      {:ok,
+       %{
+         after: retained_after,
+         continuity: "retention_gap",
+         lost_before: retained_after - after_sequence
+       }}
+    else
+      {:ok, %{after: after_sequence, continuity: "continuous", lost_before: 0}}
+    end
+  end
+
+  defp checkpoint(epoch, after_sequence),
+    do: %{
+      "schema" => "wtr.operational-checkpoint.v1",
+      "epoch" => epoch,
+      "after" => after_sequence
+    }
 
   defp window_matches(table, event, position) do
     table
@@ -461,6 +558,19 @@ defmodule Wotex.Tracker.Service.OperationalHistory do
       else
         {:error, :invalid_query}
       end
+    else
+      {:error, :invalid_query}
+    end
+  end
+
+  defp export_query(options) do
+    if Keyword.keyword?(options) and length(options) == map_size(Map.new(options)) and
+         Enum.all?(Keyword.keys(options), &(&1 in [:checkpoint, :limit])) do
+      limit = Keyword.get(options, :limit, 100)
+
+      if valid_limit?(limit),
+        do: {:ok, %{checkpoint: Keyword.get(options, :checkpoint), limit: limit}},
+        else: {:error, :invalid_query}
     else
       {:error, :invalid_query}
     end

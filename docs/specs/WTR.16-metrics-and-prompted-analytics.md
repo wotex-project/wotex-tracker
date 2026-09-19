@@ -27,7 +27,11 @@ the collector epoch, event filter and sequence high-water mark. Discrete marks
 use elapsed-time spacing without connecting or inferring values, while 25-row
 pages retain exact samples. A graph projects at most 1,000 samples and discloses
 any earlier samples omitted from the projection; they remain available through
-the exact pages. A remote exporter remains open.
+the exact pages. An optional asynchronous exporter now delivers the same closed,
+sanitized samples through a host-supplied adapter with bounded batches, deadlines
+and checkpointed retry. It discloses collector restart and retention gaps.
+Concrete remote-store query adapters and live destination interoperability remain
+host-specific acceptance work.
 Encrypted analytics continuations now bind the exact query and first committed
 generation while reauthorizing every bucket page. General dashboard composition
 and sharing, a live public-provider prompt run and cross-surface graph acceptance remain
@@ -107,6 +111,13 @@ GreptimeDB or another remote store may be configured through an explicit exporte
 query adapter. None is a mandatory service. Retention, export retry, destination
 authorization and failure behavior are host policy. No metric handler performs
 blocking network/model calls in the ingestion caller.
+
+The supplied exporter boundary retains at most one batch, invokes its adapter in
+a separate bounded process and advances its checkpoint only after acknowledgement.
+Retries preserve the epoch and checkpoint identity. A host adapter owns transport,
+destination credentials and idempotent acknowledgement; Tracker inspection and
+errors must not reveal that context. A collector restart has unknowable loss and
+is distinct from an exactly counted retention gap.
 
 ## Query contract
 
