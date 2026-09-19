@@ -90,6 +90,9 @@ time/distance gap; it never invents a path across missing history.
 Administrators can persist complete motion and geofence definitions for enrolled
 Things; later materialisations evaluate them atomically when the evidence bundle
 contains exactly one position, without silently selecting among sources.
+The shared browser can create and exactly edit those ordering, threshold, dwell,
+uncertainty and circle/polygon geometry policies while making that single-source
+requirement explicit.
 Evidence-backed heartbeat state and overdue/recovery events are also
 implemented; see the [heartbeat guide](docs/guides/heartbeat.md).
 Its SQLite host integration persists changed heartbeat state and event intent

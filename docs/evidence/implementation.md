@@ -2778,3 +2778,30 @@ inspection, licenses and the 425-file stack-language policy all passed. Tests
 cover circle and polygon policies, alternate clock/sequence/uncertainty modes,
 closed-map rejection, policy-identity changes, durable entry/exit and trip-start
 alerts, and missing, ambiguous or malformed position input.
+
+### Shared position-rule management — 2026-09-19
+
+The shared LiveView package now creates and edits the service's complete motion
+and geofence definitions. Motion forms retain ordering, clock-skew, late-window,
+sequence, uncertainty, speed/distance, plausibility, gap and dwell choices.
+Geofence forms retain circle or bounded polygon geometry, boundary treatment and
+transition gaps. Numeric admission preserves exact integer or floating-point
+content, and an existing definition is editable only when every closed field can
+round-trip through whole-second browser controls without change.
+
+Creation presents all supported rule kinds while keeping unsupported battery
+rules unavailable for Things without the qualified voltage property. The page
+states that position rules consume only bundles with exactly one position and do
+not select among multiple sources. Rule summaries distinguish motion, circles and
+polygons without exposing evidence identities. Definitions outside the exact form
+contract remain visible but must be edited through the service API.
+
+The UI package now declares the test-only dependency required by the service test
+support it deliberately compiles in the monorepo, keeping its test dependency
+graph and lockfile consistent. The complete shared-UI gate passed 125 tests at
+95.0% production line coverage. Compiler, unused-dependency, formatter,
+dependency audit, strict Credo, ExDoc, Dialyzer, 43-member package archive,
+license and 425-file stack-language checks all passed. Workflow coverage creates
+both position-rule kinds and edits a motion definition without discarding its
+host-committed transition state; focused form tests cover exact round trips,
+polygon parsing, invalid admission and redacted summaries.

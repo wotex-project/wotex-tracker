@@ -3086,6 +3086,94 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert has_element?(status, ".reading", "Low")
   end
 
+  test "an administrator adds closed motion and geofence definitions", c do
+    thing = provisioned(c)
+    path = Presenter.path(:asset, thing) <> "/protection"
+    {:ok, motion_view, _} = live(c.conn, path)
+    motion_view |> element("button", "Prepare rule") |> render_click()
+    motion_path = assert_patch(motion_view)
+    motion_operation = operation_from(motion_path)
+
+    motion_view
+    |> form("#rule-definition",
+      rule: %{
+        kind: "motion",
+        event_time: "trusted_fix",
+        future_skew_seconds: "1",
+        late_window_seconds: "10",
+        sequence: "none",
+        uncertainty: "require_bound",
+        moving_speed_m_s: "1.5",
+        stationary_speed_m_s: "0.2",
+        moving_distance_m: "5",
+        stationary_distance_m: "1",
+        max_plausible_speed_m_s: "100",
+        max_gap_seconds: "300",
+        minimum_movement_seconds: "30",
+        minimum_stop_seconds: "60"
+      }
+    )
+    |> render_submit()
+
+    assert has_element?(motion_view, "[role=status]", "Rule saved")
+    assert has_element?(motion_view, "td", "Motion and trips")
+    assert render(motion_view) =~ "Moving ≥ 1.5 m/s · stationary ≤ 0.2 m/s"
+
+    assert {:ok, %{"value" => motion}} =
+             Service.get(
+               c.service,
+               c.reader,
+               c.scope,
+               "policies",
+               "rule-" <> motion_operation,
+               c.now
+             )
+
+    assert motion["parameters"]["minimum_movement_ms"] == 30_000
+    assert motion["parameters"]["uncertainty"] == "require_bound"
+
+    {:ok, fence_view, _} = live(c.conn, path)
+    fence_view |> element("button", "Prepare rule") |> render_click()
+    fence_path = assert_patch(fence_view)
+    fence_operation = operation_from(fence_path)
+
+    fence_view
+    |> form("#rule-definition",
+      rule: %{
+        kind: "geofence",
+        shape_kind: "circle",
+        latitude: "59.3293",
+        longitude: "18.0686",
+        radius_m: "125",
+        boundary: "inside",
+        uncertainty: "coordinate_only",
+        event_time: "trusted_fix_or_receiver",
+        future_skew_seconds: "1",
+        late_window_seconds: "10",
+        sequence: "optional",
+        max_transition_gap_seconds: "300"
+      }
+    )
+    |> render_submit()
+
+    assert has_element?(fence_view, "[role=status]", "Rule saved")
+    assert has_element?(fence_view, "td", "Geofence")
+    assert render(fence_view) =~ "Circle at 59.3293, 18.0686 · radius 125 m"
+
+    assert {:ok, %{"value" => fence}} =
+             Service.get(
+               c.service,
+               c.reader,
+               c.scope,
+               "policies",
+               "rule-" <> fence_operation,
+               c.now
+             )
+
+    assert fence["parameters"]["shape"]["radius_m"] == 125
+    assert fence["parameters"]["event_time"] == "trusted_fix_or_receiver"
+  end
+
   test "an asset's protection page lists its rule definitions up to the limit", c do
     thing = provisioned(c)
     path = Presenter.path(:asset, thing) <> "/protection"
@@ -3626,11 +3714,71 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
 
     {:ok, _} = Service.save_policy(c.service, c.admin, c.scope, Identifier.uuid(), precise, c.now)
     {:ok, precise_view, _} = live(c.conn, Presenter.rule_path("heartbeat:precise-silence"))
-    assert render(precise_view) =~ "edit them through the service API"
+    assert render(precise_view) =~ "represented exactly by this form"
     refute has_element?(precise_view, "button", "Prepare edit")
     assert has_element?(precise_view, "button", "Prepare delete")
     render_click(precise_view, "prepare-manage", %{"intent" => "edit"})
     assert has_element?(precise_view, "[role=alert]")
+  end
+
+  test "an administrator edits a complete motion definition without changing retained state", c do
+    thing = provisioned(c)
+    RuleFixtures.commit_motion(c.store, c.scope)
+
+    definition = %{
+      "id" => "trips",
+      "kind" => "motion",
+      "thing_id" => thing,
+      "parameters" => %{
+        "event_time" => "trusted_fix",
+        "future_skew_ms" => 0,
+        "late_window_ms" => 10_000,
+        "sequence" => "none",
+        "moving_speed_m_s" => 1.0,
+        "stationary_speed_m_s" => 0.1,
+        "moving_distance_m" => 1.0,
+        "stationary_distance_m" => 0.5,
+        "max_plausible_speed_m_s" => 10_000.0,
+        "max_gap_ms" => 10_000,
+        "uncertainty" => "coordinate_only",
+        "minimum_movement_ms" => 1_000,
+        "minimum_stop_ms" => 1_000
+      },
+      "expected_generation" => "6"
+    }
+
+    assert {:ok, %{"generation" => "7"}} =
+             Service.save_policy(
+               c.service,
+               c.admin,
+               c.scope,
+               Identifier.uuid(),
+               definition,
+               c.now
+             )
+
+    path = Presenter.rule_path("motion:trips")
+    {:ok, view, _} = live(c.conn, path)
+    assert has_element?(view, ".reading", "Moving")
+    assert has_element?(view, "button", "Prepare edit")
+    view |> element("button", "Prepare edit") |> render_click()
+    assert_patch(view)
+    assert has_element?(view, "#rule-moving-speed[value='1.0']")
+    assert has_element?(view, "#rule-movement-dwell[value='1']")
+
+    view
+    |> form("#edit-rule", rule: %{moving_speed_m_s: "2.0"})
+    |> render_submit()
+
+    assert has_element?(view, "[role=status]", "Rule definition updated")
+    assert has_element?(view, ".reading", "Moving")
+    assert render(view) =~ "different revision"
+
+    assert {:ok, %{"value" => revised}} =
+             Service.get(c.service, c.reader, c.scope, "policies", "trips", c.now)
+
+    assert revised["parameters"]["moving_speed_m_s"] == 2.0
+    assert revised["parameters"]["max_plausible_speed_m_s"] == 10_000.0
   end
 
   test "rule management keeps unrelated, failed and foreign definitions out of changes", c do

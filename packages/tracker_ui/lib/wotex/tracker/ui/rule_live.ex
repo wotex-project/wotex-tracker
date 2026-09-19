@@ -204,7 +204,8 @@ defmodule Wotex.Tracker.UI.RuleLive do
           @definition && @identity["can_manage_queries"] &&
             !RuleForm.editable?(@definition["kind"], @definition["parameters"])
         }>
-          These parameters are not whole seconds or volts; edit them through the service API.
+          These parameters cannot be represented exactly by this form; edit them through the
+          service API.
         </p>
         <.form
           :if={manageable?(assigns, "edit")}
@@ -213,8 +214,7 @@ defmodule Wotex.Tracker.UI.RuleLive do
           phx-submit="edit"
         >
           <RuleForm.fields
-            heartbeat={@definition["kind"] == "heartbeat"}
-            battery={@definition["kind"] == "battery"}
+            kinds={[@definition["kind"]]}
             parameters={@definition["parameters"]}
           />
           <button type="submit" phx-disable-with="Saving…">Save rule changes</button>

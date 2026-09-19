@@ -98,7 +98,7 @@ defmodule Wotex.Tracker.UI.Presenter do
         kind
       )
 
-  @doc "Summarizes a heartbeat or battery definition's stored parameters without rounding them."
+  @doc "Summarizes a managed rule definition's stored parameters without rounding it."
   @spec rule_parameters(String.t(), term()) :: String.t()
   def rule_parameters("heartbeat", %{"maximum_silence_ms" => silence}) when is_integer(silence),
     do: "Maximum silence " <> duration(%{"type" => "integer", "value" => silence})
@@ -113,7 +113,39 @@ defmodule Wotex.Tracker.UI.Presenter do
       duration(%{"type" => "integer", "value" => parameters["maximum_age_ms"]})
   end
 
+  def rule_parameters(
+        "motion",
+        %{
+          "moving_speed_m_s" => moving_speed,
+          "stationary_speed_m_s" => stationary_speed,
+          "minimum_movement_ms" => movement,
+          "minimum_stop_ms" => stop
+        }
+      ) do
+    "Moving ≥ #{moving_speed} m/s · stationary ≤ #{stationary_speed} m/s · " <>
+      "dwell #{duration(%{"type" => "integer", "value" => movement})} / " <>
+      duration(%{"type" => "integer", "value" => stop})
+  end
+
+  def rule_parameters("geofence", %{"shape" => shape, "max_transition_gap_ms" => gap}) do
+    fence_shape(shape) <>
+      " · transition gap " <> duration(%{"type" => "integer", "value" => gap})
+  end
+
   def rule_parameters(_, _), do: "Parameters unavailable"
+
+  defp fence_shape(%{
+         "kind" => "circle",
+         "latitude" => latitude,
+         "longitude" => longitude,
+         "radius_m" => radius
+       }),
+       do: "Circle at #{latitude}, #{longitude} · radius #{radius} m"
+
+  defp fence_shape(%{"kind" => "polygon", "vertices" => vertices}) when is_list(vertices),
+    do: "Polygon · #{length(vertices)} vertices"
+
+  defp fence_shape(_), do: "Fence geometry unavailable"
 
   @doc "Reports whether a rule status describes a condition an operator should review."
   @spec rule_attention?(term()) :: boolean()

@@ -344,8 +344,11 @@ Revocation, read-only denial, stale writes, lost replies and real HTTP session
 security are exercised. The UI-enabled bundles also pass an authenticated
 browser asset and restart probe. A shared Protection page and per-rule history
 now present committed rule status without evidence. Administrators can add,
-edit and delete heartbeat and low-battery-voltage rules for a provisioned asset
-in the browser, and review and acknowledge their alerts. Each provisioned asset
+edit and delete heartbeat, low-battery-voltage, motion/trip and circle or polygon
+geofence rules for a provisioned asset in the browser, and review and acknowledge
+their alerts. Position-policy forms preserve ordering, lateness, sequence,
+uncertainty, geometry, gap and dwell fields without choosing among position
+sources. Each provisioned asset
 lists its live rule definitions, stops offering new rules at the service's
 eight-definition limit and pages the alerts those definitions recorded.
 Administrators can remove an enrolled asset from current views after a stated,

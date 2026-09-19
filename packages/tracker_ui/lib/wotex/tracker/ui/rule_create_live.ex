@@ -309,8 +309,25 @@ defmodule Wotex.Tracker.UI.RuleCreateLive do
               <input type="radio" name="rule[kind]" value="battery" />
               Low battery voltage, with separate low and recovery thresholds
             </label>
+            <label>
+              <input type="radio" name="rule[kind]" value="motion" />
+              Motion and trips, confirmed from ordered position evidence
+            </label>
+            <label>
+              <input type="radio" name="rule[kind]" value="geofence" />
+              Geofence membership and entry or exit transitions
+            </label>
           </fieldset>
-          <RuleForm.fields heartbeat={true} battery={RuleForm.battery?(@thing)} />
+          <p>
+            Position rules evaluate only evidence bundles with exactly one position. Multiple
+            sources remain unchanged until an explicit selection policy is configured through the
+            service API.
+          </p>
+          <RuleForm.fields kinds={
+            if RuleForm.battery?(@thing),
+              do: ~w(heartbeat battery motion geofence),
+              else: ~w(heartbeat motion geofence)
+          } />
           <button type="submit" phx-disable-with="Saving…">Save rule</button>
         </.form>
       </section>
@@ -500,7 +517,9 @@ defmodule Wotex.Tracker.UI.RuleCreateLive do
   defp request(socket, input) do
     kind = input["kind"]
 
-    with true <- kind == "heartbeat" or RuleForm.battery?(socket.assigns.thing),
+    with true <-
+           kind in ~w(heartbeat motion geofence) or
+             (kind == "battery" and RuleForm.battery?(socket.assigns.thing)),
          {:ok, parameters} <- RuleForm.parameters(kind, input) do
       {:ok,
        %{

@@ -34,15 +34,20 @@ projection, and each rule page pages its retained evaluation history. These
 pages show no position evidence and cannot arm or acknowledge a rule.
 A provisioned asset's protection page lists its live rule definitions with
 their revision and stored settings, linking each to its rule status. An
-administrator can add a heartbeat or low-battery-voltage rule there until the
-asset has eight definitions. The same page lists, newest first and ten at a time,
+administrator can add a heartbeat, low-battery-voltage, motion/trip or geofence
+rule there until the asset has eight definitions. Motion and geofence forms keep
+event-time, lateness, sequence, uncertainty and gap choices explicit; geofences
+accept closed circle or polygon geometry. Position rules state that a bundle must
+contain exactly one position because this UI does not invent source selection.
+The same page lists, newest first and ten at a time,
 the alerts recorded by those definitions, with a bounded path back to newer pages. The form captures the scope generation, keeps an operation
 reference in the address, derives the rule ID from it and verifies the saved
 definition's asset before reporting success. The service evaluates the rule;
 the page sends no notification. A rule page shows its service definition and
 lets an administrator prepare an edit or deletion with the same generation check
-and recoverable operation reference. Parameters that are not whole seconds are
-not offered for browser editing, so a save cannot silently round them.
+and recoverable operation reference. Parameters that cannot round-trip exactly
+through the browser fields are not offered for editing, so a save cannot silently
+round or replace policy content.
 The Protection page links to a newest-first alert list. Each alert page shows
 the recorded status change, rule, the asset of a defined rule or that the host
 manages the rule, evaluation mode and dispatch restriction, and
