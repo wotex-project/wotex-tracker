@@ -24,15 +24,16 @@ defmodule Wotex.Tracker.UI.TripSummaryExport do
   end
 
   @doc "Emits one bounded public summary export."
-  @spec push(LiveView.Socket.t(), map()) ::
+  @spec push(LiveView.Socket.t(), map(), map()) ::
           {:ok, LiveView.Socket.t()} | {:error, map()}
-  def push(socket, summary) when is_map(summary) do
+  def push(socket, summary, presentation) when is_map(summary) and is_map(presentation) do
     document = %{
       "schema" => "wtr.trip-summary-export.v1",
       "thing_id" => summary["thing_id"],
       "trip_id" => summary["trip_id"],
       "snapshot_generation" => summary["snapshot_generation"],
       "summary_identity" => summary["identity"],
+      "presentation" => presentation,
       "summary" => summary
     }
 

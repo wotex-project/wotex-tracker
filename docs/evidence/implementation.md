@@ -3054,3 +3054,25 @@ the final-summary screen reached 98.2% and its export module 100%. Compiler,
 unused-dependency, formatter, dependency audit, strict Credo, ExDoc, Dialyzer,
 50-member package archive inspection, licenses and the 438-file stack-language
 policy all passed.
+
+### Final-distance units and timezone controls — 2026-09-19
+
+The final trip summary now shares the timeline's closed set of fixed UTC offsets
+and adds metre, kilometre and international-mile distance presentation. Service
+metres remain the canonical source and stay visible on screen. Kilometres divide
+by 1,000; international miles use exactly 1,609.344 metres; both are labelled as
+display-only and rounded to three decimal places. Fixed offsets are explicitly
+not daylight-saving-aware.
+
+Presentation submission admits exactly the timezone and distance-unit fields and
+rejects unknown values without discarding the valid summary. Every total, bound,
+included segment and event time uses the selected presentation consistently;
+excluded segments remain excluded instead of becoming zero. Reauthorized export
+retains the complete canonical summary and now records the timezone key/label,
+fixed offset, unit conversion and rounding declaration.
+
+Focused workflow tests cover UTC/metres defaults, positive and negative fixed
+offsets, kilometre and mile conversions, canonical-metre retention, invalid
+control admission and export metadata. The complete shared-UI suite passes 134
+tests at 95.2% production line coverage; the final-summary screen reaches 98.6%
+and its export module 100%.

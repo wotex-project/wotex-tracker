@@ -115,7 +115,10 @@ metadata. Each stop or interruption links to the service-reconstructed final
 distance: exact centre/lower/upper metres, complete or partial status and every
 included or excluded adjacent segment. The dedicated screen validates the
 closed public projection, retains a valid result across temporary failures and
-reauthorizes a bounded identity-matched JSON export.
+reauthorizes a bounded identity-matched JSON export. Readers may present times
+at a closed fixed UTC offset and distance in metres, kilometres or international
+miles. Converted distance is visibly rounded for display only; canonical service
+metres and the exact presentation choices remain in the export.
 Evidence-backed heartbeat state and overdue/recovery events are also
 implemented; see the [heartbeat guide](docs/guides/heartbeat.md).
 Its SQLite host integration persists changed heartbeat state and event intent

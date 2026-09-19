@@ -245,6 +245,9 @@ as not following daylight-saving changes. Each terminal event now links to a
 dedicated shared final-summary screen. It validates and displays exact bounded
 metres plus every included/excluded segment, retains valid content across a
 temporary read failure and reauthorizes an identity-matched bounded export.
+Closed fixed-offset timezone and metre/kilometre/international-mile controls are
+presentation-only; conversions declare three-decimal rounding, retain canonical
+metres and are recorded in the export.
 
 Receiver-observation heartbeat state is implemented as a pure caller-ticked rule
 with exact overdue equality, newer/historical ordering, recovery, revision

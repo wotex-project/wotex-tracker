@@ -5230,7 +5230,7 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert render(view) =~ "Partial total: 1 adjacent segment(s) were excluded explicitly"
     assert render(view) =~ "Included · moving"
     assert render(view) =~ "Excluded · stationary"
-    assert render(view) =~ "110.0–131.0 m"
+    assert render(view) =~ "110.0 m–131.0 m"
     refute render(view) =~ "private-evidence"
 
     view |> element("button", "Export this final summary (JSON)") |> render_click()
@@ -5241,8 +5241,74 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert export["trip_id"] == "trip-one"
     assert export["summary_identity"] == summary["identity"]
     assert export["summary"] == summary
+
+    assert export["presentation"] == %{
+             "timezone_key" => "utc",
+             "timezone" => "UTC",
+             "fixed_offset_minutes" => 0,
+             "distance_unit" => "metres",
+             "distance_conversion" => "canonical_metres",
+             "display_rounding" => "none"
+           }
+
     refute json =~ "private-evidence"
     refute json =~ "wtrc1."
+
+    view
+    |> form("#trip-summary-presentation",
+      summary: %{timezone: "utc_plus_02", distance_unit: "kilometres"}
+    )
+    |> render_submit()
+
+    assert has_element?(view, ".reading", "0.121 km")
+    assert render(view) =~ "0.11 km–0.131 km"
+    assert render(view) =~ "UTC+02:00 fixed"
+    assert render(view) =~ "fixed offsets do not follow"
+    assert render(view) =~ "daylight-saving changes"
+    assert render(view) =~ "Canonical service total: 120.5 m"
+
+    view |> element("button", "Export this final summary (JSON)") |> render_click()
+    assert_push_event(view, "download-trip-summary", %{"content" => selected_json})
+    selected_export = Jason.decode!(selected_json)
+
+    assert selected_export["presentation"] == %{
+             "timezone_key" => "utc_plus_02",
+             "timezone" => "UTC+02:00 fixed",
+             "fixed_offset_minutes" => 120,
+             "distance_unit" => "kilometres",
+             "distance_conversion" => "metres_divided_by_1000",
+             "display_rounding" => "three_decimal_places_display_only"
+           }
+
+    view
+    |> form("#trip-summary-presentation",
+      summary: %{timezone: "utc_minus_08", distance_unit: "miles"}
+    )
+    |> render_submit()
+
+    assert has_element?(view, ".reading", "0.075 mi")
+    assert render(view) =~ "UTC-08:00 fixed"
+
+    view |> element("button", "Export this final summary (JSON)") |> render_click()
+    assert_push_event(view, "download-trip-summary", %{"content" => miles_json})
+
+    assert Jason.decode!(miles_json)["presentation"]["distance_conversion"] ==
+             "international_mile_1609.344_metres"
+
+    render_submit(view, "set-presentation", %{
+      "summary" => %{"timezone" => "Europe/Stockholm", "distance_unit" => "nautical_miles"}
+    })
+
+    assert has_element?(view, "[role=alert]", "Check the required fields")
+    assert has_element?(view, ".reading", "0.075 mi")
+    render_submit(view, "set-presentation", %{})
+    assert has_element?(view, "[role=alert]", "Check the required fields")
+
+    view
+    |> form("#trip-summary-presentation",
+      summary: %{timezone: "utc", distance_unit: "metres"}
+    )
+    |> render_submit()
 
     Agent.update(c.faults, &Map.put(&1, :trip_summary, :unavailable))
     view |> element("button", "Export this final summary (JSON)") |> render_click()

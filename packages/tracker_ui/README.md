@@ -32,6 +32,12 @@ every included/excluded adjacent segment, and never reconstructs a route in the
 browser. Refresh retains a valid summary across temporary failure. Export
 reauthorizes the exact Thing/trip request, requires the immutable identity to
 match and emits bounded JSON without service cursors or private input identities.
+Readers can select the same closed fixed-offset timezone set as the event
+timeline and show distance in metres, kilometres or international miles.
+Converted values are labelled as display-only and rounded to three decimal
+places; canonical metres remain visible and unchanged. The export records the
+fixed offset, distance conversion and rounding declaration with the exact
+canonical summary.
 The asset page reads declared scalar Properties from the authorized committed
 service snapshot, with no physical-device freshness claim.
 Asset cards now read each latest committed state separately. They show retained
@@ -133,9 +139,8 @@ test helpers. Root and service-only consumers do not depend on this package.
 The first cohort exercises real authorized services, duplicate prevention,
 lost-reply recovery, revocation, read-only denial, upload bounds, bounded
 lists/history, CSRF protection and credential custody. Device discovery and
-capture, basemaps, distance unit conversion, remaining rule workflows,
-interactions, remaining privacy controls, remote adapters and cross-surface
-accessibility remain subsequent work. A
+capture, basemaps, remaining rule workflows, interactions, remaining privacy
+controls, remote adapters and cross-surface accessibility remain subsequent work. A
 responsive browser view does not qualify a mobile or Pi application.
 
 The route-history screen defaults to a one-day UTC window ending after the

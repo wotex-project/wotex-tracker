@@ -20,10 +20,33 @@ defmodule Wotex.Tracker.UI.TripSummaryLive do
     to_position_bundle_identity policy_identity
   )
   @segment_statuses ~w(moving stationary indeterminate unknown)
+  @distance_units ~w(metres kilometres miles)
+  @timezones %{
+    "utc_minus_08" => {"UTC-08:00 fixed", -480},
+    "utc_minus_05" => {"UTC-05:00 fixed", -300},
+    "utc" => {"UTC", 0},
+    "utc_plus_01" => {"UTC+01:00 fixed", 60},
+    "utc_plus_02" => {"UTC+02:00 fixed", 120},
+    "utc_plus_0530" => {"UTC+05:30 fixed", 330},
+    "utc_plus_08" => {"UTC+08:00 fixed", 480},
+    "utc_plus_10" => {"UTC+10:00 fixed", 600}
+  }
+  @default_presentation %{"timezone" => "utc", "distance_unit" => "metres"}
 
   @impl true
   def mount(_, _, socket),
-    do: {:ok, assign(socket, id: nil, trip_id: nil, asset: nil, summary: nil, error: nil)}
+    do:
+      {:ok,
+       assign(socket,
+         id: nil,
+         trip_id: nil,
+         asset: nil,
+         summary: nil,
+         presentation_input: @default_presentation,
+         distance_units: @distance_units,
+         timezones: @timezones,
+         error: nil
+       )}
 
   @impl true
   def handle_params(%{"id" => id, "trip_id" => trip}, _, socket) do
@@ -32,7 +55,14 @@ defmodule Wotex.Tracker.UI.TripSummaryLive do
         socket
       else
         socket
-        |> assign(id: id, trip_id: trip, asset: nil, summary: nil, error: nil)
+        |> assign(
+          id: id,
+          trip_id: trip,
+          asset: nil,
+          summary: nil,
+          presentation_input: @default_presentation,
+          error: nil
+        )
         |> load()
       end
 
@@ -42,10 +72,21 @@ defmodule Wotex.Tracker.UI.TripSummaryLive do
   @impl true
   def handle_event("refresh", _, socket), do: {:noreply, load(socket)}
 
+  def handle_event("set-presentation", %{"summary" => input}, socket) when is_map(input) do
+    if presentation_input?(input) do
+      {:noreply, assign(socket, presentation_input: input, error: nil)}
+    else
+      {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
+    end
+  end
+
+  def handle_event("set-presentation", _, socket),
+    do: {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
+
   def handle_event("export", _, %{assigns: %{summary: %{} = summary}} = socket) do
     with :ok <-
            TripSummaryExport.verify(socket, socket.assigns.id, socket.assigns.trip_id, summary),
-         {:ok, socket} <- TripSummaryExport.push(socket, summary) do
+         {:ok, socket} <- TripSummaryExport.push(socket, summary, presentation(socket)) do
       {:noreply, socket}
     else
       {:error, %{"code" => code} = error} when code in ~w(forbidden unauthorized not_found) ->
@@ -80,21 +121,53 @@ defmodule Wotex.Tracker.UI.TripSummaryLive do
       <.notice error={@error} />
       <section :if={@summary} class="panel" aria-labelledby="trip-summary-title">
         <h2 id="trip-summary-title">Final distance summary</h2>
-        <p class="reading">{distance(@summary["center_distance_m"])} m</p>
-        <p>
-          Bounded from {distance(@summary["lower_distance_m"])} m to {distance(
-            @summary["upper_distance_m"]
-          )} m.
+        <.form for={%{}} id="trip-summary-presentation" phx-submit="set-presentation">
+          <label for="trip-summary-timezone">Display timezone</label>
+          <select id="trip-summary-timezone" name="summary[timezone]">
+            <option
+              :for={{key, {label, _offset}} <- Enum.sort(@timezones)}
+              value={key}
+              selected={@presentation_input["timezone"] == key}
+            >
+              {label}
+            </option>
+          </select>
+          <label for="trip-summary-distance-unit">Distance units</label>
+          <select id="trip-summary-distance-unit" name="summary[distance_unit]">
+            <option
+              :for={unit <- @distance_units}
+              value={unit}
+              selected={@presentation_input["distance_unit"] == unit}
+            >
+              {String.capitalize(unit)}
+            </option>
+          </select>
+          <button type="submit">Apply presentation</button>
+        </.form>
+        <p class="muted">
+          Times use {timezone_label(@presentation_input)}; fixed offsets do not follow
+          daylight-saving changes. Kilometres and international miles are display-only
+          conversions rounded to three decimal places; canonical metres remain below and in export.
         </p>
+        <p class="reading">{distance(@summary["center_distance_m"], @presentation_input)}</p>
+        <p>
+          Bounded from {distance(@summary["lower_distance_m"], @presentation_input)} to {distance(
+            @summary["upper_distance_m"],
+            @presentation_input
+          )}.
+        </p>
+        <p>Canonical service total: {canonical_distance(@summary["center_distance_m"])} m.</p>
         <p class="notice">
           {summary_status(@summary)} The browser does not join excluded segments or infer a route.
         </p>
         <dl>
-          <dt>Trip started</dt><dd>{timestamp(@summary["started_at"])}</dd>
-          <dt>Movement confirmed</dt><dd>{timestamp(@summary["confirmed_moving_at"])}</dd>
+          <dt>Trip started</dt><dd>{timestamp(@summary["started_at"], @presentation_input)}</dd>
+          <dt>Movement confirmed</dt>
+          <dd>{timestamp(@summary["confirmed_moving_at"], @presentation_input)}</dd>
           <dt>{terminal_label(@summary["terminal_kind"])}</dt>
-          <dd>{timestamp(@summary["ended_at"])}</dd>
-          <dt>Ending confirmed</dt><dd>{timestamp(@summary["confirmed_ended_at"])}</dd>
+          <dd>{timestamp(@summary["ended_at"], @presentation_input)}</dd>
+          <dt>Ending confirmed</dt>
+          <dd>{timestamp(@summary["confirmed_ended_at"], @presentation_input)}</dd>
           <dt>Terminal reason</dt><dd>{label(@summary["terminal_reason"])}</dd>
           <dt>Samples</dt><dd>{@summary["sample_count"]}</dd>
           <dt>Segments</dt>
@@ -120,13 +193,13 @@ defmodule Wotex.Tracker.UI.TripSummaryLive do
             </thead>
             <tbody>
               <tr :for={segment <- @summary["segments"]}>
-                <td>{timestamp(segment["event_at"])}</td>
+                <td>{timestamp(segment["event_at"], @presentation_input)}</td>
                 <td>
                   {if segment["included"], do: "Included", else: "Excluded"} · {segment["status"]}
                 </td>
                 <td>{label(segment["reason"])}</td>
-                <td>{segment_distance(segment, "center_distance_m")}</td>
-                <td>{segment_bounds(segment)}</td>
+                <td>{segment_distance(segment, "center_distance_m", @presentation_input)}</td>
+                <td>{segment_bounds(segment, @presentation_input)}</td>
               </tr>
             </tbody>
           </table>
@@ -306,19 +379,38 @@ defmodule Wotex.Tracker.UI.TripSummaryLive do
   defp public?(value) when is_list(value), do: Enum.all?(value, &public?/1)
   defp public?(_), do: true
 
-  defp timestamp(value), do: Presenter.timestamp(%{"value" => value})
-  defp distance(value) when is_float(value), do: Float.to_string(value)
-  defp distance(value) when is_integer(value), do: Integer.to_string(value)
+  defp timestamp(value, input),
+    do: Presenter.timestamp(%{"value" => value}, timezone_offset(input))
 
-  defp segment_distance(%{"included" => true} = segment, key),
-    do: distance(segment[key]) <> " m"
+  defp distance(value, %{"distance_unit" => "metres"}),
+    do: canonical_distance(value) <> " m"
 
-  defp segment_distance(_, _), do: "Excluded"
+  defp distance(value, %{"distance_unit" => "kilometres"}),
+    do: converted_distance(value / 1_000) <> " km"
 
-  defp segment_bounds(%{"included" => true} = segment),
-    do: "#{distance(segment["lower_distance_m"])}–#{distance(segment["upper_distance_m"])} m"
+  defp distance(value, %{"distance_unit" => "miles"}),
+    do: converted_distance(value / 1_609.344) <> " mi"
 
-  defp segment_bounds(_), do: "Excluded"
+  defp canonical_distance(value) when is_float(value), do: Float.to_string(value)
+  defp canonical_distance(value) when is_integer(value), do: Integer.to_string(value)
+
+  defp converted_distance(value),
+    do:
+      value
+      |> :erlang.float_to_binary(decimals: 3)
+      |> String.trim_trailing("0")
+      |> String.trim_trailing(".")
+
+  defp segment_distance(%{"included" => true} = segment, key, input),
+    do: distance(segment[key], input)
+
+  defp segment_distance(_, _, _), do: "Excluded"
+
+  defp segment_bounds(%{"included" => true} = segment, input),
+    do:
+      "#{distance(segment["lower_distance_m"], input)}–#{distance(segment["upper_distance_m"], input)}"
+
+  defp segment_bounds(_, _), do: "Excluded"
 
   defp summary_status(%{"status" => "complete"}),
     do: "Every adjacent segment qualified and was included."
@@ -335,6 +427,40 @@ defmodule Wotex.Tracker.UI.TripSummaryLive do
 
   defp summary_error(%{"code" => "capacity_exceeded"} = error),
     do: Map.put(error, "code", "trip_summary_capacity")
+
+  defp presentation_input?(input),
+    do:
+      map_size(input) == 2 and input["distance_unit"] in @distance_units and
+        Map.has_key?(@timezones, input["timezone"])
+
+  defp timezone_offset(input) do
+    {_label, offset} = Map.fetch!(@timezones, input["timezone"])
+    offset
+  end
+
+  defp timezone_label(input) do
+    {label, _offset} = Map.fetch!(@timezones, input["timezone"])
+    label
+  end
+
+  defp presentation(socket) do
+    input = socket.assigns.presentation_input
+
+    %{
+      "timezone_key" => input["timezone"],
+      "timezone" => timezone_label(input),
+      "fixed_offset_minutes" => timezone_offset(input),
+      "distance_unit" => input["distance_unit"],
+      "distance_conversion" => conversion(input["distance_unit"]),
+      "display_rounding" => rounding(input["distance_unit"])
+    }
+  end
+
+  defp conversion("metres"), do: "canonical_metres"
+  defp conversion("kilometres"), do: "metres_divided_by_1000"
+  defp conversion("miles"), do: "international_mile_1609.344_metres"
+  defp rounding("metres"), do: "none"
+  defp rounding(_), do: "three_decimal_places_display_only"
 
   defp clear(socket, error), do: assign(socket, asset: nil, summary: nil, error: error)
 end
