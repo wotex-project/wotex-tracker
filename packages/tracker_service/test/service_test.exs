@@ -102,6 +102,8 @@ defmodule Wotex.Tracker.ServiceTest do
     assert {:ok, %{"value" => state}} =
              Service.get(context.service, context.reader, context.scope, "state", id, context.now)
 
+    assert state["positions"] == []
+
     assert Enum.find(state["measurements"], &(&1["kind"] == "temperature"))["value"] == %{
              "type" => "number",
              "value" => 24.3

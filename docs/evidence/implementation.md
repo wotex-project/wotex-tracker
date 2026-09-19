@@ -2702,3 +2702,28 @@ audit, strict Credo, ExDoc, Dialyzer, documentation/contracts, 95-member archive
 inspection, licenses and the 421-file stack-language policy all passed. Focused
 tests cover successful lineage/provenance export and exact revalidation plus
 duplicate, malformed, wrong-receiver and forged stored position rejection.
+
+### Configured service position projection — 2026-09-19
+
+`Wotex.Tracker.Service` now accepts either its packaged Ruuvi defaults or a
+closed host-supplied catalogue, compatible model and decoder registry. Registry
+admission requires exactly one trusted unary callback for every decoder revision
+referenced by the immutable catalogue. Resolution selects the inert revision
+before lookup; missing, extra, duplicate, non-callable, forged-catalogue and
+model-incompatible configurations fail explicitly.
+
+Imported and materialised state now carries a bounded list of closed
+`wtr.position-public.v1` projections. The public value preserves coordinates,
+source, availability/quality, accuracy and qualified fix/receiver times with the
+service's tagged scalar representation. Raw fields, source units, conversion
+revision, receiver observation ID and evidence identities remain absent from
+ordinary reads and present in authorized raw evidence export. The packaged Ruuvi
+path returns the required empty list.
+
+The complete service gate passed 2 properties and 204 tests at 95.0% production
+line coverage. Compiler, unused-dependency, formatter, dependency audit, strict
+Credo, ExDoc, Dialyzer, boundary checks, OpenAPI validation, 82-member package
+archive inspection, licenses and the 423-file stack-language policy all passed.
+Tests cover configured callback selection, import and materialisation projection,
+private/public separation, exact required registry membership, duplicate and
+wrong revisions, non-callables, forged catalogues and incompatible models.

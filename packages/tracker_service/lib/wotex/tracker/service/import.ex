@@ -1,10 +1,8 @@
 defmodule Wotex.Tracker.Service.Import do
   @moduledoc false
 
-  alias Wotex.Tracker
-  alias Wotex.Tracker.Decoders.RuuviRawV2
   alias Wotex.Tracker.{Evidence, Observation}
-  alias Wotex.Tracker.Service.{Codec, OperationalTelemetry, Projection, Update}
+  alias Wotex.Tracker.Service.{Codec, DecoderRegistry, OperationalTelemetry, Projection, Update}
 
   def admit(request) do
     started = System.monotonic_time()
@@ -29,11 +27,7 @@ defmodule Wotex.Tracker.Service.Import do
     started = System.monotonic_time()
 
     result =
-      case Tracker.import_observation(
-             observation,
-             service.catalogue,
-             {RuuviRawV2.revision(), &RuuviRawV2.decode/1}
-           ) do
+      case DecoderRegistry.decode(observation, service.catalogue, service.decoders) do
         {:ok, imported} -> update(service, access, operation, request, now, imported)
         {:error, _} -> {:error, :invalid_observation}
       end
@@ -56,6 +50,11 @@ defmodule Wotex.Tracker.Service.Import do
         do: Enum.map(imported.decoded.measurements, &Projection.measurement/1),
         else: []
 
+    positions =
+      if imported.decoded,
+        do: Enum.map(imported.decoded.positions, &Projection.position/1),
+        else: []
+
     evidence = if imported.decoded, do: evidence(imported.decoded), else: []
 
     public = %{
@@ -73,7 +72,8 @@ defmodule Wotex.Tracker.Service.Import do
       "id" => id,
       "observation_id" => id,
       "observed_at" => Projection.scalar(imported.observation.observed_at),
-      "measurements" => measurements
+      "measurements" => measurements,
+      "positions" => positions
     }
 
     Update.new(%{

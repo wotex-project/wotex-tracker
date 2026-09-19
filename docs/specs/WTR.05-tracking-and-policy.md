@@ -10,10 +10,11 @@ heartbeat, battery, suspicious-movement and transport-degradation policy.
 `RouteReplay` now projects a bounded position-sample page into exact points,
 rejections and gap-separated segments without inferring missing travel. The
 service persists the implemented rule-transition forms and exposes redacted
-status. The trusted decoder seam now admits bounded profile-backed position
-claims into immutable evidence, but service projection of those positions,
-rule-definition orchestration for position rules, notification delivery and
-product hardware acceptance remain unfinished.
+status. The trusted decoder seam admits bounded profile-backed position claims
+into immutable evidence, and an explicitly configured service exposes a closed
+redacted state projection. Position map/history workflows, rule-definition
+orchestration for position rules, notification delivery and product hardware
+acceptance remain unfinished.
 
 ## Tracking is evidence, not a GPS field
 

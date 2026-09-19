@@ -222,6 +222,23 @@ the frontend must download those bytes without parse/re-encode. The concrete
 HTTP envelope is `wtr.response.v1`; its packaged OpenAPI 3.1.0 document and
 stream rules are described below.
 
+Public state always contains bounded `measurements` and `positions` arrays. Each
+position is the closed `wtr.position-public.v1` projection of one admitted
+decoder claim: tagged latitude/longitude, altitude, speed, horizontal accuracy,
+fix/receiver times, declared source, accuracy kind, fix-clock qualification,
+availability and quality. It intentionally omits raw source fields, source units,
+conversion revision, receiver observation ID and stable evidence/bundle
+identities. Those values remain in the authorized raw evidence export. An empty
+array means the decoded message supplied no position; it does not mean `(0, 0)`.
+
+The default service configuration loads the packaged Ruuvi profile, decoder and
+environmental model. An explicit host configuration may instead supply one
+admitted catalogue, one model used by every profile in that catalogue, and
+exactly one trusted unary callback per referenced decoder revision. Missing,
+extra, duplicate, non-callable or model-incompatible entries fail service
+construction. Profile resolution still chooses only inert revision values; wire
+content never supplies callback code or a module name.
+
 ## Authenticated domain operations
 
 `Wotex.Tracker.Service` implements import, public list/get, private raw exports,

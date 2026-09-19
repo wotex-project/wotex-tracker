@@ -65,6 +65,26 @@ defmodule Wotex.Tracker.Service.Projection do
     }
   end
 
+  def position(position) do
+    claim = position.claim
+
+    %{
+      "schema" => "wtr.position-public.v1",
+      "latitude" => scalar(claim["latitude"]),
+      "longitude" => scalar(claim["longitude"]),
+      "altitude_m" => scalar(claim["altitude_m"]),
+      "speed_m_s" => scalar(claim["speed_m_s"]),
+      "horizontal_accuracy_m" => scalar(claim["horizontal_accuracy_m"]),
+      "accuracy_kind" => claim["accuracy_kind"],
+      "source" => claim["source"],
+      "fix_at" => scalar(claim["fix_at"]),
+      "received_at" => scalar(claim["received_at"]),
+      "fix_clock" => claim["fix_clock"],
+      "availability" => claim["availability"],
+      "quality" => claim["quality"]
+    }
+  end
+
   def scalar(nil), do: %{"type" => "null", "value" => nil}
   def scalar(value) when is_boolean(value), do: %{"type" => "boolean", "value" => value}
 

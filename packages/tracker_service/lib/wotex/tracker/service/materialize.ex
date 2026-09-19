@@ -2,11 +2,11 @@ defmodule Wotex.Tracker.Service.Materialize do
   @moduledoc false
 
   alias Wotex.Tracker
-  alias Wotex.Tracker.Decoders.RuuviRawV2
   alias Wotex.Tracker.{Evidence, EvidenceBundle, Identity, Observation}
 
   alias Wotex.Tracker.Service.{
     Codec,
+    DecoderRegistry,
     Delivery,
     Identifier,
     Projection,
@@ -80,11 +80,7 @@ defmodule Wotex.Tracker.Service.Materialize do
            ),
          {:ok, observation} <- Observation.from_map(row["value"]),
          {:ok, %{decoded: decoded} = imported} when not is_nil(decoded) <-
-           Tracker.import_observation(
-             observation,
-             service.catalogue,
-             {RuuviRawV2.revision(), &RuuviRawV2.decode/1}
-           ) do
+           DecoderRegistry.decode(observation, service.catalogue, service.decoders) do
       {:ok, imported}
     else
       false -> {:error, :revision_mismatch}
@@ -172,7 +168,8 @@ defmodule Wotex.Tracker.Service.Materialize do
       "id" => id,
       "observation_id" => enrollment["public"]["observation_id"],
       "observed_at" => Projection.scalar(imported.observation.observed_at),
-      "measurements" => Enum.map(imported.decoded.measurements, &Projection.measurement/1)
+      "measurements" => Enum.map(imported.decoded.measurements, &Projection.measurement/1),
+      "positions" => Enum.map(imported.decoded.positions, &Projection.position/1)
     }
 
     Update.new(%{

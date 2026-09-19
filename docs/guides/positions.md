@@ -6,9 +6,10 @@ Deterministic selection, event ordering, geofences, motion/trips, trip distance
 and gap-honest route replay build on the same evidence-bound sample. These pure
 modules start no process, read no clock and make no physical-device qualification
 claim. The service persists several rule transitions, but profile-backed position
-projection through the service and the application map remain separate unfinished
-integration work. Trusted profile decoders can now admit normalized position
-claims into the same immutable evidence pipeline.
+map/history workflows remain unfinished integration work. Trusted profile
+decoders can admit normalized position claims into the same immutable evidence
+pipeline, and an explicitly configured service projects them into authorized
+public state without exposing raw receiver lineage.
 
 ## Position claim v1
 
@@ -67,6 +68,14 @@ and unexpected callback shapes return `invalid_decoder_result`. Revalidating a
 stored `Decoder` value reconstructs the same position evidence and rejects any
 changed claim or forged position value without executing callback code. A decoder
 may return an empty position list for valid messages that contain no position.
+
+The service's `wtr.position-public.v1` projection includes tagged
+latitude/longitude, altitude, speed, horizontal accuracy, fix/receiver times,
+accuracy kind, source, fix-clock qualification, availability and quality. It
+omits raw source fields, source-unit/conversion details, receiver observation ID
+and stable evidence/bundle identities. Those remain in the scoped raw evidence
+export. The projection is current committed state, not route history or canonical
+multi-source selection.
 
 `Position.to_map(position, bundle)` exports a `wtr.position-evidence.v1` object
 containing the complete claim, source and parent evidence IDs, profile/decoder

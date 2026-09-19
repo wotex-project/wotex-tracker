@@ -204,7 +204,9 @@ The trusted profile-decoder seam now accepts bounded normalized position claims,
 content-identifies them with the observation and catalogue snapshot, constructs
 ordinary `Position` values through the complete evidence bundle, and revalidates
 stored output without rerunning code. Ruuvi RAWv2 remains explicitly
-positionless; service projection of a future position-capable profile is next.
+positionless. The service can now admit an exact trusted catalogue/model/decoder
+set, selects its configured callback only after deterministic resolution, and
+commits a redacted public position state beside private complete evidence.
 Bounded circle/polygon membership is implemented with explicit boundary,
 uncertainty and antimeridian rules. See the
 [position guide](../guides/positions.md) and

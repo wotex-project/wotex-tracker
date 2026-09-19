@@ -18,6 +18,7 @@ defmodule Wotex.Tracker.Service do
     Codec,
     Credentials,
     Cursor,
+    DecoderRegistry,
     Enrollment,
     Events,
     History,
@@ -37,7 +38,7 @@ defmodule Wotex.Tracker.Service do
 
   @resources ~w(observations resolutions evidence state enrollments things saved_queries rules policies alerts)
   @derive {Inspect, only: [:base_url]}
-  @enforce_keys [:store, :credentials, :catalogue, :model, :base_url]
+  @enforce_keys [:store, :credentials, :catalogue, :model, :decoders, :base_url]
   defstruct @enforce_keys
 
   @type t :: %__MODULE__{
@@ -45,16 +46,17 @@ defmodule Wotex.Tracker.Service do
           credentials: Credentials.t(),
           catalogue: Catalogue.t(),
           model: Model.t(),
+          decoders: %{
+            required({String.t(), String.t()}) => (Observation.t() -> term())
+          },
           base_url: String.t()
         }
 
-  @doc "Builds a service using the packaged RAWv2 catalogue/model and explicit host resources."
+  @doc "Builds a service using either the packaged RAWv2 contract or an exact trusted profile configuration."
   @spec new(map()) :: {:ok, t()} | {:error, atom()}
   def new(%{store: %Store{} = store, credentials: credentials, base_url: base} = input)
       when map_size(input) == 3 do
-    with {:ok, credentials} <- Credentials.validate(credentials),
-         {:ok, base} <- base_url(base),
-         {:ok, profile} <- RuuviRawV2.profile(),
+    with {:ok, profile} <- RuuviRawV2.profile(),
          {:ok, catalogue} <- Catalogue.new([profile]),
          {:ok, bytes} <-
            File.read(
@@ -65,20 +67,49 @@ defmodule Wotex.Tracker.Service do
            ),
          {:ok, document} <- Wotex.JSON.decode(bytes),
          {:ok, model} <- Model.new(document, profile.model) do
+      configure(store, credentials, base, catalogue, model, [
+        {RuuviRawV2.revision(), &RuuviRawV2.decode/1}
+      ])
+    else
+      _ -> {:error, :invalid_configuration}
+    end
+  end
+
+  def new(
+        %{
+          store: %Store{} = store,
+          credentials: credentials,
+          base_url: base,
+          catalogue: catalogue,
+          model: model,
+          decoders: decoders
+        } = input
+      )
+      when map_size(input) == 6,
+      do: configure(store, credentials, base, catalogue, model, decoders)
+
+  def new(_), do: {:error, :invalid_configuration}
+
+  defp configure(store, credentials, base, catalogue, model, configured) do
+    with {:ok, credentials} <- Credentials.validate(credentials),
+         {:ok, base} <- base_url(base),
+         {:ok, catalogue} <- Catalogue.validate(catalogue),
+         {:ok, model} <- Model.validate(model),
+         true <- Enum.all?(catalogue.profiles, &(&1.model == model.revision)),
+         {:ok, decoders} <- DecoderRegistry.new(catalogue, configured) do
       {:ok,
        %__MODULE__{
          store: store,
          credentials: credentials,
          catalogue: catalogue,
          model: model,
+         decoders: decoders,
          base_url: base
        }}
     else
       _ -> {:error, :invalid_configuration}
     end
   end
-
-  def new(_), do: {:error, :invalid_configuration}
 
   @doc "Imports one WTR.01 envelope atomically with private evidence and public projections."
   @spec submit(t(), String.t(), String.t(), String.t(), map(), integer()) ::

@@ -46,6 +46,12 @@ the decoder wrapper binds each claim to its exact observation, catalogue,
 profile and decoder revisions. The built-in Ruuvi RAWv2 profile remains
 explicitly positionless.
 
+The service accepts an exact host-configured catalogue/model/decoder set as an
+alternative to its packaged Ruuvi defaults. Position-capable decoder output is
+committed with private evidence and a closed redacted public-state projection;
+raw source fields and receiver lineage remain available only through authorized
+raw evidence export.
+
 The separate service package implements a bounded SQLite store with atomic
 admission, historical snapshots, durable event/publication intents and recovery
 tests, bounded durable store-and-forward, authenticated HTTP/OpenAPI/SSE

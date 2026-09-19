@@ -5847,6 +5847,88 @@
         ],
         "additionalProperties": false
       },
+      "PublicPosition": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "wtr.position-public.v1"
+          },
+          "latitude": {
+            "$ref": "#/components/schemas/Scalar"
+          },
+          "longitude": {
+            "$ref": "#/components/schemas/Scalar"
+          },
+          "altitude_m": {
+            "$ref": "#/components/schemas/Scalar"
+          },
+          "speed_m_s": {
+            "$ref": "#/components/schemas/Scalar"
+          },
+          "horizontal_accuracy_m": {
+            "$ref": "#/components/schemas/Scalar"
+          },
+          "accuracy_kind": {
+            "enum": [
+              "unknown",
+              "estimate",
+              "bound"
+            ]
+          },
+          "source": {
+            "enum": [
+              "gnss",
+              "cellular",
+              "wifi",
+              "ble",
+              "lorawan",
+              "operator"
+            ]
+          },
+          "fix_at": {
+            "$ref": "#/components/schemas/Scalar"
+          },
+          "received_at": {
+            "$ref": "#/components/schemas/Scalar"
+          },
+          "fix_clock": {
+            "enum": [
+              "trusted",
+              "untrusted",
+              "unknown"
+            ]
+          },
+          "availability": {
+            "enum": [
+              "available",
+              "unavailable"
+            ]
+          },
+          "quality": {
+            "enum": [
+              "valid",
+              "suspect",
+              "unavailable"
+            ]
+          }
+        },
+        "required": [
+          "schema",
+          "latitude",
+          "longitude",
+          "altitude_m",
+          "speed_m_s",
+          "horizontal_accuracy_m",
+          "accuracy_kind",
+          "source",
+          "fix_at",
+          "received_at",
+          "fix_clock",
+          "availability",
+          "quality"
+        ],
+        "additionalProperties": false
+      },
       "State": {
         "type": "object",
         "properties": {
@@ -5909,13 +5991,21 @@
               "additionalProperties": false
             },
             "maxItems": 256
+          },
+          "positions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicPosition"
+            },
+            "maxItems": 64
           }
         },
         "required": [
           "id",
           "observation_id",
           "observed_at",
-          "measurements"
+          "measurements",
+          "positions"
         ],
         "additionalProperties": false
       },

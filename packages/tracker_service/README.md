@@ -21,6 +21,11 @@ WOTEX_PATH_DEPS=1 MIX_ENV=test mise exec -- mix check --no-retry
 value and public `base_url` origin. It loads the packaged RAWv2 catalogue and
 environmental model. The host owns time, credential custody and supervision.
 Every facade operation authenticates an ephemeral bearer token and exact scope.
+An exact six-field form may instead provide an admitted `catalogue`, one
+compatible admitted `model`, and a bounded `decoders` list containing exactly
+one trusted unary callback for every decoder revision referenced by that
+catalogue. Extra, duplicate, missing or model-incompatible configuration fails
+before the service is built; observations never select executable code.
 
 The facade supports imported observations, public inspection and paginated
 snapshots, encrypted event cursors, privileged byte-preserving raw exports,
@@ -31,6 +36,14 @@ lowercase UUIDv4 operation ID and a decimal-string
 expected generation. The original committed receipt is replayed before new
 profile/model work, including its generated Thing ID. Unknown outcomes require
 receipt lookup; they do not authorize automatic physical Action retries.
+
+Decoded normalized positions are retained in private evidence and projected into
+public state as closed `wtr.position-public.v1` values. Coordinates, source,
+quality, stated accuracy and qualified fix/receiver times are visible under the
+ordinary scoped `read` authority. Raw source fields, source units, conversion
+revision, receiver observation ID and evidence identities are omitted; authorized
+raw evidence export retains them exactly. The packaged Ruuvi decoder produces an
+empty position list.
 
 The privileged `Store` port also supports bounded durable store-and-forward for
 host adapters. `ForwardItem` separates bearer from application protocol and
