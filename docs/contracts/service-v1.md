@@ -362,7 +362,7 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
-## HTTP and stream contract 1.29.0
+## HTTP and stream contract 1.30.0
 
 The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
 2020-12. The independently maintained Elixir audit checks document shape,
@@ -383,7 +383,7 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | `/health/live` | GET public liveness |
 | `/api/v1/openapi.json` | GET public machine contract |
 | `/api/v1/scopes/{scope}/health/ready` | GET authenticated writable-store check reporting store schema `7` |
-| `/api/v1/scopes/{scope}/capabilities` | GET explicit available/unsupported/unconfigured status; rules report `heartbeat_battery_motion_geofence_definitions`, route and trip history advertise their paging contracts, trip summaries advertise bounded gap-honest reconstruction, arming reports an explicit administrative fact, and owner presence reports closed evidence-fact admission |
+| `/api/v1/scopes/{scope}/capabilities` | GET explicit available/unsupported/unconfigured status; rules report `heartbeat_battery_motion_geofence_suspicious_movement_definitions`, route and trip history advertise their paging contracts, trip summaries advertise bounded gap-honest reconstruction, arming reports an explicit administrative fact, and owner presence reports closed evidence-fact admission |
 | `…/analytics/query` | POST one read-only structured measurement query against a committed snapshot |
 | `…/analytics/pages` | POST one snapshot-pinned bucket page with an encrypted continuation |
 | `…/routes/pages` | POST one snapshot-pinned, gap-honest retained route page with an encrypted continuation |
@@ -393,7 +393,7 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | `…/saved_queries` | POST create or update an owned absolute or rolling query definition |
 | `…/saved_query_deletions` | POST delete an owned definition with a retained tombstone |
 | `…/saved_queries/{id}/execute` | GET execute the stored query under current read authority |
-| `…/policies` | POST create or update a heartbeat, battery, motion or geofence rule definition for one Thing |
+| `…/policies` | POST create or update a heartbeat, battery, motion, geofence or suspicious-movement rule definition for one Thing |
 | `…/policy_deletions` | POST delete a rule definition with a retained tombstone |
 | `…/alert_acknowledgements` | POST acknowledge one live rule alert once |
 | `…/arming` | POST commit an explicit armed or disarmed administrative fact for one enrolled Thing |
@@ -765,7 +765,7 @@ Reads, pages and history use `read`.
 A save request has exactly `id`, `kind`, `thing_id`, `parameters` and
 `expected_generation`. The ID matches `^[a-z0-9][a-z0-9-]{0,62}$`, so it can also
 form a `{kind}:{id}` rule status identifier. `kind` is `heartbeat`, `battery`,
-`motion` or `geofence`:
+`motion`, `geofence` or `suspicious_movement`:
 
 | Kind | Exact parameters |
 | --- | --- |
@@ -773,6 +773,7 @@ form a `{kind}:{id}` rule status identifier. `kind` is `heartbeat`, `battery`,
 | `battery` | `measurement_kind`, `unit`, `low_threshold`, `clear_threshold`, `maximum_age_ms`, `future_skew_ms`, `accept_suspect` |
 | `motion` | `event_time`, `future_skew_ms`, `late_window_ms`, `sequence`, moving/stationary speed and distance thresholds, `max_plausible_speed_m_s`, `max_gap_ms`, `uncertainty`, `minimum_movement_ms`, `minimum_stop_ms` |
 | `geofence` | closed circle or polygon `shape`, `boundary`, `uncertainty`, `event_time`, `future_skew_ms`, `late_window_ms`, `sequence`, `max_transition_gap_ms` |
+| `suspicious_movement` | `motion_rule_id`, `maximum_fact_age_ms`, `future_skew_ms`, `owner_unknown_as_absent` |
 
 Durations are bounded integer milliseconds; thresholds are finite numbers and
 the low threshold must be below the clear threshold. Motion thresholds preserve
@@ -791,6 +792,14 @@ and Thing, so one rule history never mixes evidence from different assets. One
 Thing can have at most eight live definitions; editing an existing one remains
 allowed at that limit, and a ninth returns `capacity_exceeded`.
 
+A suspicious-movement definition must reference a motion definition for the
+same Thing, and cannot reference its own ID. Preparation restores that motion
+definition at the requested generation and embeds the exact motion policy in the
+private suspicious policy document. The reviewed public definition discloses
+only the reference ID, fact timing and unknown-presence choice, plus the outer
+policy identity. It never exposes the nested policy or the fixed `asset.armed`
+and `owner.present` predicate names.
+
 The stored record retains the acting principal privately and projects
 `wtr.rule-definition.v1` with ID, kind, Thing, revision, policy identity, exact
 parameters and creation/update times. A deletion is a tombstone; earlier versions
@@ -800,7 +809,8 @@ ID order and under `read`, the live definitions bound to one Thing at the curren
 snapshot with that generation; an unknown Thing has none. `thing_rules` and
 `GET …/things/{id}/rules` return, under `read`, the reviewed status of each of
 those definitions as `kind:id` items read at the definitions' generation, omitting
-a definition without recorded status.
+a definition without recorded status. Suspicious movement is event-only, so its
+definition alone never manufactures a current rule-status row.
 
 ### Definition evaluation
 
@@ -812,7 +822,9 @@ consumes the declared measurement as a complete `MeasurementSample`. Motion and
 geofence rules construct a complete `PositionSample` only when the bundle has
 exactly one position claim. Zero or multiple claims leave them unchanged: source
 selection is never implicit. A new rule establishes a baseline, and an edit
-recomputes with the new revision.
+recomputes with the new revision. Saving a suspicious-movement definition binds
+its private policy but evaluates no event until orchestration supplies the exact
+motion state, arming fact and owner-presence fact.
 
 Materialising a Thing evaluates every live definition bound to it against the
 newly built observation and evidence bundle. The materialisation records, rule
@@ -895,7 +907,7 @@ cursor and `read` authorization contract. Status changes only through a rule
 definition mutation, a Thing materialisation or the host scheduler; there is no
 direct rule-status write. Arming and alert acknowledgement are separate
 resources and do not change rule state. Service capabilities
-report `rules` as `heartbeat_battery_motion_geofence_definitions`.
+report `rules` as `heartbeat_battery_motion_geofence_suspicious_movement_definitions`.
 
 Each `wtr.rule-status.v1` value first restores the stored document through its
 pure state constructor. A document that fails restoration or names another rule

@@ -41,3 +41,14 @@ state. The reviewed public projection contains only present, absent or unknown,
 the observation/admission times, a commit revision and a scope pseudonym. The
 closed observation, evidence, bundle and fact identities remain private. Missing
 state and radio silence still do not become an absent fact.
+
+An administrator can persist a `suspicious_movement` rule definition for an
+enrolled Thing. Its exact parameters are `motion_rule_id`,
+`maximum_fact_age_ms`, `future_skew_ms` and `owner_unknown_as_absent`. The
+referenced ID must be a motion definition for that same Thing and cannot be the
+suspicious definition itself. At admission, the service restores and privately
+embeds that exact motion policy; the public definition exposes only its content
+identity and the reviewed parameters, never the nested policy or predicate
+names. The definition is event-only, so saving it does not manufacture a current
+rule-status row. Input-triggered orchestration remains responsible for supplying
+the motion state and both evidence facts in one atomic mutation.

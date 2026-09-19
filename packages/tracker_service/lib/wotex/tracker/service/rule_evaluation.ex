@@ -72,6 +72,9 @@ defmodule Wotex.Tracker.Service.RuleEvaluation do
     end)
   end
 
+  defp transition(_service, _scope, %{kind: "suspicious_movement"}, _observation, _bundle, _now),
+    do: {:ok, nil}
+
   defp transition(service, scope, definition, observation, bundle, now) do
     with {:ok, previous} <- previous(service, scope, definition),
          {:ok, result} <- evaluate(definition, previous, observation, bundle, now) do

@@ -3122,3 +3122,26 @@ The complete service gate passed 2 properties and 235 tests at 95.1% production
 line coverage, together with compiler, formatting, dependency audit, strict
 Credo, ExDoc, Dialyzer, boundary, OpenAPI, archive, license and language-policy
 checks.
+
+### Exact suspicious-movement policy definitions — 2026-09-19
+
+Administrators can now persist an event-only `suspicious_movement` definition
+for an enrolled Thing. Admission requires an existing motion definition for the
+same Thing, restores it at the requested generation and embeds that exact motion
+policy in the private suspicious policy document. The public projection exposes
+only its outer content identity and the reviewed motion reference, fact-age,
+future-skew and unknown-presence parameters. It does not disclose the nested
+policy, fixed predicate names or acting principal.
+
+Definition restoration revalidates both public/private documents and every
+cross-binding before use. Invalid parameters, self-reference, missing or
+wrong-Thing motion rules and damaged stored policy content fail closed. Saving
+the definition creates no synthetic rule state. The OpenAPI contract advances to
+1.30.0 and the separate BEAM HTTP consumer validates actual definition saves,
+reads and Thing-scoped pages against the served schemas while checking private
+markers are absent from the wire response.
+
+The complete service gate passed 2 properties and 236 tests at 95.1% production
+line coverage. Compiler, unused-dependency, formatter, dependency audit, strict
+Credo, ExDoc, Dialyzer, boundary checks, OpenAPI validation, 87-member archive
+inspection, licenses and the 443-file stack-language policy all passed.

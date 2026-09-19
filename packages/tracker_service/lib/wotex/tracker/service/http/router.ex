@@ -442,7 +442,7 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
            "import" => "available",
            "ble_scan" => "unsupported",
            "cellular" => "unsupported",
-           "rules" => "heartbeat_battery_motion_geofence_definitions",
+           "rules" => "heartbeat_battery_motion_geofence_suspicious_movement_definitions",
            "analytics" => "structured_queries",
            "route_history" => "snapshot_pinned_gap_honest_pages",
            "trip_history" => "snapshot_pinned_event_pages",

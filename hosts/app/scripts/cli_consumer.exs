@@ -29,7 +29,7 @@ defmodule Wotex.Tracker.Host.CLIConsumer do
       %{
         "data" => %{
           "runtime" => %{"readproperty" => "available"},
-          "rules" => "heartbeat_battery_motion_geofence_definitions"
+          "rules" => "heartbeat_battery_motion_geofence_suspicious_movement_definitions"
         }
       }
     ] =

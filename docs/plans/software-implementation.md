@@ -275,8 +275,11 @@ intent without synthetic state. The service now commits an authorized, retained
 state; this administrative operation claims no device contact. The service also
 admits a complete exact or strong `owner.present` fact associated with the Thing,
 requires its receiver observation time to advance and exposes no private evidence.
-Input-triggered suspicious-movement orchestration and notification delivery
-remain subsequent work.
+Administrators can now save a suspicious-movement definition that privately
+binds the exact referenced motion policy for the same Thing, with closed fact-age,
+future-skew and unknown-presence treatment. The event-only definition creates no
+synthetic rule state. Input-triggered suspicious-movement orchestration and
+notification delivery remain subsequent work.
 
 Transport degradation is implemented as pure state over content-validated
 transport decisions and a deployment-declared healthy candidate set. Fallback
@@ -289,8 +292,10 @@ freshness/future-skew scheduling is now implemented. Input-triggered orchestrati
 and notification delivery remain for geofence and suspicious-movement evaluation.
 Readers can inspect every persisted rule kind's current status and history through
 the read-only service `rules` resource without receiving its private evidence.
-Administrators can now persist versioned heartbeat, battery, motion and geofence
-rule definitions for enrolled Things through the service. Saving a definition
+Administrators can now persist versioned heartbeat, battery, motion, geofence and
+suspicious-movement rule definitions for enrolled Things through the service.
+The suspicious definition binds one exact same-Thing motion policy privately;
+saving it does not manufacture a current status. Saving a stateful definition
 and materialising its Thing evaluate it atomically against committed evidence;
 position rules fail closed unless the bundle has exactly one position, rather
 than inventing source selection. The scheduler ages the time-driven state. Every

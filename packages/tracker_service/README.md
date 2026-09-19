@@ -119,7 +119,7 @@ the scope's configured credentials, their grants, expiry and durable revocation,
 without token digests.
 Scanner and public rule management remain explicitly unsupported. Analytics is
 reported as `structured_queries`, and rules as
-`heartbeat_battery_motion_geofence_definitions`; retained route history is
+`heartbeat_battery_motion_geofence_suspicious_movement_definitions`; retained route history is
 reported as `snapshot_pinned_gap_honest_pages`. Owner presence is reported as
 closed evidence-fact admission, never as an inferred scanner capability.
 
@@ -131,12 +131,16 @@ restored through its pure constructor first; a damaged document returns
 are never included.
 
 Administrators can save and delete `wtr.rule-definition.v1` heartbeat, battery,
-motion and geofence definitions for one enrolled Thing through `Service.save_policy/6`,
+motion, geofence and suspicious-movement definitions for one enrolled Thing through `Service.save_policy/6`,
 `Service.delete_policy/6`, `POST …/policies` and `POST …/policy_deletions`.
 The service assigns each revision from its commit generation, validates the
 policy through the pure constructor and requires a battery rule to name a
 declared numeric Property in the same unit. Motion and geofence definitions bind
-their complete ordering, uncertainty, dwell or geometry policy. They evaluate a
+their complete ordering, uncertainty, dwell or geometry policy. A
+suspicious-movement definition names a motion definition for the same Thing and
+privately retains that exact motion policy together with closed arming and
+owner-presence predicate choices. It is event-only and creates no synthetic
+current rule status before orchestration supplies all inputs. Position rules evaluate a
 position only when the committed bundle contains exactly one, so the service
 never chooses among sources without an admitted selection policy. A Thing has at most eight definitions,
 listed for readers through `Service.thing_policies/5` and `GET …/things/{id}/policies`.
@@ -297,7 +301,7 @@ and key paths. Explicit `:proxy` mode requires an HTTPS public origin and a
 protected proxy-to-listener network; forwarded headers never supply authority or
 Forms. No remote exposure is inferred.
 
-OpenAPI **3.1.0**, contract revision **1.29.0**, is packaged at
+OpenAPI **3.1.0**, contract revision **1.30.0**, is packaged at
 `priv/openapi/v1.json` and served at `/api/v1/openapi.json`. Liveness is
 `/health/live`; authenticated resources are under `/api/v1/scopes/{scope}`.
 Use `Authorization: Bearer …`, and a UUIDv4 `Idempotency-Key` for POST mutations.

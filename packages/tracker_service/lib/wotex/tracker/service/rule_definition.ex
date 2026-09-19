@@ -1,8 +1,8 @@
 defmodule Wotex.Tracker.Service.RuleDefinition do
   @moduledoc false
 
-  # Administrators bind a closed heartbeat, battery, motion or geofence policy to
-  # one enrolled Thing.
+  # Administrators bind a closed state or suspicious-movement policy to one
+  # enrolled Thing.
   # The service assigns the policy revision from the definition's commit
   # generation and validates it through the pure constructor before storage.
 
@@ -13,7 +13,8 @@ defmodule Wotex.Tracker.Service.RuleDefinition do
     HeartbeatTransition,
     MotionTransition,
     PositionMovement,
-    PositionOrder
+    PositionOrder,
+    SuspiciousMovement
   }
 
   alias Wotex.Tracker.Service.{Codec, RuleEvaluation, Store, Update}
@@ -28,7 +29,9 @@ defmodule Wotex.Tracker.Service.RuleDefinition do
     "motion" =>
       ~w(event_time future_skew_ms late_window_ms sequence moving_speed_m_s stationary_speed_m_s moving_distance_m stationary_distance_m max_plausible_speed_m_s max_gap_ms uncertainty minimum_movement_ms minimum_stop_ms),
     "geofence" =>
-      ~w(shape boundary uncertainty event_time future_skew_ms late_window_ms sequence max_transition_gap_ms)
+      ~w(shape boundary uncertainty event_time future_skew_ms late_window_ms sequence max_transition_gap_ms),
+    "suspicious_movement" =>
+      ~w(motion_rule_id maximum_fact_age_ms future_skew_ms owner_unknown_as_absent)
   }
   @maximum_per_thing 8
 
@@ -38,8 +41,8 @@ defmodule Wotex.Tracker.Service.RuleDefinition do
          "urn:uuid:" <> _ <- request["thing_id"],
          true <- Codec.id?(request["thing_id"]),
          {:ok, generation} <- Codec.generation(request["expected_generation"]),
-         {:ok, _definition} <-
-           definition_policy(
+         :ok <-
+           admit_policy(
              request["kind"],
              request["id"],
              revision(generation),
@@ -64,14 +67,10 @@ defmodule Wotex.Tracker.Service.RuleDefinition do
   def prepare_save(service, access, operation, request, now) do
     {:ok, generation} = Codec.generation(request["expected_generation"])
     revision = revision(generation)
-    # Admission already constructed this exact policy from the same request.
-    {:ok, definition} =
-      definition_policy(request["kind"], request["id"], revision, request["parameters"])
-
-    definition = Map.put(definition, :thing_id, request["thing_id"])
 
     with {:ok, thing} <- fetch(service, access, "things", request["thing_id"], request, now),
          :ok <- supported(request, thing["value"]["public"]),
+         {:ok, definition} <- resolved_definition(service, access, request, revision, now),
          {:ok, created_at} <- existing(service, access, request, now),
          :ok <- capacity(service, access, request, now),
          {:ok, observation, bundle} <-
@@ -108,7 +107,7 @@ defmodule Wotex.Tracker.Service.RuleDefinition do
         access,
         operation,
         {request, now},
-        %{"actor" => access.principal, "public" => public},
+        stored_definition(access.principal, public, definition),
         rules
       )
     end
@@ -126,11 +125,8 @@ defmodule Wotex.Tracker.Service.RuleDefinition do
   end
 
   def definition(%{"actor" => actor, "public" => public} = record, id)
-      when map_size(record) == 2 and is_binary(actor) do
-    with true <- exact?(public, @public_fields),
-         true <- public["schema"] == "wtr.rule-definition.v1" and public["id"] == id,
-         true <- Codec.time?(public["created_at"]) and Codec.time?(public["updated_at"]),
-         true <- public["updated_at"] >= public["created_at"],
+      when map_size(record) == 2 do
+    with :ok <- public_definition(actor, public, id),
          {:ok, definition} <-
            definition_policy(public["kind"], id, public["revision"], public["parameters"]),
          definition = Map.put(definition, :thing_id, public["thing_id"]),
@@ -141,7 +137,47 @@ defmodule Wotex.Tracker.Service.RuleDefinition do
     end
   end
 
+  def definition(
+        %{"actor" => actor, "public" => public, "policy" => policy_document} = record,
+        id
+      )
+      when map_size(record) == 3 do
+    with :ok <- public_definition(actor, public, id),
+         true <- public["kind"] == "suspicious_movement",
+         :ok <- suspicious_parameters(id, public["parameters"]),
+         {:ok, policy} <- SuspiciousMovement.from_map(policy_document),
+         true <- policy.id == id and policy.revision == public["revision"],
+         true <- policy.armed_predicate == "asset.armed",
+         true <- policy.owner_presence_predicate == "owner.present",
+         true <- policy.motion_policy.id == public["parameters"]["motion_rule_id"],
+         true <- policy.maximum_fact_age_ms == public["parameters"]["maximum_fact_age_ms"],
+         true <- policy.future_skew_ms == public["parameters"]["future_skew_ms"],
+         true <-
+           policy.owner_unknown_as_absent == public["parameters"]["owner_unknown_as_absent"],
+         definition = %{
+           kind: "suspicious_movement",
+           policy: policy,
+           thing_id: public["thing_id"],
+           motion_rule_id: public["parameters"]["motion_rule_id"]
+         },
+         true <- policy_identity(definition) == public["policy_identity"] do
+      {:ok, definition}
+    else
+      _ -> {:error, :storage_unavailable}
+    end
+  end
+
   def definition(_, _), do: {:error, :storage_unavailable}
+
+  defp admit_policy("suspicious_movement", id, _revision, parameters),
+    do: suspicious_parameters(id, parameters)
+
+  defp admit_policy(kind, id, revision, parameters) do
+    case definition_policy(kind, id, revision, parameters) do
+      {:ok, _definition} -> :ok
+      error -> error
+    end
+  end
 
   defp definition_policy("heartbeat", id, revision, parameters) do
     with true <- exact?(parameters, @parameters["heartbeat"]),
@@ -238,6 +274,90 @@ defmodule Wotex.Tracker.Service.RuleDefinition do
 
   defp definition_policy(_, _, _, _), do: {:error, :invalid_policy}
 
+  defp resolved_definition(
+         service,
+         access,
+         %{"kind" => "suspicious_movement"} = request,
+         revision,
+         now
+       ) do
+    motion_id = request["parameters"]["motion_rule_id"]
+
+    with {:ok, row} <- fetch(service, access, "policies", motion_id, request, now),
+         {:ok, %{kind: "motion", thing_id: thing, policy: motion_policy}} <-
+           definition(row["value"], motion_id),
+         true <- thing == request["thing_id"],
+         {:ok, policy} <-
+           SuspiciousMovement.new(%{
+             id: request["id"],
+             revision: revision,
+             motion_policy: motion_policy,
+             armed_predicate: "asset.armed",
+             owner_presence_predicate: "owner.present",
+             maximum_fact_age_ms: request["parameters"]["maximum_fact_age_ms"],
+             future_skew_ms: request["parameters"]["future_skew_ms"],
+             owner_unknown_as_absent: request["parameters"]["owner_unknown_as_absent"]
+           }) do
+      {:ok,
+       %{
+         kind: "suspicious_movement",
+         policy: policy,
+         thing_id: thing,
+         motion_rule_id: motion_id
+       }}
+    else
+      false -> {:error, :conflict}
+      {:ok, _} -> {:error, :conflict}
+      {:error, %Wotex.Tracker.Error{}} -> {:error, :invalid_policy}
+      error -> error
+    end
+  end
+
+  defp resolved_definition(_service, _access, request, revision, _now) do
+    with {:ok, definition} <-
+           definition_policy(request["kind"], request["id"], revision, request["parameters"]),
+         do: {:ok, Map.put(definition, :thing_id, request["thing_id"])}
+  end
+
+  defp suspicious_parameters(id, parameters) do
+    with true <- exact?(parameters, @parameters["suspicious_movement"]),
+         true <- rule_id?(parameters["motion_rule_id"]),
+         true <- parameters["motion_rule_id"] != id,
+         true <- duration?(parameters["maximum_fact_age_ms"]),
+         true <- duration?(parameters["future_skew_ms"]),
+         true <- is_boolean(parameters["owner_unknown_as_absent"]) do
+      :ok
+    else
+      _ -> {:error, :invalid_policy}
+    end
+  end
+
+  defp public_definition(actor, public, id) do
+    if exact?(public, @public_fields) and public_identity?(actor, public, id) and
+         public_times?(public),
+       do: :ok,
+       else: {:error, :storage_unavailable}
+  end
+
+  defp public_identity?(actor, public, id),
+    do:
+      Codec.id?(actor) and public["schema"] == "wtr.rule-definition.v1" and
+        public["id"] == id and Codec.id?(public["thing_id"]) and
+        Codec.id?(public["revision"]) and Codec.id?(public["policy_identity"])
+
+  defp public_times?(public),
+    do:
+      Codec.time?(public["created_at"]) and Codec.time?(public["updated_at"]) and
+        public["updated_at"] >= public["created_at"]
+
+  defp stored_definition(actor, public, %{kind: "suspicious_movement", policy: policy}) do
+    {:ok, policy_document} = SuspiciousMovement.to_map(policy)
+    %{"actor" => actor, "public" => public, "policy" => policy_document}
+  end
+
+  defp stored_definition(actor, public, _definition),
+    do: %{"actor" => actor, "public" => public}
+
   defp order_policy(revision, parameters) do
     with {:ok, event_time} <- event_time(parameters["event_time"]),
          {:ok, sequence} <- sequence(parameters["sequence"]) do
@@ -308,7 +428,10 @@ defmodule Wotex.Tracker.Service.RuleDefinition do
 
   # A battery rule must consume a declared numeric Property in its exact unit.
   defp supported(%{"kind" => "heartbeat"}, _td), do: :ok
-  defp supported(%{"kind" => kind}, _td) when kind in ~w(motion geofence), do: :ok
+
+  defp supported(%{"kind" => kind}, _td)
+       when kind in ~w(motion geofence suspicious_movement),
+       do: :ok
 
   defp supported(
          %{"kind" => "battery", "parameters" => %{"measurement_kind" => kind, "unit" => unit}},
@@ -429,6 +552,8 @@ defmodule Wotex.Tracker.Service.RuleDefinition do
   end
 
   defp revision(generation), do: Integer.to_string(generation + 1)
+
+  defp duration?(value), do: is_integer(value) and value in 0..604_800_000
 
   # Rule IDs also appear as `kind:id` status identifiers, so they exclude colons.
   defp rule_id?(value),

@@ -100,7 +100,9 @@ policy active at trip start. It publishes bounded centre/lower/upper distance
 and every included or excluded segment, while incomplete, ambiguous or
 noncanonical cohorts fail without exposing private evidence identities.
 Administrators can persist complete motion and geofence definitions for enrolled
-Things; later materialisations evaluate them atomically when the evidence bundle
+Things, plus an event-only suspicious-movement definition that privately binds
+one exact motion policy for the same Thing. Later materialisations evaluate the
+stateful definitions atomically when the evidence bundle
 contains exactly one position, without silently selecting among sources.
 The shared browser can create and exactly edit those ordering, threshold, dwell,
 uncertainty and circle/polygon geometry policies while making that single-source

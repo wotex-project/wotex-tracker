@@ -427,7 +427,9 @@ defmodule Wotex.Tracker.HTTPConsumer do
     prefix = "/api/v1/scopes/" <> encode_segment(scope)
     rules = prefix <> "/rules"
 
-    %{"rules" => "heartbeat_battery_motion_geofence_definitions"} =
+    %{
+      "rules" => "heartbeat_battery_motion_geofence_suspicious_movement_definitions"
+    } =
       data(context, "capabilities", prefix <> "/capabilities", who: :reader)
 
     request(context, "list_rules", rules, who: nil, status: 401)
@@ -872,6 +874,83 @@ defmodule Wotex.Tracker.HTTPConsumer do
       |> data("history_policies", policy_path <> "/history")
       |> Map.fetch!("items")
       |> Enum.map(& &1["deleted"])
+
+    motion = %{
+      "id" => "independent-motion",
+      "kind" => "motion",
+      "thing_id" => thing,
+      "parameters" => %{
+        "event_time" => "trusted_fix",
+        "future_skew_ms" => 1_000,
+        "late_window_ms" => 10_000,
+        "sequence" => "none",
+        "moving_speed_m_s" => 1.5,
+        "stationary_speed_m_s" => 0.2,
+        "moving_distance_m" => 5,
+        "stationary_distance_m" => 1,
+        "max_plausible_speed_m_s" => 100,
+        "max_gap_ms" => 300_000,
+        "uncertainty" => "require_bound",
+        "minimum_movement_ms" => 30_000,
+        "minimum_stop_ms" => 60_000
+      },
+      "expected_generation" => "14"
+    }
+
+    %{"generation" => "15"} = data(context, "save_policy", prefix <> "/policies", body: motion)
+
+    suspicious = %{
+      "id" => "independent-suspicious-motion",
+      "kind" => "suspicious_movement",
+      "thing_id" => thing,
+      "parameters" => %{
+        "motion_rule_id" => "independent-motion",
+        "maximum_fact_age_ms" => 60_000,
+        "future_skew_ms" => 1_000,
+        "owner_unknown_as_absent" => false
+      },
+      "expected_generation" => "15"
+    }
+
+    %{"generation" => "16"} =
+      data(context, "save_policy", prefix <> "/policies", body: suspicious)
+
+    suspicious_path = prefix <> "/policies/independent-suspicious-motion"
+    {response, bytes} = request(context, "get_policies", suspicious_path)
+
+    %{
+      "data" => %{
+        "value" => %{
+          "kind" => "suspicious_movement",
+          "thing_id" => ^thing,
+          "revision" => "16",
+          "parameters" => %{
+            "motion_rule_id" => "independent-motion",
+            "owner_unknown_as_absent" => false
+          }
+        }
+      }
+    } = response
+
+    for private <- ["asset.armed", "owner.present", "motion_policy", "actor"] do
+      false = String.contains?(bytes, private)
+    end
+
+    %{"generation" => "16", "items" => definitions} =
+      data(context, "list_thing_policies", thing_policies)
+
+    ["independent-motion", "independent-suspicious-motion"] =
+      definitions |> Enum.map(& &1["id"]) |> Enum.sort()
+
+    %{"items" => []} =
+      data(context, "list_thing_rules", prefix <> "/things/" <> encode_segment(thing) <> "/rules")
+
+    request(
+      context,
+      "get_rules",
+      prefix <> "/rules/suspicious_movement%3Aindependent-suspicious-motion",
+      status: 404
+    )
   end
 
   # A second asset is removed so later probes keep using the first one.

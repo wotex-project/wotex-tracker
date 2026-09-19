@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "WoTEx Tracker service",
-    "version": "1.29.0",
-    "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries, snapshot-pinned gap-honest route replay from retained private evidence, half-open time-windowed trip lifecycle pages and bounded completed-trip distance reconstruction, persisted rule status and administrator-managed heartbeat, battery, motion and geofence rule definitions evaluated against committed Thing evidence, explicit administrator-committed arming facts, closed owner-presence fact admission, acknowledgeable rule alerts listed per Thing for defined rules, administrator unenrollment, pinned incident snapshots and an administrator credential inventory. No scanner, notification delivery or physical interaction is implied."
+    "version": "1.30.0",
+    "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries, snapshot-pinned gap-honest route replay from retained private evidence, half-open time-windowed trip lifecycle pages and bounded completed-trip distance reconstruction, persisted rule status and administrator-managed heartbeat, battery, motion, geofence and suspicious-movement rule definitions evaluated against committed Thing evidence, explicit administrator-committed arming facts, closed owner-presence fact admission, acknowledgeable rule alerts listed per Thing for defined rules, administrator unenrollment, pinned incident snapshots and an administrator credential inventory. No scanner, notification delivery or physical interaction is implied."
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "security": [
@@ -163,7 +163,7 @@
                           "const": "unsupported"
                         },
                         "rules": {
-                          "const": "heartbeat_battery_motion_geofence_definitions"
+                          "const": "heartbeat_battery_motion_geofence_suspicious_movement_definitions"
                         },
                         "analytics": {
                           "const": "structured_queries"
@@ -10223,6 +10223,36 @@
         "additionalProperties": false,
         "description": "The complete geometry, uncertainty, ordering and transition-gap policy. Position input is evaluated only when the committed evidence has exactly one position; the service does not select a source implicitly."
       },
+      "SuspiciousMovementRuleParameters": {
+        "type": "object",
+        "properties": {
+          "motion_rule_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]{0,62}$"
+          },
+          "maximum_fact_age_ms": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 604800000
+          },
+          "future_skew_ms": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 604800000
+          },
+          "owner_unknown_as_absent": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "motion_rule_id",
+          "maximum_fact_age_ms",
+          "future_skew_ms",
+          "owner_unknown_as_absent"
+        ],
+        "additionalProperties": false,
+        "description": "Binds the exact referenced motion policy and closed arming/presence fact treatment. The referenced ID must name a motion definition for the same Thing and cannot equal this definition's ID."
+      },
       "RuleDefinition": {
         "description": "Reviewed rule definition. The acting principal is retained privately. Saving a definition evaluates it against the Thing's committed evidence in the same commit, and each later materialisation of that Thing evaluates it again.",
         "oneOf": [
@@ -10510,11 +10540,66 @@
               "updated_at"
             ],
             "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "schema": {
+                "const": "wtr.rule-definition.v1"
+              },
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9-]{0,62}$"
+              },
+              "kind": {
+                "const": "suspicious_movement"
+              },
+              "thing_id": {
+                "type": "string",
+                "pattern": "^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+              },
+              "revision": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]{0,18})$",
+                "description": "Canonical decimal integer below 9223372036854775807."
+              },
+              "policy_identity": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "x-max-utf8-bytes": 256
+              },
+              "parameters": {
+                "$ref": "#/components/schemas/SuspiciousMovementRuleParameters"
+              },
+              "created_at": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "updated_at": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "schema",
+              "id",
+              "kind",
+              "thing_id",
+              "revision",
+              "policy_identity",
+              "parameters",
+              "created_at",
+              "updated_at"
+            ],
+            "additionalProperties": false
           }
         ]
       },
       "SaveRuleDefinitionRequest": {
-        "description": "Binds one closed heartbeat, battery, motion or geofence policy to an existing Thing. The service assigns the policy revision from the commit generation. Kind and Thing are immutable for an ID; a battery rule requires a declared numeric Property in the same unit. At most eight definitions may refer to one Thing. A deleted ID can be reused only with its original kind and Thing.",
+        "description": "Binds one closed heartbeat, battery, motion, geofence or suspicious-movement policy to an existing Thing. A suspicious-movement definition privately binds the exact referenced motion policy for the same Thing. The service assigns the policy revision from the commit generation. Kind and Thing are immutable for an ID; a battery rule requires a declared numeric Property in the same unit. At most eight definitions may refer to one Thing. A deleted ID can be reused only with its original kind and Thing.",
         "oneOf": [
           {
             "type": "object",
@@ -10693,6 +10778,38 @@
               },
               "parameters": {
                 "$ref": "#/components/schemas/GeofenceRuleParameters"
+              },
+              "expected_generation": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]{0,18})$",
+                "description": "Canonical decimal integer below 9223372036854775807."
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "thing_id",
+              "parameters",
+              "expected_generation"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9-]{0,62}$"
+              },
+              "kind": {
+                "const": "suspicious_movement"
+              },
+              "thing_id": {
+                "type": "string",
+                "pattern": "^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+              },
+              "parameters": {
+                "$ref": "#/components/schemas/SuspiciousMovementRuleParameters"
               },
               "expected_generation": {
                 "type": "string",

@@ -14,13 +14,15 @@ and commits an authorized evidence-backed administrative arming fact for an
 enrolled Thing without claiming device contact. It also reconstructs one immutable completed trip at a
 maximum of 100 retained materialisations under current read authority,
 preserving every excluded segment and all distance uncertainty while keeping
-private input identities internal. The trusted decoder seam admits bounded
+private input identities internal. Administrators can also retain an event-only
+suspicious-movement definition that binds the exact referenced motion policy for
+the same Thing without exposing that nested policy publicly. The trusted decoder seam admits bounded
 profile-backed position claims into immutable evidence, and an explicitly
 configured service exposes a closed redacted state projection. The service now
 admits complete content-validated owner-presence facts, retains their evidence
-privately and never interprets missing state as absence. Suspicious-movement
-orchestration, notification delivery and product hardware acceptance remain
-unfinished.
+privately and never interprets missing state as absence. Input-triggered
+suspicious-movement orchestration, notification delivery and product hardware
+acceptance remain unfinished.
 
 ## Tracking is evidence, not a GPS field
 

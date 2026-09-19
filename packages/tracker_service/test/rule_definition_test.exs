@@ -6,7 +6,7 @@ defmodule Wotex.Tracker.Service.RuleDefinitionTest do
   alias Exqlite.Sqlite3
   alias Wotex.Tracker.{BatteryTransition, HeartbeatTransition}
   alias Wotex.Tracker.Service
-  alias Wotex.Tracker.Service.{Codec, Identifier}
+  alias Wotex.Tracker.Service.{Codec, Identifier, RuleDefinition, Store}
 
   setup do
     c = service()
@@ -209,6 +209,94 @@ defmodule Wotex.Tracker.Service.RuleDefinitionTest do
              )
   end
 
+  test "a suspicious-movement definition binds one exact motion policy privately", c do
+    missing = suspicious(c.thing, "3", "missing-motion")
+    assert {:error, %{"code" => "not_found"}} = save(c, missing, c.now)
+
+    for invalid <- [
+          put_in(suspicious(c.thing, "3"), ["parameters", "motion_rule_id"], "suspicious-motion"),
+          put_in(suspicious(c.thing, "3"), ["parameters", "maximum_fact_age_ms"], 604_800_001),
+          put_in(suspicious(c.thing, "3"), ["parameters", "future_skew_ms"], -1),
+          put_in(suspicious(c.thing, "3"), ["parameters", "owner_unknown_as_absent"], "no"),
+          put_in(suspicious(c.thing, "3"), ["parameters", "extra"], true)
+        ] do
+      assert {:error, %{"code" => "invalid_request"}} = save(c, invalid, c.now)
+    end
+
+    assert {:ok, %{"generation" => "4"}} = save(c, motion(c.thing, "3"), c.now)
+
+    request = suspicious(c.thing, "4")
+    assert {:ok, %{"generation" => "5"}} = save(c, request, c.now + 1)
+
+    assert {:ok, %{"value" => public}} =
+             Service.get(
+               c.service,
+               c.reader,
+               c.scope,
+               "policies",
+               "suspicious-motion",
+               c.now + 1
+             )
+
+    assert public == %{
+             "schema" => "wtr.rule-definition.v1",
+             "id" => "suspicious-motion",
+             "kind" => "suspicious_movement",
+             "thing_id" => c.thing,
+             "revision" => "5",
+             "policy_identity" => public["policy_identity"],
+             "parameters" => request["parameters"],
+             "created_at" => c.now + 1,
+             "updated_at" => c.now + 1
+           }
+
+    refute inspect(public) =~ "asset.armed"
+    refute inspect(public) =~ "owner.present"
+    refute Map.has_key?(public, "policy")
+
+    assert {:ok, %{"value" => stored}} =
+             Store.fetch(c.store, %{
+               scope: c.scope,
+               kind: "policies",
+               id: "suspicious-motion",
+               generation: nil
+             })
+
+    assert {:ok, definition} = RuleDefinition.definition(stored, "suspicious-motion")
+    assert definition.kind == "suspicious_movement"
+    assert definition.thing_id == c.thing
+    assert definition.motion_rule_id == "movement"
+    assert definition.policy.identity == public["policy_identity"]
+    assert definition.policy.motion_policy.id == "movement"
+    assert definition.policy.armed_predicate == "asset.armed"
+    assert definition.policy.owner_presence_predicate == "owner.present"
+
+    assert {:error, :storage_unavailable} =
+             stored
+             |> put_in(["policy", "armed_predicate"], "asset.other")
+             |> RuleDefinition.definition("suspicious-motion")
+
+    changed = put_in(request, ["parameters", "maximum_fact_age_ms"], 120_000)
+
+    assert {:ok, %{"generation" => "6"}} =
+             save(c, %{changed | "expected_generation" => "5"}, c.now + 2)
+
+    assert {:ok, %{"value" => %{"revision" => "6", "parameters" => parameters}}} =
+             Service.get(
+               c.service,
+               c.reader,
+               c.scope,
+               "policies",
+               "suspicious-motion",
+               c.now + 2
+             )
+
+    assert parameters["maximum_fact_age_ms"] == 120_000
+
+    assert {:ok, %{"items" => []}} =
+             Service.thing_rules(c.service, c.reader, c.scope, c.thing, c.now + 2)
+  end
+
   test "readers list only the live definitions bound to one Thing", c do
     assert {:ok, %{"generation" => "3", "items" => []}} =
              Service.thing_policies(c.service, c.reader, c.scope, c.thing, c.now)
@@ -338,6 +426,43 @@ defmodule Wotex.Tracker.Service.RuleDefinitionTest do
         "maximum_age_ms" => 3_600_000,
         "future_skew_ms" => 1_000,
         "accept_suspect" => false
+      },
+      "expected_generation" => generation
+    }
+
+  defp motion(thing, generation),
+    do: %{
+      "id" => "movement",
+      "kind" => "motion",
+      "thing_id" => thing,
+      "parameters" => %{
+        "event_time" => "trusted_fix",
+        "future_skew_ms" => 1_000,
+        "late_window_ms" => 10_000,
+        "sequence" => "none",
+        "moving_speed_m_s" => 1.5,
+        "stationary_speed_m_s" => 0.2,
+        "moving_distance_m" => 5,
+        "stationary_distance_m" => 1,
+        "max_plausible_speed_m_s" => 100,
+        "max_gap_ms" => 300_000,
+        "uncertainty" => "require_bound",
+        "minimum_movement_ms" => 30_000,
+        "minimum_stop_ms" => 60_000
+      },
+      "expected_generation" => generation
+    }
+
+  defp suspicious(thing, generation, motion_rule_id \\ "movement"),
+    do: %{
+      "id" => "suspicious-motion",
+      "kind" => "suspicious_movement",
+      "thing_id" => thing,
+      "parameters" => %{
+        "motion_rule_id" => motion_rule_id,
+        "maximum_fact_age_ms" => 60_000,
+        "future_skew_ms" => 1_000,
+        "owner_unknown_as_absent" => false
       },
       "expected_generation" => generation
     }
