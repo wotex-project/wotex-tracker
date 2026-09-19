@@ -22,6 +22,7 @@ defmodule Wotex.Tracker.Service.Projection do
 
   def resource("observations", value), do: value["public"]["observation"]
   def resource("resolutions", value), do: value["public"]["resolution"]
+  def resource("state", value), do: Map.put_new(value["public"], "positions", [])
   def resource(_, value), do: value["public"]
 
   def pseudonym(credentials, scope, kind, id) do

@@ -329,6 +329,10 @@ Thing provisioning and updates, retained
 measurements and paged history. The host
 owns the listener, credentials and supervision; the package calls the authorized
 service facade. Stable operation URLs recover durable outcomes on reconnect.
+Overview, asset-detail and retained state-history surfaces now present every
+redacted position claim with its source, uncertainty, quality and qualified
+times. Empty position collections and unavailable claims remain explicit; no
+screen chooses a canonical source, infers a route or claims live connectivity.
 The asset page can also read declared scalar Properties from the committed
 service snapshot through current `read` authority. Overview cards fetch each
 asset's retained state separately and disclose unprovisioned, unavailable and

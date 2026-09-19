@@ -7,8 +7,11 @@ application, mobile build or device acceptance exists.
 The asset page can read declared scalar Properties from the authorized committed
 service snapshot and discloses that the read does not contact the device.
 The browser overview now reads each asset's latest authorized committed state
-separately, showing retained measurements and their provenance or an explicit
-unprovisioned/unavailable state. It does not claim live connectivity. Each
+separately, showing retained measurements and position claims with their source,
+uncertainty, clock and quality or an explicit unprovisioned/unavailable state.
+Asset details and retained state history expose the same redacted positions while
+keeping multiple claims distinct. They do not claim live connectivity, fusion,
+canonical selection or an inferred route. Each
 provisioned card also lists the committed status of the asset's defined rules and
 marks low battery or overdue reporting as needing attention.
 The asset detail can export the currently displayed bounded state-history page
@@ -16,7 +19,7 @@ as JSON after reauthorizing and matching its committed snapshot. This is a
 page export. It can also traverse and export a complete retained state history
 when it fits 1,000 rows and 1 MB, reauthorizing every page and rejecting a
 changed snapshot or exceeded budget without a partial file. Larger history,
-route replay and deletion workflows remain open.
+route replay and retained-data deletion workflows remain open.
 The browser observation page can download native capture JSON and full evidence
 claims only for a current `raw` grant. It asks the authorized service again for
 each download and never places raw bytes in the ordinary page. A separate

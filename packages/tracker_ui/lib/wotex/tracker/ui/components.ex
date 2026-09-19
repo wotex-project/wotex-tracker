@@ -1,6 +1,6 @@
 defmodule Wotex.Tracker.UI.Components do
   @moduledoc """
-  Renders evidence, measurements, query results, and coded errors for LiveViews.
+  Renders evidence, measurements, positions, query results, and coded errors for LiveViews.
 
   Components consume already authorized public projections. The query result
   view pairs charts with exact tables and marks absent buckets as gaps. Callers
@@ -63,6 +63,36 @@ defmodule Wotex.Tracker.UI.Components do
           <p class="muted">{measurement["availability"]} · quality: {measurement["quality"]}</p>
         </article>
       </div>
+    </section>
+    """
+  end
+
+  attr(:state, :map, required: true)
+
+  def positions(assigns) do
+    assigns = assign(assigns, :positions, Map.get(assigns.state, "positions", []))
+
+    ~H"""
+    <section aria-labelledby="positions-title">
+      <h2 id="positions-title">Recorded positions</h2>
+      <p>
+        Observed {Presenter.timestamp(@state["observed_at"])}. These are retained source claims, not a live or fused location.
+      </p>
+      <p :if={@positions == []}>No position was supplied by this profile.</p>
+      <div :if={@positions != []} class="positions">
+        <article :for={position <- @positions} class="position">
+          <h3>{Presenter.position_source(position["source"])}</h3>
+          <p class="coordinates">{Presenter.position_summary(position)}</p>
+          <p class="muted">
+            Fix {Presenter.timestamp(position["fix_at"])} · received {Presenter.timestamp(
+              position["received_at"]
+            )} · {position["fix_clock"]} fix clock
+          </p>
+        </article>
+      </div>
+      <p :if={@positions != []} class="muted">
+        Multiple claims remain distinct. This view does not choose a canonical position or infer a route.
+      </p>
     </section>
     """
   end

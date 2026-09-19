@@ -5,8 +5,8 @@
 Deterministic selection, event ordering, geofences, motion/trips, trip distance
 and gap-honest route replay build on the same evidence-bound sample. These pure
 modules start no process, read no clock and make no physical-device qualification
-claim. The service persists several rule transitions, but profile-backed position
-map/history workflows remain unfinished integration work. Trusted profile
+claim. The service persists several rule transitions, but position maps and
+gap-honest route-history workflows remain unfinished integration work. Trusted profile
 decoders can admit normalized position claims into the same immutable evidence
 pipeline, and an explicitly configured service projects them into authorized
 public state without exposing raw receiver lineage.
@@ -76,6 +76,12 @@ omits raw source fields, source-unit/conversion details, receiver observation ID
 and stable evidence/bundle identities. Those remain in the scoped raw evidence
 export. The projection is current committed state, not route history or canonical
 multi-source selection.
+
+The shared browser presents those projections on the overview, asset detail and
+retained state-history surfaces. It labels source, uncertainty, quality and
+fix/receiver times, retains multiple claims separately and treats an empty list as
+unsupported. It deliberately renders no map line and makes no freshness,
+connectivity, fusion or canonical-selection claim.
 
 `Position.to_map(position, bundle)` exports a `wtr.position-evidence.v1` object
 containing the complete claim, source and parent evidence IDs, profile/decoder

@@ -2727,3 +2727,26 @@ archive inspection, licenses and the 423-file stack-language policy all passed.
 Tests cover configured callback selection, import and materialisation projection,
 private/public separation, exact required registry membership, duplicate and
 wrong revisions, non-callables, forged catalogues and incompatible models.
+
+### Shared retained-position presentation — 2026-09-19
+
+The shared LiveView package now renders authorized `wtr.position-public.v1`
+values on asset overview cards, asset details and retained state-history rows.
+Each claim keeps its source, coordinate, stated accuracy kind/value, quality and
+qualified fix/receiver times. Multiple sources stay separate; unavailable and
+empty position collections remain explicit. Presentation text states that the
+value is retained rather than live or fused and that no canonical position or
+route was inferred.
+
+Service projection now upgrades pre-position state documents at the read boundary
+with an explicit empty position collection, leaving their stored historical
+document unchanged. Position pages consume only the redacted public contract;
+tests prove raw source content is absent. The default positionless Ruuvi workflow
+continues to show an honest unsupported state.
+
+The complete shared-UI gate passed 121 tests at 95.1% production line coverage.
+Compiler, unused-dependency, formatter, dependency audit, strict Credo, ExDoc,
+Dialyzer, 43-member package archive inspection, licenses and the 424-file
+stack-language policy all passed. Workflow coverage exercises overview, detail
+and history presentation; component coverage exercises valid, unavailable,
+empty and malformed values without turning missing coordinates into `(0, 0)`.

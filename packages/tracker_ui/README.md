@@ -8,12 +8,18 @@ The first workflow covers sign-in, bounded asset and observation lists,
 single-file Observation JSON capture import in Setup, evidence inspection,
 confirmed enrollment, later observation association, explicit Thing updates,
 retained measurements, resource history and per-asset measurement graphs with
-an exact table. Unsupported positioning and Actions are identified honestly.
+an exact table. Retained position projections appear on overview, asset-detail
+and state-history surfaces when supplied; an empty collection remains explicit.
+The screens do not choose a canonical source, infer a route or claim current
+connectivity. Unsupported positioning and Actions are identified honestly.
 The asset page reads declared scalar Properties from the authorized committed
 service snapshot, with no physical-device freshness claim.
 Asset cards now read each latest committed state separately. They show retained
-measurement values and provenance, distinguish unprovisioned from temporarily
-unavailable summaries, and make no live-connectivity claim.
+measurement values, position source/uncertainty and provenance, distinguish
+unprovisioned from temporarily unavailable summaries, and make no
+live-connectivity claim. The asset page retains each position claim separately
+with qualified fix/receiver times, and state history shows the same redacted
+projection beside measurements.
 Provisioned cards also list the committed status of each defined rule, read in
 one snapshot per asset, and mark low, overdue, degraded or outside statuses as
 needing attention; a failed status read keeps the readings visible. The
@@ -102,7 +108,7 @@ test helpers. Root and service-only consumers do not depend on this package.
 The first cohort exercises real authorized services, duplicate prevention,
 lost-reply recovery, revocation, read-only denial, upload bounds, bounded
 lists/history, CSRF protection and credential custody. Device discovery and
-capture, maps, trip history, rule configuration and alerts, interactions, privacy controls, analytics,
+capture, maps, route/trip history, remaining rule workflows, interactions, remaining privacy controls,
 remote adapters and cross-surface accessibility remain subsequent work. A
 responsive browser view does not qualify a mobile or Pi application.
 

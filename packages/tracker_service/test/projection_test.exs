@@ -84,4 +84,18 @@ defmodule Wotex.Tracker.Service.ProjectionTest do
              "value" => "-9007199254740992"
            }
   end
+
+  test "legacy state projections gain an explicit empty position collection" do
+    legacy = %{
+      "public" => %{
+        "id" => "asset",
+        "observation_id" => "observation",
+        "observed_at" => Projection.scalar(0),
+        "measurements" => []
+      }
+    }
+
+    assert Projection.resource("state", legacy)["positions"] == []
+    refute Map.has_key?(legacy["public"], "positions")
+  end
 end

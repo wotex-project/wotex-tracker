@@ -206,6 +206,58 @@ defmodule Wotex.Tracker.UI.Presenter do
 
   def timestamp(_), do: "Unknown time"
 
+  @doc "Names a declared position source without changing its canonical value."
+  @spec position_source(term()) :: String.t()
+  def position_source(source),
+    do:
+      Map.get(
+        %{
+          "gnss" => "GNSS",
+          "cellular" => "Cellular",
+          "wifi" => "Wi-Fi",
+          "ble" => "BLE proximity",
+          "lorawan" => "LoRaWAN",
+          "operator" => "Operator supplied"
+        },
+        source,
+        "Unknown source"
+      )
+
+  @doc "Formats one closed public position without inferring freshness or canonical selection."
+  @spec position_summary(term()) :: String.t()
+  def position_summary(%{"availability" => "unavailable", "source" => source}),
+    do: position_source(source) <> " position unavailable"
+
+  def position_summary(
+        %{
+          "availability" => "available",
+          "source" => source,
+          "latitude" => latitude,
+          "longitude" => longitude,
+          "quality" => quality
+        } = position
+      ) do
+    position_source(source) <>
+      ": " <>
+      scalar(latitude) <>
+      ", " <>
+      scalar(longitude) <>
+      " · " <> position_accuracy(position) <> " · quality " <> quality
+  end
+
+  def position_summary(_), do: "Position unavailable"
+
+  @doc "Formats declared horizontal position accuracy without converting uncertainty kind."
+  @spec position_accuracy(term()) :: String.t()
+  def position_accuracy(%{
+        "accuracy_kind" => kind,
+        "horizontal_accuracy_m" => %{"value" => value}
+      })
+      when kind in ~w(estimate bound) and is_number(value),
+      do: "#{kind} accuracy #{value} m"
+
+  def position_accuracy(_), do: "accuracy unknown"
+
   @doc "Provides a bounded user-facing explanation of a service error."
   @spec error(term()) :: String.t()
   def error(%{"code" => code}), do: Map.get(@errors, code, @unknown_error)

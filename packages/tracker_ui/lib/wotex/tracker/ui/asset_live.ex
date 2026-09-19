@@ -3,7 +3,7 @@ defmodule Wotex.Tracker.UI.AssetLive do
   Shows one authorized asset's committed state, evidence, and history.
 
   The screen distinguishes an unprovisioned asset from unavailable or retained
-  measurements. It reads declared scalar Properties from the service snapshot;
+  measurements and retained position claims. It reads declared scalar Properties from the service snapshot;
   that read does not contact the device or establish current connectivity.
   Provisioning uses a stable operation reference and generation check. History
   navigation reloads bounded pages under current authority.
@@ -221,6 +221,7 @@ defmodule Wotex.Tracker.UI.AssetLive do
         </p>
       </section>
       <.measurements :if={@state} state={@state} />
+      <.positions :if={@state} state={@state} />
       <section :if={@thing && map_size(@thing["properties"]) > 0} class="panel">
         <h2>Read a Property</h2>
         <p>
@@ -259,8 +260,11 @@ defmodule Wotex.Tracker.UI.AssetLive do
       </a>
       <section :if={@state} class="panel">
         <h2>Tracking capabilities</h2>
-        <p>
+        <p :if={Map.get(@state, "positions", []) == []}>
           This environmental-sensor profile does not supply position, motion, armed state or physical Actions. Battery voltage is a reading, not a battery percentage. Heartbeat and low-battery-voltage rules can use its committed captures.
+        </p>
+        <p :if={Map.get(@state, "positions", []) != []}>
+          This profile supplied retained position evidence. The screen has not selected a canonical source, inferred movement, contacted the device or dispatched a physical Action.
         </p>
       </section>
       <section :if={@history} class="panel" aria-labelledby="history-title">
@@ -273,11 +277,13 @@ defmodule Wotex.Tracker.UI.AssetLive do
         </p>
         <div class="table-scroll" tabindex="0" role="region" aria-labelledby="history-title">
           <table>
-            <caption>Retained measurement versions</caption>
+            <caption>Retained measurement and position versions</caption>
             <thead>
               <tr>
                 <th scope="col">Version</th><th scope="col">Observed (UTC)</th><th scope="col">
                   Measurements
+                </th><th scope="col">
+                  Positions
                 </th>
               </tr>
             </thead>
@@ -297,6 +303,13 @@ defmodule Wotex.Tracker.UI.AssetLive do
                       )} · {value[
                         "quality"
                       ]}
+                    </li>
+                  </ul>
+                </td>
+                <td>
+                  <ul :if={row["value"]}>
+                    <li :for={position <- Map.get(row["value"], "positions", [])}>
+                      {Presenter.position_summary(position)}
                     </li>
                   </ul>
                 </td>

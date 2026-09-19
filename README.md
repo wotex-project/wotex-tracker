@@ -64,7 +64,10 @@ standalone CLI and bundled Darwin/Linux ARM64 service artifacts pass local probe
 See the [service contract](docs/contracts/service-v1.md). The first shared browser
 workflow now covers sign-in, bounded JSON capture import, evidence review,
 enrollment, later observation association, provisioning, retained measurements
-and a structured per-asset analytics table. Live scanning and the rest of the application remain
+and positions, retained state history and a structured per-asset analytics table.
+Position-capable state appears on overview and asset screens with source,
+uncertainty, clock and quality disclosures; the UI does not imply a live, fused or
+canonical location. Live scanning, maps and the rest of the application remain
 subsequent work.
 
 The WTR.05 pure foundation admits position evidence, freshness, deterministic

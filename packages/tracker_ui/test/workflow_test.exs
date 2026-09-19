@@ -207,6 +207,45 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert has_element?(view, ".card .summary-values li", "Temperature: 24.3 °C")
   end
 
+  test "asset overview, details and retained history present authorized position projections",
+       c do
+    thing = provisioned(c)
+    {:ok, %{"value" => state}} = Service.get(c.service, c.admin, c.scope, "state", thing, c.now)
+    {:ok, access} = Service.authorize(c.service, c.admin, c.scope, "ingest", c.now)
+    position = public_position(c.now)
+
+    {:ok, update} =
+      Update.new(%{
+        principal: access.principal,
+        scope: c.scope,
+        authority: access,
+        operation_id: Identifier.uuid(),
+        expected_generation: "3",
+        request: %{"operation" => "position-ui-fixture"},
+        now: c.now,
+        observation: nil,
+        records: [
+          %{kind: "state", id: thing, value: %{"public" => %{state | "positions" => [position]}}}
+        ],
+        events: [],
+        publication: nil
+      })
+
+    assert {:ok, _} = Store.mutate(c.store, update)
+    {:ok, overview, _} = live(c.conn, "/")
+    assert has_element?(overview, ".position-summary li", "GNSS: 59.3293, 18.0686")
+    assert render(overview) =~ "Retained readings and positions"
+
+    {:ok, asset, _} =
+      live(c.conn, Presenter.path(:asset, thing) <> "?operation=" <> Identifier.uuid())
+
+    assert has_element?(asset, "#positions-title", "Recorded positions")
+    assert has_element?(asset, ".position .coordinates", "bound accuracy 5.0 m")
+    assert render(asset) =~ "has not selected a canonical source"
+    assert has_element?(asset, "tbody td li", "GNSS: 59.3293, 18.0686")
+    refute render(asset) =~ "private-position-source"
+  end
+
   test "terminal read denials clear retained detail and setup evidence", c do
     {thing, _} = enrolled(c)
     {:ok, enrollment} = Service.get(c.service, c.admin, c.scope, "enrollments", thing, c.now)
@@ -4763,6 +4802,23 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
 
     assert {:ok, _} = Store.mutate(c.store, update)
   end
+
+  defp public_position(now),
+    do: %{
+      "schema" => "wtr.position-public.v1",
+      "latitude" => Projection.scalar(59.3293),
+      "longitude" => Projection.scalar(18.0686),
+      "altitude_m" => Projection.scalar(nil),
+      "speed_m_s" => Projection.scalar(0.0),
+      "horizontal_accuracy_m" => Projection.scalar(5.0),
+      "accuracy_kind" => "bound",
+      "source" => "gnss",
+      "fix_at" => Projection.scalar(now),
+      "received_at" => Projection.scalar(now),
+      "fix_clock" => "trusted",
+      "availability" => "available",
+      "quality" => "valid"
+    }
 
   defp dashboard_query(thing, now) do
     {:ok, spec} =

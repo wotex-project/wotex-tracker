@@ -340,7 +340,18 @@ defmodule Wotex.Tracker.UI.BrowseLive do
             )} · {measurement["availability"]}, {measurement["quality"]}
           </li>
         </ul>
-        <p class="muted">Retained readings; current device connectivity is unknown.</p>
+        <ul
+          :if={Map.get(@summary.state, "positions", []) != []}
+          class="summary-values position-summary"
+        >
+          <li :for={position <- Map.get(@summary.state, "positions", [])}>
+            {Presenter.position_summary(position)}
+          </li>
+        </ul>
+        <p :if={Map.get(@summary.state, "positions", []) == []} class="muted">
+          No recorded position.
+        </p>
+        <p class="muted">Retained readings and positions; current device connectivity is unknown.</p>
         <p :if={@summary.rules == :unavailable} role="status">Rule status unavailable.</p>
         <p :if={@summary.rules == []} class="muted">No protection rules defined.</p>
         <ul :if={is_list(@summary.rules) && @summary.rules != []} class="summary-values rule-summary">
