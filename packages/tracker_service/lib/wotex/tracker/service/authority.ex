@@ -88,6 +88,35 @@ defmodule Wotex.Tracker.Service.Authority do
     }
   end
 
+  @doc false
+  def restore(
+        %{
+          "credential_id" => credential_id,
+          "principal" => principal,
+          "scope" => scope,
+          "expires_at" => expires_at,
+          "proof" => encoded
+        } = projection
+      )
+      when map_size(projection) == 5 do
+    with {:ok, proof} <- Base.decode64(encoded),
+         true <- Base.encode64(proof) == encoded,
+         access = %Access{
+           credential_id: credential_id,
+           principal: principal,
+           scope: scope,
+           expires_at: expires_at,
+           proof: proof
+         },
+         true <- valid?(access) do
+      {:ok, access}
+    else
+      _ -> {:error, :storage_unavailable}
+    end
+  end
+
+  def restore(_), do: {:error, :storage_unavailable}
+
   defp permissions(update) do
     record_permissions =
       Enum.map(update.records, fn record ->

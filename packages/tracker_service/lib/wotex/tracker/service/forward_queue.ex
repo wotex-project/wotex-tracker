@@ -7,14 +7,19 @@ defmodule Wotex.Tracker.Service.ForwardQueue do
   @completion_statuses ~w(sent acknowledged)a
 
   def enqueue(db, item, options) do
-    transaction(db, options, fn ->
-      expire(db, item.scope, item.admitted_at)
+    transaction(db, options, fn -> stage(db, item, options) end)
+  end
 
-      case row(db, item.scope, item.id) do
-        nil -> insert(db, item, options)
-        stored -> duplicate(stored, item)
-      end
-    end)
+  @doc false
+  # Stages one item inside a transaction already owned by another durable
+  # admission boundary. The caller, not this function, commits or rolls back.
+  def stage(db, item, options) do
+    expire(db, item.scope, item.admitted_at)
+
+    case row(db, item.scope, item.id) do
+      nil -> insert(db, item, options)
+      stored -> duplicate(stored, item)
+    end
   end
 
   def claim(db, scope, now, limit, retry_after_ms, options) do

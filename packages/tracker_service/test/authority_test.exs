@@ -2,7 +2,7 @@ defmodule Wotex.Tracker.Service.AuthorityTest do
   @moduledoc false
   use ExUnit.Case, async: true
   import Wotex.Tracker.Service.Fixtures
-  alias Wotex.Tracker.Service.{Codec, Credentials, Store, Update}
+  alias Wotex.Tracker.Service.{Authority, Codec, Credentials, Store, Update}
 
   setup do
     now = 1_700_000_000_000
@@ -36,6 +36,12 @@ defmodule Wotex.Tracker.Service.AuthorityTest do
 
   test "configured stores require current authority inside commit and read transactions",
        context do
+    projection = Authority.projection(context.admin)
+    assert {:ok, restored} = Authority.restore(projection)
+    assert restored == context.admin
+    assert {:error, :storage_unavailable} = Authority.restore(%{projection | "proof" => "bad"})
+    assert {:error, :storage_unavailable} = Authority.restore(%{})
+
     assert {:error, :unauthorized} = Store.mutate(context.store, update())
 
     assert {:error, :forbidden} =
@@ -135,7 +141,7 @@ defmodule Wotex.Tracker.Service.AuthorityTest do
 
   test "ingress cannot escalate through prepared record kinds, publication intents or event-only mutations",
        context do
-    for kind <- ~w(access enrollments things policies saved_queries) do
+    for kind <- ~w(access enrollments things policies saved_queries notification_endpoints) do
       update =
         update(%{
           authority: context.access,

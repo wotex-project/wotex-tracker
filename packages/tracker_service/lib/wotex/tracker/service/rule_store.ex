@@ -4,6 +4,7 @@ defmodule Wotex.Tracker.Service.RuleStore do
   alias Wotex.Tracker.Service.{
     Alert,
     Codec,
+    NotificationIntent,
     RuleEvent,
     RuleEventProjection,
     RuleTransition,
@@ -281,13 +282,17 @@ defmodule Wotex.Tracker.Service.RuleStore do
       Codec.encode!(envelope)
     ])
 
+    alert_id = Alert.id(generation, id)
+
     SQL.rows!(db, "INSERT INTO records VALUES(?,?,?,?,?)", [
       source.scope,
       "alerts",
-      Alert.id(generation, id),
+      alert_id,
       generation,
       Codec.encode!(Alert.record(event, source, generation, definition_thing(db, source)))
     ])
+
+    NotificationIntent.stage(db, source, generation, alert_id, options)
   end
 
   # Definitions fix kind and Thing for an ID, so any live version names the binding. A

@@ -185,6 +185,15 @@ Rotation preserves the endpoint's original binding and creation time;
 unregistration writes a tombstone. Registration does not enqueue, send or claim
 delivery of a notification.
 
+When a live rule event creates its durable alert, the same SQLite transaction
+stages one lossy store-and-forward item for each active endpoint. The item carries
+only `wtr.notification-reference.v1` and the opaque alert ID; rule kind, location,
+evidence and credentials are excluded. Replay alerts stage nothing. Queue
+overflow records a dropped outcome without rolling back canonical rule state or
+the alert, and a pre-commit failure rolls the rule, alert and staged reference
+back together. Provider acceptance, OS delivery and user reading remain distinct;
+this package does not yet dispatch the queued APNs request.
+
 Each recorded rule event also becomes a newest-first `wtr.alert.v1` record with
 the reviewed event. `Service.acknowledge_alert/6` and `POST
 …/alert_acknowledgements` let an administrator acknowledge a live alert once;

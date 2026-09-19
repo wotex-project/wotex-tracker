@@ -104,8 +104,10 @@ Administrators can create, review, exactly edit and delete an event-only
 suspicious-movement definition bound to a live motion definition. Definition,
 motion, arming and owner-presence mutations reevaluate exact bindings atomically.
 The service now provides principal-isolated APNs endpoint registration with
-encrypted token custody, rotation and removal; native registration, atomic alert
-delivery intents, provider dispatch and notification tap routing remain open.
+encrypted token custody, rotation and removal. Live alert creation atomically
+stages a minimal opaque alert reference per endpoint, while replay alerts stage
+nothing and queue overflow cannot erase canonical alert history. Native
+registration, provider dispatch and notification tap routing remain open.
 These are required product deliverables and optional installations for consumers
 of the library. An incomplete backend or UI framework cannot waive a product gate.
 

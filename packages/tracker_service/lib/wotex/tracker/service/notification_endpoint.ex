@@ -5,12 +5,12 @@ defmodule Wotex.Tracker.Service.NotificationEndpoint do
   # the generic record store, while the public projection remains sufficient
   # for an administrator to distinguish and rotate an app installation.
 
-  alias Wotex.Tracker.Service.{Codec, Credentials, Projection, Store, Update}
+  alias Wotex.Tracker.Service.{Authority, Codec, Credentials, Projection, Store, Update}
 
   @register_fields ~w(id provider app_id environment token expected_generation)
   @unregister_fields ~w(id expected_generation)
   @public_fields ~w(schema id provider app_id environment revision created_at updated_at)
-  @stored_fields ~w(owner secret public)
+  @stored_fields ~w(owner authority secret public)
   @providers ~w(apns)
   @environments ~w(sandbox production)
   @maximum_endpoints 8
@@ -63,7 +63,12 @@ defmodule Wotex.Tracker.Service.NotificationEndpoint do
         request,
         now,
         internal_id,
-        %{"owner" => access.principal, "secret" => secret, "public" => public},
+        %{
+          "owner" => access.principal,
+          "authority" => Authority.projection(access),
+          "secret" => secret,
+          "public" => public
+        },
         "registered"
       )
     end
@@ -132,6 +137,24 @@ defmodule Wotex.Tracker.Service.NotificationEndpoint do
          {:ok, plaintext} <- open(service, access, internal_id, public, value["secret"]),
          true <- token?(plaintext) do
       {:ok, plaintext}
+    else
+      _ -> {:error, :storage_unavailable}
+    end
+  end
+
+  @doc false
+  def queue_target(credentials, scope, internal_id, value) do
+    service = %{credentials: credentials}
+
+    with {:ok, access} <- Authority.restore(value["authority"]),
+         true <- access.scope == scope,
+         {:ok, public} <- project(service, access, internal_id, value) do
+      {:ok,
+       %{
+         endpoint_id: internal_id,
+         candidate_id: internal_id <> "@" <> public["revision"],
+         provider: public["provider"]
+       }}
     else
       _ -> {:error, :storage_unavailable}
     end
@@ -207,6 +230,9 @@ defmodule Wotex.Tracker.Service.NotificationEndpoint do
   defp project(service, access, internal_id, value) do
     with true <- exact?(value, @stored_fields),
          true <- value["owner"] == access.principal,
+         {:ok, retained_access} <- Authority.restore(value["authority"]),
+         true <- retained_access.principal == value["owner"],
+         true <- retained_access.scope == access.scope,
          true <- exact?(value["public"], @public_fields),
          public = value["public"],
          true <- public["schema"] == "wtr.notification-endpoint.v1",
