@@ -8,17 +8,18 @@ defmodule Wotex.Tracker.Service.Update do
   idempotency, excluding server-generated results. A nil record value is a
   historical tombstone. Nothing deletes evidence implicitly. Optional `rules` are
   revalidated rule transitions derived from the same admitted inputs; they commit
-  at this update's generation or not at all.
+  at this update's generation or not at all. Optional `rule_events` are revalidated
+  event-only intents with the same atomic boundary and no manufactured state.
   """
 
   alias Wotex.Tracker.Observation
-  alias Wotex.Tracker.Service.{Access, Authority, Codec, RuleTransition}
+  alias Wotex.Tracker.Service.{Access, Authority, Codec, RuleEvent, RuleTransition}
 
   @kinds ~w(enrollments things state policies saved_queries evidence resolutions access alerts arming owner_presence)
   @keys ~w(principal scope operation_id expected_generation request now observation records events publication)a
   @enforce_keys @keys
-  @optional [:authority, :response, :rules]
-  defstruct @keys ++ [authority: nil, response: nil, rules: []]
+  @optional [:authority, :response, :rules, :rule_events]
+  defstruct @keys ++ [authority: nil, response: nil, rules: [], rule_events: []]
 
   @type t :: %__MODULE__{
           principal: String.t(),
@@ -33,7 +34,8 @@ defmodule Wotex.Tracker.Service.Update do
           publication: map() | nil,
           authority: Access.t() | nil,
           response: map() | nil,
-          rules: [RuleTransition.t()]
+          rules: [RuleTransition.t()],
+          rule_events: [RuleEvent.t()]
         }
 
   @doc "Admits one bounded transaction; derived records must already be authorized."
@@ -55,6 +57,7 @@ defmodule Wotex.Tracker.Service.Update do
          true <- bounded?(input.events, 16) and Enum.all?(input.events, &event?/1),
          true <- publication?(input.publication),
          true <- rules?(Map.get(input, :rules, []), input.scope),
+         true <- rule_events?(Map.get(input, :rule_events, []), input.scope),
          {:ok, _} <- Codec.encode(wire_size(input, observation)) do
       {:ok, struct!(__MODULE__, %{input | observation: observation})}
     else
@@ -97,6 +100,12 @@ defmodule Wotex.Tracker.Service.Update do
       length(Enum.uniq_by(rules, &{&1.kind, &1.rule_id})) == length(rules)
   end
 
+  defp rule_events?(events, scope) do
+    bounded?(events, 8) and
+      Enum.all?(events, &(match?({:ok, _}, RuleEvent.validate(&1)) and &1.scope == scope)) and
+      length(Enum.uniq_by(events, &RuleEvent.event_identity/1)) == length(events)
+  end
+
   defp publication?(nil), do: true
 
   defp publication?(%{thing_id: id, deployment_id: revision, td: td} = publication)
@@ -118,7 +127,7 @@ defmodule Wotex.Tracker.Service.Update do
       end
 
     input
-    |> Map.delete(:rules)
+    |> Map.drop([:rules, :rule_events])
     |> Map.update(:authority, nil, &Authority.projection/1)
     |> Map.update!(:records, &Enum.map(&1, fn record -> stringify(record) end))
     |> Map.update!(:publication, fn value -> if value, do: stringify(value), else: nil end)

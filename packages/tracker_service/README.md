@@ -86,7 +86,10 @@ policy documents, while its suspicious-movement constructor restores the motion
 state and both evidence-backed facts. Each re-evaluates the pure result before
 commit. A new stable event advances the scope once; an exact retry returns the
 original generation. The recorded mode and physical-action metadata cannot be
-changed by replaying the same event identity through another mode.
+changed by replaying the same event identity through another mode. Trusted host
+preparation can also stage these event-only intents inside an ordinary authorized
+mutation; the triggering records, private intent, reviewed event and alert then
+commit at one generation or all roll back.
 
 `GET …/{resource}/{id}/history` returns ascending public versions, including
 explicit deletion records, with `limit` and encrypted `cursor` pagination.

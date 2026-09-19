@@ -3103,3 +3103,22 @@ and 234 tests at 95.1% production line coverage. Compiler, unused-dependency,
 formatter, dependency audit, strict Credo, ExDoc, Dialyzer, boundary checks,
 OpenAPI validation, 87-member package archive inspection, licenses and the
 443-file stack-language policy all passed.
+
+### Atomic staged event-only rule intents — 2026-09-19
+
+An authorized service mutation can now carry up to eight independently
+revalidated `RuleEvent` intents beside its records and state transitions. The
+store writes each new private intent, reviewed public event and alert at the
+triggering mutation's generation inside the same `BEGIN IMMEDIATE` transaction.
+An exact stable duplicate creates no second event or alert; a same-ID content,
+mode or physical-effect collision aborts the entire mutation. No canonical rule
+state is manufactured for an event-only rule.
+
+Tests stage a suspicious-movement event with an authorized update, verify its
+single alert, retry it in a later mutation without duplication, reject a live/
+replay collision without advancing generation, reject duplicate intents during
+admission and inject a pre-commit failure that leaves neither intent nor alert.
+The complete service gate passed 2 properties and 235 tests at 95.1% production
+line coverage, together with compiler, formatting, dependency audit, strict
+Credo, ExDoc, Dialyzer, boundary, OpenAPI, archive, license and language-policy
+checks.

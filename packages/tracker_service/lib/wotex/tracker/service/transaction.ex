@@ -147,6 +147,7 @@ defmodule Wotex.Tracker.Service.Transaction do
 
     publication = write_publication(db, update, generation, options)
     RuleStore.stage(db, update.rules, generation, options)
+    RuleStore.stage_events(db, update.rule_events, generation, options)
 
     SQL.rows!(
       db,

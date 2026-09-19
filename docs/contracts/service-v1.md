@@ -129,7 +129,12 @@ pure result, re-evaluates them during admission, and binds its own identity. A n
 event ID advances the scope and writes both rows atomically. An exact event retry
 with the same mode/effect returns the original generation; changed content or
 live/replay effect metadata conflicts. Inferred geofence crossings and suspicious
-movement alarms use this path.
+movement alarms use this path. A prepared authorized `Update` may instead stage
+up to eight independently revalidated event-only intents. Their private intents,
+reviewed events and alerts share the triggering mutation's generation and commit
+or roll back with its records and state transitions. Duplicate stable intents do
+not create another event or alert; a same-ID content or effect collision aborts
+the entire mutation.
 
 ## Arming state
 

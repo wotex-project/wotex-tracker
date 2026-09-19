@@ -63,6 +63,16 @@ defmodule Wotex.Tracker.Service.RuleStore do
     end)
   end
 
+  # Writes event-only rule intents inside an already admitted update transaction.
+  def stage_events(db, intents, generation, options) do
+    Enum.each(intents, fn intent ->
+      case event_row(db, intent.scope, RuleEvent.event_identity(intent)) do
+        nil -> record_event(db, intent, generation, options)
+        stored -> duplicate_event(stored, intent)
+      end
+    end)
+  end
+
   def status(db, scope, kind, rule_id) do
     case state_row(db, scope, kind, rule_id) do
       nil -> {:error, :not_found}

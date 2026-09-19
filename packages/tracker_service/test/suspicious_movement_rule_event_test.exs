@@ -15,7 +15,72 @@ defmodule Wotex.Tracker.Service.SuspiciousMovementRuleEventTest do
     SuspiciousMovement
   }
 
-  alias Wotex.Tracker.Service.{RuleEvent, Store}
+  alias Wotex.Tracker.Service
+  alias Wotex.Tracker.Service.{Identifier, RuleEvent, Store, Update}
+
+  test "event-only intent stages atomically with an authorized mutation" do
+    c = service()
+    {motion, armed, owner, policy} = inputs()
+    {:ok, live} = SuspiciousMovement.evaluate(motion, armed, owner, policy, :live, now())
+    {:ok, intent} = RuleEvent.suspicious_movement(c.scope, motion, armed, owner, policy, live)
+    {:ok, access} = Service.authorize(c.service, c.admin, c.scope, "admin", c.now)
+
+    {:ok, update} = staged(access, intent, Identifier.uuid(), "0")
+
+    assert {:ok, %{"generation" => "1"}} = Store.mutate(c.store, update)
+
+    assert {:ok, %{"items" => [%{"value" => %{"thing_id" => nil}}]}} =
+             Service.list(c.service, c.reader, c.scope, "alerts", %{}, c.now)
+
+    {:ok, duplicate} = staged(access, intent, Identifier.uuid(), "1")
+    assert {:ok, %{"generation" => "2"}} = Store.mutate(c.store, duplicate)
+
+    assert {:ok, %{"items" => [_]}} =
+             Service.list(c.service, c.reader, c.scope, "alerts", %{}, c.now)
+
+    {:ok, replay} = SuspiciousMovement.evaluate(motion, armed, owner, policy, :replay, now())
+
+    {:ok, collision} =
+      RuleEvent.suspicious_movement(c.scope, motion, armed, owner, policy, replay)
+
+    {:ok, conflicting} = staged(access, collision, Identifier.uuid(), "2")
+
+    assert {:error, :rule_event_conflict} = Store.mutate(c.store, conflicting)
+
+    assert {:ok, %{"generation" => "2"}} =
+             Service.list(c.service, c.reader, c.scope, "alerts", %{}, c.now)
+
+    assert {:error, :invalid_update} =
+             Update.new(%{
+               principal: access.principal,
+               scope: c.scope,
+               authority: access,
+               operation_id: Identifier.uuid(),
+               expected_generation: "2",
+               now: c.now,
+               request: %{},
+               observation: nil,
+               publication: nil,
+               records: [],
+               events: [],
+               rule_events: [intent, intent]
+             })
+
+    failed =
+      service(fault: fn phase -> if phase == :before_commit, do: :abort, else: :ok end)
+
+    {:ok, failed_access} =
+      Service.authorize(failed.service, failed.admin, failed.scope, "admin", failed.now)
+
+    {:ok, rolled_back} = staged(failed_access, intent, Identifier.uuid(), "0")
+    assert {:error, :injected_failure} = Store.mutate(failed.store, rolled_back)
+
+    assert {:error, :not_found} =
+             Store.rule_event(failed.store, failed.scope, live["event"]["id"])
+
+    assert {:ok, %{"items" => []}} =
+             Service.list(failed.service, failed.reader, failed.scope, "alerts", %{}, failed.now)
+  end
 
   test "suspicious movement intent commits once and survives restart" do
     {store, directory} = store()
@@ -136,6 +201,23 @@ defmodule Wotex.Tracker.Service.SuspiciousMovementRuleEventTest do
 
     {moving["state"], fact("armed", "asset.armed", "true", :identity),
      fact("owner", "owner.present", "false", :transport), policy}
+  end
+
+  defp staged(access, intent, operation, generation) do
+    Update.new(%{
+      principal: access.principal,
+      scope: access.scope,
+      authority: access,
+      operation_id: operation,
+      expected_generation: generation,
+      now: now(),
+      request: %{"operation" => "stage_rule_event", "id" => operation},
+      observation: nil,
+      publication: nil,
+      records: [],
+      events: [],
+      rule_events: [intent]
+    })
   end
 
   defp motion_policy do
