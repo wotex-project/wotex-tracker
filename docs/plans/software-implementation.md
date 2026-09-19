@@ -233,7 +233,10 @@ Thing-bound trip start, stop and interruption alerts are also available through
 a dedicated newest-first, snapshot-pinned page, separate from unrelated rule
 alerts. The shared browser presents that exact event timeline, pairs endpoints
 only within one displayed page and reauthorizes bounded cursor-free exports; it
-does not imply a final trip-distance summary.
+does not imply a final trip-distance summary. Its default 30-day half-open UTC
+window is submitted to the service, while fixed-offset timezone and exact
+millisecond/second interval controls remain presentation choices recorded in
+the export. Fixed offsets are labelled as not following daylight-saving changes.
 
 Receiver-observation heartbeat state is implemented as a pure caller-ticked rule
 with exact overdue equality, newer/historical ordering, recovery, revision

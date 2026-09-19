@@ -23,9 +23,13 @@ retained-data deletion and final trip-distance summaries remain open. The
 service now supplies dedicated, snapshot-pinned pages of each Thing's retained
 trip start, stop and interruption events without letting unrelated alerts
 consume the page bound. The browser presents those events newest first with UTC
-effective, confirmation and recording times. It pairs a start and ending only
-when both are visible on the same page, never invents a missing stop or joins
-across pages, and reauthorizes a bounded cursor-free page export. The browser now
+window inputs and selectable fixed-offset effective, confirmation and recording
+times. The default window covers 30 days through the latest retained state;
+intervals can be shown as exact milliseconds or decimal seconds. Fixed offsets
+are explicitly not daylight-saving-aware. It pairs a start and ending only when
+both are visible on the same page, never invents a missing stop or joins across
+pages, and reauthorizes a bounded cursor-free page export that records its window
+and presentation choices. The browser now
 uses the service's bounded snapshot-pinned route pages, displays exact points and
 explicit missing, ambiguous and rejected-position gaps, and plots only separate
 page-local segments. It supplies no basemap or road matching and never connects

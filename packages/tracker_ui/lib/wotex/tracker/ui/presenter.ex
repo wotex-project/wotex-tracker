@@ -230,14 +230,30 @@ defmodule Wotex.Tracker.UI.Presenter do
 
   @doc "Formats an admitted millisecond timestamp in UTC, without inferring freshness."
   @spec timestamp(term()) :: String.t()
-  def timestamp(%{"value" => value}) when is_integer(value) do
-    case DateTime.from_unix(value, :millisecond) do
-      {:ok, time} -> Calendar.strftime(time, "%Y-%m-%d %H:%M:%S UTC")
+  def timestamp(value), do: timestamp(value, 0)
+
+  @doc "Formats an admitted timestamp at a fixed minute offset without claiming a timezone."
+  @spec timestamp(term(), integer()) :: String.t()
+  def timestamp(%{"value" => value}, offset_minutes)
+      when is_integer(value) and is_integer(offset_minutes) and offset_minutes >= -720 and
+             offset_minutes <= 840 do
+    case DateTime.from_unix(value + offset_minutes * 60_000, :millisecond) do
+      {:ok, time} -> Calendar.strftime(time, "%Y-%m-%d %H:%M:%S ") <> offset_label(offset_minutes)
       _ -> "Unknown time"
     end
   end
 
-  def timestamp(_), do: "Unknown time"
+  def timestamp(_, _), do: "Unknown time"
+
+  defp offset_label(0), do: "UTC"
+
+  defp offset_label(minutes) do
+    sign = if minutes < 0, do: "-", else: "+"
+    absolute = abs(minutes)
+    hours = absolute |> div(60) |> Integer.to_string() |> String.pad_leading(2, "0")
+    remainder = absolute |> rem(60) |> Integer.to_string() |> String.pad_leading(2, "0")
+    "UTC#{sign}#{hours}:#{remainder}"
+  end
 
   @doc "Names a declared position source without changing its canonical value."
   @spec position_source(term()) :: String.t()

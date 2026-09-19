@@ -28,14 +28,17 @@ defmodule Wotex.Tracker.UI.TripExport do
   end
 
   @doc "Emits a bounded cursor-free public trip-event page export."
-  @spec push(LiveView.Socket.t(), String.t(), map()) ::
+  @spec push(LiveView.Socket.t(), String.t(), map(), map(), map()) ::
           {:ok, LiveView.Socket.t()} | {:error, map()}
-  def push(socket, thing, page) when is_binary(thing) and is_map(page) do
+  def push(socket, thing, page, window, presentation)
+      when is_binary(thing) and is_map(page) and is_map(window) and is_map(presentation) do
     document = %{
       "schema" => "wtr.trip-event-page-export.v1",
       "thing_id" => thing,
       "snapshot_generation" => page["generation"],
       "order" => "newest_first",
+      "window" => window,
+      "presentation" => presentation,
       "page_count" => length(page["items"]),
       "has_more" => is_binary(page["cursor"]),
       "items" => page["items"]

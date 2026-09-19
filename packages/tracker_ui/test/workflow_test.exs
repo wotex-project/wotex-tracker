@@ -4998,6 +4998,19 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert export["thing_id"] == thing
     assert export["items"] == []
     assert export["has_more"] == false
+
+    assert export["window"] == %{
+             "from_at" => c.now + 1 - 2_592_000_000,
+             "to_at" => c.now + 1
+           }
+
+    assert export["presentation"] == %{
+             "duration_unit" => "milliseconds",
+             "fixed_offset_minutes" => 0,
+             "timezone" => "UTC",
+             "timezone_key" => "utc"
+           }
+
     refute Map.has_key?(export, "cursor")
     refute json =~ "wtrc1."
 
@@ -5011,11 +5024,43 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert_push_event(trips, "download-trip-page", %{"content" => _})
 
     trips
-    |> form("#trip-page-size", trip: %{limit: "50"})
+    |> form("#trip-page-size",
+      trip: %{
+        from: trip_iso(c.now + 1 - 2_592_000_000),
+        to: trip_iso(c.now + 1),
+        timezone: "utc",
+        duration_unit: "milliseconds",
+        limit: "50"
+      }
+    )
     |> render_submit()
 
     assert has_element?(trips, ~s(#trip-limit option[selected][value="50"]))
     render_submit(trips, "set-limit", %{})
+    assert has_element?(trips, "[role=alert]", "Check the required fields")
+
+    render_submit(trips, "set-limit", %{
+      "trip" => %{
+        "from" => "2023-01-01T00:00:00+01:00",
+        "to" => "2023-01-02T00:00:00Z",
+        "timezone" => "utc",
+        "duration_unit" => "milliseconds",
+        "limit" => "25"
+      }
+    })
+
+    assert has_element?(trips, "[role=alert]", "Check the required fields")
+
+    render_submit(trips, "set-limit", %{
+      "trip" => %{
+        "from" => "2023-01-01T00:00:00Z",
+        "to" => "2023-01-02T00:00:00Z",
+        "timezone" => "Europe/Stockholm",
+        "duration_unit" => "minutes",
+        "limit" => "25"
+      }
+    })
+
     assert has_element?(trips, "[role=alert]", "Check the required fields")
     render_click(trips, "unknown-event", %{})
 
@@ -5030,21 +5075,49 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
 
   test "trip pages pair only visible endpoints and retain the current page on retry", c do
     thing = provisioned(c)
-    first = trip_page(thing, c.now, "cursor-one", "10")
-    second = trip_page(thing, c.now + 10_000, nil, "10", :single)
+    first = trip_page(thing, c.now - 10_000, "cursor-one", "10")
+    second = trip_page(thing, c.now - 20_000, nil, "10", :single)
     Agent.update(c.faults, &Map.put(&1, :thing_trips, {:trip_page, first}))
 
     {:ok, view, html} = live(c.conn, Presenter.path(:asset, thing) <> "/trips")
     assert html =~ "Trip stopped"
     assert html =~ "Trip started"
     assert html =~ "Trip interrupted"
-    assert html =~ "exact onset-to-ending interval 4000 ms"
+    assert html =~ "exact onset-to-ending interval 4500 ms"
     assert html =~ "Its stop event is also visible on this page"
     assert html =~ "Its start event is not visible on this page"
     assert html =~ "Historical replay; no present-time action"
     refute html =~ "private-position-evidence"
     assert has_element?(view, "button", "Next event page")
     refute has_element?(view, "button", "Previous event page")
+
+    view
+    |> form("#trip-page-size",
+      trip: %{
+        from: trip_iso(c.now + 1 - 2_592_000_000),
+        to: trip_iso(c.now + 1),
+        timezone: "utc_plus_02",
+        duration_unit: "seconds",
+        limit: "25"
+      }
+    )
+    |> render_submit()
+
+    assert render(view) =~ "UTC+02:00"
+    assert render(view) =~ "exact onset-to-ending interval 4.5 s (4500 ms exact)"
+    assert render(view) =~ "fixed offsets do not follow daylight-saving"
+
+    view |> element("button", "Export this event page (JSON)") |> render_click()
+    assert_push_event(view, "download-trip-page", %{"content" => selected_json})
+    selected_export = Jason.decode!(selected_json)
+    assert selected_export["window"]["to_at"] == c.now + 1
+
+    assert selected_export["presentation"] == %{
+             "duration_unit" => "seconds",
+             "fixed_offset_minutes" => 120,
+             "timezone" => "UTC+02:00 fixed",
+             "timezone_key" => "utc_plus_02"
+           }
 
     Agent.update(c.faults, &Map.put(&1, :thing_trips, :unavailable))
     view |> element("button", "Next event page") |> render_click()
@@ -5082,6 +5155,12 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
              first,
              ["items", Access.at(0), "value", "event", "from_position_evidence_id"],
              "private-position-evidence"
+           )},
+          {:ok,
+           put_in(
+             first,
+             ["items", Access.at(0), "value", "event", "effective_at"],
+             c.now + 1
            )},
           {:ok, "unexpected"}
         ] do
@@ -5148,7 +5227,7 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
             "trip-page-one-stop",
             "trip.stopped",
             "trip-one",
-            now + 5_000,
+            now + 5_500,
             now + 6_000
           ),
           trip_row(
@@ -5217,6 +5296,12 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
         "acknowledgement" => nil
       }
     }
+  end
+
+  defp trip_iso(value) do
+    value
+    |> DateTime.from_unix!(:millisecond)
+    |> DateTime.to_iso8601()
   end
 
   defp materialize(c, thing, generation) do

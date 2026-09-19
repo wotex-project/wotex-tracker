@@ -13,7 +13,19 @@ defmodule Wotex.Tracker.UI.TripLive do
   alias Wotex.Tracker.UI.{Auth, Presenter, TripExport}
 
   @back_limit 32
+  @window_ms 2_592_000_000
   @limits ~w(25 50 100)
+  @duration_units ~w(milliseconds seconds)
+  @timezones %{
+    "utc_minus_08" => {"UTC-08:00 fixed", -480},
+    "utc_minus_05" => {"UTC-05:00 fixed", -300},
+    "utc" => {"UTC", 0},
+    "utc_plus_01" => {"UTC+01:00 fixed", 60},
+    "utc_plus_02" => {"UTC+02:00 fixed", 120},
+    "utc_plus_0530" => {"UTC+05:30 fixed", 330},
+    "utc_plus_08" => {"UTC+08:00 fixed", 480},
+    "utc_plus_10" => {"UTC+10:00 fixed", 600}
+  }
   @trip_kinds ~w(trip.started trip.stopped trip.interrupted)
 
   @impl true
@@ -25,6 +37,10 @@ defmodule Wotex.Tracker.UI.TripLive do
        state: nil,
        limit: "25",
        limits: @limits,
+       input: %{},
+       window: nil,
+       duration_units: @duration_units,
+       timezones: @timezones,
        params: nil,
        page: nil,
        back: [],
@@ -39,7 +55,17 @@ defmodule Wotex.Tracker.UI.TripLive do
         socket
       else
         socket
-        |> assign(id: id, asset: nil, state: nil, params: nil, page: nil, back: [], error: nil)
+        |> assign(
+          id: id,
+          asset: nil,
+          state: nil,
+          input: %{},
+          window: nil,
+          params: nil,
+          page: nil,
+          back: [],
+          error: nil
+        )
         |> load()
       end
 
@@ -49,9 +75,27 @@ defmodule Wotex.Tracker.UI.TripLive do
   @impl true
   def handle_event("refresh", _, socket), do: {:noreply, load(socket)}
 
-  def handle_event("set-limit", %{"trip" => %{"limit" => limit}}, socket)
-      when limit in @limits do
-    {:noreply, first_page(assign(socket, limit: limit))}
+  def handle_event("set-limit", %{"trip" => input}, socket) when is_map(input) do
+    socket =
+      assign(socket,
+        input: input,
+        window: nil,
+        params: nil,
+        page: nil,
+        back: [],
+        error: nil
+      )
+
+    case request(input) do
+      {:ok, params, window} ->
+        {:noreply,
+         socket
+         |> assign(limit: input["limit"], window: window)
+         |> page(params)}
+
+      :error ->
+        {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
+    end
   end
 
   def handle_event("set-limit", _, socket),
@@ -91,7 +135,8 @@ defmodule Wotex.Tracker.UI.TripLive do
         %{assigns: %{id: id, page: %{} = shown, params: %{} = params}} = socket
       ) do
     with :ok <- TripExport.verify(socket, id, shown, params),
-         {:ok, socket} <- TripExport.push(socket, id, shown) do
+         {:ok, socket} <-
+           TripExport.push(socket, id, shown, socket.assigns.window, presentation(socket)) do
       {:noreply, socket}
     else
       {:error, %{"code" => code} = error}
@@ -131,16 +176,45 @@ defmodule Wotex.Tracker.UI.TripLive do
       <section :if={@state} class="panel" aria-labelledby="trip-history-title">
         <h2 id="trip-history-title">Trip event timeline</h2>
         <p>
-          Times are displayed in UTC. Each row is a retained rule event, not a reconstructed route
-          or final distance summary. Pairing is deliberately limited to events visible on this page.
+          Each row is a retained rule event, not a reconstructed route or final distance summary.
+          Pairing is deliberately limited to events visible on this page.
         </p>
         <.form for={%{}} id="trip-page-size" phx-submit="set-limit">
+          <label for="trip-from">From (inclusive UTC ISO 8601)</label>
+          <input id="trip-from" name="trip[from]" type="text" value={@input["from"]} />
+          <label for="trip-to">To (exclusive UTC ISO 8601)</label>
+          <input id="trip-to" name="trip[to]" type="text" value={@input["to"]} />
+          <label for="trip-timezone">Display timezone</label>
+          <select id="trip-timezone" name="trip[timezone]">
+            <option
+              :for={{key, {label, _offset}} <- Enum.sort(@timezones)}
+              value={key}
+              selected={@input["timezone"] == key}
+            >
+              {label}
+            </option>
+          </select>
+          <label for="trip-duration-unit">Interval units</label>
+          <select id="trip-duration-unit" name="trip[duration_unit]">
+            <option
+              :for={unit <- @duration_units}
+              value={unit}
+              selected={@input["duration_unit"] == unit}
+            >
+              {String.capitalize(unit)}
+            </option>
+          </select>
           <label for="trip-limit">Events per page</label>
           <select id="trip-limit" name="trip[limit]">
             <option :for={limit <- @limits} value={limit} selected={@limit == limit}>{limit}</option>
           </select>
-          <button type="submit" phx-disable-with="Loading…">Apply page size</button>
+          <button type="submit" phx-disable-with="Loading…">Apply trip view</button>
         </.form>
+        <p :if={@window} class="muted">
+          Selected half-open window: {@input["from"]} inclusive to {@input["to"]} exclusive.
+          Times below use {timezone_label(@input)}; fixed offsets do not follow daylight-saving
+          changes. Intervals use {@input["duration_unit"]}.
+        </p>
         <p :if={@page} class="muted">
           Committed snapshot {@page["generation"]} · newest retained events first
         </p>
@@ -153,12 +227,13 @@ defmodule Wotex.Tracker.UI.TripLive do
             <p class="eyebrow">{trip_phase(row["value"]["event"]["kind"])}</p>
             <h3>{Presenter.alert_kind(row["value"]["event"]["kind"])}</h3>
             <p>
-              Effective {event_time(row, "effective_at")} · confirmed {event_time(
+              Effective {event_time(row, "effective_at", @input)} · confirmed {event_time(
                 row,
-                "confirmed_at"
+                "confirmed_at",
+                @input
               )}
             </p>
-            <p>{pairing(row, @page["items"])}</p>
+            <p>{pairing(row, @page["items"], @input["duration_unit"])}</p>
             <dl>
               <dt>Reason</dt><dd>{reason(row["value"]["event"]["reason"])}</dd>
               <dt>Trip</dt><dd class="identifier">{row["value"]["event"]["trip_id"]}</dd>
@@ -169,9 +244,12 @@ defmodule Wotex.Tracker.UI.TripLive do
               </dd>
               <dt>Evaluation</dt><dd>{evaluation(row["value"]["mode"])}</dd>
               <dt>Recorded</dt><dd>
-                {Presenter.timestamp(%{
-                  "value" => row["value"]["created_at"]
-                })}
+                {Presenter.timestamp(
+                  %{
+                    "value" => row["value"]["created_at"]
+                  },
+                  timezone_offset(@input)
+                )}
               </dd>
             </dl>
             <p>
@@ -201,10 +279,24 @@ defmodule Wotex.Tracker.UI.TripLive do
     with {:ok, %{"value" => asset}} <-
            Auth.request(socket, :get, %{"resource" => "enrollments", "id" => socket.assigns.id}),
          {:ok, %{"value" => state}} <-
-           Auth.request(socket, :get, %{"resource" => "state", "id" => socket.assigns.id}) do
+           Auth.request(socket, :get, %{"resource" => "state", "id" => socket.assigns.id}),
+         {:ok, observed_at} <- observed_at(state) do
+      input = default_input(observed_at)
+      {:ok, params, window} = request(input)
+
       socket
-      |> assign(asset: asset, state: state, params: nil, page: nil, back: [], error: nil)
-      |> first_page()
+      |> assign(
+        asset: asset,
+        state: state,
+        limit: input["limit"],
+        input: input,
+        window: window,
+        params: nil,
+        page: nil,
+        back: [],
+        error: nil
+      )
+      |> first_page(params)
     else
       {:error, %{"code" => "not_found"}} ->
         unprovisioned_or_missing(socket)
@@ -226,6 +318,8 @@ defmodule Wotex.Tracker.UI.TripLive do
         assign(socket,
           asset: asset,
           state: nil,
+          input: %{},
+          window: nil,
           params: nil,
           page: nil,
           back: [],
@@ -240,8 +334,7 @@ defmodule Wotex.Tracker.UI.TripLive do
     end
   end
 
-  defp first_page(socket) do
-    params = %{"limit" => String.to_integer(socket.assigns.limit)}
+  defp first_page(socket, params) do
     first = page(socket, params)
     if first.assigns.params == params, do: assign(first, back: []), else: first
   end
@@ -249,7 +342,7 @@ defmodule Wotex.Tracker.UI.TripLive do
   defp page(socket, params) do
     case Auth.request(socket, :thing_trips, %{"thing" => socket.assigns.id, "params" => params}) do
       {:ok, page} ->
-        if page?(page, socket.assigns.id) do
+        if page?(page, socket.assigns.id, socket.assigns.window) do
           assign(socket, params: params, page: page, error: nil)
         else
           assign(socket, error: %{"code" => "storage_unavailable"})
@@ -270,14 +363,22 @@ defmodule Wotex.Tracker.UI.TripLive do
            "cursor" => cursor,
            "stream_cursor" => stream
          } = page,
-         thing
-       )
-       when map_size(page) == 4 and is_list(items) and length(items) <= 100 and
-              is_binary(generation) and (is_nil(cursor) or is_binary(cursor)) and
-              is_binary(stream),
-       do: Enum.all?(items, &trip_row?(&1, thing))
+         thing,
+         %{"from_at" => from_at, "to_at" => to_at}
+       ) do
+    page_metadata?(page, items, generation, cursor, stream) and
+      window?(from_at, to_at) and Enum.all?(items, &trip_row?(&1, thing, from_at, to_at))
+  end
 
-  defp page?(_, _), do: false
+  defp page?(_, _, _), do: false
+
+  defp page_metadata?(page, items, generation, cursor, stream) do
+    map_size(page) == 4 and is_list(items) and length(items) <= 100 and is_binary(generation) and
+      (is_nil(cursor) or is_binary(cursor)) and is_binary(stream)
+  end
+
+  defp window?(from_at, to_at),
+    do: is_integer(from_at) and is_integer(to_at) and from_at < to_at
 
   defp trip_row?(
          %{
@@ -301,19 +402,22 @@ defmodule Wotex.Tracker.UI.TripLive do
              "created_at" => created_at
            }
          },
-         thing
+         thing,
+         from_at,
+         to_at
        ) do
     Enum.all?([id, generation, rule, trip, reason, revision], &is_binary/1) and
       Enum.all?([effective_at, confirmed_at, created_at], &is_integer/1) and
-      kind in @trip_kinds and mode in ~w(live replay) and public_event?(event)
+      effective_at >= from_at and effective_at < to_at and kind in @trip_kinds and
+      mode in ~w(live replay) and public_event?(event)
   end
 
-  defp trip_row?(_, _), do: false
+  defp trip_row?(_, _, _, _), do: false
 
   defp public_event?(event),
     do: Enum.all?(RuleEventProjection.private_fields(), &(not Map.has_key?(event, &1)))
 
-  defp pairing(row, items) do
+  defp pairing(row, items, duration_unit) do
     event = row["value"]["event"]
     kind = event["kind"]
     trip = event["trip_id"]
@@ -341,15 +445,101 @@ defmodule Wotex.Tracker.UI.TripLive do
 
       {_, start} ->
         elapsed = max(0, event["effective_at"] - start["value"]["event"]["effective_at"])
-        "Its start is visible on this page; exact onset-to-ending interval #{elapsed} ms."
+
+        "Its start is visible on this page; exact onset-to-ending interval #{format_duration(elapsed, duration_unit)}."
     end
   end
 
   defp terminal(row),
     do: if(row["value"]["event"]["kind"] == "trip.stopped", do: "stop", else: "interruption")
 
-  defp event_time(row, key),
-    do: Presenter.timestamp(%{"value" => row["value"]["event"][key]})
+  defp event_time(row, key, input),
+    do: Presenter.timestamp(%{"value" => row["value"]["event"][key]}, timezone_offset(input))
+
+  defp format_duration(value, "milliseconds"), do: "#{value} ms"
+
+  defp format_duration(value, "seconds") do
+    whole = div(value, 1_000)
+    remainder = rem(value, 1_000)
+
+    seconds =
+      if remainder == 0 do
+        Integer.to_string(whole)
+      else
+        fraction = remainder |> Integer.to_string() |> String.pad_leading(3, "0") |> trim_zeroes()
+        "#{whole}.#{fraction}"
+      end
+
+    "#{seconds} s (#{value} ms exact)"
+  end
+
+  defp trim_zeroes(value), do: String.trim_trailing(value, "0")
+
+  defp request(input) do
+    with {:ok, from_at} <- utc_milliseconds(input["from"]),
+         {:ok, to_at} <- utc_milliseconds(input["to"]),
+         true <- from_at < to_at,
+         limit when limit in @limits <- input["limit"],
+         true <- Map.has_key?(@timezones, input["timezone"]),
+         duration_unit when duration_unit in @duration_units <- input["duration_unit"] do
+      {:ok, %{"limit" => String.to_integer(limit), "from_at" => from_at, "to_at" => to_at},
+       %{"from_at" => from_at, "to_at" => to_at}}
+    else
+      _ -> :error
+    end
+  end
+
+  defp observed_at(%{"observed_at" => %{"value" => value}}) when is_integer(value),
+    do: {:ok, value}
+
+  defp observed_at(_), do: :error
+
+  defp default_input(observed_at) do
+    to_at = observed_at + 1
+
+    %{
+      "from" => iso8601(max(0, to_at - @window_ms)),
+      "to" => iso8601(to_at),
+      "timezone" => "utc",
+      "duration_unit" => "milliseconds",
+      "limit" => "25"
+    }
+  end
+
+  defp utc_milliseconds(value) when is_binary(value) do
+    case DateTime.from_iso8601(value) do
+      {:ok, datetime, 0} -> {:ok, DateTime.to_unix(datetime, :millisecond)}
+      _ -> :error
+    end
+  end
+
+  defp utc_milliseconds(_), do: :error
+
+  defp iso8601(value) do
+    {:ok, datetime} = DateTime.from_unix(value, :millisecond)
+    DateTime.to_iso8601(datetime)
+  end
+
+  defp timezone_offset(input) do
+    {_label, offset} = Map.fetch!(@timezones, input["timezone"])
+    offset
+  end
+
+  defp timezone_label(input) do
+    {label, _offset} = Map.fetch!(@timezones, input["timezone"])
+    label
+  end
+
+  defp presentation(socket) do
+    input = socket.assigns.input
+
+    %{
+      "timezone_key" => input["timezone"],
+      "timezone" => timezone_label(input),
+      "fixed_offset_minutes" => timezone_offset(input),
+      "duration_unit" => input["duration_unit"]
+    }
+  end
 
   defp trip_phase("trip.started"), do: "Start"
   defp trip_phase("trip.stopped"), do: "Stop"
@@ -364,6 +554,8 @@ defmodule Wotex.Tracker.UI.TripLive do
     assign(socket,
       asset: nil,
       state: nil,
+      input: %{},
+      window: nil,
       params: nil,
       page: nil,
       back: [],

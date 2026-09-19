@@ -2963,3 +2963,31 @@ policy all passed. The real local-service workflow covers an empty authorized
 timeline and export; synthetic public pages cover endpoint pairing, replay
 labelling, retry-safe forward/back navigation, changed generations, malformed
 and private-field-bearing pages, export conflicts and terminal denial.
+
+### Trip-history window and presentation controls — 2026-09-19
+
+The shared trip screen now submits a strict half-open UTC effective-time window
+to the dedicated service boundary. Its default covers the 30 days ending one
+millisecond after the newest retained asset state. First-page requests carry the
+window and page size; continuations remain cursor-only because the service binds
+the original window into the authenticated cursor. Every returned event is also
+checked against the selected window before presentation.
+
+Readers can display event times at one of a closed set of fixed minute offsets
+and can show exact onset-to-ending intervals in milliseconds or decimal seconds.
+The screen states that fixed offsets do not follow daylight-saving changes and
+does not claim IANA timezone behavior. Integer milliseconds remain the source of
+every interval; seconds use at most three exact fractional digits without
+floating-point rounding.
+
+The cursor-free page export now records the numeric service window plus the
+timezone key, label, fixed offset and duration unit used to present it. Export
+still reauthorizes and reproduces the exact displayed page. Tests cover strict
+UTC admission, invalid timezone/unit rejection, half-open response validation,
+fixed-offset timestamps, exact fractional seconds and both default and selected
+export metadata.
+
+The complete shared-UI gate passed 133 tests at 95.0% production line coverage.
+Compiler, unused-dependency, formatter, dependency audit, strict Credo, ExDoc,
+Dialyzer, 48-member package archive inspection, licenses and the 434-file
+stack-language policy all passed.

@@ -17,10 +17,15 @@ source, road-match a route or claim current connectivity. Unsupported positionin
 and Actions are identified honestly.
 An asset trip screen pages exact retained `trip.started`, `trip.stopped` and
 `trip.interrupted` alerts newest first. It displays effective, confirmation and
-recording times in UTC, pairs endpoints only when both are visible on the same
-snapshot page, and never invents a missing stop, distance or cross-page trip.
-Previous/next navigation is retry-safe. Export reauthorizes and reproduces the
-displayed page, then emits bounded public JSON without either service cursor.
+recording times inside a selected half-open UTC range, defaulting to the 30 days
+ending just after the latest retained state. Readers can choose an explicitly
+fixed display offset and exact millisecond or decimal-second intervals; fixed
+offsets are not presented as daylight-saving-aware timezones. The screen pairs
+endpoints only when both are visible on the same snapshot page and never invents
+a missing stop, distance or cross-page trip. Previous/next navigation is
+retry-safe. Export reauthorizes and reproduces the displayed page, then emits
+bounded public JSON with the selected window and presentation metadata but
+without either service cursor.
 The asset page reads declared scalar Properties from the authorized committed
 service snapshot, with no physical-device freshness claim.
 Asset cards now read each latest committed state separately. They show retained

@@ -101,9 +101,13 @@ contains exactly one position, without silently selecting among sources.
 The shared browser can create and exactly edit those ordering, threshold, dwell,
 uncertainty and circle/polygon geometry policies while making that single-source
 requirement explicit.
-It also presents retained trip starts, stops and interruptions as an exact UTC
-timeline, pairing endpoints only when both occur on the displayed snapshot page
-and reauthorizing each cursor-free page export.
+It also presents retained trip starts, stops and interruptions inside a selected
+half-open UTC window. The default covers the 30 days ending immediately after
+the latest retained state; fixed-offset timezone and exact millisecond/second
+interval controls change presentation without changing the service records.
+The browser pairs endpoints only when both occur on the displayed snapshot page
+and reauthorizes each cursor-free page export with its window and presentation
+metadata.
 Evidence-backed heartbeat state and overdue/recovery events are also
 implemented; see the [heartbeat guide](docs/guides/heartbeat.md).
 Its SQLite host integration persists changed heartbeat state and event intent
