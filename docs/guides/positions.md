@@ -6,7 +6,9 @@ Deterministic selection, event ordering, geofences, motion/trips, trip distance
 and gap-honest route replay build on the same evidence-bound sample. These pure
 modules start no process, read no clock and make no physical-device qualification
 claim. The service persists several rule transitions, but profile-backed position
-ingestion and the application map remain separate unfinished integration work.
+projection through the service and the application map remain separate unfinished
+integration work. Trusted profile decoders can now admit normalized position
+claims into the same immutable evidence pipeline.
 
 ## Position claim v1
 
@@ -49,6 +51,22 @@ source-unit ID. For example, normalized speed is m/s even when the source unit
 is `km/h`; the decoder owns the conversion and identifies its revision. The
 profile's raw representation, time precision and timezone interpretation remain
 provenance. No generic conversion engine or clock correction is implied.
+
+## Decoder admission
+
+A trusted callback supplied to `Decoder.run/5` returns the exact closed object
+`%{measurements: [...], positions: [...], identity: %{...}}`. Each position entry
+is a complete `wtr.position.v1` claim. The wrapper bounds the list, validates the
+claim before evidence construction, derives its evidence identity from the claim,
+observation and immutable catalogue snapshot, and then constructs `Position`
+through the ordinary bundle validator. The claim's receiver observation must be
+the current decoded observation and its reception time must match exactly.
+
+Duplicate claims, partial or out-of-range coordinates, forged receiver lineage
+and unexpected callback shapes return `invalid_decoder_result`. Revalidating a
+stored `Decoder` value reconstructs the same position evidence and rejects any
+changed claim or forged position value without executing callback code. A decoder
+may return an empty position list for valid messages that contain no position.
 
 `Position.to_map(position, bundle)` exports a `wtr.position-evidence.v1` object
 containing the complete claim, source and parent evidence IDs, profile/decoder

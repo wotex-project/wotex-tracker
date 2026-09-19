@@ -2,7 +2,11 @@
 
 ## Status
 
-Accepted target contract. No implementation claim.
+Accepted target contract. The pure library implements immutable profile and
+catalogue values, deterministic resolution and a bounded trusted-decoder seam for
+measurements, positions and identity evidence. Ruuvi RAWv2 has documentation
+fixtures but no real-device qualification. Live discovery, cellular/LoRaWAN
+adapters and lifecycle acceptance remain unfinished.
 
 ## Device profile
 
@@ -36,7 +40,7 @@ Target behaviours SHOULD separate:
 - `DiscoveryProvider` — obtains bounded observations;
 - `Fingerprint` — scores/classifies candidates deterministically;
 - `Probe` — performs an explicitly authorized bounded query;
-- `Decoder` — maps qualified bytes/messages to typed measurements/events;
+- `Decoder` — maps qualified bytes/messages to typed measurements, positions or events;
 - `IdentityStrategy` — derives private stable device identity and public Thing identity;
 - `InteractionAdapter` — executes profile-specific operations not already covered by a generic WoT binding; and
 - `ProfileRegistry` — supplies immutable/versioned profiles to a resolution run.
@@ -84,6 +88,13 @@ LoRaWAN is optional. A LoRaWAN profile MUST distinguish the end-device applicati
 ## Decoder safety
 
 First-slice decoders MUST be pure with explicit input/output limits. Framing, unsupported-version and required checksum/authentication failures return typed errors; a checksum is not authentication. Known missing-value sentinels are valid field states, not malformed frames. Out-of-range interpretations must not become valid measurements: preserve bounded raw evidence and report the field's quality/reason, rejecting the frame only when its declared format requires that. Unknown fields may be retained as bounded opaque evidence without inventing their meaning. Unexpected callback returns fail explicitly; programming errors are not swallowed by a broad pipeline rescue.
+
+Position-capable decoder output is a bounded list of complete normalized claims,
+not a detached coordinate. Admission binds every position to its receiver
+observation, immutable catalogue snapshot and exact profile/decoder revisions.
+Duplicate or malformed claims and mismatched receiver lineage fail the whole
+decoder output explicitly. Valid protocol messages without a position retain an
+empty position list.
 
 Decoded output carries a declared measurement kind, native value when available, unit, availability/quality, and complete evidence references. Missing, false and zero are distinct. Never emit NaN, a string pretending to be a number, or an invented zero as a missing measurement. A null wire value is valid only when the affordance schema admits it; otherwise the host reports unavailable state using its declared error contract.
 

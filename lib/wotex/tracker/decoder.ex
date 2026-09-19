@@ -5,9 +5,11 @@ defmodule Wotex.Tracker.Decoder do
   callback execution. Caller-supplied callbacks must be pure and deterministic.
   Programming errors in trusted callbacks are not swallowed.
 
-  The callback returns `{:ok, %{measurements: [Measurement.t()], identity: map()}}`
-  or a typed error. The wrapper validates the entire return, generates complete
-  observation/profile/decoder lineage and returns an immutable evidence bundle.
+  The callback returns
+  `{:ok, %{measurements: [Measurement.t()], positions: [map()], identity: map()}}`
+  or a typed error. Position maps are closed `wtr.position.v1` claims; the wrapper
+  binds them to observation/profile/decoder lineage before admitting `Position`
+  values. It validates the entire return and returns one immutable evidence bundle.
   """
 
   alias Wotex.Tracker.{
@@ -18,6 +20,7 @@ defmodule Wotex.Tracker.Decoder do
     EvidenceBundle,
     Limits,
     Measurement,
+    Position,
     Resolution
   }
 
@@ -25,9 +28,10 @@ defmodule Wotex.Tracker.Decoder do
           bundle: EvidenceBundle.t(),
           capabilities: [Capability.t()],
           measurements: [Measurement.t()],
+          positions: [Position.t()],
           resolution: Resolution.t()
         }
-  @enforce_keys [:bundle, :capabilities, :measurements, :resolution]
+  @enforce_keys [:bundle, :capabilities, :measurements, :positions, :resolution]
   defstruct @enforce_keys
 
   @doc "Runs only the explicitly supplied matching decoder and admits its complete output."
@@ -38,7 +42,7 @@ defmodule Wotex.Tracker.Decoder do
          :ok <- eligible(resolution),
          {:ok, callback} <- callback(configured, resolution.selected.decoder),
          {:ok, output} <- result(callback.(observation), limits, options) do
-      build(output, observation, resolution, options)
+      admit_output(output, observation, resolution, options)
     end
   end
 
@@ -47,7 +51,12 @@ defmodule Wotex.Tracker.Decoder do
   def validate(value, observation, catalogue, options \\ [])
 
   def validate(
-        %__MODULE__{resolution: resolution, measurements: measurements, bundle: bundle} = value,
+        %__MODULE__{
+          resolution: resolution,
+          measurements: measurements,
+          positions: positions,
+          bundle: bundle
+        } = value,
         observation,
         catalogue,
         options
@@ -57,9 +66,14 @@ defmodule Wotex.Tracker.Decoder do
          :ok <- eligible(resolution),
          {:ok, bundle} <- EvidenceBundle.validate(bundle, options),
          {:ok, identity} <- identity_output(bundle),
+         {:ok, position_claims} <- stored_position_claims(positions),
          {:ok, output} <-
-           result({:ok, %{measurements: measurements, identity: identity}}, limits, options),
-         {:ok, admitted} <- build(output, observation, resolution, options),
+           result(
+             {:ok, %{measurements: measurements, positions: position_claims, identity: identity}},
+             limits,
+             options
+           ),
+         {:ok, admitted} <- admit_output(output, observation, resolution, options),
          true <- admitted === value do
       {:ok, admitted}
     else
@@ -77,17 +91,40 @@ defmodule Wotex.Tracker.Decoder do
     end
   end
 
+  defp stored_position_claims(positions) when is_list(positions) do
+    Enum.reduce_while(positions, {:ok, []}, fn
+      %Position{claim: claim}, {:ok, claims} -> {:cont, {:ok, [claim | claims]}}
+      _, _ -> {:halt, {:error, Error.new(:invalid_decoder_result, :decode)}}
+    end)
+    |> case do
+      {:ok, claims} -> {:ok, Enum.reverse(claims)}
+      error -> error
+    end
+  end
+
+  defp stored_position_claims(_), do: {:error, Error.new(:invalid_decoder_result, :decode)}
+
   defp build(output, observation, resolution, options) do
-    with {:ok, evidence, descriptors} <- evidence(output, observation, resolution, options),
+    with {:ok, evidence, descriptors, position_ids} <-
+           evidence(output, observation, resolution, options),
          {:ok, bundle} <- EvidenceBundle.new([observation], evidence, options),
-         {:ok, capabilities} <- capabilities(descriptors, bundle, options) do
+         {:ok, capabilities} <- capabilities(descriptors, bundle, options),
+         {:ok, positions} <- positions(position_ids, bundle, options) do
       {:ok,
        %__MODULE__{
          bundle: bundle,
          capabilities: capabilities,
          measurements: output.measurements,
+         positions: positions,
          resolution: resolution
        }}
+    end
+  end
+
+  defp admit_output(output, observation, resolution, options) do
+    case build(output, observation, resolution, options) do
+      {:ok, _} = admitted -> admitted
+      {:error, _} -> {:error, Error.new(:invalid_decoder_result, :decode)}
     end
   end
 
@@ -98,13 +135,17 @@ defmodule Wotex.Tracker.Decoder do
   defp callback(_, _), do: {:error, Error.new(:revision_mismatch, :decode)}
 
   defp result({:ok, output}, limits, options) do
-    with :ok <- Admission.fields(output, [:measurements, :identity]),
+    with :ok <- Admission.fields(output, [:measurements, :positions, :identity]),
          :ok <- Admission.bounded_list(output.measurements, limits.max_claims),
+         :ok <- Admission.bounded_list(output.positions, limits.max_sources),
          :ok <- Admission.object(output.identity, limits),
          :ok <- Admission.each(output.measurements, &measurement(&1, options)),
+         :ok <- Admission.each(output.positions, &position_claim(&1, limits, options)),
+         true <- length(output.positions) == length(Enum.uniq(output.positions)),
          :ok <- Admission.ids(Enum.map(output.measurements, & &1.kind), limits, limits.max_claims) do
       {:ok, output}
     else
+      false -> {:error, Error.new(:invalid_decoder_result, :decode)}
       {:error, _} -> {:error, Error.new(:invalid_decoder_result, :decode)}
     end
   end
@@ -126,9 +167,14 @@ defmodule Wotex.Tracker.Decoder do
     end
   end
 
+  defp position_claim(value, limits, options) do
+    with :ok <- Admission.object(value, limits), do: Position.admit_claim(value, options)
+  end
+
   defp evidence(output, observation, resolution, options) do
-    Enum.reduce_while(output.measurements, {:ok, [], []}, fn measurement,
-                                                             {:ok, evidence, descriptors} ->
+    Enum.reduce_while(output.measurements, {:ok, [], [], []}, fn measurement,
+                                                                 {:ok, evidence, descriptors,
+                                                                  position_ids} ->
       with {:ok, claim} <- Measurement.to_map(measurement, options),
            {:ok, sample} <- claim(:measurement, claim, [], observation, resolution, options),
            support = %{
@@ -147,17 +193,50 @@ defmodule Wotex.Tracker.Decoder do
           evidence_ids: [capability.id]
         }
 
-        {:cont, {:ok, [capability, sample | evidence], [descriptor | descriptors]}}
+        {:cont, {:ok, [capability, sample | evidence], [descriptor | descriptors], position_ids}}
       else
         error -> {:halt, error}
       end
     end)
+    |> position_claims(output.positions, observation, resolution, options)
     |> identity_claim(output.identity, observation, resolution, options)
   end
 
-  defp identity_claim({:ok, evidence, descriptors}, identity, observation, resolution, options) do
+  defp position_claims(
+         {:ok, evidence, descriptors, ids},
+         claims,
+         observation,
+         resolution,
+         options
+       ) do
+    Enum.reduce_while(claims, {:ok, evidence, descriptors, ids}, fn position,
+                                                                    {:ok, evidence, descriptors,
+                                                                     ids} ->
+      case claim(:position, position, [], observation, resolution, options) do
+        {:ok, admitted} -> {:cont, {:ok, [admitted | evidence], descriptors, [admitted.id | ids]}}
+        error -> {:halt, error}
+      end
+    end)
+    |> case do
+      {:ok, evidence, descriptors, ids} ->
+        {:ok, evidence, descriptors, Enum.reverse(ids)}
+
+      error ->
+        error
+    end
+  end
+
+  defp position_claims(error, _, _, _, _), do: error
+
+  defp identity_claim(
+         {:ok, evidence, descriptors, position_ids},
+         identity,
+         observation,
+         resolution,
+         options
+       ) do
     with {:ok, claim} <- claim(:identity, identity, [], observation, resolution, options),
-         do: {:ok, [claim | evidence], Enum.reverse(descriptors)}
+         do: {:ok, [claim | evidence], Enum.reverse(descriptors), position_ids}
   end
 
   defp identity_claim(error, _, _, _, _), do: error
@@ -203,6 +282,19 @@ defmodule Wotex.Tracker.Decoder do
     end)
     |> case do
       {:ok, values} -> {:ok, Enum.reverse(values)}
+      error -> error
+    end
+  end
+
+  defp positions(ids, bundle, options) do
+    Enum.reduce_while(ids, {:ok, []}, fn id, {:ok, positions} ->
+      case Position.new(id, bundle, options) do
+        {:ok, position} -> {:cont, {:ok, [position | positions]}}
+        error -> {:halt, error}
+      end
+    end)
+    |> case do
+      {:ok, positions} -> {:ok, Enum.reverse(positions)}
       error -> error
     end
   end

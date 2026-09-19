@@ -11,6 +11,7 @@ defmodule Wotex.Tracker.RuuviTest do
     EvidenceBundle,
     Fixtures,
     Measurement,
+    Position,
     Resolution
   }
 
@@ -32,6 +33,7 @@ defmodule Wotex.Tracker.RuuviTest do
       observation = capture(bytes)
       assert {:ok, result} = RuuviRawV2.decode(observation)
       assert result.identity["protocol_mac"] === vector["expected_mac"]
+      assert result.positions == []
       measurements = Map.new(result.measurements, &{&1.kind, &1})
       assert map_size(measurements) == 10
 
@@ -57,6 +59,7 @@ defmodule Wotex.Tracker.RuuviTest do
                )
 
       assert length(decoded.capabilities) == 10
+      assert decoded.positions == []
       assert map_size(decoded.bundle.evidence) == 21
       assert decoded.bundle.observations[observation.id] === observation
       assert {:ok, _} = EvidenceBundle.validate(decoded.bundle)
@@ -67,6 +70,64 @@ defmodule Wotex.Tracker.RuuviTest do
         refute projected["id"] in ["movement", "batteryPercentage", "motion"]
       end
     end
+  end
+
+  test "decoder binds normalized positions to observation and profile lineage", %{
+    catalogue: catalogue
+  } do
+    observation = capture(frame(0, 0, 0, 0, 0))
+    {:ok, resolution} = Resolution.resolve(observation, catalogue)
+    claim = position_claim(observation)
+
+    callback = fn _ ->
+      {:ok, %{measurements: [], positions: [claim], identity: %{"source" => "fixture"}}}
+    end
+
+    assert {:ok, decoded} =
+             Decoder.run(
+               observation,
+               resolution,
+               catalogue,
+               {RuuviRawV2.revision(), callback}
+             )
+
+    assert decoded.measurements == []
+    assert decoded.capabilities == []
+    assert [%Position{} = position] = decoded.positions
+    assert map_size(decoded.bundle.evidence) == 2
+    assert {:ok, projected} = Position.to_map(position, decoded.bundle)
+    assert projected["position"] === claim
+    assert projected["source_observation_ids"] == [observation.id]
+    assert projected["profile"] == ["ruuvi.rawv2", "1.0.0"]
+    assert projected["decoder"] == ["ruuvi.rawv2", "1.0.0"]
+    assert {:ok, ^decoded} = Decoder.validate(decoded, observation, catalogue)
+
+    for positions <- [
+          [claim, claim],
+          [Map.put(claim, "longitude", 181)],
+          [Map.put(claim, "receiver_observation_id", "other")]
+        ] do
+      assert {:error, %Error{code: :invalid_decoder_result}} =
+               Decoder.run(
+                 observation,
+                 resolution,
+                 catalogue,
+                 {RuuviRawV2.revision(),
+                  fn _ ->
+                    {:ok, %{measurements: [], positions: positions, identity: %{}}}
+                  end}
+               )
+    end
+
+    assert {:error, %Error{code: :invalid_decoder_result}} =
+             Decoder.validate(%{decoded | positions: [:forged]}, observation, catalogue)
+
+    assert {:error, %Error{code: :invalid_decoder_result}} =
+             Decoder.validate(
+               %{decoded | positions: [%{position | claim: Map.put(claim, "latitude", 1)}]},
+               observation,
+               catalogue
+             )
   end
 
   test "company bytes are separate and little endian; payload fields are big endian", %{
@@ -150,7 +211,7 @@ defmodule Wotex.Tracker.RuuviTest do
 
     callback = fn _ ->
       send(owner, :called)
-      {:ok, %{measurements: [], identity: %{}}}
+      {:ok, %{measurements: [], positions: [], identity: %{}}}
     end
 
     observation = capture(frame(0, 0, 0, 0, 0))
@@ -200,7 +261,9 @@ defmodule Wotex.Tracker.RuuviTest do
       :ok,
       {:ok, []},
       {:ok, %{measurements: [], identity: [], secret: "hidden"}},
-      {:ok, %{measurements: [:bad], identity: %{}}},
+      {:ok, %{measurements: [:bad], positions: [], identity: %{}}},
+      {:ok, %{measurements: [], positions: [:bad], identity: %{}}},
+      {:ok, %{output | positions: [%{"schema" => "wtr.position.v2"}]}},
       {:ok, %{output | measurements: [hd(output.measurements), hd(output.measurements)]}},
       {:ok, %{output | measurements: [hd(output.measurements) | :bad]}},
       {:error, :bad},
@@ -338,6 +401,38 @@ defmodule Wotex.Tracker.RuuviTest do
 
   defp capture(bytes),
     do: Fixtures.observation(%{payload: {:bytes, bytes}, transport: %{"manufacturer_id" => 1177}})
+
+  defp position_claim(observation),
+    do: %{
+      "schema" => "wtr.position.v1",
+      "latitude" => 59.3293,
+      "longitude" => 18.0686,
+      "altitude_m" => nil,
+      "speed_m_s" => nil,
+      "horizontal_accuracy_m" => 5.0,
+      "accuracy_kind" => "bound",
+      "source" => "gnss",
+      "fix_at" => observation.observed_at,
+      "device_at" => nil,
+      "received_at" => observation.observed_at,
+      "fix_clock" => "trusted",
+      "device_clock" => "unknown",
+      "availability" => "available",
+      "quality" => "valid",
+      "source_units" => %{
+        "latitude" => "degree",
+        "longitude" => "degree",
+        "altitude" => nil,
+        "speed" => nil,
+        "accuracy" => "m",
+        "fix_time" => "unix-ms",
+        "device_time" => nil,
+        "receiver_time" => "unix-ms"
+      },
+      "conversion_revision" => "fixture-v1",
+      "raw" => %{},
+      "receiver_observation_id" => observation.id
+    }
 
   defp frame(temperature, humidity, power, movement, sequence),
     do:

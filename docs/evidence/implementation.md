@@ -2679,3 +2679,26 @@ repeated timestamp ties, antimeridian traversal, quality rejection, unavailable
 positions, separate time and distance breaks, receiver fallback, untrusted and
 future fixes, content identity, malformed policies, duplicate samples and hard
 page bounds.
+
+### Profile-backed position decoder seam — 2026-09-19
+
+The trusted `Decoder` callback contract now returns exact bounded measurement,
+position and identity collections. Each closed `wtr.position.v1` claim is
+validated before evidence construction, content-identified with the source
+observation and immutable catalogue snapshot, retained as position evidence and
+constructed through the ordinary `Position` bundle validator. Stored decoded
+values revalidate by deterministic reconstruction without rerunning callback
+code.
+
+Duplicate position claims, malformed coordinates, forged stored values and
+receiver-observation lineage mismatches fail as `invalid_decoder_result` rather
+than leaking a lower-level admission error or crashing validation. The Ruuvi
+RAWv2 decoder now returns an explicit empty position list because its qualified
+format has no location field.
+
+The complete root gate passed 1 doctest, 19 properties and 164 tests at 95.4%
+production line coverage. Compiler, unused-dependency, formatter, dependency
+audit, strict Credo, ExDoc, Dialyzer, documentation/contracts, 95-member archive
+inspection, licenses and the 421-file stack-language policy all passed. Focused
+tests cover successful lineage/provenance export and exact revalidation plus
+duplicate, malformed, wrong-receiver and forged stored position rejection.

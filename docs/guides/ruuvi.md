@@ -24,8 +24,9 @@ alias Wotex.Tracker.Decoders.RuuviRawV2
 
 The decoder reference and callable are supplied together by trusted caller code.
 No callback runs for unresolved/ambiguous inputs or a mismatched revision.
-Callbacks return a proper bounded list of `Measurement` values plus native
-identity facts, or a validated Tracker error. Bad return shapes become
+Callbacks return proper bounded lists of `Measurement` values and closed
+normalized position claims plus native identity facts, or a validated Tracker
+error. Bad return shapes become
 `invalid_decoder_result`; programming exceptions propagate. This pure seam
 is not a sandbox or an asynchronous adapter lifecycle.
 
@@ -45,7 +46,9 @@ bind the immutable catalogue snapshot. The complete raw observation remains in
 the returned bundle. Capabilities are readable Properties with evidence links;
 missing samples do not remove them. No movement Event, moving/stationary state,
 battery percentage, authenticated device identity or physical control is inferred.
-The returned protocol MAC remains private evidence, not a public Thing ID.
+The returned protocol MAC remains private evidence, not a public Thing ID. This
+profile returns an empty position list: RAWv2 format 5 contains no qualified
+location field, and the generic decoder seam does not invent one.
 
 The profile describes a format family shared by devices, not an exact Ruuvi SKU.
 Tests use documentation vectors and synthetic boundaries. Real passive capture,

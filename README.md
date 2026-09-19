@@ -41,6 +41,10 @@ immutable profiles, deterministic resolution, Ruuvi RAWv2 decoding, capability a
 identity evidence, a packaged environmental model, and upstream-validated Thing
 Descriptions. The library has a complete local verification gate and explicit
 archive packaging. Start with the [pipeline guide](docs/guides/materialisation.md).
+Trusted profile callbacks may also return bounded normalized position claims;
+the decoder wrapper binds each claim to its exact observation, catalogue,
+profile and decoder revisions. The built-in Ruuvi RAWv2 profile remains
+explicitly positionless.
 
 The separate service package implements a bounded SQLite store with atomic
 admission, historical snapshots, durable event/publication intents and recovery

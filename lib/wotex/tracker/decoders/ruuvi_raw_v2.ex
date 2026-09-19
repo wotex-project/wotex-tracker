@@ -82,6 +82,7 @@ defmodule Wotex.Tracker.Decoders.RuuviRawV2 do
         {:ok,
          %{
            measurements: measurements,
+           positions: [],
            identity: %{
              "protocol_mac" => mac(mac),
              "assurance" => "unauthenticated_protocol_identifier"

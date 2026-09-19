@@ -26,6 +26,12 @@ defmodule Wotex.Tracker.Position do
   @enforce_keys [:evidence_id, :bundle_identity, :claim]
   defstruct @enforce_keys
 
+  @doc "Admits one closed normalized position claim before evidence lineage is attached."
+  @spec admit_claim(term(), term()) :: :ok | {:error, Error.t()}
+  def admit_claim(value, options \\ []) do
+    with {:ok, limits} <- Limits.new(options), do: claim(value, limits)
+  end
+
   @doc "Admits a closed wtr.position.v1 claim and verifies its receiver observation and lineage."
   @spec new(term(), term(), term()) :: {:ok, t()} | {:error, Error.t()}
   def new(evidence_id, bundle, options \\ []) do

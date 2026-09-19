@@ -200,6 +200,11 @@ The pure tracking foundation admits normalized position evidence, versioned
 freshness policies with explicit clock qualification and deterministic
 multi-source selection. Evidence-bound event ordering implements fixed timestamp
 ties, bounded late arrivals and modular sequence wrap/reset/reconnect semantics.
+The trusted profile-decoder seam now accepts bounded normalized position claims,
+content-identifies them with the observation and catalogue snapshot, constructs
+ordinary `Position` values through the complete evidence bundle, and revalidates
+stored output without rerunning code. Ruuvi RAWv2 remains explicitly
+positionless; service projection of a future position-capable profile is next.
 Bounded circle/polygon membership is implemented with explicit boundary,
 uncertainty and antimeridian rules. See the
 [position guide](../guides/positions.md) and
