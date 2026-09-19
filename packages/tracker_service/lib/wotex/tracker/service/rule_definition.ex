@@ -17,7 +17,7 @@ defmodule Wotex.Tracker.Service.RuleDefinition do
     SuspiciousMovement
   }
 
-  alias Wotex.Tracker.Service.{Codec, RuleEvaluation, Store, Update}
+  alias Wotex.Tracker.Service.{Codec, RuleEvaluation, Store, SuspiciousOrchestration, Update}
 
   @save_fields ~w(id kind thing_id parameters expected_generation)
   @delete_fields ~w(id expected_generation)
@@ -103,21 +103,24 @@ defmodule Wotex.Tracker.Service.RuleDefinition do
         "updated_at" => now
       }
 
-      update(
-        access,
-        operation,
-        {request, now},
-        stored_definition(access.principal, public, definition),
-        rules
-      )
+      with {:ok, update} <-
+             update(
+               access,
+               operation,
+               {request, now},
+               stored_definition(access.principal, public, definition),
+               rules
+             ),
+           do: orchestrate(service, access, request, update)
     end
   end
 
   def prepare_delete(service, access, operation, request, now) do
     case fetch(service, access, "policies", request["id"], request, now) do
       {:ok, row} ->
-        with {:ok, _definition} <- definition(row["value"], request["id"]),
-             do: update(access, operation, {request, now}, nil, [])
+        with {:ok, definition} <- definition(row["value"], request["id"]),
+             {:ok, update} <- update(access, operation, {request, now}, nil, []),
+             do: orchestrate_delete(service, access, definition, update)
 
       error ->
         error
@@ -357,6 +360,29 @@ defmodule Wotex.Tracker.Service.RuleDefinition do
 
   defp stored_definition(actor, public, _definition),
     do: %{"actor" => actor, "public" => public}
+
+  defp orchestrate(service, access, %{"kind" => "suspicious_movement"} = request, update),
+    do:
+      SuspiciousOrchestration.attach(
+        service,
+        access,
+        "admin",
+        request["thing_id"],
+        update
+      )
+
+  defp orchestrate(_service, _access, _request, update), do: {:ok, update}
+
+  defp orchestrate_delete(
+         service,
+         access,
+         %{kind: kind, thing_id: thing},
+         update
+       )
+       when kind in ~w(motion suspicious_movement),
+       do: SuspiciousOrchestration.attach(service, access, "admin", thing, update)
+
+  defp orchestrate_delete(_service, _access, _definition, update), do: {:ok, update}
 
   defp order_policy(revision, parameters) do
     with {:ok, event_time} <- event_time(parameters["event_time"]),

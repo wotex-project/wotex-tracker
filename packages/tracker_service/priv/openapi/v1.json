@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "WoTEx Tracker service",
-    "version": "1.30.0",
-    "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries, snapshot-pinned gap-honest route replay from retained private evidence, half-open time-windowed trip lifecycle pages and bounded completed-trip distance reconstruction, persisted rule status and administrator-managed heartbeat, battery, motion, geofence and suspicious-movement rule definitions evaluated against committed Thing evidence, explicit administrator-committed arming facts, closed owner-presence fact admission, acknowledgeable rule alerts listed per Thing for defined rules, administrator unenrollment, pinned incident snapshots and an administrator credential inventory. No scanner, notification delivery or physical interaction is implied."
+    "version": "1.31.0",
+    "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries, snapshot-pinned gap-honest route replay from retained private evidence, half-open time-windowed trip lifecycle pages and bounded completed-trip distance reconstruction, persisted rule status and administrator-managed heartbeat, battery, motion, geofence and suspicious-movement rule definitions evaluated against committed Thing evidence, atomic suspicious-movement orchestration over exact motion, arming and owner-presence inputs, explicit administrator-committed arming facts, closed owner-presence fact admission, acknowledgeable rule alerts listed per Thing for defined rules, administrator unenrollment, pinned incident snapshots and an administrator credential inventory. No scanner, notification delivery or physical interaction is implied."
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "security": [
@@ -3500,6 +3500,7 @@
       },
       "post": {
         "operationId": "save_policy",
+        "description": "Save one closed rule definition. Saving a suspicious-movement definition reevaluates matching committed motion and fact inputs and atomically stages any true event and alert.",
         "parameters": [
           {
             "$ref": "#/components/parameters/Scope"
@@ -4683,6 +4684,7 @@
     "/api/v1/scopes/{scope}/materialisations": {
       "post": {
         "operationId": "materialize",
+        "description": "Materialise one enrolled Thing and atomically evaluate its live stateful and exact suspicious-movement definitions against staged evidence and facts.",
         "parameters": [
           {
             "$ref": "#/components/parameters/Scope"
@@ -5143,7 +5145,7 @@
       },
       "post": {
         "operationId": "set_arming",
-        "description": "Commit an explicit armed or disarmed administrative fact for one enrolled Thing. The operation records no device contact or physical Action.",
+        "description": "Commit an explicit armed or disarmed administrative fact for one enrolled Thing and atomically reevaluate exact live suspicious-movement bindings. The operation records no device contact, notification delivery or physical Action.",
         "parameters": [
           {
             "$ref": "#/components/parameters/Scope"
@@ -5400,7 +5402,7 @@
       },
       "post": {
         "operationId": "admit_owner_presence",
-        "description": "Admit a complete exact or strong owner.present PolicyFact for one enrolled Thing. Radio silence is not accepted as proof of absence.",
+        "description": "Admit a complete exact or strong owner.present PolicyFact for one enrolled Thing and atomically reevaluate exact live suspicious-movement bindings. Radio silence is not accepted as proof of absence; no notification or physical Action is dispatched.",
         "parameters": [
           {
             "$ref": "#/components/parameters/Scope"

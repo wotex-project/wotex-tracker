@@ -161,6 +161,49 @@ defmodule Wotex.Tracker.HTTPConsumer do
     IO.puts("HTTP_CONSUMER_PASS openapi=true owner_presence=true private_fact=false")
   end
 
+  defp run(
+         context,
+         %{"mode" => "suspicious_orchestration", "thing" => thing, "fact" => fact}
+       ) do
+    prefix = "/api/v1/scopes/" <> encode_segment(context.scope)
+    presence = prefix <> "/owner_presence"
+
+    %{"generation" => "13", "data" => %{"thing_id" => ^thing, "status" => "absent"}} =
+      data(context, "admit_owner_presence", presence,
+        body: %{"thing_id" => thing, "fact" => fact, "expected_generation" => "12"}
+      )
+
+    {response, bytes} =
+      request(
+        context,
+        "list_thing_alerts",
+        prefix <> "/things/" <> encode_segment(thing) <> "/alerts",
+        who: :reader
+      )
+
+    %{"data" => %{"generation" => "13", "items" => alerts}} = response
+
+    [suspicious] =
+      Enum.filter(alerts, &(get_in(&1, ["value", "event", "kind"]) == "suspicious_movement"))
+
+    %{
+      "generation" => "13",
+      "value" => %{
+        "thing_id" => ^thing,
+        "rule" => %{"kind" => "suspicious_movement", "id" => "suspicious-motion"},
+        "mode" => "live",
+        "physical_action_dispatch" => "separate_authorization_required"
+      }
+    } = suspicious
+
+    for private <-
+          ~w(motion_state_identity armed_fact_identity owner_presence_fact_identity movement_position_evidence_id armed_evidence_id owner_presence_evidence_id) do
+      false = String.contains?(bytes, private)
+    end
+
+    IO.puts("HTTP_CONSUMER_PASS openapi=true suspicious_orchestration=true private_ids=false")
+  end
+
   defp run(context, descriptor) do
     workflow(context, descriptor)
 

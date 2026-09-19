@@ -278,8 +278,10 @@ requires its receiver observation time to advance and exposes no private evidenc
 Administrators can now save a suspicious-movement definition that privately
 binds the exact referenced motion policy for the same Thing, with closed fact-age,
 future-skew and unknown-presence treatment. The event-only definition creates no
-synthetic rule state. Input-triggered suspicious-movement orchestration and
-notification delivery remain subsequent work.
+synthetic rule state. Definition saves, motion materialisations, arming changes
+and owner-presence admissions now reevaluate exact live bindings and stage a true
+result's intent and alert inside the triggering transaction. Notification
+delivery remains subsequent work.
 
 Transport degradation is implemented as pure state over content-validated
 transport decisions and a deployment-declared healthy candidate set. Fallback
@@ -289,7 +291,8 @@ degradation, recovery and rule-edit events have stable identities. See the
 atomically persists this rule's canonical state, history and stable event intent
 with optimistic prior-state identity and restart recovery. Decision
 freshness/future-skew scheduling is now implemented. Input-triggered orchestration
-and notification delivery remain for geofence and suspicious-movement evaluation.
+and notification delivery remain for geofence evaluation; suspicious-movement
+notification delivery remains open.
 Readers can inspect every persisted rule kind's current status and history through
 the read-only service `rules` resource without receiving its private evidence.
 Administrators can now persist versioned heartbeat, battery, motion, geofence and
@@ -303,7 +306,8 @@ rule event becomes a public alert, and administrators can acknowledge a live
 alert once. The shared browser can inspect and conditionally change the retained
 arming fact for an asset with a motion definition. Closed owner-presence evidence
 can be admitted through the service but is not inferred or editable in the shared
-browser. Suspicious-movement orchestration and notification delivery remain open.
+browser. Suspicious-movement orchestration is implemented at definition, motion,
+arming and presence mutation boundaries; notification delivery remains open.
 
 Implement explicit time/freshness, quality selection, motion/trips/stops,
 geofence membership/transitions, heartbeat, suspicious movement, low-battery,

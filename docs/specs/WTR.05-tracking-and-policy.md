@@ -20,9 +20,11 @@ the same Thing without exposing that nested policy publicly. The trusted decoder
 profile-backed position claims into immutable evidence, and an explicitly
 configured service exposes a closed redacted state projection. The service now
 admits complete content-validated owner-presence facts, retains their evidence
-privately and never interprets missing state as absence. Input-triggered
-suspicious-movement orchestration, notification delivery and product hardware
-acceptance remain unfinished.
+privately and never interprets missing state as absence. The service now
+reevaluates exact live suspicious bindings on definition saves, motion
+materialisation, arming changes and owner-presence admission, atomically staging
+stable event intent and a reviewed alert. Notification delivery and product
+hardware acceptance remain unfinished.
 
 ## Tracking is evidence, not a GPS field
 

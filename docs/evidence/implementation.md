@@ -3145,3 +3145,29 @@ The complete service gate passed 2 properties and 236 tests at 95.1% production
 line coverage. Compiler, unused-dependency, formatter, dependency audit, strict
 Credo, ExDoc, Dialyzer, boundary checks, OpenAPI validation, 87-member archive
 inspection, licenses and the 443-file stack-language policy all passed.
+
+### Atomic suspicious-movement orchestration — 2026-09-19
+
+The service now reevaluates every live suspicious-movement definition for a
+Thing when that definition is saved, its exact motion state changes during
+materialisation, or its arming or owner-presence fact changes. Staged inputs take
+precedence over the preceding snapshot. The referenced live motion definition
+must retain the exact identity privately embedded in the suspicious policy;
+changed or deleted motion bindings, missing inputs, stale facts and non-true
+three-valued results emit nothing.
+
+A true result becomes a revalidated event-only intent, reviewed public event and
+Thing alert at the triggering mutation's generation. Triggering records, motion
+state, private intent and alert commit or roll back together. Exact operation
+replay does not duplicate the event, private motion/fact/evidence identities stay
+out of the public alert, and no notification or physical Action is dispatched.
+
+Integration tests exercise every enabling-input order, explicit present/absent
+and policy-controlled unknown presence, stale exact-motion binding suppression,
+motion-definition deletion, damaged motion/fact storage, injected rollback and
+the independent HTTP/OpenAPI consumer. OpenAPI contract 1.31.0 describes the
+atomic behavior. The complete service gate passed 2 properties and 246 tests at
+95.1% production line coverage. Compiler, unused-dependency, formatter,
+dependency audit, strict Credo, ExDoc, Dialyzer, boundary checks, OpenAPI
+validation, 88-member archive inspection, licenses and the 445-file
+stack-language policy all passed.

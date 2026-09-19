@@ -6,7 +6,7 @@ defmodule Wotex.Tracker.Service.Arming do
   # suspicious-movement evaluation; public reads expose only reviewed state.
 
   alias Wotex.Tracker.{Evidence, EvidenceBundle, Observation, PolicyFact}
-  alias Wotex.Tracker.Service.{Codec, Projection, Store, Update}
+  alias Wotex.Tracker.Service.{Codec, Projection, Store, SuspiciousOrchestration, Update}
 
   @set_fields ~w(thing_id status expected_generation)
   @public_fields ~w(schema thing_id status revision changed_at changed_by)
@@ -49,25 +49,37 @@ defmodule Wotex.Tracker.Service.Arming do
 
       value = %{"actor" => access.principal, "fact" => fact_document, "public" => public}
 
-      Update.new(%{
-        principal: access.principal,
-        scope: access.scope,
-        authority: access,
-        operation_id: operation,
-        expected_generation: request["expected_generation"],
-        now: now,
-        request: %{"operation" => "set_arming", "body" => request},
-        observation: nil,
-        publication: nil,
-        response: %{"thing_id" => request["thing_id"], "status" => request["status"]},
-        records: [%{kind: "arming", id: request["thing_id"], value: value}],
-        events: [
-          %{
-            "type" => "arming.changed",
-            "data" => %{"thing_id" => request["thing_id"], "status" => request["status"]}
-          }
-        ]
-      })
+      with {:ok, update} <-
+             Update.new(%{
+               principal: access.principal,
+               scope: access.scope,
+               authority: access,
+               operation_id: operation,
+               expected_generation: request["expected_generation"],
+               now: now,
+               request: %{"operation" => "set_arming", "body" => request},
+               observation: nil,
+               publication: nil,
+               response: %{"thing_id" => request["thing_id"], "status" => request["status"]},
+               records: [%{kind: "arming", id: request["thing_id"], value: value}],
+               events: [
+                 %{
+                   "type" => "arming.changed",
+                   "data" => %{
+                     "thing_id" => request["thing_id"],
+                     "status" => request["status"]
+                   }
+                 }
+               ]
+             }),
+           do:
+             SuspiciousOrchestration.attach(
+               service,
+               access,
+               "admin",
+               request["thing_id"],
+               update
+             )
     end
   end
 

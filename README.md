@@ -135,8 +135,10 @@ administrator's explicit armed/disarmed fact for an enrolled Thing, retains its
 closed private evidence and exposes only a reviewed public state; it does not
 claim device contact. It also admits complete exact or strong owner-presence
 facts without treating missing radio evidence as absence, retaining their closed
-inputs while exposing only present, absent or unknown state. Neither mutation
-evaluates the suspicious-movement rule by itself. The shared browser distinguishes
+inputs while exposing only present, absent or unknown state. Saving the event-only
+definition, changing either fact, or materialising a new motion state evaluates
+every exact live binding and atomically records any stable suspicious-movement
+intent and reviewed alert without manufacturing rule state. The shared browser distinguishes
 unknown, unsupported, armed and disarmed state and uses confirmed, recoverable
 administrator operations for changes.
 Evidence-qualified transport selection keeps bearer, application protocol,

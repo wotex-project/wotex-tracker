@@ -12,6 +12,7 @@ defmodule Wotex.Tracker.Service.Materialize do
     Projection,
     RuleEvaluation,
     Snapshot,
+    SuspiciousOrchestration,
     Update
   }
 
@@ -55,14 +56,23 @@ defmodule Wotex.Tracker.Service.Materialize do
              materialised.bundle,
              now
            ) do
-      update(
-        access,
-        operation,
-        {request, now},
-        enrollment["value"],
-        {imported, materialised},
-        rules
-      )
+      with {:ok, update} <-
+             update(
+               access,
+               operation,
+               {request, now},
+               enrollment["value"],
+               {imported, materialised},
+               rules
+             ),
+           do:
+             SuspiciousOrchestration.attach(
+               service,
+               access,
+               "enroll",
+               request["thing_id"],
+               update
+             )
     end
   end
 

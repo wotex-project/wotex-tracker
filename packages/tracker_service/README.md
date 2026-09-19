@@ -76,9 +76,8 @@ local monotonic deadlines. It rereads the durable state before firing, ignores
 stale timer tokens, rebuilds after restart and commits through the same atomic
 rule transaction. The explicit HTTP `Server` supervises one scheduler by default
 and exposes bounded host-only deadline metadata through
-`Server.rule_schedule/1`. Package loading remains inert. Notification delivery,
-input-triggered rule orchestration and public HTTP rule management remain outside
-this host port.
+`Server.rule_schedule/1`. Package loading remains inert. Notification delivery
+remains outside this host port.
 
 Stateless rule results use the same intent and public-event tables through
 `RuleEvent`. Its crossing constructor restores complete fence, endpoint and
@@ -140,7 +139,9 @@ their complete ordering, uncertainty, dwell or geometry policy. A
 suspicious-movement definition names a motion definition for the same Thing and
 privately retains that exact motion policy together with closed arming and
 owner-presence predicate choices. It is event-only and creates no synthetic
-current rule status before orchestration supplies all inputs. Position rules evaluate a
+current rule status. Saving it evaluates any already committed exact inputs;
+subsequent motion materialisation, arming and owner-presence mutations reevaluate
+the live binding in their own transaction. Position rules evaluate a
 position only when the committed bundle contains exactly one, so the service
 never chooses among sources without an admitted selection policy. A Thing has at most eight definitions,
 listed for readers through `Service.thing_policies/5` and `GET …/things/{id}/policies`.
@@ -154,8 +155,10 @@ A deleted definition keeps its status history but is no longer scheduled.
 `disarmed` state for an enrolled Thing. The private record retains a complete
 exact `asset.armed` policy fact backed by administrative-operation evidence;
 the reviewed `arming` resource returns only the public state, commit-derived
-revision, change time and pseudonymous actor. It does not claim device contact,
-evaluate suspicious movement or dispatch a physical Action. Unenrollment removes
+revision, change time and pseudonymous actor. It does not claim device contact or
+dispatch a physical Action. When an exact live suspicious definition, matching
+motion state and owner-presence fact exist, the same transaction stages the
+revalidated event intent and reviewed alert. Unenrollment removes
 the current state while retaining its version history.
 
 `Service.admit_owner_presence/6` and `POST …/owner_presence` conditionally admit
@@ -165,8 +168,10 @@ older and same-time conflicting observations are rejected. The private record
 retains the complete observation, evidence and bundle. The reviewed
 `owner_presence` resource returns only present, absent or unknown, receiver and
 admission times, a commit revision and a pseudonymous admitting actor. Missing
-state and radio silence never become absence. Admission alone evaluates no rule,
-sends no notification and dispatches no physical Action. Unenrollment removes
+state and radio silence never become absence. Admission reevaluates exact live
+suspicious definitions against the staged fact, matching motion state and arming
+fact; a true result commits its stable intent and alert atomically. It sends no
+notification and dispatches no physical Action. Unenrollment removes
 the current projection while retaining its versions.
 
 Each recorded rule event also becomes a newest-first `wtr.alert.v1` record with
@@ -301,7 +306,7 @@ and key paths. Explicit `:proxy` mode requires an HTTPS public origin and a
 protected proxy-to-listener network; forwarded headers never supply authority or
 Forms. No remote exposure is inferred.
 
-OpenAPI **3.1.0**, contract revision **1.30.0**, is packaged at
+OpenAPI **3.1.0**, contract revision **1.31.0**, is packaged at
 `priv/openapi/v1.json` and served at `/api/v1/openapi.json`. Liveness is
 `/health/live`; authenticated resources are under `/api/v1/scopes/{scope}`.
 Use `Authorization: Bearer …`, and a UUIDv4 `Idempotency-Key` for POST mutations.

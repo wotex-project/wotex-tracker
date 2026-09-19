@@ -28,6 +28,9 @@ defmodule Wotex.Tracker.HTTPTest do
 
   test "an independent HTTP process validates a completed trip summary", do: trip_summary_peer()
 
+  test "an independent HTTP process triggers a suspicious-movement alert",
+    do: suspicious_orchestration_peer()
+
   test "an independent HTTP process commits and reads arming state" do
     context = service()
     {thing, _td} = materialized(context)
@@ -233,6 +236,62 @@ defmodule Wotex.Tracker.HTTPTest do
     assert_capacity_released(capacity)
   end
 
+  defp suspicious_orchestration_peer do
+    context = position_service()
+    {thing, _td} = materialized(context)
+
+    assert {:ok, %{"generation" => "4"}} =
+             Service.save_policy(
+               context.service,
+               context.admin,
+               context.scope,
+               Identifier.uuid(),
+               motion(thing, "3"),
+               context.now
+             )
+
+    assert {:ok, %{"generation" => "5"}} =
+             Service.save_policy(
+               context.service,
+               context.admin,
+               context.scope,
+               Identifier.uuid(),
+               suspicious(thing, "4"),
+               context.now
+             )
+
+    assert {:ok, %{"generation" => "8"}} =
+             materialize_position(context, thing, "moving-one", context.now + 1_000, "5")
+
+    assert {:ok, %{"generation" => "11"}} =
+             materialize_position(context, thing, "moving-two", context.now + 2_000, "8")
+
+    assert {:ok, %{"generation" => "12"}} =
+             Service.set_arming(
+               context.service,
+               context.admin,
+               context.scope,
+               Identifier.uuid(),
+               %{"thing_id" => thing, "status" => "armed", "expected_generation" => "11"},
+               context.now
+             )
+
+    server = start_supervised!({Server, options(context)})
+
+    output =
+      run_consumer(context, server, %{
+        "mode" => "suspicious_orchestration",
+        "thing" => thing,
+        "fact" => owner_presence_fact(thing, context.now)
+      })
+
+    assert output =~
+             "HTTP_CONSUMER_PASS openapi=true suspicious_orchestration=true private_ids=false"
+
+    assert {:ok, capacity} = Server.child(server, :capacity)
+    assert_capacity_released(capacity)
+  end
+
   defp position_service do
     context = service()
     {:ok, profile} = RuuviRawV2.profile()
@@ -318,6 +377,20 @@ defmodule Wotex.Tracker.HTTPTest do
         "uncertainty" => "coordinate_only",
         "minimum_movement_ms" => 1_000,
         "minimum_stop_ms" => 1_000
+      },
+      "expected_generation" => generation
+    }
+
+  defp suspicious(thing, generation),
+    do: %{
+      "id" => "suspicious-motion",
+      "kind" => "suspicious_movement",
+      "thing_id" => thing,
+      "parameters" => %{
+        "motion_rule_id" => "movement",
+        "maximum_fact_age_ms" => 60_000,
+        "future_skew_ms" => 1_000,
+        "owner_unknown_as_absent" => false
       },
       "expected_generation" => generation
     }

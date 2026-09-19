@@ -6,7 +6,7 @@ defmodule Wotex.Tracker.Service.OwnerPresence do
   # public reads disclose only its reviewed three-valued state and times.
 
   alias Wotex.Tracker.PolicyFact
-  alias Wotex.Tracker.Service.{Codec, Projection, Store, Update}
+  alias Wotex.Tracker.Service.{Codec, Projection, Store, SuspiciousOrchestration, Update}
 
   @admit_fields ~w(thing_id fact expected_generation)
   @public_fields ~w(schema thing_id status revision observed_at admitted_at admitted_by)
@@ -50,33 +50,42 @@ defmodule Wotex.Tracker.Service.OwnerPresence do
 
       value = %{"actor" => access.principal, "fact" => request["fact"], "public" => public}
 
-      Update.new(%{
-        principal: access.principal,
-        scope: access.scope,
-        authority: access,
-        operation_id: operation,
-        expected_generation: request["expected_generation"],
-        now: now,
-        request: %{"operation" => "admit_owner_presence", "body" => request},
-        observation: nil,
-        publication: nil,
-        response: %{
-          "thing_id" => request["thing_id"],
-          "status" => public["status"],
-          "observed_at" => fact.observed_at
-        },
-        records: [%{kind: "owner_presence", id: request["thing_id"], value: value}],
-        events: [
-          %{
-            "type" => "owner_presence.changed",
-            "data" => %{
-              "thing_id" => request["thing_id"],
-              "status" => public["status"],
-              "observed_at" => fact.observed_at
-            }
-          }
-        ]
-      })
+      with {:ok, update} <-
+             Update.new(%{
+               principal: access.principal,
+               scope: access.scope,
+               authority: access,
+               operation_id: operation,
+               expected_generation: request["expected_generation"],
+               now: now,
+               request: %{"operation" => "admit_owner_presence", "body" => request},
+               observation: nil,
+               publication: nil,
+               response: %{
+                 "thing_id" => request["thing_id"],
+                 "status" => public["status"],
+                 "observed_at" => fact.observed_at
+               },
+               records: [%{kind: "owner_presence", id: request["thing_id"], value: value}],
+               events: [
+                 %{
+                   "type" => "owner_presence.changed",
+                   "data" => %{
+                     "thing_id" => request["thing_id"],
+                     "status" => public["status"],
+                     "observed_at" => fact.observed_at
+                   }
+                 }
+               ]
+             }),
+           do:
+             SuspiciousOrchestration.attach(
+               service,
+               access,
+               "admin",
+               request["thing_id"],
+               update
+             )
     end
   end
 

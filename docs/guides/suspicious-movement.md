@@ -50,5 +50,13 @@ suspicious definition itself. At admission, the service restores and privately
 embeds that exact motion policy; the public definition exposes only its content
 identity and the reviewed parameters, never the nested policy or predicate
 names. The definition is event-only, so saving it does not manufacture a current
-rule-status row. Input-triggered orchestration remains responsible for supplying
-the motion state and both evidence facts in one atomic mutation.
+rule-status row.
+
+The service reevaluates every live exact binding when that definition is saved,
+when its Thing is materialised with a motion transition, and when the Thing's
+arming or owner-presence fact changes. A staged input wins over the preceding
+snapshot, so a true result's private intent, reviewed public event and alert share
+the triggering mutation's generation and rollback boundary. Missing inputs,
+stale facts, a false or unknown conjunction and a changed/deleted referenced
+motion definition emit nothing. Replaying the triggering operation is idempotent;
+no notification or physical Action is dispatched.

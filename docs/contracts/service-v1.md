@@ -152,8 +152,10 @@ physical Action. `GET …/arming/{thing_id}` restores that full fact before
 returning the closed public state with its commit-derived revision, change time
 and pseudonymous actor. Operation, observation, evidence, bundle and fact
 identities never enter the public projection. This fact is the durable arming
-input for subsequent suspicious-movement orchestration; committing it alone
-evaluates no rule and sends no notification.
+input for suspicious-movement orchestration. The arming mutation reevaluates
+every exact live suspicious binding for the Thing against its staged fact,
+matching motion state and owner-presence fact. A true result stages its intent and
+alert in the same transaction. It sends no notification.
 
 ## Owner-presence evidence
 
@@ -170,8 +172,9 @@ stores the private fact and a reviewed `wtr.owner-presence.v1` projection in one
 conditional transaction. Public list/get/history disclose only present, absent
 or unknown, observation and admission times, a commit-derived revision and a
 scope pseudonym of the admitting actor. Observation, evidence, bundle and fact
-identities remain private. Unenrollment tombstones current owner-presence state;
-admission alone evaluates no suspicious-movement rule and sends no notification.
+identities remain private. Unenrollment tombstones current owner-presence state.
+Admission reevaluates exact live suspicious bindings against the staged fact and
+atomically records any true result; it sends no notification.
 
 ## Finite budgets
 
@@ -362,7 +365,7 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
-## HTTP and stream contract 1.30.0
+## HTTP and stream contract 1.31.0
 
 The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
 2020-12. The independently maintained Elixir audit checks document shape,
@@ -823,8 +826,8 @@ geofence rules construct a complete `PositionSample` only when the bundle has
 exactly one position claim. Zero or multiple claims leave them unchanged: source
 selection is never implicit. A new rule establishes a baseline, and an edit
 recomputes with the new revision. Saving a suspicious-movement definition binds
-its private policy but evaluates no event until orchestration supplies the exact
-motion state, arming fact and owner-presence fact.
+its private policy and evaluates any matching committed motion state, arming fact
+and owner-presence fact in the same transaction.
 
 Materialising a Thing evaluates every live definition bound to it against the
 newly built observation and evidence bundle. The materialisation records, rule
@@ -835,6 +838,17 @@ results write nothing, a Thing evidence set without the declared battery
 measurement leaves that rule unchanged, and a conflicting evidence identity fails
 the mutation. Every recorded event intent still requires separate authorization
 before any physical effect; no notification is sent.
+
+Each materialisation, suspicious-definition save, arming change and
+owner-presence admission also reevaluates all live suspicious definitions for
+that Thing. The referenced live motion definition must still have the exact
+identity embedded in the suspicious policy. Staged motion/fact/definition values
+take precedence over the requested snapshot; missing inputs, stale facts,
+non-true results and changed or deleted motion bindings produce no event. A true
+result is converted to a revalidated event-only intent, public event and Thing
+alert at the triggering generation. All triggering records, state transitions
+and event rows commit or roll back together, while exact operation replay creates
+no duplicate.
 
 The rule scheduler continues to age heartbeat and battery state. A deleted
 definition keeps its last status and history, is reported as retired to the host
