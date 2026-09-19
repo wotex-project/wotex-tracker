@@ -130,6 +130,15 @@ each request, so a restarted store is not cached in a view. The standalone app
 host owns the endpoint, PubSub, session supervision and private listener
 configuration; this package imports no host modules.
 
+`Wotex.Tracker.UI.Remote` maps the same closed action vocabulary onto the
+versioned HTTP service. Production origins must be explicit HTTPS origins;
+numeric loopback HTTP is available only through an explicit test/development
+option. The adapter verifies TLS against the host trust store, admits bounded
+requests and responses, follows no redirects and retains no credential. A
+mutation is sent once with its stable idempotency key. Transport or malformed
+response ambiguity returns `unknown` with that operation ID so the caller can
+recover through the durable receipt instead of automatically repeating it.
+
 Capture import, enrollment, association and provisioning acquire a stable operation reference
 in the page URL before exposing a submit control. Reconnect checks the durable
 receipt, including its resource identity. An unknown outcome is shown explicitly
@@ -156,7 +165,7 @@ The first cohort exercises real authorized services, duplicate prevention,
 lost-reply recovery, revocation, read-only denial, upload bounds, bounded
 lists/history, CSRF protection and credential custody. Device discovery and
 capture, basemaps, owner-presence capture, notification delivery, interactions,
-remaining privacy controls, remote adapters and cross-surface accessibility remain subsequent work. A
+remaining privacy controls, mobile cache policy and cross-surface accessibility remain subsequent work. A
 responsive browser view does not qualify a mobile or Pi application.
 
 The route-history screen defaults to a one-day UTC window ending after the

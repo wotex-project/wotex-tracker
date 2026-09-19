@@ -20,7 +20,7 @@ defmodule WotexTrackerUI.MixProject do
     ]
   end
 
-  def application, do: [extra_applications: [:crypto]]
+  def application, do: [extra_applications: [:crypto, :public_key, :ssl]]
   def cli, do: [preferred_envs: [check: :test, coveralls: :test]]
 
   defp deps do
@@ -30,6 +30,8 @@ defmodule WotexTrackerUI.MixProject do
       {:phoenix, "== 1.8.14"},
       {:phoenix_live_view, "== 1.2.11"},
       {:phoenix_html, "== 4.3.0"},
+      {:jason, "== 1.4.5"},
+      {:mint, "== 1.10.0"},
       {:lazy_html, "~> 0.1", only: :test},
       {:stream_data, "~> 1.3", only: :test},
       {:excoveralls, "~> 0.18", only: :test},

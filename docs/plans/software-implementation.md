@@ -418,7 +418,10 @@ lists its live rule definitions, stops offering new rules at the service's
 eight-definition limit and pages the alerts those definitions recorded.
 Administrators can remove an enrolled asset from current views after a stated,
 confirmed and recoverable operation; data deletion remains open. An Activity page
-pages the credential's recent committed changes for recovery. Complete application, remote adapter,
+pages the credential's recent committed changes for recovery. The shared
+package now also provides a bounded HTTPS client whose closed action mapping
+uses the same versioned service endpoints, validates exact envelopes and makes
+ambiguous mutations recoverable without automatic replay. Complete application,
 accessibility, Pi and mobile acceptance remain open.
 
 Implement WTR.15's shared components and `hosts/app/` after Phase 3; use admitted
@@ -442,11 +445,12 @@ Supply narrow native bridges or choose another compatible shell where necessary;
 never delete a requirement to accommodate a framework. Generic BLE work stays
 in the existing protocol owner.
 
-The versioned API now exposes one current-access projection after read
-authorization, including only the current credential's non-secret identity,
-requested-scope grants and expiry. The in-process UI adapter consumes the same
-projection. Remote HTTP transport and mobile cache policy remain subsequent
-mobile-host work.
+The versioned API exposes one current-access projection after read authorization,
+including only the current credential's non-secret identity, requested-scope
+grants and expiry. Both the in-process and remote HTTPS UI adapters consume that
+projection. The remote adapter uses verified TLS, bounded one-shot requests and
+stable mutation identity without automatic replay. Mobile host composition and
+its bounded cache policy remain subsequent work.
 
 Acceptance: real iPhone secure storage, authorized BLE central provisioning,
 notification registration and cold/warm/background tap routing, suspend/resume,

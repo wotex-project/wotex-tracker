@@ -205,6 +205,18 @@ defmodule Wotex.Tracker.HTTPFailureTest do
                Wire.parameters(%{conn | query_string: query})
     end
 
+    assert {:ok, %{"cursor" => "next", "from_at" => "1", "limit" => "25", "to_at" => "2"}} =
+             Wire.parameters(%{
+               conn
+               | query_string: "cursor=next&from_at=1&limit=25&to_at=2"
+             })
+
+    assert {:error, %{"code" => "invalid_request"}} =
+             Wire.parameters(%{
+               conn
+               | query_string: "cursor=next&from_at=1&limit=25&to_at=2&extra=no"
+             })
+
     assert {:error, :invalid_request} = Wire.path(%{conn | path_info: ["%broken"]})
     response = Wire.json(conn, 200, %{"private" => String.duplicate("x", 4_194_305)})
     assert response.status == 503

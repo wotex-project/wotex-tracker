@@ -85,7 +85,7 @@ defmodule Wotex.Tracker.Service.HTTP.Wire do
     with true <- byte_size(conn.query_string) <= 8192,
          true <- not Regex.match?(~r/%(?![0-9a-fA-F]{2})/, conn.query_string),
          pairs = URI.query_decoder(conn.query_string) |> Enum.to_list(),
-         true <- length(pairs) <= 2 and length(pairs) == map_size(Map.new(pairs)),
+         true <- length(pairs) <= 4 and length(pairs) == map_size(Map.new(pairs)),
          true <- Enum.all?(pairs, fn {k, v} -> String.valid?(k) and String.valid?(v) end) do
       {:ok, Map.new(pairs)}
     else

@@ -3320,3 +3320,38 @@ line coverage, and the complete shared-UI gate passed 141 tests at 95.0%.
 Compiler, unused-dependency, formatter, dependency audit, strict Credo, ExDoc,
 Dialyzer, boundary checks, OpenAPI validation, 96-member service and 51-member UI
 archive inspection, licenses and the 457-file stack-language policy all passed.
+
+### Versioned remote presentation client — 2026-09-20
+
+The shared presentation package now implements every existing closed UI client
+action over the versioned service HTTP surface. Its explicit production origin
+must use HTTPS; numeric loopback HTTP is opt-in for the real integration test.
+The one-shot Mint HTTP/1 transport uses passive receives, verified TLS and the
+host trust store, admits no redirect, applies one absolute deadline and bounds
+request bodies, response bodies, headers and header counts. Credential material
+is sent only in the Authorization header and is excluded from retained adapter
+state and inspection.
+
+Paths, methods, accepted query names, resource names and mutation routes come
+only from the adapter's closed mapping. JSON responses require the exact
+`wtr.response.v1` envelope and expected media type; login, identity and current
+revocation context additionally require the exact `wtr.access.v1` projection.
+Each mutation is sent once with its original operation UUID. Transport failure,
+timeout or malformed acknowledgement remains `unknown` under that UUID, while
+reads fail unavailable, so callers recover through durable receipt lookup
+without automatic mutation replay.
+
+An actual loopback service test exercises authorization, a three-parameter trip
+page and committed observation admission through Mint. This exposed and fixed
+the service wire's former two-pair query ceiling; it now admits at most four
+unique pairs, matching the trip paging contract, and rejects a fifth. Boundary
+tests cover every shared action mapping, percent encoding, exact headers,
+malformed configuration, projections, envelopes, media, identities, queries and
+JSON; fragmented and connection-closing responses; cold module loading; all
+transport phases, deadlines and size limits; and private exception containment.
+
+The complete service gate passed 2 properties and 285 tests at 95.1% production
+line coverage, and the complete shared-UI gate passed 152 tests at 95.2%.
+Compiler, unused-dependency, formatter, dependency audit, strict Credo, ExDoc,
+Dialyzer, boundary checks, OpenAPI validation, 96-member service and 54-member UI
+archive inspection, licenses and the 461-file stack-language policy all passed.

@@ -437,6 +437,16 @@ expiry. It never serializes the bearer token, token digest, access proof, secret
 key or another scope's grants. A durable revocation or expiry therefore denies
 the projection instead of returning stale authority.
 
+The shared presentation package has a versioned remote client for this HTTP
+surface. Its closed action-to-path mapping cannot select an arbitrary host,
+method or route. It sends bearer material only in the Authorization header,
+requires exact response envelopes and media types, bounds request and response
+material, follows no redirect and performs no automatic retry. An ambiguous
+mutation response remains `unknown` under the original operation identity;
+receipt lookup is the recovery mechanism. The adapter retains no credential or
+canonical state and accepts plaintext only on explicitly enabled numeric
+loopback origins.
+
 Saved definitions use the same scope generation and idempotent receipt rules as
 other mutations. The record persists its admitted `QuerySpec`, closed
 visualization options, private owner and public owner pseudonym. Only the owner
@@ -482,7 +492,8 @@ storage/write failure, shutdown or lifetime expiry. A resumed expired/invalid
 cursor explicitly fails and requires resnapshot.
 
 Beyond the earlier body/transaction/page ceilings, HTTP/1 request lines and
-individual headers are limited to 8,192 bytes, with at most 32 headers. Four
+individual headers are limited to 8,192 bytes, with at most four unique query
+pairs and 32 headers. Four
 acceptors allow 16 connections each (64 total), with no accept retry queue.
 The 32 request and 16 stream reservations have monitored owners and hard
 deadlines; owner death releases capacity. Transfer to a stream cancels the old
