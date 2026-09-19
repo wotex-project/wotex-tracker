@@ -78,6 +78,21 @@ defmodule Wotex.Tracker.Service.ArmingTest do
     assert {:ok, %{"items" => [%{"value" => ^armed}]}} =
              Service.list(c.service, c.reader, c.scope, "arming", %{}, c.now + 2)
 
+    assert {:ok, %{"items" => [%{"value" => ^armed}], "cursor" => cursor}} =
+             Service.list(c.service, c.reader, c.scope, "arming", %{"limit" => 1}, c.now + 2)
+
+    assert is_binary(cursor)
+
+    assert {:ok, %{"items" => [], "cursor" => nil, "generation" => "4"}} =
+             Service.list(
+               c.service,
+               c.reader,
+               c.scope,
+               "arming",
+               %{"limit" => 1, "cursor" => cursor},
+               c.now + 2
+             )
+
     assert {:ok, %{"items" => [%{"value" => ^armed, "deleted" => false}]}} =
              Service.history(c.service, c.reader, c.scope, "arming", c.thing, %{}, c.now + 2)
 
