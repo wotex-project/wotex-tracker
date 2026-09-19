@@ -111,7 +111,11 @@ the latest retained state; fixed-offset timezone and exact millisecond/second
 interval controls change presentation without changing the service records.
 The browser pairs endpoints only when both occur on the displayed snapshot page
 and reauthorizes each cursor-free page export with its window and presentation
-metadata.
+metadata. Each stop or interruption links to the service-reconstructed final
+distance: exact centre/lower/upper metres, complete or partial status and every
+included or excluded adjacent segment. The dedicated screen validates the
+closed public projection, retains a valid result across temporary failures and
+reauthorizes a bounded identity-matched JSON export.
 Evidence-backed heartbeat state and overdue/recovery events are also
 implemented; see the [heartbeat guide](docs/guides/heartbeat.md).
 Its SQLite host integration persists changed heartbeat state and event intent

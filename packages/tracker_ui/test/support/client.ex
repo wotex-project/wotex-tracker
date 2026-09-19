@@ -11,7 +11,7 @@ defmodule Wotex.Tracker.UI.TestClient do
 
         persistent =
           match?({:page, _}, value) or match?({:route_page, _}, value) or
-            match?({:trip_page, _}, value)
+            match?({:trip_page, _}, value) or match?({:trip_summary, _}, value)
 
         next = if persistent, do: current, else: Map.delete(current, action)
         {value, next}
@@ -38,6 +38,13 @@ defmodule Wotex.Tracker.UI.TestClient do
   defp respond({:trip_page, page}, provider, token, scope, :thing_trips, _, now) do
     case Local.request(provider, token, scope, :authorize, %{}, now) do
       {:ok, _} -> {:ok, page}
+      error -> error
+    end
+  end
+
+  defp respond({:trip_summary, summary}, provider, token, scope, :trip_summary, _, now) do
+    case Local.request(provider, token, scope, :authorize, %{}, now) do
+      {:ok, _} -> {:ok, summary}
       error -> error
     end
   end

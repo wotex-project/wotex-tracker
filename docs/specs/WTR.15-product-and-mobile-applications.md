@@ -19,7 +19,7 @@ as JSON after reauthorizing and matching its committed snapshot. This is a
 page export. It can also traverse and export a complete retained state history
 when it fits 1,000 rows and 1 MB, reauthorizing every page and rejecting a
 changed snapshot or exceeded budget without a partial file. Larger history,
-retained-data deletion and final trip-distance presentation remain open. The
+retained-data deletion and distance unit conversion remain open. The
 service now supplies dedicated, snapshot-pinned pages of each Thing's retained
 trip start, stop and interruption events without letting unrelated alerts
 consume the page bound. The browser presents those events newest first with UTC
@@ -39,7 +39,10 @@ The service separately exposes an authorized, bounded final distance summary for
 an immutable completed trip. It reconstructs at most 100 exact retained samples
 under the motion policy committed at trip start, returns centre/lower/upper
 metres and every segment exclusion, and releases no private evidence identities.
-The shared browser does not yet present that summary.
+Each stop or interruption in the shared browser links to a dedicated summary
+screen. It validates the complete closed projection, presents exact canonical
+metres and each included or excluded segment, retains a valid result across a
+temporary failure and reauthorizes an identity-matched bounded JSON export.
 The browser observation page can download native capture JSON and full evidence
 claims only for a current `raw` grant. It asks the authorized service again for
 each download and never places raw bytes in the ordinary page. A separate

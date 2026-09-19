@@ -3025,3 +3025,32 @@ line coverage; the private reconstruction input module reached 100%. Compiler,
 unused-dependency, formatter, dependency audit, strict Credo, ExDoc, Dialyzer,
 boundary checks, OpenAPI validation, 85-member package archive inspection,
 licenses and the 436-file stack-language policy all passed.
+
+### Shared final trip-distance presentation — 2026-09-19
+
+The shared trip timeline now links each retained stop or interruption to a
+dedicated final-distance route. The screen requests only the public authorized
+service operation and admits its exact closed `wtr.trip-summary.v1` shape. It
+shows centre, lower and upper canonical metres, complete or partial status,
+terminal timing and policy revision, then tabulates every adjacent included or
+excluded segment. The browser never recalculates distance, bridges exclusions or
+constructs a route.
+
+Recursive admission rejects observation, evidence, bundle, sample and private
+policy identities as well as wrong Thing/trip bindings, malformed timelines,
+inconsistent counts, bounds, totals and identities. A temporary service failure
+keeps the last valid summary for retry; terminal denial, changed content and
+malformed results clear it. Oversized and noncanonical cohorts receive explicit
+messages and never a truncated or invented total.
+
+Export reruns the exact Thing/trip operation under current authority and requires
+the immutable summary identity to match. The bounded
+`wtr.trip-summary-export.v1` document contains the complete public summary but no
+credential, service cursor or private reconstruction input. The local browser
+hook downloads it as JSON.
+
+The complete shared-UI gate passed 134 tests at 95.1% production line coverage;
+the final-summary screen reached 98.2% and its export module 100%. Compiler,
+unused-dependency, formatter, dependency audit, strict Credo, ExDoc, Dialyzer,
+50-member package archive inspection, licenses and the 438-file stack-language
+policy all passed.

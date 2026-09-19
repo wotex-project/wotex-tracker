@@ -5210,6 +5210,175 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     refute has_element?(missing, "#trip-page-size")
   end
 
+  test "completed trip summaries stay gap-honest and reauthorize export", c do
+    thing = provisioned(c)
+    page = trip_page(thing, c.now - 10_000, nil, "10")
+    summary = trip_summary(thing, "trip-one", c.now)
+    Agent.update(c.faults, &Map.put(&1, :thing_trips, {:trip_page, page}))
+
+    {:ok, trips, _} = live(c.conn, Presenter.path(:asset, thing) <> "/trips")
+    path = Presenter.trip_summary_path(thing, "trip-one")
+    assert has_element?(trips, ~s(a[href="#{path}"]), "Inspect final distance summary")
+    refute has_element?(trips, ~s(a[href="#{Presenter.trip_summary_path(thing, "trip-two")}"]))
+
+    Agent.update(c.faults, &Map.put(&1, :trip_summary, {:trip_summary, summary}))
+    {:ok, view, html} = live(c.conn, path)
+    render_patch(view, path)
+    assert html =~ "Workshop sensor trip distance"
+    assert has_element?(view, "h2", "Final distance summary")
+    assert has_element?(view, ".reading", "120.5 m")
+    assert render(view) =~ "Partial total: 1 adjacent segment(s) were excluded explicitly"
+    assert render(view) =~ "Included · moving"
+    assert render(view) =~ "Excluded · stationary"
+    assert render(view) =~ "110.0–131.0 m"
+    refute render(view) =~ "private-evidence"
+
+    view |> element("button", "Export this final summary (JSON)") |> render_click()
+    assert_push_event(view, "download-trip-summary", %{"content" => json})
+    export = Jason.decode!(json)
+    assert export["schema"] == "wtr.trip-summary-export.v1"
+    assert export["thing_id"] == thing
+    assert export["trip_id"] == "trip-one"
+    assert export["summary_identity"] == summary["identity"]
+    assert export["summary"] == summary
+    refute json =~ "private-evidence"
+    refute json =~ "wtrc1."
+
+    Agent.update(c.faults, &Map.put(&1, :trip_summary, :unavailable))
+    view |> element("button", "Export this final summary (JSON)") |> render_click()
+    refute_push_event(view, "download-trip-summary", %{"content" => _})
+    assert has_element?(view, "h2", "Final distance summary")
+
+    Agent.update(c.faults, &Map.put(&1, :trip_summary, :unavailable))
+    view |> element("button", "Refresh summary") |> render_click()
+    assert has_element?(view, "h2", "Final distance summary")
+    assert has_element?(view, "[role=alert]", "service could not complete")
+
+    Agent.update(
+      c.faults,
+      &Map.put(&1, :trip_summary, {:reply, {:error, %{"code" => "unavailable"}}})
+    )
+
+    view |> element("button", "Refresh summary") |> render_click()
+    refute has_element?(view, "h2", "Final distance summary")
+    assert has_element?(view, "[role=alert]", "cannot be reconstructed")
+
+    complete_segment =
+      summary["segments"]
+      |> hd()
+      |> Map.merge(%{
+        "center_distance_m" => 120,
+        "lower_distance_m" => 110,
+        "upper_distance_m" => 131
+      })
+
+    complete =
+      Map.merge(summary, %{
+        "terminal_kind" => "trip.interrupted",
+        "terminal_reason" => "time_gap_exceeded",
+        "status" => "complete",
+        "reason" => "all_segments_included",
+        "sample_count" => 2,
+        "included_segment_count" => 1,
+        "excluded_segment_count" => 0,
+        "center_distance_m" => 120,
+        "lower_distance_m" => 110,
+        "upper_distance_m" => 131,
+        "segments" => [complete_segment]
+      })
+
+    Agent.update(c.faults, &Map.put(&1, :trip_summary, {:trip_summary, complete}))
+    view |> element("button", "Refresh summary") |> render_click()
+    assert render(view) =~ "Every adjacent segment qualified and was included"
+    assert render(view) =~ "Trip interrupted"
+    assert has_element?(view, ".reading", "120 m")
+
+    Agent.update(c.faults, &Map.put(&1, :trip_summary, {:trip_summary, summary}))
+    view |> element("button", "Refresh summary") |> render_click()
+
+    for invalid <- [
+          %{},
+          put_in(
+            summary,
+            ["segments", Access.at(0), "from_position_evidence_id"],
+            "private-evidence"
+          ),
+          put_in(summary, ["included_segment_count"], 2),
+          put_in(summary, ["center_distance_m"], 999.0),
+          put_in(summary, ["lower_distance_m"], 109.0),
+          put_in(summary, ["identity"], "invalid"),
+          put_in(summary, ["started_at"], "invalid"),
+          put_in(summary, ["status"], "complete"),
+          put_in(summary, ["segments", Access.at(0)], %{}),
+          put_in(summary, ["segments", Access.at(0), "center_distance_m"], nil)
+        ] do
+      Agent.update(c.faults, &Map.put(&1, :trip_summary, {:reply, {:ok, invalid}}))
+      view |> element("button", "Refresh summary") |> render_click()
+      refute has_element?(view, "h2", "Final distance summary")
+      assert has_element?(view, "[role=alert]")
+
+      Agent.update(c.faults, &Map.put(&1, :trip_summary, {:trip_summary, summary}))
+      view |> element("button", "Refresh summary") |> render_click()
+      assert has_element?(view, "h2", "Final distance summary")
+    end
+
+    changed = %{
+      summary
+      | "identity" => "wtr-trip-summary-v1:sha256:" <> String.duplicate("b", 64)
+    }
+
+    Agent.update(c.faults, &Map.put(&1, :trip_summary, {:reply, {:ok, changed}}))
+    view |> element("button", "Export this final summary (JSON)") |> render_click()
+    refute_push_event(view, "download-trip-summary", %{"content" => _})
+    refute has_element?(view, "h2", "Final distance summary")
+    assert has_element?(view, "[role=alert]", "service changed")
+
+    Agent.update(
+      c.faults,
+      &Map.put(&1, :trip_summary, {:reply, {:error, %{"code" => "capacity_exceeded"}}})
+    )
+
+    view |> element("button", "Refresh summary") |> render_click()
+    assert has_element?(view, "[role=alert]", "more than 100 retained samples")
+
+    Agent.update(
+      c.faults,
+      &Map.put(&1, :trip_summary, {:reply, {:error, %{"code" => "not_found"}}})
+    )
+
+    view |> element("button", "Refresh summary") |> render_click()
+    assert has_element?(view, "[role=alert]", "requested record is not available")
+
+    render_click(view, "unknown-event", %{})
+    render_click(view, "export", %{})
+    assert has_element?(view, "[role=alert]", "Check the required fields")
+
+    Agent.update(c.faults, &Map.put(&1, :get, {:reply, {:ok, %{}}}))
+    {:ok, malformed_asset, _} = live(c.conn, Presenter.trip_summary_path(thing, "other-trip"))
+    assert has_element?(malformed_asset, "[role=alert]")
+
+    Agent.update(c.faults, &Map.put(&1, :get, {:deny, "forbidden"}))
+
+    {:ok, _denied_asset, denied_html} =
+      live(c.conn, Presenter.trip_summary_path(thing, "denied-trip"))
+
+    assert denied_html =~ ~s(role="alert")
+
+    Agent.update(c.faults, &Map.put(&1, :get, :unavailable))
+
+    {:ok, _unavailable_asset, unavailable_html} =
+      live(c.conn, Presenter.trip_summary_path(thing, "retry-trip"))
+
+    assert unavailable_html =~ ~s(role="alert")
+
+    Agent.update(c.faults, &Map.put(&1, :trip_summary, {:trip_summary, summary}))
+    view |> element("button", "Refresh summary") |> render_click()
+    Agent.update(c.faults, &Map.put(&1, :trip_summary, {:deny, "forbidden"}))
+    view |> element("button", "Export this final summary (JSON)") |> render_click()
+    refute has_element?(view, "h2", "Final distance summary")
+    assert has_element?(view, "[role=alert]", "does not permit")
+  end
+
   defp provisioned(c) do
     {thing, _} = enrolled(c)
     materialize(c, thing, "2")
@@ -5295,6 +5464,55 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
         "generation" => "10",
         "acknowledgement" => nil
       }
+    }
+  end
+
+  defp trip_summary(thing, trip, now) do
+    included = %{
+      "schema" => "wtr.trip-distance-segment.v1",
+      "event_at" => now - 9_000,
+      "status" => "moving",
+      "reason" => "distance_above_moving_threshold",
+      "included" => true,
+      "center_distance_m" => 120.5,
+      "lower_distance_m" => 110.0,
+      "upper_distance_m" => 131.0
+    }
+
+    excluded = %{
+      "schema" => "wtr.trip-distance-segment.v1",
+      "event_at" => now - 5_000,
+      "status" => "stationary",
+      "reason" => "below_stationary_threshold",
+      "included" => false,
+      "center_distance_m" => nil,
+      "lower_distance_m" => nil,
+      "upper_distance_m" => nil
+    }
+
+    %{
+      "schema" => "wtr.trip-summary.v1",
+      "algorithm" => "ordered-moving-segment-sum-v1",
+      "thing_id" => thing,
+      "trip_id" => trip,
+      "snapshot_generation" => "16",
+      "terminal_kind" => "trip.stopped",
+      "terminal_reason" => "stop_dwell_met",
+      "started_at" => now - 10_000,
+      "confirmed_moving_at" => now - 9_000,
+      "ended_at" => now - 5_000,
+      "confirmed_ended_at" => now - 4_000,
+      "status" => "partial",
+      "reason" => "segments_excluded",
+      "sample_count" => 3,
+      "included_segment_count" => 1,
+      "excluded_segment_count" => 1,
+      "center_distance_m" => 120.5,
+      "lower_distance_m" => 110.0,
+      "upper_distance_m" => 131.0,
+      "segments" => [included, excluded],
+      "rule_revision" => "4",
+      "identity" => "wtr-trip-summary-v1:sha256:" <> String.duplicate("a", 64)
     }
   end
 

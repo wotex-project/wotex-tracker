@@ -255,6 +255,11 @@ defmodule Wotex.Tracker.UI.TripLive do
             <p>
               <a href={Presenter.alert_path(row["id"])}>Inspect the exact recorded alert</a>
             </p>
+            <p :if={row["value"]["event"]["kind"] != "trip.started"}>
+              <a href={Presenter.trip_summary_path(@id, row["value"]["event"]["trip_id"])}>
+                Inspect final distance summary
+              </a>
+            </p>
           </li>
         </ol>
         <p :if={@page} class="notice">

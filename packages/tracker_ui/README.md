@@ -25,7 +25,13 @@ endpoints only when both are visible on the same snapshot page and never invents
 a missing stop, distance or cross-page trip. Previous/next navigation is
 retry-safe. Export reauthorizes and reproduces the displayed page, then emits
 bounded public JSON with the selected window and presentation metadata but
-without either service cursor.
+without either service cursor. Stop and interruption rows link to a dedicated
+final-distance screen. That screen accepts only the service's closed public
+summary, shows exact centre/lower/upper metres, complete or partial status and
+every included/excluded adjacent segment, and never reconstructs a route in the
+browser. Refresh retains a valid summary across temporary failure. Export
+reauthorizes the exact Thing/trip request, requires the immutable identity to
+match and emits bounded JSON without service cursors or private input identities.
 The asset page reads declared scalar Properties from the authorized committed
 service snapshot, with no physical-device freshness claim.
 Asset cards now read each latest committed state separately. They show retained
@@ -127,8 +133,9 @@ test helpers. Root and service-only consumers do not depend on this package.
 The first cohort exercises real authorized services, duplicate prevention,
 lost-reply recovery, revocation, read-only denial, upload bounds, bounded
 lists/history, CSRF protection and credential custody. Device discovery and
-capture, basemaps, final trip distance summaries, remaining rule workflows, interactions, remaining privacy controls,
-remote adapters and cross-surface accessibility remain subsequent work. A
+capture, basemaps, distance unit conversion, remaining rule workflows,
+interactions, remaining privacy controls, remote adapters and cross-surface
+accessibility remain subsequent work. A
 responsive browser view does not qualify a mobile or Pi application.
 
 The route-history screen defaults to a one-day UTC window ending after the

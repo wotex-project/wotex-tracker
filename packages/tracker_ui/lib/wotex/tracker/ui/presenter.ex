@@ -19,6 +19,10 @@ defmodule Wotex.Tracker.UI.Presenter do
     "invalid_request" => "Check the required fields and confirmation.",
     "capacity_exceeded" =>
       "This asset already has eight rule definitions. Delete one before adding another.",
+    "trip_summary_capacity" =>
+      "This trip has more than 100 retained samples. No truncated distance was shown.",
+    "trip_summary_unavailable" =>
+      "A final distance cannot be reconstructed from missing, ambiguous or noncanonical retained positions.",
     "not_found" => "The requested record is not available.",
     "cursor_expired" => "This page has expired. Refresh to start a new snapshot.",
     "operation_expired" =>
@@ -71,6 +75,11 @@ defmodule Wotex.Tracker.UI.Presenter do
   def association_path(thing, observation) when is_binary(thing) and is_binary(observation),
     do:
       path(:asset, thing) <> "/observations/" <> URI.encode(observation, &URI.char_unreserved?/1)
+
+  @doc "Builds the local path for one completed trip's distance summary."
+  @spec trip_summary_path(String.t(), String.t()) :: String.t()
+  def trip_summary_path(thing, trip) when is_binary(thing) and is_binary(trip),
+    do: path(:asset, thing) <> "/trips/" <> URI.encode(trip, &URI.char_unreserved?/1)
 
   @doc "Builds the local path for one saved dashboard definition."
   @spec dashboard_path(String.t()) :: String.t()

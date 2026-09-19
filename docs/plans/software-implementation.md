@@ -241,8 +241,10 @@ evidence identities; incomplete, ambiguous and noncanonical cohorts fail
 closed. Its default 30-day half-open UTC window is submitted to the service,
 while fixed-offset timezone and exact millisecond/second interval controls
 remain presentation choices recorded in the export. Fixed offsets are labelled
-as not following daylight-saving changes. Shared final-summary presentation is
-the next application seam.
+as not following daylight-saving changes. Each terminal event now links to a
+dedicated shared final-summary screen. It validates and displays exact bounded
+metres plus every included/excluded segment, retains valid content across a
+temporary read failure and reauthorizes an identity-matched bounded export.
 
 Receiver-observation heartbeat state is implemented as a pure caller-ticked rule
 with exact overdue equality, newer/historical ordering, recovery, revision
