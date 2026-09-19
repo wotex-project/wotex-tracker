@@ -71,7 +71,10 @@ two-fix movement/uncertainty classification is also implemented. See the
 stationary/moving state and stable trip start, stop and interruption events. Host
 transactions now persist changed motion state and stable trip event intent
 atomically. Bounded trip-distance reconstruction includes only adjacent segments
-proved moving and reports every exclusion. Evidence-backed heartbeat state and overdue/recovery events are also
+proved moving and reports every exclusion. Bounded route replay orders exact
+position samples and starts a new segment after rejected evidence or an excessive
+time/distance gap; it never invents a path across missing history.
+Evidence-backed heartbeat state and overdue/recovery events are also
 implemented; see the [heartbeat guide](docs/guides/heartbeat.md).
 Its SQLite host integration persists changed heartbeat state and event intent
 atomically; deadline scheduling remains explicit host work.

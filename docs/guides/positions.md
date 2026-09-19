@@ -1,10 +1,12 @@
 # Position evidence and explicit freshness
 
-This is the first pure WTR.05 slice. `Wotex.Tracker.Position` admits normalized
-position claims from a closed `EvidenceBundle`; `PositionFreshness` evaluates
-explicit time and quality. It starts no process, reads no clock, performs no unit
-conversion and makes no physical-device or canonical-selection claim. Motion,
-trips, fences, multi-source selection and persistent rules are subsequent work.
+`Wotex.Tracker.Position` admits normalized position claims from a closed
+`EvidenceBundle`; `PositionFreshness` evaluates explicit time and quality.
+Deterministic selection, event ordering, geofences, motion/trips, trip distance
+and gap-honest route replay build on the same evidence-bound sample. These pure
+modules start no process, read no clock and make no physical-device qualification
+claim. The service persists several rule transitions, but profile-backed position
+ingestion and the application map remain separate unfinished integration work.
 
 ## Position claim v1
 
@@ -176,3 +178,28 @@ is an explicit reset and a changed scope is independent. The classifier records
 these decisions but does not buffer, mutate state, emit an event or dispatch an
 Action. Stateful rules must use this ordering decision and define their stable
 event identity before committing transitions.
+
+## Bounded route replay
+
+`RouteReplay` admits a content-identified policy with an exact sample-page bound,
+accepted quality set, clock rule and maximum adjacent time and centre-distance
+gaps. It validates complete `PositionSample` values, rejects duplicate sample
+identities and orders an unordered input by event time, receiver time, evidence
+ID, bundle identity and sample identity. A trusted supplied fix is used directly.
+Receiver time may replace only a missing fix when the policy explicitly selects
+`:trusted_fix_or_receiver`; an untrusted supplied fix and a fix after reception
+are rejected rather than silently repaired.
+
+The `wtr.route-replay.v1` result contains only exact admitted coordinates and
+their source, quality, stated horizontal accuracy, clock basis and evidence
+identities. Unavailable or filtered-quality samples remain in a rejected table.
+Every such rejection closes the current segment. Excessive adjacent time or
+distance likewise creates a `wtr.route-break.v1` record with both endpoint
+identities, elapsed milliseconds and WGS84 centre distance. Distance uses the
+short antimeridian delta; `(0, 0)` remains a normal coordinate. Equality at a
+configured gap limit stays connected.
+
+Segments are display instructions, not reconstructed travel. The result never
+joins across a rejection or excessive gap, never supplies a crossing time and
+does not claim map coverage, motion, trip membership or physical accuracy beyond
+the retained evidence. Its policy and complete projection are content-identified.

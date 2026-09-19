@@ -2651,3 +2651,31 @@ manual stop and terminal authorization loss. The complete shared-UI gate passed
 118 tests at 95.0% production line coverage, with compiler, unused-dependency,
 formatter, dependency audit, strict Credo, ExDoc, Dialyzer, package archive,
 license and stack-language checks all passing.
+
+### Gap-honest route replay core — 2026-09-19
+
+`Wotex.Tracker.RouteReplay` now admits a content-identified clock, quality,
+time-gap, distance-gap and sample-page policy over complete `PositionSample`
+values. It validates every evidence bundle, rejects duplicate identities and
+sorts unordered inputs by event time, receiver time, evidence identity, bundle
+identity and sample identity. A trusted fix is used directly; receiver time may
+replace only a missing fix under the explicit fallback policy. An untrusted
+supplied fix or a fix after reception is rejected rather than repaired.
+
+The closed result retains exact qualified coordinates, source, quality, stated
+accuracy, clock basis and evidence identities. Unavailable and filtered-quality
+samples remain explicit rejections. A rejection or an adjacent time/distance
+gap closes the current segment and records both surrounding sample identities,
+elapsed time and WGS84 centre distance. Antimeridian distance uses the short
+longitude delta, valid `(0, 0)` is retained, threshold equality stays connected
+and no result invents a missing point, route or crossing time.
+
+The complete root gate passed 1 doctest, 19 properties and 163 tests at 95.5%
+production line coverage; the new module reached 98.5%. Compiler,
+unused-dependency, formatter, dependency audit, strict Credo, ExDoc, Dialyzer,
+documentation/contracts, 95-member archive inspection, licenses and the 421-file
+stack-language policy all passed. Focused tests cover deterministic permutation,
+repeated timestamp ties, antimeridian traversal, quality rejection, unavailable
+positions, separate time and distance breaks, receiver fallback, untrusted and
+future fixes, content identity, malformed policies, duplicate samples and hard
+page bounds.

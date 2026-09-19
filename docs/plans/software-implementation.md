@@ -213,7 +213,10 @@ bounded distance/speed uncertainty, hysteresis, impossible-speed rejection and
 gap handling. Consecutive-segment dwell establishes stationary/moving state and
 stable trip start, stop and interruption events without treating one segment as
 a trip. Bounded trip-distance reconstruction sums only adjacent segments proved
-moving and retains explicit exclusions. The service atomically persists pending
+moving and retains explicit exclusions. Bounded route replay now orders exact
+position samples under an explicit clock/quality policy and creates visible
+segment breaks after rejected positions or excessive time/distance gaps, without
+inferring a missing path. The service atomically persists pending
 dwell, active-trip state and stable trip event intent with restart recovery. See
 the [motion guide](../guides/motion.md).
 
