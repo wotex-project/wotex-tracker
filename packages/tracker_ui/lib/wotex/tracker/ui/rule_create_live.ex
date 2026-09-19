@@ -233,6 +233,7 @@ defmodule Wotex.Tracker.UI.RuleCreateLive do
           This asset has the maximum of {@maximum} rule definitions. Delete one from its rule page
           before adding another.
         </p>
+        <a :if={motion?(@definitions)} href={Presenter.arming_path(@id)}>Review arming state</a>
       </section>
       <section :if={@thing} class="panel" aria-labelledby="asset-alerts-title">
         <h2 id="asset-alerts-title">Alerts for this asset</h2>
@@ -431,6 +432,11 @@ defmodule Wotex.Tracker.UI.RuleCreateLive do
       _ -> "Not evaluated"
     end
   end
+
+  defp motion?(definitions) when is_list(definitions),
+    do: Enum.any?(definitions, &match?(%{"kind" => "motion"}, &1))
+
+  defp motion?(_), do: false
 
   defp activate(socket, nil),
     do: assign(socket, operation: nil, outcome: nil, saved: nil)

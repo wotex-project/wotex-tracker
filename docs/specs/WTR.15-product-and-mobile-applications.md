@@ -9,6 +9,8 @@ service snapshot and discloses that the read does not contact the device.
 The browser overview now reads each asset's latest authorized committed state
 separately, showing retained measurements and position claims with their source,
 uncertainty, clock and quality or an explicit unprovisioned/unavailable state.
+It separately shows armed, disarmed, unknown, unavailable or unsupported arming
+state and never treats a missing fact as disarmed.
 Asset details and retained state history expose the same redacted positions while
 keeping multiple claims distinct. They do not claim live connectivity, fusion,
 canonical selection or an inferred route. Each
@@ -86,8 +88,13 @@ Recorded rule events appear as newest-first alerts, and an administrator can
 acknowledge a live alert once without changing the rule or dispatching an
 Action. Administrators can create and exactly edit movement/trip and circle or
 polygon geofence rules. The service can now commit and read a private-fact-backed
-armed or disarmed state without claiming device contact; shared browser arming,
-suspicious-movement orchestration and notification delivery remain open.
+armed or disarmed state without claiming device contact. An asset with a motion
+definition links to a dedicated shared arming screen. Administrators prepare an
+armed/disarmed change with a current-generation check, stable recoverable
+operation reference and explicit confirmation; readers can inspect but not
+change it. A committed result is verified against the exact Thing and state, and
+the screen never presents the service commit as a device change or notification.
+Suspicious-movement orchestration and notification delivery remain open.
 These are required product deliverables and optional installations for consumers
 of the library. An incomplete backend or UI framework cannot waive a product gate.
 

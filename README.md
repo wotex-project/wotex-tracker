@@ -131,7 +131,9 @@ owner-presence facts with three-valued logic; see the
 [policy guide](docs/guides/suspicious-movement.md). The service now commits an
 administrator's explicit armed/disarmed fact for an enrolled Thing, retains its
 closed private evidence and exposes only a reviewed public state; it does not
-claim device contact or evaluate the suspicious-movement rule by itself.
+claim device contact or evaluate the suspicious-movement rule by itself. The
+shared browser distinguishes unknown, unsupported, armed and disarmed state and
+uses confirmed, recoverable administrator operations for changes.
 Evidence-qualified transport selection keeps bearer, application protocol,
 budgets and acknowledgement layers explicit; see the
 [transport policy guide](docs/guides/transport-policy.md). A pure transport

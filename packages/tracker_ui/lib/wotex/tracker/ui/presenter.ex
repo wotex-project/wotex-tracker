@@ -81,6 +81,10 @@ defmodule Wotex.Tracker.UI.Presenter do
   def trip_summary_path(thing, trip) when is_binary(thing) and is_binary(trip),
     do: path(:asset, thing) <> "/trips/" <> URI.encode(trip, &URI.char_unreserved?/1)
 
+  @doc "Builds the local path for one asset's arming state."
+  @spec arming_path(String.t()) :: String.t()
+  def arming_path(thing) when is_binary(thing), do: path(:asset, thing) <> "/arming"
+
   @doc "Builds the local path for one saved dashboard definition."
   @spec dashboard_path(String.t()) :: String.t()
   def dashboard_path(id) when is_binary(id),

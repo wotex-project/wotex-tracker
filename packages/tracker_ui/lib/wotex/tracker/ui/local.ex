@@ -90,6 +90,9 @@ defmodule Wotex.Tracker.UI.Local do
   defp dispatch(service, token, scope, :get, args, now),
     do: Service.get(service, token, scope, args["resource"], args["id"], now)
 
+  defp dispatch(service, token, scope, :arming, args, now),
+    do: Service.get(service, token, scope, "arming", args["id"], now)
+
   defp dispatch(service, token, scope, :thing_policies, args, now),
     do: Service.thing_policies(service, token, scope, args["thing"], now)
 
@@ -156,6 +159,9 @@ defmodule Wotex.Tracker.UI.Local do
 
   defp dispatch(service, token, scope, :acknowledge_alert, args, now),
     do: Service.acknowledge_alert(service, token, scope, args["operation"], args["request"], now)
+
+  defp dispatch(service, token, scope, :set_arming, args, now),
+    do: Service.set_arming(service, token, scope, args["operation"], args["request"], now)
 
   defp dispatch(service, token, scope, :enroll, args, now),
     do: Service.enroll(service, token, scope, args["operation"], args["request"], now)

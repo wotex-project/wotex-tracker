@@ -48,7 +48,9 @@ with qualified fix/receiver times, and state history shows the same redacted
 projection beside measurements.
 Provisioned cards also list the committed status of each defined rule, read in
 one snapshot per asset, and mark low, overdue, degraded or outside statuses as
-needing attention; a failed status read keeps the readings visible. The
+needing attention. They separately show armed, disarmed, unknown, unavailable or
+unsupported arming state without treating missing state as disarmed; a failed
+status read keeps the readings visible. The
 protection page shows the same status beside each definition.
 Readers can list retained saved definitions and rerun them under current
 authorization. An administrator can save a displayed query with a fixed or
@@ -57,7 +59,7 @@ new exact-table dashboard.
 The Protection page lists the committed status of heartbeat, battery,
 transport-health, motion and geofence rules through the read-only service
 projection, and each rule page pages its retained evaluation history. These
-pages show no position evidence and cannot arm or acknowledge a rule.
+pages show no position evidence and do not directly change rule status.
 A provisioned asset's protection page lists its live rule definitions with
 their revision and stored settings, linking each to its rule status. An
 administrator can add a heartbeat, low-battery-voltage, motion/trip or geofence
@@ -74,6 +76,13 @@ lets an administrator prepare an edit or deletion with the same generation check
 and recoverable operation reference. Parameters that cannot round-trip exactly
 through the browser fields are not offered for editing, so a save cannot silently
 round or replace policy content.
+An asset with a motion definition links to a dedicated arming page. Readers see
+the closed committed state; administrators prepare an armed or disarmed change
+with a stable operation reference, current-generation check and explicit
+confirmation. Lost replies are recovered from the receipt and reported as
+committed only after an identity-matched state read. The page repeatedly states
+that this service fact does not contact the tracker, perform a physical Action,
+evaluate suspicious movement or confirm notification delivery.
 The Protection page links to a newest-first alert list. Each alert page shows
 the recorded status change, rule, the asset of a defined rule or that the host
 manages the rule, evaluation mode and dispatch restriction, and
@@ -139,7 +148,7 @@ test helpers. Root and service-only consumers do not depend on this package.
 The first cohort exercises real authorized services, duplicate prevention,
 lost-reply recovery, revocation, read-only denial, upload bounds, bounded
 lists/history, CSRF protection and credential custody. Device discovery and
-capture, basemaps, remaining rule workflows, interactions, remaining privacy
+capture, basemaps, suspicious-movement orchestration, interactions, remaining privacy
 controls, remote adapters and cross-surface accessibility remain subsequent work. A
 responsive browser view does not qualify a mobile or Pi application.
 

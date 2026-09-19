@@ -3174,6 +3174,273 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert fence["parameters"]["event_time"] == "trusted_fix_or_receiver"
   end
 
+  test "an administrator explicitly arms and disarms an asset with operation recovery", c do
+    thing = provisioned(c)
+    path = Presenter.arming_path(thing)
+
+    {:ok, unavailable, _} = live(c.conn, path)
+    assert has_element?(unavailable, ".reading", "Unknown")
+    assert has_element?(unavailable, "h2", "Motion rule required")
+    refute has_element?(unavailable, "button", "Prepare arm")
+
+    assert {:ok, %{"generation" => "4"}} =
+             Service.save_policy(
+               c.service,
+               c.admin,
+               c.scope,
+               Identifier.uuid(),
+               motion_rule(thing, "3"),
+               c.now
+             )
+
+    {:ok, protection, _} = live(c.conn, Presenter.path(:asset, thing) <> "/protection")
+    assert has_element?(protection, ~s(a[href="#{path}"]), "Review arming state")
+
+    {:ok, view, _} = live(c.conn, path)
+    assert has_element?(view, ".reading", "Unknown")
+    assert render(view) =~ "Unknown is not treated as disarmed"
+
+    view |> element("button", "Prepare arm") |> render_click()
+    armed_path = assert_patch(view)
+    assert URI.decode_query(URI.parse(armed_path).query)["status"] == "armed"
+    assert has_element?(view, "#arming-confirmation")
+
+    render_submit(view, "commit", %{})
+    assert has_element?(view, "[role=alert]", "Check the required fields")
+
+    Agent.update(c.faults, &Map.put(&1, :set_arming, :lost_reply))
+
+    view
+    |> form("#arming-confirmation", arming: %{confirmed: "yes"})
+    |> render_submit()
+
+    assert has_element?(view, "[role=status]", "Arming outcome unknown")
+    assert has_element?(view, ".identifier", operation_from(armed_path))
+
+    view |> element("button", "Check operation outcome") |> render_click()
+    assert has_element?(view, "[role=status]", "Service state committed: Armed")
+    assert has_element?(view, ".reading", "Armed")
+    assert render(view) =~ "does not contact the tracker"
+
+    assert {:ok, %{"value" => %{"status" => "armed", "revision" => "arming-5"}}} =
+             Service.get(c.service, c.reader, c.scope, "arming", thing, c.now)
+
+    {:ok, overview, _} = live(c.conn, "/")
+    assert has_element?(overview, ".asset-summary strong", "Armed")
+    assert has_element?(overview, ".asset-summary a", "Review")
+
+    {:ok, resumed, _} = live(c.conn, armed_path)
+    assert has_element?(resumed, "[role=status]", "Service state committed: Armed")
+    assert has_element?(resumed, ".reading", "Armed")
+
+    {:ok, disarm, _} = live(c.conn, path)
+    disarm |> element("button", "Prepare disarm") |> render_click()
+    disarmed_path = assert_patch(disarm)
+    assert URI.decode_query(URI.parse(disarmed_path).query)["status"] == "disarmed"
+
+    disarm
+    |> form("#arming-confirmation", arming: %{confirmed: "yes"})
+    |> render_submit()
+
+    assert has_element?(disarm, "[role=status]", "Service state committed: Disarmed")
+    assert has_element?(disarm, ".reading", "Disarmed")
+
+    assert {:ok, %{"value" => %{"status" => "disarmed", "revision" => "arming-6"}}} =
+             Service.get(c.service, c.reader, c.scope, "arming", thing, c.now)
+
+    {:ok, activity, _} = live(c.conn, "/activity")
+    assert has_element?(activity, ~s(a[href="#{path}"]), "Disarmed asset")
+  end
+
+  test "arming controls fail closed for readers, stale pages and malformed state", c do
+    thing = provisioned(c)
+
+    assert {:ok, %{"generation" => "4"}} =
+             Service.save_policy(
+               c.service,
+               c.admin,
+               c.scope,
+               Identifier.uuid(),
+               motion_rule(thing, "3"),
+               c.now
+             )
+
+    assert {:ok, %{"generation" => "5"}} =
+             Service.set_arming(
+               c.service,
+               c.admin,
+               c.scope,
+               Identifier.uuid(),
+               %{"thing_id" => thing, "status" => "armed", "expected_generation" => "4"},
+               c.now
+             )
+
+    {:ok, %{"id" => reader}} = Sessions.login(c.sessions, c.reader, c.scope)
+    reader_conn = build_conn() |> init_test_session(%{"browser_session" => reader})
+    {:ok, reader_view, _} = live(reader_conn, Presenter.arming_path(thing))
+    assert has_element?(reader_view, ".reading", "Armed")
+    assert render(reader_view) =~ "cannot arm or disarm"
+    refute has_element?(reader_view, "button", "Prepare arm")
+
+    {:ok, view, _} = live(c.conn, Presenter.arming_path(thing))
+    Agent.update(c.faults, &Map.put(&1, :arming, :unavailable))
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, ".reading", "Armed")
+    assert has_element?(view, "[role=alert]")
+
+    {:ok, %{"value" => arming}} =
+      Service.get(c.service, c.reader, c.scope, "arming", thing, c.now)
+
+    Agent.update(
+      c.faults,
+      &Map.put(&1, :arming, {:reply, {:ok, %{"value" => Map.put(arming, "private", true)}}})
+    )
+
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, ".reading", "Unknown")
+    assert has_element?(view, "[role=alert]")
+
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, ".reading", "Armed")
+
+    view |> element("button", "Prepare disarm") |> render_click()
+    commit_change(c, "arming-conflict")
+
+    view
+    |> form("#arming-confirmation", arming: %{confirmed: "yes"})
+    |> render_submit()
+
+    assert has_element?(view, "[role=alert]", "service changed")
+
+    assert {:ok, %{"value" => %{"status" => "armed"}}} =
+             Service.get(c.service, c.reader, c.scope, "arming", thing, c.now)
+
+    {:ok, invalid, _} =
+      live(c.conn, Presenter.arming_path(thing) <> "?operation=bad&status=armed")
+
+    assert has_element?(invalid, "[role=alert]", "Check the required fields")
+    refute has_element?(invalid, "#arming-confirmation")
+  end
+
+  test "arming workflow preserves unknown outcomes across malformed and failed boundaries", c do
+    thing = provisioned(c)
+    path = Presenter.arming_path(thing)
+
+    assert {:ok, %{"generation" => "4"}} =
+             Service.save_policy(
+               c.service,
+               c.admin,
+               c.scope,
+               Identifier.uuid(),
+               motion_rule(thing, "3"),
+               c.now
+             )
+
+    {:ok, boundary, _} = live(c.conn, path)
+
+    Agent.update(c.faults, &Map.put(&1, :get, :unavailable))
+    render_click(boundary, "refresh", %{})
+    assert has_element?(boundary, "[role=alert]")
+    render_click(boundary, "refresh", %{})
+
+    Agent.update(c.faults, &Map.put(&1, :thing_policies, {:reply, {:ok, %{}}}))
+    render_click(boundary, "refresh", %{})
+    assert has_element?(boundary, "[role=alert]")
+    render_click(boundary, "refresh", %{})
+
+    for fault <- [
+          {:deny, "forbidden"},
+          {:reply, {:ok, %{}}}
+        ] do
+      Agent.update(c.faults, &Map.put(&1, :arming, fault))
+      render_click(boundary, "refresh", %{})
+      assert has_element?(boundary, "[role=alert]")
+    end
+
+    render_click(boundary, "refresh", %{})
+    render_click(boundary, "prepare", %{"status" => "invalid"})
+    assert has_element?(boundary, "[role=alert]")
+    assert render_click(boundary, "unknown-event", %{}) =~ "Change arming state"
+
+    for fault <- [:unavailable, {:reply, {:ok, %{}}}] do
+      {:ok, failed_prepare, _} = live(c.conn, path)
+      Agent.update(c.faults, &Map.put(&1, :list, fault))
+      render_click(failed_prepare, "prepare", %{"status" => "armed"})
+      assert has_element?(failed_prepare, "[role=alert]")
+    end
+
+    operation = Identifier.uuid()
+    {:ok, failed_resume, _} = live(c.conn, path)
+    Agent.update(c.faults, &Map.put(&1, :list, :unavailable))
+    render_patch(failed_resume, path <> "?operation=#{operation}&status=armed")
+    assert has_element?(failed_resume, "[role=alert]")
+
+    {:ok, invalid_revision, _} = live(c.conn, path)
+
+    Agent.update(
+      c.faults,
+      &Map.put(&1, :arming, {:reply, {:ok, invalid_arming(thing, "arming-x")}})
+    )
+
+    render_click(invalid_revision, "refresh", %{})
+    assert has_element?(invalid_revision, ".reading", "Unknown")
+
+    {:ok, invalid_prefix, _} = live(c.conn, path)
+    Agent.update(c.faults, &Map.put(&1, :arming, {:reply, {:ok, invalid_arming(thing, "bad")}}))
+    render_click(invalid_prefix, "refresh", %{})
+    assert has_element?(invalid_prefix, ".reading", "Unknown")
+
+    {:ok, unrelated_receipt, _} = prepared_arming_view(c, path)
+
+    Agent.update(
+      c.faults,
+      &Map.put(
+        &1,
+        :set_arming,
+        {:reply,
+         {:ok,
+          %{
+            "outcome" => "committed",
+            "data" => %{"thing_id" => thing, "status" => "disarmed"}
+          }}}
+      )
+    )
+
+    confirm_arming(unrelated_receipt)
+    assert has_element?(unrelated_receipt, "[role=status]", "Arming outcome unknown")
+
+    {:ok, malformed_receipt, _} = prepared_arming_view(c, path)
+    Agent.update(c.faults, &Map.put(&1, :set_arming, {:reply, {:ok, %{"outcome" => "other"}}}))
+    confirm_arming(malformed_receipt)
+    assert has_element?(malformed_receipt, "[role=status]", "Arming outcome unknown")
+
+    {:ok, failed_commit, _} = prepared_arming_view(c, path)
+    Agent.update(c.faults, &Map.put(&1, :set_arming, :unavailable))
+    confirm_arming(failed_commit)
+    assert has_element?(failed_commit, "[role=status]", "Arming outcome unknown")
+
+    {:ok, failed_verify, failed_verify_path} = prepared_arming_view(c, path)
+    operation = operation_from(failed_verify_path)
+
+    Agent.update(c.faults, fn faults ->
+      faults
+      |> Map.put(
+        :set_arming,
+        {:reply,
+         {:ok,
+          %{
+            "outcome" => "committed",
+            "operation_id" => operation,
+            "data" => %{"thing_id" => thing, "status" => "armed"}
+          }}}
+      )
+      |> Map.put(:arming, :unavailable)
+    end)
+
+    confirm_arming(failed_verify)
+    assert has_element?(failed_verify, "[role=status]", "Arming outcome unknown")
+  end
+
   test "an asset's protection page lists its rule definitions up to the limit", c do
     thing = provisioned(c)
     path = Presenter.path(:asset, thing) <> "/protection"
@@ -5618,6 +5885,53 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
         "accept_suspect" => false
       },
       "expected_generation" => generation
+    }
+
+  defp motion_rule(thing, generation),
+    do: %{
+      "id" => "motion-protection",
+      "kind" => "motion",
+      "thing_id" => thing,
+      "parameters" => %{
+        "event_time" => "trusted_fix",
+        "future_skew_ms" => 1_000,
+        "late_window_ms" => 10_000,
+        "sequence" => "none",
+        "moving_speed_m_s" => 1.5,
+        "stationary_speed_m_s" => 0.2,
+        "moving_distance_m" => 5,
+        "stationary_distance_m" => 1,
+        "max_plausible_speed_m_s" => 100,
+        "max_gap_ms" => 300_000,
+        "uncertainty" => "require_bound",
+        "minimum_movement_ms" => 30_000,
+        "minimum_stop_ms" => 60_000
+      },
+      "expected_generation" => generation
+    }
+
+  defp prepared_arming_view(c, path) do
+    {:ok, view, _} = live(c.conn, path)
+    render_click(view, "prepare", %{"status" => "armed"})
+    {:ok, view, assert_patch(view)}
+  end
+
+  defp confirm_arming(view) do
+    view
+    |> form("#arming-confirmation", arming: %{confirmed: "yes"})
+    |> render_submit()
+  end
+
+  defp invalid_arming(thing, revision),
+    do: %{
+      "value" => %{
+        "schema" => "wtr.arming.v1",
+        "thing_id" => thing,
+        "status" => "armed",
+        "revision" => revision,
+        "changed_at" => 0,
+        "changed_by" => "wtr1_actor"
+      }
     }
 
   defp generation(c) do

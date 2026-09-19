@@ -293,8 +293,9 @@ and materialising its Thing evaluate it atomically against committed evidence;
 position rules fail closed unless the bundle has exactly one position, rather
 than inventing source selection. The scheduler ages the time-driven state. Every
 rule event becomes a public alert, and administrators can acknowledge a live
-alert once. Browser arming, suspicious-movement orchestration and notification
-delivery remain open.
+alert once. The shared browser can inspect and conditionally change the retained
+arming fact for an asset with a motion definition. Suspicious-movement
+orchestration and notification delivery remain open.
 
 Implement explicit time/freshness, quality selection, motion/trips/stops,
 geofence membership/transitions, heartbeat, suspicious movement, low-battery,
@@ -371,7 +372,11 @@ reauthorizes and reproduces the displayed identity before emitting cursor-free J
 The asset page can also read declared scalar Properties from the committed
 service snapshot through current `read` authority. Overview cards fetch each
 asset's retained state separately and disclose unprovisioned, unavailable and
-prior-source readings without claiming live connectivity.
+prior-source readings without claiming live connectivity. They also distinguish
+armed, disarmed, unknown, unavailable and unsupported arming state. Assets with
+a motion definition link to a shared arming screen whose administrator controls
+use a stable operation, generation check and explicit confirmation; committed
+state is reread before success and never described as a device change.
 Revocation, read-only denial, stale writes, lost replies and real HTTP session
 security are exercised. The UI-enabled bundles also pass an authenticated
 browser asset and restart probe. A shared Protection page and per-rule history

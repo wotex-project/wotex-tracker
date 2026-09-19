@@ -117,6 +117,17 @@ defmodule Wotex.Tracker.UI.ActivityLive do
     """
   end
 
+  defp change(%{data: %{"thing_id" => id, "status" => status} = data} = assigns)
+       when map_size(data) == 2 and status in ~w(armed disarmed) do
+    assigns = assign(assigns, id: id, status: status)
+
+    ~H"""
+    <a href={Presenter.arming_path(@id)}>
+      {if @status == "armed", do: "Armed asset", else: "Disarmed asset"}
+    </a>
+    """
+  end
+
   defp change(%{data: %{"thing_id" => id} = data} = assigns) do
     label =
       cond do

@@ -306,14 +306,31 @@ defmodule Wotex.Tracker.UI.BrowseLive do
   defp rules(socket, id, state) do
     case Auth.request(socket, :thing_rules, %{"thing" => id}) do
       {:ok, %{"items" => items}} when is_list(items) ->
-        %{status: :recorded, state: state, rules: items}
+        arming(socket, id, %{status: :recorded, state: state, rules: items})
 
       {:error, %{"code" => code} = error} when code in ~w(forbidden unauthorized) ->
         {:error, error}
 
       _ ->
-        %{status: :recorded, state: state, rules: :unavailable}
+        arming(socket, id, %{status: :recorded, state: state, rules: :unavailable})
     end
+  end
+
+  defp arming(socket, id, summary) do
+    value =
+      case Auth.request(socket, :arming, %{"id" => id}) do
+        {:ok, %{"value" => %{"schema" => "wtr.arming.v1", "thing_id" => ^id, "status" => status}}}
+        when status in ~w(armed disarmed) ->
+          status
+
+        {:error, %{"code" => "not_found"}} ->
+          :unknown
+
+        _ ->
+          :unavailable
+      end
+
+    Map.put(summary, :arming, value)
   end
 
   attr(:summary, :map, required: true)
@@ -362,10 +379,34 @@ defmodule Wotex.Tracker.UI.BrowseLive do
             <strong :if={Presenter.rule_attention?(rule["value"]["status"])}> · needs attention</strong>
           </li>
         </ul>
+        <p>
+          Arming: <strong>{arming_label(@summary.arming, @summary.rules)}</strong>
+          <a :if={arming_link?(@summary)} href={Presenter.arming_path(@enrollment["id"])}>
+            Review
+          </a>
+        </p>
       </div>
     </div>
     """
   end
+
+  defp arming_label("armed", _), do: "Armed"
+  defp arming_label("disarmed", _), do: "Disarmed"
+  defp arming_label(:unavailable, _), do: "Unavailable"
+
+  defp arming_label(:unknown, rules) when is_list(rules) do
+    if motion?(rules), do: "Unknown", else: "Unsupported (no motion rule)"
+  end
+
+  defp arming_label(_, _), do: "Unknown"
+
+  defp motion?(rules) when is_list(rules),
+    do: Enum.any?(rules, &match?(%{"value" => %{"kind" => "motion"}}, &1))
+
+  defp motion?(_), do: false
+
+  defp arming_link?(%{arming: status}) when status in ~w(armed disarmed), do: true
+  defp arming_link?(%{rules: rules}), do: motion?(rules)
 
   defp capture(socket) do
     with {[entry], []} <- uploaded_entries(socket, :observation),
