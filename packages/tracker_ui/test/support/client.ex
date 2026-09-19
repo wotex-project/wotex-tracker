@@ -8,7 +8,9 @@ defmodule Wotex.Tracker.UI.TestClient do
     fault =
       Agent.get_and_update(faults, fn current ->
         value = Map.get(current, action)
-        next = if match?({:page, _}, value), do: current, else: Map.delete(current, action)
+
+        persistent = match?({:page, _}, value) or match?({:route_page, _}, value)
+        next = if persistent, do: current, else: Map.delete(current, action)
         {value, next}
       end)
 
@@ -19,6 +21,13 @@ defmodule Wotex.Tracker.UI.TestClient do
     case Local.request(provider, token, scope, :authorize, %{}, now) do
       {:ok, %{"can_manage_queries" => true}} -> {:ok, page}
       {:ok, _} -> {:error, %{"code" => "forbidden"}}
+      error -> error
+    end
+  end
+
+  defp respond({:route_page, page}, provider, token, scope, :route_history, _, now) do
+    case Local.request(provider, token, scope, :authorize, %{}, now) do
+      {:ok, _} -> {:ok, page}
       error -> error
     end
   end

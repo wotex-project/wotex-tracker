@@ -10,8 +10,11 @@ confirmed enrollment, later observation association, explicit Thing updates,
 retained measurements, resource history and per-asset measurement graphs with
 an exact table. Retained position projections appear on overview, asset-detail
 and state-history surfaces when supplied; an empty collection remains explicit.
-The screens do not choose a canonical source, infer a route or claim current
-connectivity. Unsupported positioning and Actions are identified honestly.
+An asset route screen submits the service's closed replay policy, draws only its
+page-local segments in a coordinate plot and pairs them with exact points,
+rejections, exclusions and gap details. The screens do not choose a canonical
+source, road-match a route or claim current connectivity. Unsupported positioning
+and Actions are identified honestly.
 The asset page reads declared scalar Properties from the authorized committed
 service snapshot, with no physical-device freshness claim.
 Asset cards now read each latest committed state separately. They show retained
@@ -113,9 +116,18 @@ test helpers. Root and service-only consumers do not depend on this package.
 The first cohort exercises real authorized services, duplicate prevention,
 lost-reply recovery, revocation, read-only denial, upload bounds, bounded
 lists/history, CSRF protection and credential custody. Device discovery and
-capture, maps, route/trip history, remaining rule workflows, interactions, remaining privacy controls,
+capture, basemaps, trip history, remaining rule workflows, interactions, remaining privacy controls,
 remote adapters and cross-surface accessibility remain subsequent work. A
 responsive browser view does not qualify a mobile or Pi application.
+
+The route-history screen defaults to a one-day UTC window ending after the
+latest retained asset state. Readers can choose trusted-fix/receiver fallback,
+valid/suspect quality, adjacent time/distance gaps and a bounded page size. Its
+SVG uses separate paths for service segments and the short antimeridian delta;
+it has no basemap and makes no claim between recorded points. Missing or
+ambiguous materialisations and rejected samples remain visible. Previous/next
+navigation reloads every page under current authority, retains the displayed
+page on temporary failure and never connects coordinates across pages.
 
 The analytics screen builds a closed absolute UTC query for one retained asset
 using a currently recorded numeric measurement and unit. It restricts the

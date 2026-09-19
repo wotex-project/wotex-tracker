@@ -29,7 +29,7 @@ button, .button {
 }
 
 button:disabled { opacity: .65; cursor: wait; }
-button.secondary { background: white; color: var(--green); }
+button.secondary, .button.secondary { background: white; color: var(--green); }
 button.text-button { border: 0; background: none; color: var(--ink); padding: .4rem; }
 
 :focus-visible {
@@ -142,6 +142,10 @@ td ul { margin: 0; padding-left: 1rem; }
 .chart-line { fill: none; stroke: #146351; stroke-width: 3; stroke-linejoin: round; }
 .chart-area { fill: #a8d8cb; stroke: none; }
 .chart-point { fill: #146351; stroke: white; stroke-width: 2; }
+.route-chart .chart-line { stroke-width: 4; }
+.route-chart .chart-point { stroke-width: 3; }
+.route-gaps { padding-left: 1.2rem; }
+.route-gaps li + li { margin-top: .5rem; }
 .chart-series.series-1, .chart-legend .series-1 { --series-color: #146351; }
 .chart-series.series-2, .chart-legend .series-2 { --series-color: #2355a2; }
 .chart-series.series-3, .chart-legend .series-3 { --series-color: #a34e16; }

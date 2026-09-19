@@ -2835,3 +2835,34 @@ stack-language policy all passed. Focused coverage includes missing/ambiguous an
 malformed materialisations, quality rejection/inclusion, receiver fallback,
 untrusted clocks, half-open windows, both antimeridian directions, ordinary
 distance, snapshot isolation and cursor request/caller binding.
+
+### Shared retained-route replay — 2026-09-19
+
+The shared LiveView package now exposes an asset route-history screen over the
+authorized service client. Readers select a half-open UTC window, trusted-fix or
+explicit receiver fallback, accepted quality, adjacent time/distance gaps and a
+25/50/100-materialisation page. The default one-day window ends immediately
+after the asset's newest retained state. Positionless materialisations remain an
+explicit empty replay with their exclusion reason.
+
+The browser draws one SVG path for each returned service segment and supplies an
+exact table of qualified coordinates, sources, clock basis, quality and stated
+accuracy. It unwraps longitude around the antimeridian only for coordinate
+projection. Breaks, quality rejections and missing/ambiguous materialisations
+remain separately listed. The plot has no basemap, road matching or inferred
+point. Every page warns that continuity is local, and paging never draws a
+connector across responses.
+
+Previous and next navigation rerun the encrypted request under current authority.
+A temporary failure retains the current page and its back path; a terminal
+authorization failure clears route data. Malformed result shapes fail closed.
+The real local-service workflow exercises the positionless Ruuvi route, while
+synthetic public pages cover multi-segment plots, antimeridian projection,
+rejections/exclusions, forward/back navigation and retry behavior without private
+evidence identifiers.
+
+The complete shared-UI gate passed 130 tests at 95.0% production line coverage;
+both the route screen and coordinate projector reached 95.2%. Compiler,
+unused-dependency, formatter, dependency audit, strict Credo, ExDoc, Dialyzer,
+45-member package archive inspection, licenses and the 430-file stack-language
+policy all passed.

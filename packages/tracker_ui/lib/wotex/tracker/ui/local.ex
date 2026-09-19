@@ -130,6 +130,9 @@ defmodule Wotex.Tracker.UI.Local do
   defp dispatch(service, token, scope, :analytics, args, now),
     do: Service.analytics(service, token, scope, args["query"], now)
 
+  defp dispatch(service, token, scope, :route_history, args, now),
+    do: Service.route_history(service, token, scope, args["request"], now)
+
   defp dispatch(service, token, scope, :execute_saved_query, args, now),
     do: Service.execute_saved_query(service, token, scope, args["id"], now)
 

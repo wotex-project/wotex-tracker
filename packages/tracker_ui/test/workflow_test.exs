@@ -4825,6 +4825,124 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     end
   end
 
+  test "route history uses the authorized service and explains positionless retained data", c do
+    thing = provisioned(c)
+
+    {:ok, asset, _} =
+      live(c.conn, Presenter.path(:asset, thing) <> "?operation=" <> Identifier.uuid())
+
+    assert has_element?(
+             asset,
+             ~s(a[href="#{Presenter.path(:asset, thing)}/route"]),
+             "Explore route history"
+           )
+
+    path = Presenter.path(:asset, thing) <> "/route"
+    {:ok, route, html} = live(c.conn, path)
+    assert html =~ "Workshop sensor route"
+    assert has_element?(route, "#route-query")
+    assert has_element?(route, "h2", "Route page")
+    assert render(route) =~ "No position in this materialisation"
+    assert render(route) =~ "No qualified position can be plotted"
+    assert render(route) =~ "Continuity is local to this page"
+
+    render_patch(route, path)
+    route |> element("button", "Refresh asset") |> render_click()
+    route |> form("#route-query") |> render_submit()
+    assert has_element?(route, "h2", "Route page")
+    render_submit(route, "run", %{})
+    assert has_element?(route, "[role=alert]", "Check the required fields")
+    render_click(route, "unknown-event", %{})
+
+    route |> element("button", "Refresh asset") |> render_click()
+
+    route
+    |> form("#route-query", route: %{from: "2023-11-14T00:00:00+02:00"})
+    |> render_submit()
+
+    assert has_element?(route, "[role=alert]", "Check the required fields")
+    refute has_element?(route, "h2", "Route page")
+
+    Agent.update(c.faults, &Map.put(&1, :get, :unavailable))
+    route |> element("button", "Refresh asset") |> render_click()
+    refute has_element?(route, "#route-query")
+
+    Agent.update(c.faults, &Map.put(&1, :get, {:reply, {:ok, %{}}}))
+    route |> element("button", "Refresh asset") |> render_click()
+    assert has_element?(route, "[role=alert]")
+  end
+
+  test "route pages plot separate segments and retain the current page on retry", c do
+    thing = provisioned(c)
+    first = route_page(thing, c.now, "cursor-one", "route-page-one")
+    second = route_page(thing, c.now + 5_000, nil, "route-page-two")
+    Agent.update(c.faults, &Map.put(&1, :route_history, {:route_page, first}))
+
+    {:ok, view, html} = live(c.conn, Presenter.path(:asset, thing) <> "/route")
+    assert html =~ "route-page-one"
+    assert length(Regex.scan(~r/class="chart-line"/, html)) == 2
+    assert length(Regex.scan(~r/class="chart-point"/, html)) == 3
+    assert html =~ "Missing or ambiguous materialisation"
+    assert html =~ "Multiple positions; no source selected"
+    assert html =~ "Quality excluded: suspect"
+    refute html =~ "private-position-evidence"
+    assert has_element?(view, "button", "Next route page")
+    refute has_element?(view, "button", "Previous route page")
+
+    Agent.update(c.faults, &Map.put(&1, :route_history, :unavailable))
+    view |> element("button", "Next route page") |> render_click()
+    assert render(view) =~ "route-page-one"
+    assert has_element?(view, "[role=alert]")
+    refute has_element?(view, "button", "Previous route page")
+
+    Agent.update(c.faults, &Map.put(&1, :route_history, {:reply, {:ok, second}}))
+    view |> element("button", "Next route page") |> render_click()
+    assert render(view) =~ "route-page-two"
+    assert has_element?(view, "button", "Previous route page")
+    refute has_element?(view, "button", "Next route page")
+
+    Agent.update(c.faults, &Map.put(&1, :route_history, :unavailable))
+    view |> element("button", "Previous route page") |> render_click()
+    assert render(view) =~ "route-page-two"
+    assert has_element?(view, "button", "Previous route page")
+
+    Agent.update(c.faults, &Map.put(&1, :route_history, {:reply, {:ok, first}}))
+    view |> element("button", "Previous route page") |> render_click()
+    assert render(view) =~ "route-page-one"
+    refute has_element?(view, "button", "Previous route page")
+
+    for response <- [
+          {:ok, %{}},
+          {:ok, put_in(first, ["route"], %{})},
+          {:ok, "unexpected"}
+        ] do
+      Agent.update(c.faults, &Map.put(&1, :route_history, {:reply, response}))
+      view |> element("button", "Next route page") |> render_click()
+      assert render(view) =~ "route-page-one"
+      assert has_element?(view, "[role=alert]")
+      refute has_element?(view, "button", "Previous route page")
+    end
+
+    Agent.update(c.faults, &Map.put(&1, :route_history, {:deny, "forbidden"}))
+    view |> element("button", "Next route page") |> render_click()
+    refute has_element?(view, "#route-query")
+    refute has_element?(view, "h2", "Route page")
+    assert has_element?(view, "[role=alert]", "does not permit")
+  end
+
+  test "route history distinguishes an unprovisioned asset from a missing one", c do
+    {thing, _} = enrolled(c)
+    {:ok, unprovisioned, _} = live(c.conn, Presenter.path(:asset, thing) <> "/route")
+    assert has_element?(unprovisioned, ".notice", "Provision this asset's Thing")
+    refute has_element?(unprovisioned, "#route-query")
+
+    {:ok, missing, _} =
+      live(c.conn, Presenter.path(:asset, "urn:uuid:" <> Identifier.uuid()) <> "/route")
+
+    assert has_element?(missing, "[role=alert]", "requested record is not available")
+    refute has_element?(missing, "#route-query")
+  end
+
   defp provisioned(c) do
     {thing, _} = enrolled(c)
     materialize(c, thing, "2")
@@ -4966,6 +5084,146 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
       "fix_clock" => "trusted",
       "availability" => "available",
       "quality" => "valid"
+    }
+
+  defp route_page(thing, now, cursor, identity) do
+    first = route_point("wtr1_point-a", now, 10.0, 179.9, "valid")
+    second = route_point("wtr1_point-b", now + 1_000, 10.1, -179.9, "valid")
+    third = route_point("wtr1_point-c", now + 3_000, 10.2, -179.8, "valid")
+
+    {segments, breaks, rejected, excluded, status, reason, record_count, sample_count,
+     point_count, segment_count, after_generation,
+     history_count} =
+      if cursor do
+        {
+          [
+            %{
+              "schema" => "wtr.route-segment-public.v1",
+              "point_count" => 2,
+              "points" => [first, second]
+            },
+            %{
+              "schema" => "wtr.route-segment-public.v1",
+              "point_count" => 1,
+              "points" => [third]
+            }
+          ],
+          Enum.map(
+            ~w(unqualified_materialisations rejected_samples time_gap distance_gap time_and_distance_gap),
+            &route_break(first, third, &1)
+          ),
+          [
+            %{
+              "schema" => "wtr.route-rejection-public.v1",
+              "id" => "wtr1_rejected",
+              "received_at" => Projection.scalar(now + 500),
+              "reason" => "quality:suspect"
+            }
+          ],
+          [
+            %{
+              "schema" => "wtr.route-exclusion.v1",
+              "id" => "wtr1_excluded",
+              "received_at" => Projection.scalar(now + 2_000),
+              "reason" => "ambiguous_positions"
+            }
+          ],
+          "partial",
+          "gaps_or_rejections",
+          5,
+          4,
+          3,
+          2,
+          "0",
+          3
+        }
+      else
+        {
+          [
+            %{
+              "schema" => "wtr.route-segment-public.v1",
+              "point_count" => 1,
+              "points" => [third]
+            }
+          ],
+          [],
+          [],
+          [],
+          "complete",
+          "all_positions_qualified",
+          1,
+          1,
+          1,
+          1,
+          "2",
+          1
+        }
+      end
+
+    %{
+      "schema" => "wtr.route-page.v1",
+      "algorithm" => "snapshot-pinned-gap-honest-route-v1",
+      "thing_id" => thing,
+      "generation" => "3",
+      "history" => %{
+        "after_generation" => after_generation,
+        "last_generation" => "3",
+        "record_count" => history_count
+      },
+      "window" => %{"from_at" => now - 86_400_000, "to_at" => now + 10_000},
+      "continuity" => "page_local_only",
+      "route" => %{
+        "schema" => "wtr.route-replay-public.v1",
+        "algorithm" => "snapshot-pinned-gap-honest-route-v1",
+        "status" => status,
+        "reason" => reason,
+        "record_count" => record_count,
+        "sample_count" => sample_count,
+        "point_count" => point_count,
+        "segment_count" => segment_count,
+        "break_count" => length(breaks),
+        "rejected_count" => length(rejected),
+        "excluded_count" => length(excluded),
+        "segments" => segments,
+        "breaks" => breaks,
+        "rejected" => rejected,
+        "excluded" => excluded,
+        "policy" => %{},
+        "window" => %{"from_at" => now - 86_400_000, "to_at" => now + 10_000}
+      },
+      "cursor" => cursor,
+      "identity" => identity
+    }
+  end
+
+  defp route_point(id, event_at, latitude, longitude, quality),
+    do: %{
+      "schema" => "wtr.route-point-public.v1",
+      "id" => id,
+      "latitude" => Projection.scalar(latitude),
+      "longitude" => Projection.scalar(longitude),
+      "horizontal_accuracy_m" => Projection.scalar(5.0),
+      "accuracy_kind" => "bound",
+      "source" => "gnss",
+      "quality" => quality,
+      "event_at" => Projection.scalar(event_at),
+      "event_time_basis" => "trusted_fix",
+      "received_at" => Projection.scalar(event_at)
+    }
+
+  defp route_break(first, third, reason),
+    do: %{
+      "schema" => "wtr.route-break-public.v1",
+      "after_point_id" => first["id"],
+      "before_point_id" => third["id"],
+      "after_event_at" => first["event_at"],
+      "before_event_at" => third["event_at"],
+      "gap_ms" => Projection.scalar(2_000),
+      "center_distance_m" => Projection.scalar(22_000.0),
+      "reason" => reason,
+      "excluded_ids" =>
+        if(reason == "unqualified_materialisations", do: ["wtr1_excluded"], else: []),
+      "rejected_ids" => if(reason == "rejected_samples", do: ["wtr1_rejected"], else: [])
     }
 
   defp dashboard_query(thing, now) do

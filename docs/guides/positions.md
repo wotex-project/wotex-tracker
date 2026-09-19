@@ -80,8 +80,8 @@ multi-source selection.
 The shared browser presents those projections on the overview, asset detail and
 retained state-history surfaces. It labels source, uncertainty, quality and
 fix/receiver times, retains multiple claims separately and treats an empty list as
-unsupported. It deliberately renders no map line and makes no freshness,
-connectivity, fusion or canonical-selection claim.
+unsupported. These current-state surfaces render no route line and make no
+freshness, connectivity, fusion or canonical-selection claim.
 
 `Position.to_map(position, bundle)` exports a `wtr.position-evidence.v1` object
 containing the complete claim, source and parent evidence IDs, profile/decoder
@@ -257,3 +257,10 @@ Continuity is deliberately `page_local_only`. A client may draw only the segment
 returned in one page; it must not connect coordinates across page boundaries.
 Changing the Thing, window, policy, page size, principal, scope or instance makes
 an existing cursor invalid.
+
+The shared route-history screen exposes the closed window, clock, quality and gap
+controls. It draws one SVG path per returned service segment, uses the short
+antimeridian delta and provides the exact coordinates and gap records in tables
+and lists. It supplies no basemap or road matching. Temporary page failures keep
+the current page visible; terminal authorization loss clears it. Previous and
+next pages are reloaded under current authority and are never visually joined.

@@ -50,6 +50,7 @@ defmodule Wotex.Tracker.UI.Router do
       live("/assets/:id/observations", AssociationSelectLive, :index)
       live("/assets/:thing_id/observations/:observation_id", AssociationLive, :show)
       live("/assets/:id/analytics", AnalyticsLive, :show)
+      live("/assets/:id/route", RouteLive, :show)
       live("/assets/:id/protection", RuleCreateLive, :new)
       live("/assets/:id/remove", AssetRemoveLive, :edit)
       live("/assets/:id", AssetLive, :show)
