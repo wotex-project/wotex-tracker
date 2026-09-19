@@ -21,6 +21,11 @@ WOTEX_PATH_DEPS=1 MIX_ENV=test mise exec -- mix check --no-retry
 value and public `base_url` origin. It loads the packaged RAWv2 catalogue and
 environmental model. The host owns time, credential custody and supervision.
 Every facade operation authenticates an ephemeral bearer token and exact scope.
+`Service.access/4` and `GET …/access` return the current credential's non-secret
+ID, principal, exact scope permissions and expiry after the ordinary durable
+revocation check. Bearer material, its digest, the internal access proof and
+grants for other scopes are never returned. This gives remote presentation hosts
+the same explicit authority projection as an in-process UI adapter.
 An exact six-field form may instead provide an admitted `catalogue`, one
 compatible admitted `model`, and a bounded `decoders` list containing exactly
 one trusted unary callback for every decoder revision referenced by that

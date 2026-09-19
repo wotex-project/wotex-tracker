@@ -167,6 +167,20 @@ defmodule Wotex.Tracker.HTTPFailureTest do
             }} =
              request(server, context, :get, "/capabilities")
 
+    assert {200,
+            %{
+              "data" => %{
+                "schema" => "wtr.access.v1",
+                "credential_id" => "admin",
+                "principal" => "owner",
+                "scope" => "workshop",
+                "permissions" => ~w(admin enroll ingest interact raw read),
+                "expires_at" => expires_at
+              }
+            }} = request(server, context, :get, "/access")
+
+    assert expires_at == context.now + 1_000_000_000
+
     forged = Map.put(document, "identity", "forged")
 
     assert {400, %{"error" => %{"code" => "invalid_request"} = error}} =

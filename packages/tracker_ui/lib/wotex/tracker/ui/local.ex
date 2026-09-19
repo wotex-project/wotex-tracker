@@ -23,49 +23,47 @@ defmodule Wotex.Tracker.UI.Local do
   end
 
   defp dispatch(service, token, scope, :authorize, _, now) do
-    case Service.authorize(service, token, scope, "read", now) do
-      {:ok, _} ->
+    case Service.access(service, token, scope, now) do
+      {:ok, %{"permissions" => permissions}} ->
         {:ok,
          %{
            "scope" => scope,
-           "can_enroll" =>
-             match?({:ok, _}, Service.authorize(service, token, scope, "enroll", now)),
-           "can_ingest" =>
-             match?({:ok, _}, Service.authorize(service, token, scope, "ingest", now)),
-           "can_read_raw" =>
-             match?({:ok, _}, Service.authorize(service, token, scope, "raw", now)),
-           "can_manage_queries" =>
-             match?({:ok, _}, Service.authorize(service, token, scope, "admin", now))
+           "can_enroll" => "enroll" in permissions,
+           "can_ingest" => "ingest" in permissions,
+           "can_read_raw" => "raw" in permissions,
+           "can_manage_queries" => "admin" in permissions
          }}
 
-      {:error, reason} ->
-        {:error, %{"code" => Atom.to_string(reason)}}
+      {:error, %{"code" => _} = error} ->
+        {:error, error}
     end
   end
 
   defp dispatch(service, token, scope, :access, _, now) do
-    case Service.authorize(service, token, scope, "read", now) do
+    case Service.access(service, token, scope, now) do
       {:ok, access} ->
         {:ok,
          %{
-           "principal" => access.principal,
-           "scope" => access.scope,
-           "expires_at" => access.expires_at
+           "principal" => access["principal"],
+           "scope" => access["scope"],
+           "expires_at" => access["expires_at"]
          }}
 
-      {:error, reason} ->
-        {:error, %{"code" => Atom.to_string(reason)}}
+      {:error, %{"code" => _} = error} ->
+        {:error, error}
     end
   end
 
   defp dispatch(service, token, scope, :revocation_context, _, now) do
-    with {:ok, access} <- Service.authorize(service, token, scope, "admin", now),
+    with {:ok, %{"permissions" => permissions} = access} <-
+           Service.access(service, token, scope, now),
+         true <- "admin" in permissions,
          {:ok, %{"generation" => generation}} <-
            Service.list(service, token, scope, "enrollments", %{"limit" => 1}, now) do
-      {:ok, %{"credential_id" => access.credential_id, "expected_generation" => generation}}
+      {:ok, %{"credential_id" => access["credential_id"], "expected_generation" => generation}}
     else
-      {:error, reason} when is_atom(reason) ->
-        {:error, %{"code" => Atom.to_string(reason)}}
+      false ->
+        {:error, %{"code" => "forbidden"}}
 
       {:error, %{"code" => _} = error} ->
         {:error, error}

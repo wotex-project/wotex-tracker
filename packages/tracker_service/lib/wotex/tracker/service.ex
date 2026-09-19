@@ -398,6 +398,33 @@ defmodule Wotex.Tracker.Service do
     Result.normalize(if(result == false, do: {:error, :invalid_request}, else: result))
   end
 
+  @doc "Returns the current credential's non-secret identity and exact scope grants."
+  @spec access(t(), String.t(), String.t(), integer()) :: {:ok, map()} | {:error, map()}
+  def access(service, token, scope, now) do
+    result =
+      with {:ok, access} <- authorize(service, token, scope, "read", now),
+           entry when not is_nil(entry) <-
+             Enum.find(
+               Credentials.inventory(service.credentials, scope),
+               &(&1.id == access.credential_id)
+             ) do
+        {:ok,
+         %{
+           "schema" => "wtr.access.v1",
+           "credential_id" => access.credential_id,
+           "principal" => access.principal,
+           "scope" => access.scope,
+           "permissions" => entry.permissions,
+           "expires_at" => access.expires_at
+         }}
+      else
+        nil -> {:error, :unauthorized}
+        error -> error
+      end
+
+    Result.normalize(result)
+  end
+
   @doc """
   Removes one enrolled asset from current views through an idempotent administrative mutation.
 

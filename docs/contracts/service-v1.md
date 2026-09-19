@@ -365,7 +365,7 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
-## HTTP and stream contract 1.31.0
+## HTTP and stream contract 1.33.0
 
 The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
 2020-12. The independently maintained Elixir audit checks document shape,
@@ -386,6 +386,7 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | `/health/live` | GET public liveness |
 | `/api/v1/openapi.json` | GET public machine contract |
 | `/api/v1/scopes/{scope}/health/ready` | GET authenticated writable-store check reporting store schema `7` |
+| `/api/v1/scopes/{scope}/access` | GET the current credential's non-secret ID, principal, exact requested-scope permissions and expiry after current read authorization |
 | `/api/v1/scopes/{scope}/capabilities` | GET explicit available/unsupported/unconfigured status; rules report `heartbeat_battery_motion_geofence_suspicious_movement_definitions`, route and trip history advertise their paging contracts, trip summaries advertise bounded gap-honest reconstruction, arming reports an explicit administrative fact, and owner presence reports closed evidence-fact admission |
 | `…/analytics/query` | POST one read-only structured measurement query against a committed snapshot |
 | `…/analytics/pages` | POST one snapshot-pinned bucket page with an encrypted continuation |
@@ -428,6 +429,13 @@ acknowledgement returns HTTP 202 with an `unknown` receipt. Unexpected programmi
 failures return a redacted 500 and conservatively report unknown mutation outcome.
 They are logged as a fixed failure message, never exception/request text.
 Self-revocation may commit its own receipt; subsequent requests are denied.
+
+The access projection requires the same current `read` authority as the shared
+application. Its `wtr.access.v1` document contains only the current configured
+credential ID, principal, requested scope, sorted exact grants for that scope and
+expiry. It never serializes the bearer token, token digest, access proof, secret
+key or another scope's grants. A durable revocation or expiry therefore denies
+the projection instead of returning stale authority.
 
 Saved definitions use the same scope generation and idempotent receipt rules as
 other mutations. The record persists its admitted `QuerySpec`, closed

@@ -9,6 +9,43 @@ defmodule Wotex.Tracker.ServiceTest do
     service()
   end
 
+  test "access projects only the current credential identity and exact scope grants", context do
+    assert {:ok,
+            %{
+              "schema" => "wtr.access.v1",
+              "credential_id" => "admin",
+              "principal" => "owner",
+              "scope" => "workshop",
+              "permissions" => ~w(admin enroll ingest interact raw read),
+              "expires_at" => expires_at
+            } = access} =
+             Service.access(
+               context.service,
+               context.admin,
+               context.scope,
+               context.now
+             )
+
+    assert expires_at == context.now + 1_000_000_000
+    refute Codec.encode!(access) =~ context.admin
+
+    assert {:ok,
+            %{
+              "credential_id" => "reader",
+              "principal" => "viewer",
+              "permissions" => ["read"]
+            }} =
+             Service.access(
+               context.service,
+               context.reader,
+               context.scope,
+               context.now
+             )
+
+    assert {:error, %{"code" => "unauthorized"}} =
+             Service.access(context.service, "invalid", context.scope, context.now)
+  end
+
   test "public import, inspection and private raw export keep evidence and browser types separate",
        context do
     operation = Identifier.uuid()

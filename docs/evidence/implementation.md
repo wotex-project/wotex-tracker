@@ -3296,3 +3296,27 @@ production line coverage. Compiler, unused-dependency, formatter, dependency
 audit, strict Credo, ExDoc, Dialyzer, boundary checks, OpenAPI validation,
 96-member package archive inspection, licenses and the 457-file stack-language
 policy all passed.
+
+### Remote current-access projection — 2026-09-20
+
+The service now exposes one authenticated `wtr.access.v1` projection through
+its facade and versioned HTTP API. It returns only the current credential's
+non-secret ID and principal, the exact requested scope's sorted grants and the
+configured expiry after current read authorization and durable revocation
+checking. Bearer material, token digests, access proofs, the instance secret and
+other-scope grants never enter the response. Invalid, expired and durably revoked
+credentials receive no projection.
+
+The shared UI's in-process adapter now derives login capabilities, the Access
+screen identity and the current-credential revocation context from that same
+projection. This removes the previous local-only permission probing and gives a
+future mobile HTTP adapter one explicit versioned authority document without
+changing browser session custody.
+
+Tests cover administrator and reader projections, sorted exact permissions,
+expiry, absence of the bearer token, invalid credentials and the HTTP envelope.
+The complete service gate passed 2 properties and 285 tests at 95.0% production
+line coverage, and the complete shared-UI gate passed 141 tests at 95.0%.
+Compiler, unused-dependency, formatter, dependency audit, strict Credo, ExDoc,
+Dialyzer, boundary checks, OpenAPI validation, 96-member service and 51-member UI
+archive inspection, licenses and the 457-file stack-language policy all passed.

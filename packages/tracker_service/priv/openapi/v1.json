@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "WoTEx Tracker service",
-    "version": "1.32.0",
-    "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries, snapshot-pinned gap-honest route replay from retained private evidence, half-open time-windowed trip lifecycle pages and bounded completed-trip distance reconstruction, persisted rule status and administrator-managed heartbeat, battery, motion, geofence and suspicious-movement rule definitions evaluated against committed Thing evidence, atomic suspicious-movement orchestration over exact motion, arming and owner-presence inputs, explicit administrator-committed arming facts, closed owner-presence fact admission, acknowledgeable rule alerts listed per Thing for defined rules, administrator unenrollment, pinned incident snapshots, an administrator credential inventory and encrypted principal-bound APNs endpoint registration. No scanner, notification dispatch or physical interaction is implied."
+    "version": "1.33.0",
+    "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries, snapshot-pinned gap-honest route replay from retained private evidence, half-open time-windowed trip lifecycle pages and bounded completed-trip distance reconstruction, persisted rule status and administrator-managed heartbeat, battery, motion, geofence and suspicious-movement rule definitions evaluated against committed Thing evidence, atomic suspicious-movement orchestration over exact motion, arming and owner-presence inputs, explicit administrator-committed arming facts, closed owner-presence fact admission, acknowledgeable rule alerts listed per Thing for defined rules, administrator unenrollment, pinned incident snapshots, a current-access projection, an administrator credential inventory and encrypted principal-bound APNs endpoint registration. No scanner, OS delivery evidence or physical interaction is implied."
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "security": [
@@ -126,6 +126,52 @@
             }
           }
         }
+      }
+    },
+    "/api/v1/scopes/{scope}/access": {
+      "get": {
+        "operationId": "get_current_access",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Access"
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Returns the authenticated credential's non-secret identity, exact requested scope grants and expiry after current read authorization. It never returns the bearer token, token digest, access proof or grants for another scope."
       }
     },
     "/api/v1/scopes/{scope}/capabilities": {
@@ -10385,6 +10431,63 @@
             "additionalProperties": false
           }
         ]
+      },
+      "Access": {
+        "description": "Current authenticated access projection after durable revocation and expiry checks.",
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "wtr.access.v1"
+          },
+          "credential_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          },
+          "principal": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          },
+          "scope": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "admin",
+                "enroll",
+                "ingest",
+                "interact",
+                "raw",
+                "read"
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 6,
+            "uniqueItems": true
+          },
+          "expires_at": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "schema",
+          "credential_id",
+          "principal",
+          "scope",
+          "permissions",
+          "expires_at"
+        ],
+        "additionalProperties": false
       },
       "Credential": {
         "description": "Administrator-only audit projection of one host-configured credential in the requested scope. Status is revoked when a durable revocation exists, otherwise expired at the service's receiver time or active.",

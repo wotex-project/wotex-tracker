@@ -442,6 +442,12 @@ Supply narrow native bridges or choose another compatible shell where necessary;
 never delete a requirement to accommodate a framework. Generic BLE work stays
 in the existing protocol owner.
 
+The versioned API now exposes one current-access projection after read
+authorization, including only the current credential's non-secret identity,
+requested-scope grants and expiry. The in-process UI adapter consumes the same
+projection. Remote HTTP transport and mobile cache policy remain subsequent
+mobile-host work.
+
 Acceptance: real iPhone secure storage, authorized BLE central provisioning,
 notification registration and cold/warm/background tap routing, suspend/resume,
 offline inspection, server/account isolation, safe external navigation, bounded
