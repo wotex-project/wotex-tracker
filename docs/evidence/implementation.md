@@ -2991,3 +2991,37 @@ The complete shared-UI gate passed 133 tests at 95.0% production line coverage.
 Compiler, unused-dependency, formatter, dependency audit, strict Credo, ExDoc,
 Dialyzer, 48-member package archive inspection, licenses and the 434-file
 stack-language policy all passed.
+
+### Authorized completed-trip distance summaries — 2026-09-19
+
+The service now exposes `Service.trip_summary/6` and read-only
+`GET …/things/{id}/trips/{trip}` for one immutable completed trip. Inside one
+reauthorized SQLite read snapshot it resolves exactly one retained start and one
+stop or interruption, proves the rule belongs to the requested Thing, restores
+the exact motion state committed with the start and rebuilds its position cohort
+through the terminal event. Reconstruction is capped at 100 exact samples and
+uses the motion policy and revision active when the trip began.
+
+Only adjacent segments proved moving contribute to centre, lower and upper
+distance totals. Stationary, indeterminate and unknown segments remain explicit
+public exclusions and are never bridged. The content-identified
+`wtr.trip-summary.v1` projection contains terminal context and the complete
+public segment ledger, but strips every observation, evidence, bundle, sample
+and private policy identity. Active, unknown and incomplete trips receive no
+final summary; missing, ambiguous, corrupt or noncanonical retained inputs fail
+explicitly, and an oversized cohort returns `capacity_exceeded` without a
+truncated result.
+
+OpenAPI contract 1.27.0 publishes the endpoint, closed summary schemas and the
+`bounded_gap_honest_reconstruction` capability. A separate BEAM HTTP process
+validates the real response against the served contract, verifies an unknown
+trip response and rejects private identity leakage. Focused tests cover active,
+stopped and rule-revision-interrupted trips, preservation of the start-policy
+revision, wrong Thing binding, malformed IDs, ambiguous position cohorts and
+damaged retained rule, evidence, observation and event rows.
+
+The complete service gate passed 2 properties and 226 tests at 95.1% production
+line coverage; the private reconstruction input module reached 100%. Compiler,
+unused-dependency, formatter, dependency audit, strict Credo, ExDoc, Dialyzer,
+boundary checks, OpenAPI validation, 85-member package archive inspection,
+licenses and the 436-file stack-language policy all passed.

@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "WoTEx Tracker service",
-    "version": "1.26.0",
-    "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries, snapshot-pinned gap-honest route replay from retained private evidence, half-open time-windowed and snapshot-pinned trip lifecycle event pages, persisted rule status and administrator-managed heartbeat, battery, motion and geofence rule definitions evaluated against committed Thing evidence, acknowledgeable rule alerts listed per Thing for defined rules, administrator unenrollment, pinned incident snapshots and an administrator credential inventory. No scanner, notification delivery or physical interaction is implied."
+    "version": "1.27.0",
+    "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries, snapshot-pinned gap-honest route replay from retained private evidence, half-open time-windowed trip lifecycle pages and bounded completed-trip distance reconstruction, persisted rule status and administrator-managed heartbeat, battery, motion and geofence rule definitions evaluated against committed Thing evidence, acknowledgeable rule alerts listed per Thing for defined rules, administrator unenrollment, pinned incident snapshots and an administrator credential inventory. No scanner, notification delivery or physical interaction is implied."
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "security": [
@@ -174,6 +174,9 @@
                         "trip_history": {
                           "const": "snapshot_pinned_event_pages"
                         },
+                        "trip_summaries": {
+                          "const": "bounded_gap_honest_reconstruction"
+                        },
                         "runtime": {
                           "type": "object",
                           "properties": {
@@ -207,6 +210,7 @@
                         "analytics",
                         "route_history",
                         "trip_history",
+                        "trip_summaries",
                         "runtime",
                         "directory"
                       ],
@@ -4273,6 +4277,58 @@
         "description": "Pages, newest first, trip.started, trip.stopped and trip.interrupted alerts for one Thing at a cursor-bound committed snapshot and optional from-inclusive/to-exclusive effective-time window. Bounds must be supplied together. Requires read authority. The cursor binds the principal, scope, service instance, Thing, snapshot, time window and page size. Unrelated alerts cannot consume a page; an unknown Thing has none."
       }
     },
+    "/api/v1/scopes/{scope}/things/{id}/trips/{trip}": {
+      "get": {
+        "operationId": "get_trip_summary",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/ID"
+          },
+          {
+            "$ref": "#/components/parameters/TripID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/TripSummary"
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Reconstructs one completed trip from its retained private position cohort under current read authority. The response is bounded to 100 exact samples, preserves excluded segments, and omits all evidence, observation, bundle and sample identities. Active, unknown, incomplete or noncanonical trips do not receive an inferred final distance."
+      }
+    },
     "/api/v1/scopes/{scope}/things/{id}/policies": {
       "get": {
         "operationId": "list_thing_policies",
@@ -5611,6 +5667,17 @@
           "minLength": 1,
           "maxLength": 4096,
           "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+        }
+      },
+      "TripID": {
+        "name": "trip",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "x-max-utf8-bytes": 256
         }
       },
       "TripFrom": {
@@ -9587,6 +9654,216 @@
           "generation",
           "cursor",
           "stream_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "TripSummarySegment": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "wtr.trip-distance-segment.v1"
+          },
+          "event_at": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "status": {
+            "enum": [
+              "moving",
+              "stationary",
+              "indeterminate",
+              "unknown"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          },
+          "included": {
+            "type": "boolean"
+          },
+          "center_distance_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lower_distance_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "upper_distance_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "schema",
+          "event_at",
+          "status",
+          "reason",
+          "included",
+          "center_distance_m",
+          "lower_distance_m",
+          "upper_distance_m"
+        ],
+        "additionalProperties": false
+      },
+      "TripSummary": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "wtr.trip-summary.v1"
+          },
+          "algorithm": {
+            "const": "ordered-moving-segment-sum-v1"
+          },
+          "thing_id": {
+            "type": "string",
+            "pattern": "^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+          },
+          "trip_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          },
+          "snapshot_generation": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,18})$"
+          },
+          "terminal_kind": {
+            "enum": [
+              "trip.stopped",
+              "trip.interrupted"
+            ]
+          },
+          "terminal_reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          },
+          "started_at": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "confirmed_moving_at": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "ended_at": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "confirmed_ended_at": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "status": {
+            "enum": [
+              "complete",
+              "partial"
+            ]
+          },
+          "reason": {
+            "enum": [
+              "all_segments_included",
+              "segments_excluded"
+            ]
+          },
+          "sample_count": {
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 100
+          },
+          "included_segment_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 99
+          },
+          "excluded_segment_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 99
+          },
+          "center_distance_m": {
+            "type": "number",
+            "minimum": 0
+          },
+          "lower_distance_m": {
+            "type": "number",
+            "minimum": 0
+          },
+          "upper_distance_m": {
+            "type": "number",
+            "minimum": 0
+          },
+          "segments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TripSummarySegment"
+            },
+            "minItems": 1,
+            "maxItems": 99
+          },
+          "rule_revision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          },
+          "identity": {
+            "type": "string",
+            "pattern": "^wtr-trip-summary-v1:sha256:[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "schema",
+          "algorithm",
+          "thing_id",
+          "trip_id",
+          "snapshot_generation",
+          "terminal_kind",
+          "terminal_reason",
+          "started_at",
+          "confirmed_moving_at",
+          "ended_at",
+          "confirmed_ended_at",
+          "status",
+          "reason",
+          "sample_count",
+          "included_segment_count",
+          "excluded_segment_count",
+          "center_distance_m",
+          "lower_distance_m",
+          "upper_distance_m",
+          "segments",
+          "rule_revision",
+          "identity"
         ],
         "additionalProperties": false
       },

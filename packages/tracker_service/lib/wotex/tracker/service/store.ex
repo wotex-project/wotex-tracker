@@ -36,6 +36,7 @@ defmodule Wotex.Tracker.Service.Store do
     StoreCall,
     StorePath,
     Transaction,
+    TripSummaryInput,
     Update
   }
 
@@ -282,6 +283,10 @@ defmodule Wotex.Tracker.Service.Store do
       do: StoreCall.run(store, {:rule_event, scope, event_id}),
       else: {:error, :invalid_query}
   end
+
+  @doc false
+  def authorized_trip_summary_input(store, access, thing, trip, now),
+    do: StoreCall.run(store, {:authorized_trip_summary_input, access, thing, trip, now})
 
   @doc "Reads the bounded time-driven rule states owned by a trusted scheduler."
   @spec scheduled_rules(t(), pos_integer()) :: {:ok, [map()]} | {:error, atom()}
@@ -615,6 +620,25 @@ defmodule Wotex.Tracker.Service.Store do
 
   defp dispatch({:rule_event, scope, event_id}, state),
     do: RuleStore.event(state.db, scope, event_id)
+
+  defp dispatch({:authorized_trip_summary_input, access, thing, trip, now}, state),
+    do:
+      TripSummaryInput.read(
+        state.db,
+        access_scope(access),
+        thing,
+        trip,
+        fn ->
+          Authority.check!(
+            state.db,
+            state.options.credentials,
+            access,
+            access_scope(access),
+            "read",
+            Authority.now(state.options, now)
+          )
+        end
+      )
 
   defp dispatch({:scheduled_rules, limit}, state),
     do: RuleStore.scheduled(state.db, limit)

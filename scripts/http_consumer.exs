@@ -45,6 +45,35 @@ defmodule Wotex.Tracker.HTTPConsumer do
     IO.puts("HTTP_CONSUMER_PASS openapi=true rule_status=true alerts=true")
   end
 
+  defp run(context, %{"mode" => "trip_summary", "thing" => thing, "trip" => trip}) do
+    prefix = "/api/v1/scopes/" <> encode_segment(context.scope)
+
+    summary =
+      data(
+        context,
+        "get_trip_summary",
+        prefix <> "/things/" <> encode_segment(thing) <> "/trips/" <> encode_segment(trip),
+        who: :reader
+      )
+
+    ^thing = summary["thing_id"]
+    ^trip = summary["trip_id"]
+    "trip.stopped" = summary["terminal_kind"]
+    true = summary["center_distance_m"] > 0
+    false = String.contains?(inspect(summary), "position_evidence")
+    false = String.contains?(inspect(summary), "sample_identity")
+
+    request(
+      context,
+      "get_trip_summary",
+      prefix <> "/things/" <> encode_segment(thing) <> "/trips/missing",
+      who: :reader,
+      status: 404
+    )
+
+    IO.puts("HTTP_CONSUMER_PASS openapi=true trip_summary=true private_ids=false")
+  end
+
   defp run(context, descriptor) do
     workflow(context, descriptor)
 

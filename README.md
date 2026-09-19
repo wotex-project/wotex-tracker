@@ -94,7 +94,11 @@ boundary, pseudonymizes public point/rejection identities and turns missing or
 ambiguous position materialisations into explicit segment breaks.
 It also pages each Thing's retained trip start, stop and interruption alerts at
 an independently snapshot-pinned boundary, so unrelated alerts cannot consume a
-trip-history page.
+trip-history page. A separate authorized operation reconstructs a completed
+trip from at most 100 retained position materialisations using the exact motion
+policy active at trip start. It publishes bounded centre/lower/upper distance
+and every included or excluded segment, while incomplete, ambiguous or
+noncanonical cohorts fail without exposing private evidence identities.
 Administrators can persist complete motion and geofence definitions for enrolled
 Things; later materialisations evaluate them atomically when the evidence bundle
 contains exactly one position, without silently selecting among sources.

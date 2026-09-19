@@ -156,6 +156,15 @@ and unrelated alerts cannot consume a trip-history page. Optional `from_at` and
 `to_at` effective-time bounds must be supplied together and form a half-open
 window that is also bound into every continuation.
 
+`Service.trip_summary/6` and `GET …/things/{id}/trips/{trip}` reauthorize a
+read-only reconstruction of one completed trip. The operation restores the
+exact motion state and policy committed with `trip.started`, then evaluates at
+most 100 retained materialisations through the immutable stop or interruption.
+It returns public centre/lower/upper metres plus the complete included/excluded
+segment ledger. Active or unknown trips are not final; missing, ambiguous or
+noncanonical retained cohorts fail explicitly, and no observation, evidence,
+bundle or sample identity crosses the service boundary.
+
 `Service.analytics/5` and `POST …/analytics/query` accept the closed
 `wtr.query-spec.v1` document. The service rechecks `read` authority inside a
 dedicated read-only SQLite transaction, pins the current scope generation and
@@ -265,7 +274,7 @@ and key paths. Explicit `:proxy` mode requires an HTTPS public origin and a
 protected proxy-to-listener network; forwarded headers never supply authority or
 Forms. No remote exposure is inferred.
 
-OpenAPI **3.1.0**, contract revision **1.26.0**, is packaged at
+OpenAPI **3.1.0**, contract revision **1.27.0**, is packaged at
 `priv/openapi/v1.json` and served at `/api/v1/openapi.json`. Liveness is
 `/health/live`; authenticated resources are under `/api/v1/scopes/{scope}`.
 Use `Authorization: Bearer …`, and a UUIDv4 `Idempotency-Key` for POST mutations.

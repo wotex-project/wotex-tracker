@@ -33,6 +33,7 @@ defmodule Wotex.Tracker.Service do
     SavedQuery,
     Snapshot,
     Store,
+    TripSummary,
     Unenrollment,
     Update
   }
@@ -420,6 +421,17 @@ defmodule Wotex.Tracker.Service do
 
         {:ok, %{document | "cursor" => thing_trip_next(service, access, thing, page, query, now)}}
       end
+
+    Result.normalize(result)
+  end
+
+  @doc "Reconstructs one completed trip's bounded, public distance summary."
+  @spec trip_summary(t(), String.t(), String.t(), String.t(), String.t(), integer()) ::
+          {:ok, map()} | {:error, map()}
+  def trip_summary(service, token, scope, thing, trip, now) do
+    result =
+      with {:ok, access} <- authorize(service, token, scope, "read", now),
+           do: TripSummary.run(service, access, thing, trip, now)
 
     Result.normalize(result)
   end

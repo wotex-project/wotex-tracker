@@ -328,6 +328,15 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
     {conn, result}
   end
 
+  defp scoped(
+         %{method: "GET"} = conn,
+         ["things", thing, "trips", trip],
+         params,
+         {service, token, scope, now}
+       )
+       when map_size(params) == 0,
+       do: {conn, Service.trip_summary(service, token, scope, thing, trip, now)}
+
   defp scoped(%{method: "GET"} = conn, ["things", thing, "properties", name], params, context)
        when map_size(params) == 0 do
     {service, token, scope, now} = context
@@ -435,6 +444,7 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
            "analytics" => "structured_queries",
            "route_history" => "snapshot_pinned_gap_honest_pages",
            "trip_history" => "snapshot_pinned_event_pages",
+           "trip_summaries" => "bounded_gap_honest_reconstruction",
            "runtime" => %{
              "readproperty" => "available",
              "observeproperty" => "available",

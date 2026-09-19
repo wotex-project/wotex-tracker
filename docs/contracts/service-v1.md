@@ -319,7 +319,7 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
-## HTTP and stream contract 1.26.0
+## HTTP and stream contract 1.27.0
 
 The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
 2020-12. The independently maintained Elixir audit checks document shape,
@@ -340,7 +340,7 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | `/health/live` | GET public liveness |
 | `/api/v1/openapi.json` | GET public machine contract |
 | `/api/v1/scopes/{scope}/health/ready` | GET authenticated writable-store check reporting store schema `7` |
-| `/api/v1/scopes/{scope}/capabilities` | GET explicit available/unsupported/unconfigured status; rules report `heartbeat_battery_motion_geofence_definitions`, route and trip history advertise their paging contracts |
+| `/api/v1/scopes/{scope}/capabilities` | GET explicit available/unsupported/unconfigured status; rules report `heartbeat_battery_motion_geofence_definitions`, route and trip history advertise their paging contracts, and trip summaries advertise bounded gap-honest reconstruction |
 | `…/analytics/query` | POST one read-only structured measurement query against a committed snapshot |
 | `…/analytics/pages` | POST one snapshot-pinned bucket page with an encrypted continuation |
 | `…/routes/pages` | POST one snapshot-pinned, gap-honest retained route page with an encrypted continuation |
@@ -358,6 +358,7 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | `…/things/{id}/policies` | GET the at most eight live rule definitions bound to one Thing |
 | `…/things/{id}/alerts` | GET newest-first alerts of the rules defined for one Thing |
 | `…/things/{id}/trips` | GET snapshot-pinned newest-first trip lifecycle events for one Thing |
+| `…/things/{id}/trips/{trip}` | GET one bounded completed-trip distance summary reconstructed from retained private evidence |
 | `…/things/{id}/rules` | GET the committed status of every rule defined for one Thing at one snapshot |
 | `…/things/{id}/properties/{property}` | GET authorized Runtime Property scalar |
 | `…/things/{id}/properties/{property}/observe` | GET committed Property values as resumable SSE |
@@ -813,6 +814,23 @@ window only from the authenticated cursor. Later commits are excluded from
 continuations, generic alert cursors cannot cross the boundary, and battery,
 geofence or other alerts never consume the trip page limit. An unknown Thing
 returns an empty page.
+
+`Service.trip_summary/6` and `GET …/things/{id}/trips/{trip}` require current
+`read` authority and operate in a dedicated SQLite read snapshot. They accept
+only an immutable trip with exactly one retained start and one stop or
+interruption bound to the requested Thing. The service restores the motion state
+and exact policy committed with the start, reconstructs the retained position
+cohort through the terminal event, and admits at most 100 exact samples. Only
+adjacent segments proved moving contribute to the centre, lower and upper metre
+totals; all other adjacent segments remain explicit exclusions and are never
+bridged.
+
+The public `wtr.trip-summary.v1` projection identifies the terminal event,
+start-policy revision, completion status, distance bounds and complete public
+segment ledger. Observation, evidence, bundle, sample and policy identities stay
+inside the service. Active, unknown or incomplete trips return no final summary;
+missing, ambiguous, corrupt or noncanonical cohorts fail explicitly, and a
+larger cohort returns `capacity_exceeded` rather than truncating distance.
 
 `acknowledge_alert` requires `admin`, a UUIDv4 operation ID and exactly
 `alert_id` and `expected_generation`, with the ordinary receipt and replay
