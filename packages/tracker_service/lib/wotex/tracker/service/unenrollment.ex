@@ -23,7 +23,8 @@ defmodule Wotex.Tracker.Service.Unenrollment do
     thing = request["thing_id"]
 
     with {:ok, _enrollment} <- fetch(service, access, "enrollments", request, now),
-         {:ok, current} <- optional(service, access, ~w(things state arming), request, now),
+         {:ok, current} <-
+           optional(service, access, ~w(things state arming owner_presence), request, now),
          {:ok, %{"items" => definitions}} <-
            policies(service, access, thing, request["expected_generation"], now) do
       ids = Enum.map(definitions, & &1["id"])

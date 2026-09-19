@@ -1,10 +1,11 @@
 defmodule Wotex.Tracker.Service.Projection do
   @moduledoc false
 
-  alias Wotex.Tracker.Service.{Arming, Codec, Credentials, RuleStatus}
+  alias Wotex.Tracker.Service.{Arming, Codec, Credentials, OwnerPresence, RuleStatus}
 
   def public(_, _id, nil), do: {:ok, nil}
   def public("arming", id, value), do: Arming.project(id, value)
+  def public("owner_presence", id, value), do: OwnerPresence.project(id, value)
   def public("rules", id, value), do: RuleStatus.project(id, value)
   def public(resource, _id, value), do: {:ok, resource(resource, value)}
 

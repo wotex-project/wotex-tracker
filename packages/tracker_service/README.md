@@ -117,7 +117,8 @@ without token digests.
 Scanner and public rule management remain explicitly unsupported. Analytics is
 reported as `structured_queries`, and rules as
 `heartbeat_battery_motion_geofence_definitions`; retained route history is
-reported as `snapshot_pinned_gap_honest_pages`.
+reported as `snapshot_pinned_gap_honest_pages`. Owner presence is reported as
+closed evidence-fact admission, never as an inferred scanner capability.
 
 `GET …/rules`, `…/rules/{kind}:{rule_id}` and its `/history` return reviewed
 `wtr.rule-status.v1` projections of committed heartbeat, battery, transport,
@@ -149,6 +150,17 @@ the reviewed `arming` resource returns only the public state, commit-derived
 revision, change time and pseudonymous actor. It does not claim device contact,
 evaluate suspicious movement or dispatch a physical Action. Unenrollment removes
 the current state while retaining its version history.
+
+`Service.admit_owner_presence/6` and `POST …/owner_presence` conditionally admit
+a complete `owner.present` `PolicyFact` for an enrolled Thing. The fact must
+restore from exact or strong content-bound evidence associated with that Thing;
+older and same-time conflicting observations are rejected. The private record
+retains the complete observation, evidence and bundle. The reviewed
+`owner_presence` resource returns only present, absent or unknown, receiver and
+admission times, a commit revision and a pseudonymous admitting actor. Missing
+state and radio silence never become absence. Admission alone evaluates no rule,
+sends no notification and dispatches no physical Action. Unenrollment removes
+the current projection while retaining its versions.
 
 Each recorded rule event also becomes a newest-first `wtr.alert.v1` record with
 the reviewed event. `Service.acknowledge_alert/6` and `POST
@@ -282,7 +294,7 @@ and key paths. Explicit `:proxy` mode requires an HTTPS public origin and a
 protected proxy-to-listener network; forwarded headers never supply authority or
 Forms. No remote exposure is inferred.
 
-OpenAPI **3.1.0**, contract revision **1.28.0**, is packaged at
+OpenAPI **3.1.0**, contract revision **1.29.0**, is packaged at
 `priv/openapi/v1.json` and served at `/api/v1/openapi.json`. Liveness is
 `/health/live`; authenticated resources are under `/api/v1/scopes/{scope}`.
 Use `Authorization: Bearer …`, and a UUIDv4 `Idempotency-Key` for POST mutations.

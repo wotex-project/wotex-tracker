@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "WoTEx Tracker service",
-    "version": "1.28.0",
-    "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries, snapshot-pinned gap-honest route replay from retained private evidence, half-open time-windowed trip lifecycle pages and bounded completed-trip distance reconstruction, persisted rule status and administrator-managed heartbeat, battery, motion and geofence rule definitions evaluated against committed Thing evidence, explicit administrator-committed arming facts, acknowledgeable rule alerts listed per Thing for defined rules, administrator unenrollment, pinned incident snapshots and an administrator credential inventory. No scanner, notification delivery or physical interaction is implied."
+    "version": "1.29.0",
+    "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries, snapshot-pinned gap-honest route replay from retained private evidence, half-open time-windowed trip lifecycle pages and bounded completed-trip distance reconstruction, persisted rule status and administrator-managed heartbeat, battery, motion and geofence rule definitions evaluated against committed Thing evidence, explicit administrator-committed arming facts, closed owner-presence fact admission, acknowledgeable rule alerts listed per Thing for defined rules, administrator unenrollment, pinned incident snapshots and an administrator credential inventory. No scanner, notification delivery or physical interaction is implied."
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "security": [
@@ -180,6 +180,9 @@
                         "arming": {
                           "const": "explicit_administrative_fact"
                         },
+                        "owner_presence": {
+                          "const": "closed_evidence_fact_admission"
+                        },
                         "runtime": {
                           "type": "object",
                           "properties": {
@@ -215,6 +218,7 @@
                         "trip_history",
                         "trip_summaries",
                         "arming",
+                        "owner_presence",
                         "runtime",
                         "directory"
                       ],
@@ -5343,6 +5347,263 @@
         }
       }
     },
+    "/api/v1/scopes/{scope}/owner_presence": {
+      "get": {
+        "operationId": "list_owner_presence",
+        "description": "Page reviewed current owner-presence state. Missing state remains unknown and is never interpreted as absence.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/OwnerPresencePage"
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "admit_owner_presence",
+        "description": "Admit a complete exact or strong owner.present PolicyFact for one enrolled Thing. Radio silence is not accepted as proof of absence.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Receipt"
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Receipt"
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdmitOwnerPresenceRequest"
+              }
+            }
+          },
+          "description": "At most 1 MiB, UTF-8 JSON; duplicate keys and unknown fields are rejected."
+        }
+      }
+    },
+    "/api/v1/scopes/{scope}/owner_presence/{id}": {
+      "get": {
+        "operationId": "get_owner_presence",
+        "description": "Read reviewed current owner-presence state. The retained observation, evidence, bundle and fact identities are never returned.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "pattern": "^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "generation": {
+                          "type": "string",
+                          "pattern": "^(0|[1-9][0-9]{0,18})$",
+                          "description": "Canonical decimal integer below 9223372036854775807."
+                        },
+                        "value": {
+                          "$ref": "#/components/schemas/OwnerPresence"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "generation",
+                        "value"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scopes/{scope}/owner_presence/{id}/history": {
+      "get": {
+        "operationId": "history_owner_presence",
+        "description": "Read ascending immutable owner-presence versions, including an unenrollment tombstone.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/ID"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/OwnerPresenceHistoryPage"
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/scopes/{scope}/alert_acknowledgements": {
       "post": {
         "operationId": "acknowledge_alert",
@@ -6126,6 +6387,353 @@
                     },
                     "value": {
                       "$ref": "#/components/schemas/Arming"
+                    },
+                    "deleted": {
+                      "const": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "generation",
+                    "value",
+                    "deleted"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "generation": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]{0,18})$",
+                      "description": "Canonical decimal integer below 9223372036854775807."
+                    },
+                    "value": {
+                      "type": "null"
+                    },
+                    "deleted": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "generation",
+                    "value",
+                    "deleted"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "maxItems": 100
+          },
+          "generation": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,18})$",
+            "description": "Canonical decimal integer below 9223372036854775807."
+          },
+          "cursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4096,
+                "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "stream_cursor": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+          }
+        },
+        "required": [
+          "items",
+          "generation",
+          "cursor",
+          "stream_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "OwnerPresence": {
+        "description": "Reviewed current three-valued owner-presence state. Missing state and radio silence are not represented as absence; retained evidence remains private.",
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "wtr.owner-presence.v1"
+          },
+          "thing_id": {
+            "type": "string",
+            "pattern": "^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+          },
+          "status": {
+            "enum": [
+              "present",
+              "absent",
+              "unknown"
+            ]
+          },
+          "revision": {
+            "type": "string",
+            "pattern": "^owner-presence-[1-9][0-9]{0,18}$"
+          },
+          "observed_at": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "admitted_at": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "admitted_by": {
+            "type": "string",
+            "pattern": "^wtr1_[A-Za-z0-9_-]+$"
+          }
+        },
+        "required": [
+          "schema",
+          "thing_id",
+          "status",
+          "revision",
+          "observed_at",
+          "admitted_at",
+          "admitted_by"
+        ],
+        "additionalProperties": false
+      },
+      "OwnerPresenceFact": {
+        "description": "Complete content-bound owner.present PolicyFact. The service revalidates the bundle, exact or strong evidence, predicate, status and Thing association.",
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "wtr.policy-fact-sample.v1"
+          },
+          "identity": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          },
+          "evidence_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          },
+          "bundle_identity": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          },
+          "predicate": {
+            "const": "owner.present"
+          },
+          "status": {
+            "enum": [
+              "true",
+              "false",
+              "unknown"
+            ]
+          },
+          "policy_revision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          },
+          "observed_at": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "observation_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          },
+          "bundle": {
+            "$ref": "#/components/schemas/OwnerPresenceEvidenceBundle"
+          }
+        },
+        "required": [
+          "schema",
+          "identity",
+          "evidence_id",
+          "bundle_identity",
+          "predicate",
+          "status",
+          "policy_revision",
+          "reason",
+          "observed_at",
+          "observation_id",
+          "bundle"
+        ],
+        "additionalProperties": false
+      },
+      "OwnerPresenceEvidenceBundle": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "wtr.evidence-bundle.v1"
+          },
+          "observations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ObservationEnvelope"
+            },
+            "maxItems": 256
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "maxItems": 256
+          },
+          "identity": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          }
+        },
+        "required": [
+          "schema",
+          "observations",
+          "evidence",
+          "identity"
+        ],
+        "additionalProperties": false
+      },
+      "AdmitOwnerPresenceRequest": {
+        "type": "object",
+        "properties": {
+          "thing_id": {
+            "type": "string",
+            "pattern": "^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+          },
+          "fact": {
+            "$ref": "#/components/schemas/OwnerPresenceFact"
+          },
+          "expected_generation": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,18})$",
+            "description": "Canonical decimal integer below 9223372036854775807."
+          }
+        },
+        "required": [
+          "thing_id",
+          "fact",
+          "expected_generation"
+        ],
+        "additionalProperties": false
+      },
+      "OwnerPresenceItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+          },
+          "generation": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,18})$",
+            "description": "Canonical decimal integer below 9223372036854775807."
+          },
+          "value": {
+            "$ref": "#/components/schemas/OwnerPresence"
+          }
+        },
+        "required": [
+          "id",
+          "generation",
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      "OwnerPresencePage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OwnerPresenceItem"
+            },
+            "maxItems": 100
+          },
+          "generation": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,18})$",
+            "description": "Canonical decimal integer below 9223372036854775807."
+          },
+          "cursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4096,
+                "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "stream_cursor": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+          }
+        },
+        "required": [
+          "items",
+          "generation",
+          "cursor",
+          "stream_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "OwnerPresenceHistoryPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "generation": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]{0,18})$",
+                      "description": "Canonical decimal integer below 9223372036854775807."
+                    },
+                    "value": {
+                      "$ref": "#/components/schemas/OwnerPresence"
                     },
                     "deleted": {
                       "const": false
@@ -7182,6 +7790,29 @@
                     "required": [
                       "thing_id",
                       "status"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "thing_id": {
+                        "type": "string",
+                        "pattern": "^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                      },
+                      "status": {
+                        "enum": ["present", "absent", "unknown"]
+                      },
+                      "observed_at": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "thing_id",
+                      "status",
+                      "observed_at"
                     ],
                     "additionalProperties": false
                   },

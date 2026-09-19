@@ -2,8 +2,8 @@ defmodule Wotex.Tracker.HTTPTest do
   @moduledoc false
   use ExUnit.Case, async: true
   import Wotex.Tracker.Service.Fixtures
-  alias Wotex.Tracker
   alias Wotex.Tracker.Decoders.RuuviRawV2
+  alias Wotex.Tracker.{Evidence, EvidenceBundle, Observation, PolicyFact}
   alias Wotex.Tracker.Service
   alias Wotex.Tracker.Service.{Codec, Identifier, RuleFixtures, Store}
   alias Wotex.Tracker.Service.HTTP.{Capacity, Server}
@@ -35,6 +35,25 @@ defmodule Wotex.Tracker.HTTPTest do
 
     output = run_consumer(context, server, %{"mode" => "arming", "thing" => thing})
     assert output =~ "HTTP_CONSUMER_PASS openapi=true arming=true private_fact=false"
+    assert {:ok, capacity} = Server.child(server, :capacity)
+    assert_capacity_released(capacity)
+  end
+
+  test "an independent HTTP process admits and reads owner-presence evidence" do
+    context = service()
+    {thing, _td} = materialized(context)
+    server = start_supervised!({Server, options(context)})
+
+    output =
+      run_consumer(context, server, %{
+        "mode" => "owner_presence",
+        "thing" => thing,
+        "fact" => owner_presence_fact(thing, context.now)
+      })
+
+    assert output =~
+             "HTTP_CONSUMER_PASS openapi=true owner_presence=true private_fact=false"
+
     assert {:ok, capacity} = Server.child(server, :capacity)
     assert_capacity_released(capacity)
   end
@@ -98,6 +117,46 @@ defmodule Wotex.Tracker.HTTPTest do
     File.rm!(path)
     assert status == 0, output
     output
+  end
+
+  defp owner_presence_fact(thing, now) do
+    {:ok, observation} =
+      Observation.new(%{
+        id: "presence-observation-http",
+        observed_at: now,
+        ingress: "imported",
+        source: %{"kind" => "qualified-owner-presence"},
+        addressing: %{"thing_id" => thing},
+        payload: {:json, %{"predicate" => "owner.present", "status" => "false"}},
+        radio: %{},
+        transport: %{},
+        provenance: %{"kind" => "http-consumer-fixture"}
+      })
+
+    {:ok, evidence} =
+      Evidence.new(%{
+        id: "presence-evidence-http",
+        kind: :identity,
+        claim: %{
+          "schema" => "wtr.policy-fact.v1",
+          "predicate" => "owner.present",
+          "status" => "false",
+          "policy_revision" => "presence-source-v1",
+          "reason" => "qualified_observation"
+        },
+        source_observation_ids: [observation.id],
+        evidence_ids: [],
+        profile: {"test-presence", "1"},
+        decoder: {"test-presence", "1"},
+        confidence: :exact,
+        reasons: ["qualified_observation"],
+        association_id: thing
+      })
+
+    {:ok, bundle} = EvidenceBundle.new([observation], [evidence])
+    {:ok, fact} = PolicyFact.new(evidence.id, bundle)
+    {:ok, document} = PolicyFact.to_map(fact)
+    document
   end
 
   defp assert_capacity_released(capacity, attempts \\ 100) do
@@ -179,7 +238,7 @@ defmodule Wotex.Tracker.HTTPTest do
     {:ok, profile} = RuuviRawV2.profile()
     revision = {"fixture.http-trip-summary", "1.0.0"}
     profile = %{profile | id: elem(revision, 0), version: elem(revision, 1), decoder: revision}
-    {:ok, catalogue} = Tracker.catalogue([profile])
+    {:ok, catalogue} = Wotex.Tracker.catalogue([profile])
 
     callback = fn observation ->
       {:ok, decoded} = RuuviRawV2.decode(observation)

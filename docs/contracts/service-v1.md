@@ -150,6 +150,24 @@ identities never enter the public projection. This fact is the durable arming
 input for subsequent suspicious-movement orchestration; committing it alone
 evaluates no rule and sends no notification.
 
+## Owner-presence evidence
+
+`Service.admit_owner_presence/6` and `POST …/owner_presence` require `admin`, a
+UUIDv4 operation ID and exactly `thing_id`, a complete serialized `PolicyFact`
+and `expected_generation`. The service restores the complete closed bundle and
+requires exact or strong identity evidence whose predicate is `owner.present`
+and whose association is the enrolled Thing. It does not manufacture absence
+from missing or silent radio evidence.
+
+A new fact must have a receiver observation time strictly later than the current
+fact. Older and same-time conflicting evidence fails with `conflict`. A commit
+stores the private fact and a reviewed `wtr.owner-presence.v1` projection in one
+conditional transaction. Public list/get/history disclose only present, absent
+or unknown, observation and admission times, a commit-derived revision and a
+scope pseudonym of the admitting actor. Observation, evidence, bundle and fact
+identities remain private. Unenrollment tombstones current owner-presence state;
+admission alone evaluates no suspicious-movement rule and sends no notification.
+
 ## Finite budgets
 
 These are service ceilings, not radio protocol maxima. Operator configuration
@@ -324,8 +342,8 @@ No external publication intent is created without a configured destination.
 The current facade does not itself start a listener or prove endpoint reachability.
 
 Public resource names are `observations`, `resolutions`, `evidence`, `state`,
-`enrollments`, `things`, `saved_queries`, `rules`, `policies`, `alerts` and
-`arming`. Lists accept only `limit` (default
+`enrollments`, `things`, `saved_queries`, `rules`, `policies`, `alerts`,
+`arming` and `owner_presence`. Lists accept only `limit` (default
 25, maximum 100) and `cursor`. A page returns `items`, `generation`, nullable
 next-page `cursor` and a `stream_cursor` for its exact snapshot. Each item has
 `id`, `generation` and reviewed `value`. Observation/resolution pages cannot
@@ -339,7 +357,7 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
-## HTTP and stream contract 1.28.0
+## HTTP and stream contract 1.29.0
 
 The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
 2020-12. The independently maintained Elixir audit checks document shape,
@@ -360,11 +378,11 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | `/health/live` | GET public liveness |
 | `/api/v1/openapi.json` | GET public machine contract |
 | `/api/v1/scopes/{scope}/health/ready` | GET authenticated writable-store check reporting store schema `7` |
-| `/api/v1/scopes/{scope}/capabilities` | GET explicit available/unsupported/unconfigured status; rules report `heartbeat_battery_motion_geofence_definitions`, route and trip history advertise their paging contracts, trip summaries advertise bounded gap-honest reconstruction, and arming reports an explicit administrative fact |
+| `/api/v1/scopes/{scope}/capabilities` | GET explicit available/unsupported/unconfigured status; rules report `heartbeat_battery_motion_geofence_definitions`, route and trip history advertise their paging contracts, trip summaries advertise bounded gap-honest reconstruction, arming reports an explicit administrative fact, and owner presence reports closed evidence-fact admission |
 | `…/analytics/query` | POST one read-only structured measurement query against a committed snapshot |
 | `…/analytics/pages` | POST one snapshot-pinned bucket page with an encrypted continuation |
 | `…/routes/pages` | POST one snapshot-pinned, gap-honest retained route page with an encrypted continuation |
-| `…/observations`, `…/resolutions`, `…/evidence`, `…/state`, `…/enrollments`, `…/things`, `…/saved_queries`, `…/rules`, `…/policies`, `…/alerts`, `…/arming` | GET public snapshot pages |
+| `…/observations`, `…/resolutions`, `…/evidence`, `…/state`, `…/enrollments`, `…/things`, `…/saved_queries`, `…/rules`, `…/policies`, `…/alerts`, `…/arming`, `…/owner_presence` | GET public snapshot pages |
 | `…/{resource}/{id}` | GET one public value |
 | `…/{resource}/{id}/history` | GET ascending committed public versions, including deletion records |
 | `…/saved_queries` | POST create or update an owned absolute or rolling query definition |
@@ -374,6 +392,7 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | `…/policy_deletions` | POST delete a rule definition with a retained tombstone |
 | `…/alert_acknowledgements` | POST acknowledge one live rule alert once |
 | `…/arming` | POST commit an explicit armed or disarmed administrative fact for one enrolled Thing |
+| `…/owner_presence` | POST admit a complete exact or strong `owner.present` fact for one enrolled Thing |
 | `…/unenrollments` | POST remove one enrolled asset and its rule definitions from current views |
 | `…/credentials` | GET the administrator audit of this scope's configured credentials, grants, expiry and revocation |
 | `…/things/{id}/policies` | GET the at most eight live rule definitions bound to one Thing |

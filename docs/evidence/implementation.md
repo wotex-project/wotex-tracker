@@ -3076,3 +3076,30 @@ offsets, kilometre and mile conversions, canonical-metre retention, invalid
 control admission and export metadata. The complete shared-UI suite passes 134
 tests at 95.2% production line coverage; the final-summary screen reaches 98.6%
 and its export module 100%.
+
+### Closed owner-presence fact admission — 2026-09-19
+
+The service now conditionally admits a complete serialized `owner.present`
+`PolicyFact` for an enrolled Thing. Admission restores and content-validates the
+closed observation/evidence bundle, requires exact or strong identity evidence
+associated with that Thing and retains the entire fact privately. The current
+fact advances only on a strictly later receiver observation; stale and same-time
+conflicting evidence cannot replace it. Missing state and radio silence never
+become absence.
+
+The reviewed `wtr.owner-presence.v1` resource exposes only present, absent or
+unknown, observation and admission times, a commit-derived revision and a scope
+pseudonym of the admitting actor. List, get and history use ordinary authorized
+snapshot/cursor semantics, and unenrollment records a current-state tombstone.
+Observation, evidence, bundle and fact identities do not enter the projection.
+Admission evaluates no suspicious-movement rule, delivers no notification and
+dispatches no physical Action.
+
+OpenAPI contract 1.29.0 publishes admission and public list/get/history schemas.
+A separate BEAM HTTP process validates actual requests and responses against the
+served contract, proves reader denial and checks that private fact markers are
+absent from the wire projection. The complete service gate passed 2 properties
+and 234 tests at 95.1% production line coverage. Compiler, unused-dependency,
+formatter, dependency audit, strict Credo, ExDoc, Dialyzer, boundary checks,
+OpenAPI validation, 87-member package archive inspection, licenses and the
+443-file stack-language policy all passed.

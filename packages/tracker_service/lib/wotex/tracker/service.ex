@@ -27,6 +27,7 @@ defmodule Wotex.Tracker.Service do
     Import,
     Interaction,
     Materialize,
+    OwnerPresence,
     Projection,
     Result,
     RouteHistory,
@@ -41,7 +42,7 @@ defmodule Wotex.Tracker.Service do
 
   @maximum_time 9_007_199_254_740_991
 
-  @resources ~w(observations resolutions evidence state enrollments things saved_queries rules policies alerts arming)
+  @resources ~w(observations resolutions evidence state enrollments things saved_queries rules policies alerts arming owner_presence)
   @derive {Inspect, only: [:base_url]}
   @enforce_keys [:store, :credentials, :catalogue, :model, :decoders, :base_url]
   defstruct @enforce_keys
@@ -326,6 +327,19 @@ defmodule Wotex.Tracker.Service do
         Arming,
         :set,
         "arming"
+      )
+
+  @doc "Admits one closed owner-presence fact for an enrolled Thing."
+  @spec admit_owner_presence(t(), String.t(), String.t(), String.t(), map(), integer()) ::
+          {:ok, map()} | {:error, map()}
+  def admit_owner_presence(service, token, scope, operation, request, now),
+    do:
+      admin_mutation(
+        service,
+        {token, scope, operation, request, now},
+        OwnerPresence,
+        :admit,
+        "owner_presence"
       )
 
   @doc """
@@ -756,6 +770,7 @@ defmodule Wotex.Tracker.Service do
   defp admit_admin(module, :delete, request), do: module.admit_delete(request)
   defp admit_admin(module, :acknowledge, request), do: module.admit_acknowledge(request)
   defp admit_admin(module, :set, request), do: module.admit_set(request)
+  defp admit_admin(module, :admit, request), do: module.admit(request)
 
   defp prepare_admin(module, :save, service, access, operation, request, now),
     do: module.prepare_save(service, access, operation, request, now)
@@ -768,6 +783,9 @@ defmodule Wotex.Tracker.Service do
 
   defp prepare_admin(module, :set, service, access, operation, request, now),
     do: module.prepare_set(service, access, operation, request, now)
+
+  defp prepare_admin(module, :admit, service, access, operation, request, now),
+    do: module.prepare(service, access, operation, request, now)
 
   defp storage_kind("observations"), do: "resolutions"
   defp storage_kind(resource), do: resource

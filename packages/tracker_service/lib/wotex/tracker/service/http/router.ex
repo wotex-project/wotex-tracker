@@ -30,7 +30,8 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
     "policies" => {:save_policy, "admin"},
     "policy_deletions" => {:delete_policy, "admin"},
     "alert_acknowledgements" => {:acknowledge_alert, "admin"},
-    "arming" => {:set_arming, "admin"}
+    "arming" => {:set_arming, "admin"},
+    "owner_presence" => {:admit_owner_presence, "admin"}
   }
 
   @impl true
@@ -447,6 +448,7 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
            "trip_history" => "snapshot_pinned_event_pages",
            "trip_summaries" => "bounded_gap_honest_reconstruction",
            "arming" => "explicit_administrative_fact",
+           "owner_presence" => "closed_evidence_fact_admission",
            "runtime" => %{
              "readproperty" => "available",
              "observeproperty" => "available",

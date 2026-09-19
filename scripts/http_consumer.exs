@@ -101,6 +101,7 @@ defmodule Wotex.Tracker.HTTPConsumer do
       )
 
     {response, bytes} = request(context, "get_arming", item, who: :reader)
+
     %{"value" => %{"thing_id" => ^thing, "status" => "armed", "revision" => "arming-4"}} =
       response["data"]
 
@@ -115,6 +116,49 @@ defmodule Wotex.Tracker.HTTPConsumer do
       data(context, "history_arming", item <> "/history", who: :reader)
 
     IO.puts("HTTP_CONSUMER_PASS openapi=true arming=true private_fact=false")
+  end
+
+  defp run(
+         context,
+         %{"mode" => "owner_presence", "thing" => thing, "fact" => fact}
+       ) do
+    prefix = "/api/v1/scopes/" <> encode_segment(context.scope)
+    presence = prefix <> "/owner_presence"
+    item = presence <> "/" <> encode_segment(thing)
+    body = %{"thing_id" => thing, "fact" => fact, "expected_generation" => "3"}
+
+    request(context, "get_owner_presence", item, who: :reader, status: 404)
+    request(context, "admit_owner_presence", presence, body: body, who: :reader, status: 403)
+
+    %{
+      "generation" => "4",
+      "data" => %{"thing_id" => ^thing, "status" => "absent"}
+    } = data(context, "admit_owner_presence", presence, body: body)
+
+    {response, bytes} = request(context, "get_owner_presence", item, who: :reader)
+
+    %{
+      "value" => %{
+        "thing_id" => ^thing,
+        "status" => "absent",
+        "revision" => "owner-presence-4"
+      }
+    } = response["data"]
+
+    for private <- ["presence-evidence", "presence-observation", "owner.present"] do
+      false = String.contains?(bytes, private)
+    end
+
+    %{"items" => [%{"id" => ^thing, "value" => %{"status" => "absent"}}]} =
+      data(context, "list_owner_presence", presence, who: :reader)
+
+    %{
+      "items" => [
+        %{"id" => ^thing, "value" => %{"status" => "absent"}, "deleted" => false}
+      ]
+    } = data(context, "history_owner_presence", item <> "/history", who: :reader)
+
+    IO.puts("HTTP_CONSUMER_PASS openapi=true owner_presence=true private_fact=false")
   end
 
   defp run(context, descriptor) do

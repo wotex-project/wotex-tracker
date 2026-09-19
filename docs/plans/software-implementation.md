@@ -272,9 +272,11 @@ remains unknown unless the rule explicitly treats it as absence. See the
 deduplication now restores all inputs, re-evaluates the rule and records its event
 intent without synthetic state. The service now commits an authorized, retained
 `asset.armed` fact for an enrolled Thing and exposes only its reviewed public
-state; this administrative operation claims no device contact. Owner-presence
-admission, input-triggered suspicious-movement orchestration and notification
-delivery remain subsequent work.
+state; this administrative operation claims no device contact. The service also
+admits a complete exact or strong `owner.present` fact associated with the Thing,
+requires its receiver observation time to advance and exposes no private evidence.
+Input-triggered suspicious-movement orchestration and notification delivery
+remain subsequent work.
 
 Transport degradation is implemented as pure state over content-validated
 transport decisions and a deployment-declared healthy candidate set. Fallback
@@ -294,8 +296,9 @@ position rules fail closed unless the bundle has exactly one position, rather
 than inventing source selection. The scheduler ages the time-driven state. Every
 rule event becomes a public alert, and administrators can acknowledge a live
 alert once. The shared browser can inspect and conditionally change the retained
-arming fact for an asset with a motion definition. Suspicious-movement
-orchestration and notification delivery remain open.
+arming fact for an asset with a motion definition. Closed owner-presence evidence
+can be admitted through the service but is not inferred or editable in the shared
+browser. Suspicious-movement orchestration and notification delivery remain open.
 
 Implement explicit time/freshness, quality selection, motion/trips/stops,
 geofence membership/transitions, heartbeat, suspicious movement, low-battery,

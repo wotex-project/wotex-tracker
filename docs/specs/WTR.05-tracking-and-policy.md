@@ -16,9 +16,11 @@ maximum of 100 retained materialisations under current read authority,
 preserving every excluded segment and all distance uncertainty while keeping
 private input identities internal. The trusted decoder seam admits bounded
 profile-backed position claims into immutable evidence, and an explicitly
-configured service exposes a closed redacted state projection. Owner-presence
-admission, suspicious-movement orchestration, notification delivery and product
-hardware acceptance remain unfinished.
+configured service exposes a closed redacted state projection. The service now
+admits complete content-validated owner-presence facts, retains their evidence
+privately and never interprets missing state as absence. Suspicious-movement
+orchestration, notification delivery and product hardware acceptance remain
+unfinished.
 
 ## Tracking is evidence, not a GPS field
 

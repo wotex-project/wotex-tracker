@@ -32,3 +32,12 @@ inputs before SQLite atomically records the stable intent and public event witho
 manufacturing another canonical state. An exact retry after restart returns the
 original generation. A collision that attempts to change live/replay effect
 metadata conflicts.
+
+The service admits an owner-presence input only as a complete, content-validated
+`owner.present` `PolicyFact` backed by exact or strong evidence associated with
+the enrolled Thing. Admission is conditional and strictly advances receiver
+observation time; an older or same-time conflicting fact cannot replace current
+state. The reviewed public projection contains only present, absent or unknown,
+the observation/admission times, a commit revision and a scope pseudonym. The
+closed observation, evidence, bundle and fact identities remain private. Missing
+state and radio silence still do not become an absent fact.
