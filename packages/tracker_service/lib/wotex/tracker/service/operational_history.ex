@@ -37,6 +37,16 @@ defmodule Wotex.Tracker.Service.OperationalHistory do
     :exit, _ -> {:error, :unavailable}
   end
 
+  @doc "Reads an exact page and graph projection from one pinned retained time window."
+  @spec window_page(pid(), keyword()) ::
+          {:ok, map()}
+          | {:error, :invalid_query | :invalid_cursor | :cursor_expired | :unavailable}
+  def window_page(pid, options \\ []) when is_pid(pid) and is_list(options) do
+    GenServer.call(pid, {:window_page, options})
+  catch
+    :exit, _ -> {:error, :unavailable}
+  end
+
   @impl true
   def init(options) do
     with {:ok, config} <- config(options),
@@ -106,6 +116,20 @@ defmodule Wotex.Tracker.Service.OperationalHistory do
       {{:ok, query}, {:ok, now}} ->
         state = prune(state, now)
         {:reply, page_result(state, query, now), state}
+
+      {{:error, _} = error, _} ->
+        {:reply, error, state}
+
+      _ ->
+        {:reply, {:error, :unavailable}, state}
+    end
+  end
+
+  def handle_call({:window_page, options}, _from, state) do
+    case {window_page_query(options, state), current_time(state)} do
+      {{:ok, query}, {:ok, now}} ->
+        state = prune(state, now)
+        {:reply, window_page_result(state, query, now), state}
 
       {{:error, _} = error, _} ->
         {:reply, error, state}
@@ -200,6 +224,172 @@ defmodule Wotex.Tracker.Service.OperationalHistory do
     end
   end
 
+  defp window_page_result(state, query, now) do
+    with {:ok, position} <- window_position(state, query, now) do
+      matches = window_matches(state.table, query.event, position)
+      remaining = Enum.filter(matches, fn {sequence, _} -> sequence > position.after_sequence end)
+      page_matches = Enum.take(remaining, query.limit + 1)
+      items = page_matches |> Enum.take(query.limit) |> Enum.map(&elem(&1, 1))
+      graph_matches = Enum.take(matches, -1_000)
+      omitted_before = length(matches) - length(graph_matches)
+
+      cursor =
+        if length(page_matches) > query.limit do
+          %{
+            "schema" => "wtr.operational-window-cursor.v1",
+            "epoch" => state.epoch,
+            "after" => List.last(items)["sequence"],
+            "through" => position.through,
+            "first" => position.first,
+            "event" => query.event,
+            "limit" => query.limit,
+            "window_ms" => query.window_ms,
+            "from_at" => position.from_at,
+            "to_at" => position.to_at
+          }
+        end
+
+      {:ok,
+       %{
+         "schema" => "wtr.operational-window-page.v1",
+         "epoch" => state.epoch,
+         "captured_at" => now,
+         "volatile" => true,
+         "through" => position.through,
+         "window" => %{
+           "from_at" => position.from_at,
+           "to_at" => position.to_at,
+           "duration_ms" => query.window_ms,
+           "samples" => Enum.map(graph_matches, &elem(&1, 1)),
+           "omitted_before" => omitted_before
+         },
+         "samples" => items,
+         "cursor" => cursor
+       }}
+    end
+  end
+
+  defp window_matches(table, event, position) do
+    table
+    |> :ets.tab2list()
+    |> Enum.filter(fn {sequence, sample} ->
+      observed_at = sample["observed_at"]
+
+      sequence <= position.through and observed_at > position.from_at and
+        observed_at <= position.to_at and (is_nil(event) or sample["event"] == event)
+    end)
+  end
+
+  defp window_position(state, %{cursor: nil, event: event, window_ms: window_ms}, now) do
+    from_at = now - window_ms
+    through = state.sequence
+
+    first =
+      state.table
+      |> window_matches(event, %{through: through, from_at: from_at, to_at: now})
+      |> case do
+        [{sequence, _} | _] -> sequence
+        [] -> through + 1
+      end
+
+    {:ok,
+     %{
+       after_sequence: first - 1,
+       through: through,
+       first: first,
+       from_at: from_at,
+       to_at: now
+     }}
+  end
+
+  defp window_position(state, query, _now) do
+    with {:ok, cursor} <- decode_window_cursor(query.cursor, query) do
+      resume_window_position(
+        state,
+        cursor.epoch,
+        cursor.after_sequence,
+        cursor.through,
+        cursor.first,
+        cursor.from_at,
+        cursor.to_at
+      )
+    end
+  end
+
+  defp decode_window_cursor(
+         %{
+           "schema" => "wtr.operational-window-cursor.v1",
+           "epoch" => epoch,
+           "after" => after_sequence,
+           "through" => through,
+           "first" => first,
+           "event" => event,
+           "limit" => limit,
+           "window_ms" => window_ms,
+           "from_at" => from_at,
+           "to_at" => to_at
+         } = cursor,
+         query
+       ) do
+    if map_size(cursor) == 10 and cursor_query?(event, limit, window_ms, query) and
+         cursor_position?(after_sequence, through, first, from_at, to_at, window_ms) do
+      {:ok,
+       %{
+         epoch: epoch,
+         after_sequence: after_sequence,
+         through: through,
+         first: first,
+         from_at: from_at,
+         to_at: to_at
+       }}
+    else
+      {:error, :invalid_cursor}
+    end
+  end
+
+  defp decode_window_cursor(_, _), do: {:error, :invalid_cursor}
+
+  defp cursor_query?(event, limit, window_ms, query),
+    do: event == query.event and limit == query.limit and window_ms == query.window_ms
+
+  defp cursor_position?(after_sequence, through, first, from_at, to_at, window_ms) do
+    valid_sequence_range?(after_sequence, through) and valid_first?(first) and
+      valid_window_bounds?(from_at, to_at, window_ms)
+  end
+
+  defp valid_sequence_range?(after_sequence, through),
+    do:
+      is_integer(after_sequence) and after_sequence >= 0 and is_integer(through) and
+        through >= after_sequence
+
+  defp valid_first?(first), do: is_integer(first) and first >= 1
+
+  defp valid_window_bounds?(from_at, to_at, window_ms),
+    do: is_integer(from_at) and is_integer(to_at) and to_at - from_at == window_ms
+
+  defp resume_window_position(state, epoch, after_sequence, through, first, from_at, to_at) do
+    cond do
+      epoch != state.epoch or through > state.sequence ->
+        {:error, :invalid_cursor}
+
+      first <= through and :ets.lookup(state.table, first) == [] ->
+        {:error, :cursor_expired}
+
+      after_sequence < earliest(state) - 1 ->
+        {:error, :cursor_expired}
+
+      true ->
+        {:ok,
+         %{
+           after_sequence: after_sequence,
+           through: through,
+           first: first,
+           from_at: from_at,
+           to_at: to_at
+         }}
+    end
+  end
+
   defp page_position(state, %{cursor: nil}) do
     earliest = earliest(state)
     {:ok, earliest - 1, state.sequence}
@@ -252,6 +442,38 @@ defmodule Wotex.Tracker.Service.OperationalHistory do
       {:error, :invalid_query}
     end
   end
+
+  defp window_page_query(options, _state) do
+    if Keyword.keyword?(options) and length(options) == map_size(Map.new(options)) and
+         Enum.all?(Keyword.keys(options), &(&1 in [:event, :limit, :cursor, :window_ms])) do
+      event = Keyword.get(options, :event)
+      limit = Keyword.get(options, :limit, 100)
+      window_ms = Keyword.get(options, :window_ms)
+
+      if valid_window_page_query?(event, limit, window_ms) do
+        {:ok,
+         %{
+           event: event,
+           limit: limit,
+           cursor: Keyword.get(options, :cursor),
+           window_ms: window_ms
+         }}
+      else
+        {:error, :invalid_query}
+      end
+    else
+      {:error, :invalid_query}
+    end
+  end
+
+  defp valid_window_page_query?(event, limit, window_ms),
+    do: valid_event?(event) and valid_limit?(limit) and valid_window_ms?(window_ms)
+
+  defp valid_event?(event), do: is_nil(event) or event in @events
+  defp valid_limit?(limit), do: is_integer(limit) and limit in 1..1_000
+
+  defp valid_window_ms?(window_ms),
+    do: is_integer(window_ms) and window_ms in 1..@default_retention_ms
 
   defp query(options) do
     if Keyword.keyword?(options) and

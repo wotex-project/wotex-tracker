@@ -143,7 +143,7 @@ defmodule Wotex.Tracker.Nerves.BrowserTest do
                "private-token",
                "workshop",
                :operational_history,
-               %{"event" => nil, "cursor" => nil},
+               %{"event" => nil, "cursor" => nil, "window_ms" => 300_000},
                System.system_time(:millisecond)
              )
   end

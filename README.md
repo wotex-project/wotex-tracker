@@ -112,7 +112,9 @@ The service package also defines closed `:telemetry` events for requests,
 queries, import stages, commits, forward queues, publication reconciliation and
 store health. An explicitly supervised collector gives the default HTTP host a
 bounded volatile ETS history with a restart epoch; loading either library
-installs no handler and starts no process.
+installs no handler and starts no process. An enabled administrator view plots
+closed measurements over pinned one-, five- or fifteen-minute windows with
+elapsed-time spacing, disclosed projection limits and exact table pages.
 
 Start with the [WTR specification index](docs/specs/WTR-index.md) and the [software implementation sequence](docs/plans/software-implementation.md).
 

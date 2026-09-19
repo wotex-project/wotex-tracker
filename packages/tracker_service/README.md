@@ -189,6 +189,12 @@ clears everything on restart. Invalid external events are ignored. Collector
 loss cannot change durable tracking or alarm decisions. The explicit HTTP
 `Server` supervises one collector by default and exposes it to host code through
 `Server.operational_history/2`; no metrics server or exporter is required.
+`OperationalHistory.window_page/2` pins an event filter, one-to-fifteen-minute
+UTC window, epoch and sequence high-water mark. Each response combines a
+bounded exact page with up to 1,000 graph samples and reports the number of
+earlier matching samples left only in the exact pages. Continuations reject
+changed filters/windows, collector restart and expiry rather than silently
+changing the graph snapshot.
 The optional browser host contributes sanitized root LiveView `render.stop`
 durations to this collector. Reconnect and native host-resource coverage remain
 with the adapters that own those operations.

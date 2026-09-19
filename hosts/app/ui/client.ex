@@ -18,13 +18,19 @@ defmodule Wotex.Tracker.Host.Browser.Client do
   @impl true
   def request({service_provider, server_provider}, token, scope, :operational_history, args, now) do
     result =
-      with %{"event" => event, "cursor" => cursor} when map_size(args) == 2 <- args,
+      with %{"event" => event, "cursor" => cursor, "window_ms" => window_ms}
+           when map_size(args) == 3 <- args,
            {:ok, service} <- service_provider.(),
            {:ok, _} <- Service.authorize(service, token, scope, "admin", now),
            {:ok, server} <- server_provider.(),
            {:ok, collector} <- Server.child(server, :operational_history),
            {:ok, page} <-
-             OperationalHistory.page(collector, event: event, cursor: cursor, limit: 25),
+             OperationalHistory.window_page(collector,
+               event: event,
+               cursor: cursor,
+               limit: 25,
+               window_ms: window_ms
+             ),
            {:ok, _} <- Service.authorize(service, token, scope, "admin", now) do
         {:ok, page}
       else

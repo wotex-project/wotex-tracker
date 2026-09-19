@@ -125,6 +125,13 @@ page, general dashboard composition and a live public-provider prompt run are
 still open. An
 administrator can also edit a saved dashboard's title and view or delete it with
 a generation check and recoverable operation receipt.
+
+An enabled host also exposes administrator-only operational history. Its closed
+one-, five- and fifteen-minute windows plot discrete telemetry measurements by
+elapsed UTC time without joining samples. The collector response pins the epoch,
+window and high-water mark across exact 25-row table pages. The graph is capped
+at 1,000 retained samples and visibly reports any earlier matching samples that
+remain available through those pages.
 Saved dashboard pages can follow committed changes while open. They check the
 scope's committed event cursor every 5 seconds and rerun the query only after a
 commit, from a snapshot cursor taken before the run; a rolling window also

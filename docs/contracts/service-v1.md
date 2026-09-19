@@ -512,6 +512,22 @@ filter/limit returns `invalid_cursor`; pruning a needed sequence returns
 `cursor_expired`. This is a host-only in-process interface, not an authenticated
 HTTP endpoint or a durable analytics dataset.
 
+`OperationalHistory.window_page/2` combines that exact page with a bounded graph
+projection from the same retained snapshot. A first read accepts a closed event
+filter, a page limit and a positive window no longer than 15 minutes. It pins
+the collector epoch, absolute from-exclusive/to-inclusive UTC bounds and current
+sequence high-water mark. Its cursor additionally binds the window duration and
+the first retained sequence needed to reproduce the projection. A continuation
+with changed inputs or a different epoch is invalid; expiry of that first sample
+is explicit. New samples never enter the pinned window.
+
+The response carries up to 25 exact samples for browser table navigation and at
+most the latest 1,000 matching samples for the graph. `omitted_before` reports
+the exact number of earlier matching samples excluded from the graph projection;
+those samples remain reachable in the table pages until retention expiry. This
+is a presentation budget, not undisclosed downsampling, and no line or inferred
+value is part of the collector contract.
+
 Host code can read a coherent retained snapshot through
 `Server.operational_history/2`; the snapshot carries a restart epoch, expires
 samples after 15 minutes and is bounded to 2,048 entries unless the host chooses

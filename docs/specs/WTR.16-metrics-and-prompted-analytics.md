@@ -21,11 +21,13 @@ continuations reject restart, altered filters and expired samples.
 The optional browser host now exposes those pages at `/operations` to current
 administrators. It reauthorizes every bounded read, including navigation and
 refresh, and shows event filters, retained measurements and the volatile epoch.
-The view clears samples on revoked authority or expired continuation. A
-page-local scatter plot displays one closed measurement in record order with
-the exact table retained as its accessible alternative. It does not infer
-values between samples or claim elapsed-time spacing. A time-windowed
-operational graph and remote exporter remain open.
+The view clears samples on revoked authority or expired continuation. Its
+one-, five- and fifteen-minute operational windows bind absolute UTC bounds to
+the collector epoch, event filter and sequence high-water mark. Discrete marks
+use elapsed-time spacing without connecting or inferring values, while 25-row
+pages retain exact samples. A graph projects at most 1,000 samples and discloses
+any earlier samples omitted from the projection; they remain available through
+the exact pages. A remote exporter remains open.
 Encrypted analytics continuations now bind the exact query and first committed
 generation while reauthorizing every bucket page. General dashboard composition
 and sharing, a live public-provider prompt run and cross-surface graph acceptance remain

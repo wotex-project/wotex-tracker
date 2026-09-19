@@ -232,6 +232,114 @@ defmodule Wotex.Tracker.Service.OperationalHistoryTest do
     assert {:error, :unavailable} = OperationalHistory.page(replacement)
   end
 
+  test "window pages pin elapsed bounds and disclose graph projection limits" do
+    clock = :atomics.new(1, [])
+    :atomics.put(clock, 1, 1_000)
+
+    collector =
+      start_supervised!(
+        Supervisor.child_spec(
+          {OperationalHistory,
+           max_samples: 1_100, retention_ms: 500, clock: fn -> :atomics.get(clock, 1) end},
+          id: make_ref()
+        )
+      )
+
+    record = fn time, event ->
+      :atomics.put(clock, 1, time)
+
+      case event do
+        :request ->
+          OperationalTelemetry.request(:health, 200, System.monotonic_time())
+
+        :query ->
+          OperationalTelemetry.query(
+            :mean,
+            {:ok, %{"scanned_rows" => 1}},
+            System.monotonic_time()
+          )
+      end
+
+      eventually(fn ->
+        {:ok, %{"samples" => samples}} = OperationalHistory.snapshot(collector, limit: 1_000)
+        Enum.any?(samples, &(&1["observed_at"] == time))
+      end)
+    end
+
+    record.(1_000, :request)
+    record.(1_100, :request)
+    record.(1_150, :query)
+    record.(1_200, :request)
+    :atomics.put(clock, 1, 1_220)
+
+    assert {:ok,
+            %{
+              "schema" => "wtr.operational-window-page.v1",
+              "through" => 4,
+              "samples" => [%{"sequence" => 2}],
+              "cursor" => first,
+              "window" => %{
+                "from_at" => 1_070,
+                "to_at" => 1_220,
+                "duration_ms" => 150,
+                "omitted_before" => 0,
+                "samples" => graph
+              }
+            }} = OperationalHistory.window_page(collector, limit: 1, window_ms: 150)
+
+    assert Enum.map(graph, & &1["sequence"]) == [2, 3, 4]
+
+    record.(1_230, :request)
+
+    assert {:ok,
+            %{
+              "through" => 4,
+              "samples" => [%{"sequence" => 3}],
+              "window" => %{"from_at" => 1_070, "to_at" => 1_220, "samples" => same_graph}
+            }} =
+             OperationalHistory.window_page(collector,
+               limit: 1,
+               window_ms: 150,
+               cursor: first
+             )
+
+    assert Enum.map(same_graph, & &1["sequence"]) == [2, 3, 4]
+
+    assert {:error, :invalid_cursor} =
+             OperationalHistory.window_page(collector,
+               event: "query.stop",
+               limit: 1,
+               window_ms: 150,
+               cursor: first
+             )
+
+    assert {:error, :invalid_query} =
+             OperationalHistory.window_page(collector, window_ms: 900_001)
+
+    assert {:error, :invalid_query} =
+             OperationalHistory.window_page(collector, window_ms: 150, window_ms: 100)
+
+    :atomics.put(clock, 1, 1_601)
+
+    assert {:error, :cursor_expired} =
+             OperationalHistory.window_page(collector,
+               limit: 1,
+               window_ms: 150,
+               cursor: first
+             )
+
+    :atomics.put(clock, 1, 2_000)
+
+    for _ <- 1..1_002,
+        do: OperationalTelemetry.request(:health, 200, System.monotonic_time())
+
+    assert {:ok, %{"window" => %{"samples" => samples, "omitted_before" => 2}}} =
+             OperationalHistory.window_page(collector, window_ms: 100, limit: 1_000)
+
+    assert length(samples) == 1_000
+    assert hd(samples)["sequence"] == 8
+  end
+
   test "ingest, commit, queue, publication and resource boundaries emit bounded outcomes" do
     context = service()
 

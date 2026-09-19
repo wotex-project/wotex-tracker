@@ -2568,3 +2568,33 @@ The HTTP binding then passed 95 tests and 97.5% line coverage but its own comple
 gate stopped on two unmatched-return Dialyzer findings in
 `test/support/fake_client.ex`. No new source-cohort receipt is promoted until that
 upstream gate is clean and the complete qualifier is rerun.
+
+### Time-windowed operational graphs — 2026-09-19
+
+The volatile collector now has a separate `window_page/2` contract that returns
+one exact 25-row page and a graph projection from the same snapshot. The first
+read pins a from-exclusive/to-inclusive UTC window, event filter, collector epoch
+and sequence high-water mark. Its continuation also binds the page limit,
+duration and first matching retained sequence. Later telemetry stays outside the
+snapshot; changed inputs and restarts are invalid, and retention loss is reported
+as an expired cursor. The graph returns the latest 1,000 matching samples and an
+exact count of any earlier samples omitted from the projection, while those
+samples remain reachable through exact pages.
+
+The administrator view offers one-, five- and fifteen-minute windows. It projects
+each closed nonnegative measurement at its actual elapsed position between the
+window bounds, retains discrete marks rather than inferred lines, labels the UTC
+bounds and reports projection omissions. Event and window responses are checked
+against the requested values before display. Both app and Nerves host adapters
+continue to authorize before and after every collector read.
+
+The service gate passed 2 properties and 198 tests at 95.1% production line
+coverage. The shared UI gate passed 115 tests at 95.0%; the browser-enabled app
+host gate passed 22 tests at 95.5%; and the Nerves host UI profile passed all 7
+tests. The root contract gate also passed 1 doctest, 19 properties and 158 tests
+at 95.4% coverage. Compiler, unused-dependency, formatter, audit, strict Credo, ExDoc,
+Dialyzer, package/archive, license, native host-tool and stack-language checks all
+passed where applicable. Tests cover elapsed bounds, fixed high-water membership,
+changed filters, retention expiry, the 1,000-sample disclosure boundary, sparse
+measurements, elapsed-time coordinates, authorization, paging and malformed
+responses.

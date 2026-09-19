@@ -86,7 +86,7 @@ defmodule Wotex.Tracker.Host.BrowserTest do
                  "private-token",
                  "workshop",
                  :operational_history,
-                 %{"event" => nil, "cursor" => nil},
+                 %{"event" => nil, "cursor" => nil, "window_ms" => 300_000},
                  now
                )
     end
@@ -226,7 +226,7 @@ defmodule Wotex.Tracker.Host.BrowserTest do
                c.reader_token,
                "workshop",
                :operational_history,
-               %{"event" => nil, "cursor" => nil},
+               %{"event" => nil, "cursor" => nil, "window_ms" => 300_000},
                System.system_time(:millisecond)
              )
 

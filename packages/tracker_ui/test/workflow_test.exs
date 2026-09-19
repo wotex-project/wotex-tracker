@@ -1046,16 +1046,20 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
 
   test "host operational pages require admin authority and retain a pinned collector page", c do
     cursor = %{
-      "schema" => "wtr.operational-cursor.v1",
+      "schema" => "wtr.operational-window-cursor.v1",
       "epoch" => "collector-one",
       "after" => 1,
       "through" => 2,
+      "first" => 1,
       "event" => nil,
-      "limit" => 25
+      "limit" => 25,
+      "window_ms" => 300_000,
+      "from_at" => c.now - 300_000,
+      "to_at" => c.now
     }
 
     first = %{
-      "schema" => "wtr.operational-page.v1",
+      "schema" => "wtr.operational-window-page.v1",
       "epoch" => "collector-one",
       "captured_at" => c.now,
       "volatile" => true,
@@ -1069,6 +1073,28 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
           "metadata" => %{"aggregation" => "mean", "outcome" => "ok"}
         }
       ],
+      "window" => %{
+        "from_at" => c.now - 300_000,
+        "to_at" => c.now,
+        "duration_ms" => 300_000,
+        "omitted_before" => 0,
+        "samples" => [
+          %{
+            "sequence" => 1,
+            "observed_at" => c.now,
+            "event" => "query.stop",
+            "measurements" => %{"duration_us" => 123, "scanned_rows" => 1},
+            "metadata" => %{"aggregation" => "mean", "outcome" => "ok"}
+          },
+          %{
+            "sequence" => 2,
+            "observed_at" => c.now,
+            "event" => "render.stop",
+            "measurements" => %{"duration_us" => 456},
+            "metadata" => %{"surface" => "browser", "outcome" => "ok"}
+          }
+        ]
+      },
       "cursor" => cursor
     }
 
@@ -1091,6 +1117,7 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert html =~ "Operational history"
     assert html =~ "query.stop"
     assert html =~ "duration_us: 123"
+    assert has_element?(view, "#operational-window option[value='300000'][selected]")
     assert has_element?(view, "circle.chart-point")
     refute has_element?(view, "path.chart-line")
     assert has_element?(view, "button", "Next page")
@@ -1105,8 +1132,8 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     Agent.update(c.faults, &Map.put(&1, :operational_history, {:page, second}))
     view |> element("button", "Next page") |> render_click()
     assert render(view) =~ "render.stop"
-    assert render(view) =~ "No retained values for this measurement on this page"
-    refute has_element?(view, "circle.chart-point")
+    refute render(view) =~ "No retained values for this measurement in this time window"
+    assert has_element?(view, "circle.chart-point")
     assert has_element?(view, "button", "Previous page")
 
     Agent.update(c.faults, &Map.put(&1, :operational_history, {:page, first}))
@@ -1124,7 +1151,22 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert has_element?(view, "[role=alert]")
 
     Agent.update(c.faults, &Map.put(&1, :operational_history, {:page, first}))
-    view |> form("#operational-filter", filter: %{event: "query.stop"}) |> render_submit()
+
+    filtered = %{
+      first
+      | "window" => %{
+          first["window"]
+          | "samples" => [hd(first["window"]["samples"])]
+        },
+        "cursor" => %{cursor | "event" => "query.stop"}
+    }
+
+    Agent.update(c.faults, &Map.put(&1, :operational_history, {:page, filtered}))
+
+    view
+    |> form("#operational-filter", filter: %{event: "query.stop", window_ms: "300000"})
+    |> render_submit()
+
     assert has_element?(view, "#operational-event option[value='query.stop'][selected]")
     assert render(view) =~ "query.stop"
 
@@ -1133,11 +1175,14 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     refute has_element?(view, "tbody tr")
     assert has_element?(view, "[role=alert]")
 
-    Agent.update(c.faults, &Map.put(&1, :operational_history, {:page, first}))
+    Agent.update(c.faults, &Map.put(&1, :operational_history, {:page, filtered}))
     view |> element("button", "Refresh") |> render_click()
     assert render(view) =~ "query.stop"
 
-    render_hook(view, "filter", %{"filter" => %{"event" => "unknown"}})
+    render_hook(view, "filter", %{
+      "filter" => %{"event" => "unknown", "window_ms" => "300000"}
+    })
+
     assert has_element?(view, "[role=alert]")
     assert render(view) =~ "query.stop"
 

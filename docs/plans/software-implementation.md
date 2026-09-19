@@ -392,6 +392,9 @@ default host restart-identified local operational history. Snapshot-pinned
 bucket pagination now excludes concurrent commits and reauthorizes every page.
 The explicit HTTP host now adds global BEAM memory/process/port samples to that
 collector. Host-only operational pages pin its epoch and high-water sequence.
+The shared operational view also binds a closed UTC time window to that snapshot,
+spaces discrete marks by elapsed time and discloses its 1,000-point projection
+limit while retaining exact 25-row pages.
 The shared browser now executes a bounded per-asset structured query and shows
 its committed snapshot, bucket values and exclusions in line/area/point graphs
 and an accessible table. Gap-separated paths and time-window controls support

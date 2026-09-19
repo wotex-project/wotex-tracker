@@ -3,9 +3,10 @@ defmodule Wotex.Tracker.UI.OperationalLive do
   Inspects host operational measurements when that host enables the page.
 
   A current administrative grant is required for each page. Event and metric
-  filters select bounded volatile samples; the chart marks recorded values
-  individually and the table retains exact values. This is a host diagnostic
-  view, not the durable asset event history or a public analytics query.
+  filters select bounded volatile samples inside a closed time window. The
+  chart spaces recorded values by elapsed time without connecting them, and
+  snapshot-pinned table pages retain the exact values. This is a host
+  diagnostic view, not durable asset event history or a public analytics query.
   """
 
   use Phoenix.LiveView, log: false
@@ -15,6 +16,8 @@ defmodule Wotex.Tracker.UI.OperationalLive do
 
   @contracts OperationalTelemetry.contracts()
   @events Enum.map(@contracts, & &1.name)
+  @windows [{"1 minute", 60_000}, {"5 minutes", 300_000}, {"15 minutes", 900_000}]
+  @window_values Enum.map(@windows, &elem(&1, 1))
   @back_limit 32
 
   @impl true
@@ -23,7 +26,9 @@ defmodule Wotex.Tracker.UI.OperationalLive do
      assign(socket,
        enabled: socket.endpoint.config(:tracker_ui)[:operational_history] == true,
        events: @events,
+       windows: @windows,
        event: nil,
+       window_ms: 300_000,
        metric: nil,
        metric_choices: [],
        chart: nil,
@@ -40,15 +45,27 @@ defmodule Wotex.Tracker.UI.OperationalLive do
   @impl true
   def handle_event("refresh", _, socket), do: {:noreply, first_page(socket)}
 
-  def handle_event("filter", %{"filter" => %{"event" => event}}, socket)
+  def handle_event(
+        "filter",
+        %{"filter" => %{"event" => event, "window_ms" => window}},
+        socket
+      )
       when event == "all" or event in @events do
-    next = socket |> assign(event: if(event == "all", do: nil, else: event)) |> first_page()
+    with {window_ms, ""} <- Integer.parse(window),
+         true <- window_ms in @window_values do
+      next =
+        socket
+        |> assign(event: if(event == "all", do: nil, else: event), window_ms: window_ms)
+        |> first_page()
 
-    {:noreply,
-     if(next.assigns.error && next.assigns.page,
-       do: assign(next, event: socket.assigns.event),
-       else: next
-     )}
+      {:noreply,
+       if(next.assigns.error && next.assigns.page,
+         do: assign(next, event: socket.assigns.event, window_ms: socket.assigns.window_ms),
+         else: next
+       )}
+    else
+      _ -> {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
+    end
   end
 
   def handle_event("filter", _, socket),
@@ -65,7 +82,7 @@ defmodule Wotex.Tracker.UI.OperationalLive do
         {:noreply,
          assign(socket,
            metric: name,
-           chart: OperationalChart.project(socket.assigns.page, name),
+           chart: OperationalChart.project(socket.assigns.page["window"], name),
            error: nil
          )}
 
@@ -76,7 +93,12 @@ defmodule Wotex.Tracker.UI.OperationalLive do
 
   def handle_event("next", _, %{assigns: %{page: %{"cursor" => cursor}}} = socket)
       when is_map(cursor) do
-    request = %{"event" => socket.assigns.event, "cursor" => cursor}
+    request = %{
+      "event" => socket.assigns.event,
+      "cursor" => cursor,
+      "window_ms" => socket.assigns.window_ms
+    }
+
     next = load(socket, request)
 
     if next.assigns.page_request == request do
@@ -129,6 +151,12 @@ defmodule Wotex.Tracker.UI.OperationalLive do
             <option value="all" selected={is_nil(@event)}>All events</option>
             <option :for={event <- @events} value={event} selected={@event == event}>{event}</option>
           </select>
+          <label for="operational-window">Time window</label>
+          <select id="operational-window" name="filter[window_ms]">
+            <option :for={{label, value} <- @windows} value={value} selected={@window_ms == value}>
+              {label}
+            </option>
+          </select>
           <button type="submit">Apply filter</button>
         </.form>
         <p :if={@page} class="muted">
@@ -149,7 +177,7 @@ defmodule Wotex.Tracker.UI.OperationalLive do
             <svg
               viewBox="0 0 1000 300"
               role="img"
-              aria-label={"Discrete #{@metric} samples on this operational page; exact values follow in the table"}
+              aria-label={"Discrete #{@metric} samples spaced across the selected operational time window; exact values follow in the table pages"}
             >
               <line x1="56" y1="260" x2="944" y2="260" class="chart-axis" />
               <circle
@@ -165,12 +193,18 @@ defmodule Wotex.Tracker.UI.OperationalLive do
               </circle>
             </svg>
             <figcaption>
-              {@metric} ranges from {@chart.minimum} to {@chart.maximum} on this page.
-              Marks follow record order, not elapsed-time spacing. No values are inferred between samples.
-              Use the table for exact values and times.
+              {@metric} ranges from {@chart.minimum} to {@chart.maximum} between {Presenter.timestamp(
+                %{"value" => @chart.from_at}
+              )} and {Presenter.timestamp(%{"value" => @chart.to_at})}. Horizontal spacing is elapsed
+              time. No values are inferred between samples. Use the table pages for exact values
+              and times.
             </figcaption>
           </figure>
-          <p :if={is_nil(@chart)}>No retained values for this measurement on this page.</p>
+          <p :if={@page["window"]["omitted_before"] > 0} role="status">
+            The graph omits {@page["window"]["omitted_before"]} earlier samples from this window;
+            the exact table pages remain available.
+          </p>
+          <p :if={is_nil(@chart)}>No retained values for this measurement in this time window.</p>
         </div>
         <p :if={@page && @page["samples"] == []}>No retained samples on this page.</p>
         <div :if={@page && @page["samples"] != []} class="table-scroll">
@@ -207,7 +241,12 @@ defmodule Wotex.Tracker.UI.OperationalLive do
   end
 
   defp first_page(socket) do
-    next = load(socket, %{"event" => socket.assigns.event, "cursor" => nil})
+    next =
+      load(socket, %{
+        "event" => socket.assigns.event,
+        "cursor" => nil,
+        "window_ms" => socket.assigns.window_ms
+      })
 
     if is_nil(next.assigns.error) and is_map(next.assigns.page),
       do: assign(next, page_back: []),
@@ -224,16 +263,16 @@ defmodule Wotex.Tracker.UI.OperationalLive do
   defp load(socket, request) do
     case Auth.request(socket, :operational_history, request) do
       {:ok, page} ->
-        if valid_page?(page) do
+        if valid_page?(page, request) do
           choices = metric_choices(socket.assigns.event)
-          metric = choose_metric(socket.assigns.metric, choices, page)
+          metric = choose_metric(socket.assigns.metric, choices, page["window"])
 
           assign(socket,
             page: page,
             page_request: request,
             metric_choices: choices,
             metric: metric,
-            chart: OperationalChart.project(page, metric),
+            chart: OperationalChart.project(page["window"], metric),
             error: nil
           )
         else
@@ -255,34 +294,94 @@ defmodule Wotex.Tracker.UI.OperationalLive do
     end
   end
 
-  defp valid_page?(%{
-         "schema" => "wtr.operational-page.v1",
-         "epoch" => epoch,
-         "through" => through,
-         "captured_at" => captured,
-         "samples" => samples,
-         "cursor" => cursor
-       }) do
-    is_binary(epoch) and is_integer(through) and is_integer(captured) and
-      is_list(samples) and length(samples) <= 25 and
-      Enum.all?(samples, &valid_sample?/1) and
-      (is_nil(cursor) or is_map(cursor))
+  defp valid_page?(
+         %{
+           "schema" => "wtr.operational-window-page.v1",
+           "epoch" => epoch,
+           "through" => through,
+           "captured_at" => captured,
+           "window" => window,
+           "samples" => samples,
+           "cursor" => cursor
+         },
+         %{"event" => event, "window_ms" => window_ms}
+       ) do
+    valid_page_header?(epoch, through, captured, cursor) and
+      valid_page_samples?(samples, event, through) and
+      valid_window?(window, through, event, window_ms)
   end
 
-  defp valid_page?(_), do: false
+  defp valid_page?(_, _), do: false
+
+  defp valid_page_header?(epoch, through, captured, cursor),
+    do:
+      is_binary(epoch) and is_integer(through) and is_integer(captured) and
+        (is_nil(cursor) or is_map(cursor))
+
+  defp valid_sample_list?(samples, event, maximum),
+    do:
+      is_list(samples) and length(samples) <= maximum and
+        Enum.all?(samples, &(valid_sample?(&1) and event_matches?(&1, event)))
+
+  defp valid_page_samples?(samples, event, through),
+    do:
+      valid_sample_list?(samples, event, 25) and
+        Enum.all?(samples, &(&1["sequence"] <= through))
 
   defp valid_sample?(%{
+         "sequence" => sequence,
          "event" => event,
          "observed_at" => observed,
          "measurements" => measurements,
          "metadata" => metadata
        }),
-       do: event in @events and is_integer(observed) and is_map(measurements) and is_map(metadata)
+       do:
+         is_integer(sequence) and sequence >= 1 and event in @events and is_integer(observed) and
+           is_map(measurements) and is_map(metadata)
 
   defp valid_sample?(_), do: false
 
+  defp valid_window?(
+         %{
+           "from_at" => from_at,
+           "to_at" => to_at,
+           "duration_ms" => duration_ms,
+           "omitted_before" => omitted,
+           "samples" => samples
+         },
+         through,
+         event,
+         requested_window
+       ) do
+    valid_window_bounds?(from_at, to_at, duration_ms, requested_window) and
+      is_integer(omitted) and omitted >= 0 and
+      valid_window_samples?(samples, through, event, from_at, to_at)
+  end
+
+  defp valid_window?(_, _, _, _), do: false
+
+  defp valid_window_bounds?(from_at, to_at, duration_ms, requested_window),
+    do:
+      is_integer(from_at) and is_integer(to_at) and to_at > from_at and
+        to_at - from_at == duration_ms and duration_ms == requested_window and
+        duration_ms in @window_values
+
+  defp valid_window_samples?(samples, through, event, from_at, to_at) do
+    valid_sample_list?(samples, event, 1_000) and
+      Enum.all?(samples, fn sample ->
+        sample["sequence"] <= through and sample["observed_at"] > from_at and
+          sample["observed_at"] <= to_at
+      end)
+  end
+
+  defp event_matches?(_, nil), do: true
+  defp event_matches?(sample, event), do: sample["event"] == event
+
   defp same_snapshot?(left, right),
-    do: left["epoch"] == right["epoch"] and left["through"] == right["through"]
+    do:
+      left["epoch"] == right["epoch"] and left["through"] == right["through"] and
+        left["window"]["from_at"] == right["window"]["from_at"] and
+        left["window"]["to_at"] == right["window"]["to_at"]
 
   defp metric_choices(event) do
     @contracts
@@ -296,14 +395,14 @@ defmodule Wotex.Tracker.UI.OperationalLive do
     |> Enum.sort()
   end
 
-  defp choose_metric(current, choices, page) do
+  defp choose_metric(current, choices, window) do
     names = Enum.map(choices, &elem(&1, 0))
 
     if current in names do
       current
     else
       Enum.find(names, fn name ->
-        Enum.any?(page["samples"], &is_integer(&1["measurements"][name]))
+        Enum.any?(window["samples"], &is_integer(&1["measurements"][name]))
       end) || hd(names)
     end
   end
