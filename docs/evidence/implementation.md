@@ -3518,3 +3518,38 @@ does not establish physical Keychain behavior, protected-data availability,
 signed backup/restore behavior or remote erasure of an offline device. Shared
 views still do not populate or present the offline cache, and notification,
 native lifecycle, BLE, sharing, signing and physical-iPhone gates remain open.
+
+### Labelled offline mobile presentation — 2026-09-20
+
+The mobile host now composes the shared remote client with its account-bound
+projection cache. Successful authorized reads synchronize only the closed
+overview, history, dashboard and route-map classes under a deterministic digest
+of the exact action and argument map. A service-unavailable response may read
+only that exact key. Authorization denial, malformed responses and all other
+errors remain authoritative and never reveal cached data. Mutations, raw
+evidence, access management and operation recovery are neither cached nor
+queued, and a cache write failure cannot turn a valid remote read into failure.
+
+Every cached result gains an explicit offline projection with source,
+synchronization timestamp, age, completeness and credential-expiry bound.
+Shared browse, asset, trip, trip-summary, route and dashboard screens render
+that state without widening their normal response shapes. A cold offline start
+may create a new volatile session only from an unexpired, origin/account-bound
+device credential. Its local identity grants no enrollment, ingestion, raw-read
+or query-management capability, so mutation controls stay unavailable while
+cached reads remain usable. Sign-out, account changes, expiry and invalid stored
+credentials still purge the binding.
+
+Tests exercise all four cache classes, exact-key misses, incomplete-page labels,
+remote denial over cached content, conservative offline identity, mutation and
+raw-read exclusion, dead-cache and hostile-callback containment, cold offline
+host bootstrap and rendered synchronization labels. The complete mobile-host
+gate passed 47 tests at 95.4% production line coverage, and the complete
+shared-UI gate passed 156 tests at 95.0%. Compiler, unused-dependency, formatter,
+dependency audit, strict Credo, ExDoc, Dialyzer, 56-member UI archive inspection,
+licenses and the 503-file stack-language policy passed for their applicable
+profiles.
+
+This is local software evidence. No physical iPhone, protected-data transition,
+network handoff, background/foreground lifecycle, push notification, BLE,
+sharing, Xcode, signing or distribution gate was exercised.

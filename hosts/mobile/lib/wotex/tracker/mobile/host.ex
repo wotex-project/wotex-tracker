@@ -7,8 +7,18 @@ defmodule Wotex.Tracker.Mobile.Host do
   """
 
   use Supervisor
-  alias Wotex.Tracker.Mobile.{Cache, Config, CredentialManager, Endpoint, Runtime, SessionGate}
-  alias Wotex.Tracker.UI.{Remote, Sessions}
+
+  alias Wotex.Tracker.Mobile.{
+    Cache,
+    Client,
+    Config,
+    CredentialManager,
+    Endpoint,
+    Runtime,
+    SessionGate
+  }
+
+  alias Wotex.Tracker.UI.Sessions
 
   @pubsub Wotex.Tracker.Mobile.PubSub
   @sessions Wotex.Tracker.Mobile.Sessions
@@ -82,7 +92,7 @@ defmodule Wotex.Tracker.Mobile.Host do
         {Phoenix.PubSub, name: @pubsub},
         {Sessions,
          name: @sessions,
-         client: {Remote, config.remote},
+         client: {Client, Client.new(config.remote, @credentials)},
          capacity: 1,
          custodian: {CredentialManager, @credentials}},
         {CredentialManager,

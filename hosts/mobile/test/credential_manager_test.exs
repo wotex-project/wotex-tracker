@@ -161,16 +161,16 @@ defmodule Wotex.Tracker.Mobile.CredentialManagerTest do
     Agent.update(c.client, &%{&1 | mode: :offline})
     manager = start_manager(c)
 
-    assert %{credential: true, session: false, storage: :ready} =
+    assert %{credential: true, session: true, storage: :ready} =
              CredentialManager.status(manager)
 
     assert {:ok, %{"entries" => 0}} = Cache.status(c.cache, account(installation), @now)
-    assert :none = CredentialManager.browser_session(manager)
-
-    Agent.update(c.client, &%{&1 | mode: :ok})
     assert {:ok, restored} = CredentialManager.browser_session(manager)
     assert restored != credential.session_id
     assert canonical_id?(restored)
+
+    Agent.update(c.client, &%{&1 | mode: :ok})
+    assert {:ok, ^restored} = CredentialManager.browser_session(manager)
     assert :ok = stop_supervised(CredentialManager)
 
     Agent.update(c.client, &%{&1 | mode: :unauthorized})

@@ -194,6 +194,7 @@ defmodule Wotex.Tracker.UI.AssetLive do
         <button class="secondary" phx-click="refresh">Refresh</button>
       </div>
       <.notice error={@error} />
+      <.offline_status projection={@history} />
       <section :if={@enrollment} class="panel">
         <h2>Identity and provisioning</h2>
         <p class="identifier">{@id}</p>

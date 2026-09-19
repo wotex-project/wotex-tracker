@@ -50,6 +50,23 @@ defmodule Wotex.Tracker.Mobile.CredentialManager do
     :exit, _ -> %{credential: false, session: false, storage: :unavailable}
   end
 
+  @doc false
+  @spec put_projection(GenServer.server(), atom(), String.t(), map(), boolean(), integer()) ::
+          :ok | {:error, atom()}
+  def put_projection(server, kind, key, projection, complete, now),
+    do: call(server, {:put_projection, kind, key, projection, complete, now})
+
+  @doc false
+  @spec read_projection(GenServer.server(), atom(), String.t(), integer()) ::
+          {:ok, map()} | {:error, atom()}
+  def read_projection(server, kind, key, now),
+    do: call(server, {:read_projection, kind, key, now})
+
+  @doc false
+  @spec offline_identity(GenServer.server(), String.t(), integer()) ::
+          {:ok, map()} | {:error, :unavailable}
+  def offline_identity(server, scope, now), do: call(server, {:offline_identity, scope, now})
+
   @impl true
   def init(state), do: {:ok, state, {:continue, :restore}}
 
@@ -89,6 +106,49 @@ defmodule Wotex.Tracker.Mobile.CredentialManager do
     end
   end
 
+  def handle_call({:put_projection, kind, key, projection, complete, now}, _from, state) do
+    result =
+      if is_map(state.account),
+        do: Cache.put(state.cache, state.account, kind, key, projection, now, complete, now),
+        else: {:error, :account_mismatch}
+
+    {:reply, result, state}
+  catch
+    :exit, _ -> {:reply, {:error, :cache_unavailable}, state}
+  end
+
+  def handle_call({:read_projection, kind, key, now}, _from, state) do
+    result =
+      if is_map(state.account),
+        do: Cache.read(state.cache, state.account, kind, key, now),
+        else: {:error, :account_mismatch}
+
+    {:reply, result, state}
+  catch
+    :exit, _ -> {:reply, {:error, :cache_unavailable}, state}
+  end
+
+  def handle_call({:offline_identity, scope, now}, _from, state) do
+    result =
+      with true <- state.credential?,
+           %{"scope" => ^scope, "expires_at" => expires} <- state.access,
+           true <- is_integer(now) and now < expires do
+        {:ok,
+         %{
+           "scope" => scope,
+           "can_enroll" => false,
+           "can_ingest" => false,
+           "can_read_raw" => false,
+           "can_manage_queries" => false,
+           "_offline" => true
+         }}
+      else
+        _ -> {:error, :unavailable}
+      end
+
+    {:reply, result, state}
+  end
+
   @impl true
   def format_status(status) do
     status
@@ -117,6 +177,8 @@ defmodule Wotex.Tracker.Mobile.CredentialManager do
         installation_id: nil,
         credential?: false,
         session_id: nil,
+        account: nil,
+        access: nil,
         storage: :ready
       }
 
@@ -130,8 +192,8 @@ defmodule Wotex.Tracker.Mobile.CredentialManager do
     with {:ok, state} <- installation(state),
          {:ok, envelope} <- fetch(state, :credential),
          {:ok, stored} <- decode(envelope, state),
-         :ok <- bind(state, stored.access) do
-      restore_session(state, stored)
+         {:ok, account} <- bind(state, stored.access) do
+      restore_session(%{state | account: account, access: stored.access}, stored)
     else
       {:error, :not_found} -> purge_without_credential(state)
       {:error, :expired} -> cleared(state)
@@ -163,6 +225,9 @@ defmodule Wotex.Tracker.Mobile.CredentialManager do
       {:error, %{"code" => "unauthorized"}} ->
         cleared(state)
 
+      {:error, %{"code" => "storage_unavailable"}} ->
+        restore_cached_session(state, stored)
+
       {:error, _} ->
         %{state | credential?: true, session_id: nil, storage: :ready}
     end
@@ -173,12 +238,14 @@ defmodule Wotex.Tracker.Mobile.CredentialManager do
          {:ok, stored} <- credential(credential, state),
          {:ok, encoded} <- Jason.encode(stored.envelope),
          :ok <- put(state, :credential, encoded),
-         :ok <- bind(state, stored.access) do
+         {:ok, account} <- bind(state, stored.access) do
       {:ok,
        %{
          state
          | credential?: true,
            session_id: credential.session_id,
+           account: account,
+           access: stored.access,
            storage: :ready
        }}
     else
@@ -285,7 +352,13 @@ defmodule Wotex.Tracker.Mobile.CredentialManager do
     with :ok <- delete(state, :credential),
          :ok <- delete(state, :installation_id),
          :ok <- purge(state) do
-      create_installation(%{state | credential?: false, session_id: nil})
+      create_installation(%{
+        state
+        | credential?: false,
+          session_id: nil,
+          account: nil,
+          access: nil
+      })
     else
       _ -> {:error, :unavailable}
     end
@@ -341,7 +414,10 @@ defmodule Wotex.Tracker.Mobile.CredentialManager do
       "expires_at" => access["expires_at"]
     }
 
-    Cache.bind(state.cache, account, state.clock.())
+    case Cache.bind(state.cache, account, state.clock.()) do
+      :ok -> {:ok, account}
+      error -> error
+    end
   catch
     :exit, _ -> {:error, :cache_unavailable}
   end
@@ -349,13 +425,30 @@ defmodule Wotex.Tracker.Mobile.CredentialManager do
   defp rollback(state) do
     _ = delete(state, :credential)
     _ = purge(state)
-    {:error, %{state | credential?: false, session_id: nil, storage: :unavailable}}
+
+    {:error,
+     %{
+       state
+       | credential?: false,
+         session_id: nil,
+         account: nil,
+         access: nil,
+         storage: :unavailable
+     }}
   end
 
   defp clear(state) do
     with :ok <- delete(state, :credential),
          :ok <- purge(state) do
-      {:ok, %{state | credential?: false, session_id: nil, storage: :ready}}
+      {:ok,
+       %{
+         state
+         | credential?: false,
+           session_id: nil,
+           account: nil,
+           access: nil,
+           storage: :ready
+       }}
     else
       _ -> {:error, %{state | storage: :unavailable}}
     end
@@ -370,8 +463,18 @@ defmodule Wotex.Tracker.Mobile.CredentialManager do
 
   defp purge_without_credential(state) do
     case purge(state) do
-      :ok -> %{state | credential?: false, session_id: nil, storage: :ready}
-      _ -> %{state | credential?: false, session_id: nil, storage: :unavailable}
+      :ok ->
+        %{state | credential?: false, session_id: nil, account: nil, access: nil, storage: :ready}
+
+      _ ->
+        %{
+          state
+          | credential?: false,
+            session_id: nil,
+            account: nil,
+            access: nil,
+            storage: :unavailable
+        }
     end
   end
 
@@ -379,6 +482,22 @@ defmodule Wotex.Tracker.Mobile.CredentialManager do
     Cache.purge(state.cache)
   catch
     :exit, _ -> {:error, :cache_unavailable}
+  end
+
+  defp restore_cached_session(state, stored) do
+    case Sessions.restore_cached(state.sessions, stored.token, stored.scope, stored.access) do
+      {:ok, %{"id" => id}} ->
+        %{
+          state
+          | credential?: true,
+            session_id: id,
+            access: stored.access,
+            storage: :ready
+        }
+
+      _ ->
+        %{state | credential?: true, session_id: nil, storage: :ready}
+    end
   end
 
   defp fetch(state, key), do: storage_call(state.secure_store, :fetch, [key])

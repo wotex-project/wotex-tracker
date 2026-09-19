@@ -45,11 +45,20 @@ that secure slot before the volatile browser session is issued. The envelope's
 authenticated origin, principal, scope, credential ID, expiry and installation
 ID bind the offline cache. A cold host start reauthorizes the stored credential,
 creates a new volatile browser session and places only its opaque identifier in
-the loopback cookie. Offline startup keeps an already bound cache but grants no
-new browser authority; bootstrap retries reauthorization when connectivity
-returns. Revoked, expired, malformed or foreign-origin credentials are removed
-with their cache. Sign-out clears both and remains retryable if either boundary
-is unavailable.
+the loopback cookie. If the service is unavailable, an unexpired bound envelope
+may instead create a fresh read-only local session. That session exposes no
+enrollment, ingestion, raw-evidence or saved-query management capability and
+can read only exact previously synchronized projections. Revoked, expired,
+malformed or foreign-origin credentials are removed with their cache. Sign-out
+clears both and remains retryable if either boundary is unavailable.
+
+The mobile client writes successful overview, history, dashboard and route-map
+reads through to the account-bound cache. Only a service-unavailable response
+may fall back to the exact request key; remote authorization denial always wins.
+Every fallback carries visible offline source, synchronization time, age,
+completeness and access-expiry metadata. Shared browse, asset, trip, route and
+dashboard views render that state explicitly. Mutations, raw evidence, access
+management and operation recovery are never cached or queued.
 
 Run the software gate with the host-pinned toolchain:
 
@@ -60,6 +69,5 @@ WOTEX_PATH_DEPS=1 MIX_ENV=test mise exec -- mix check --no-retry
 
 No Xcode project, signed installation, physical secure-storage evidence,
 notification plugin, lifecycle bridge, BLE central bridge, sharing bridge or
-physical-iPhone evidence exists in this slice. The credential/cache lifecycle is
-wired, but shared views do not yet synchronize or read the offline projections.
-Those gates remain explicitly open.
+physical-iPhone evidence exists in this slice. Those gates remain explicitly
+open.

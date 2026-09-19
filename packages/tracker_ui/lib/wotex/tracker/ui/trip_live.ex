@@ -170,6 +170,7 @@ defmodule Wotex.Tracker.UI.TripLive do
         <button class="secondary" phx-click="refresh">Refresh trips</button>
       </div>
       <.notice error={@error} />
+      <.offline_status projection={@page} />
       <p :if={@asset && is_nil(@state)} class="notice">
         Provision this asset's Thing before requesting retained trip history.
       </p>
@@ -378,7 +379,8 @@ defmodule Wotex.Tracker.UI.TripLive do
   defp page?(_, _, _), do: false
 
   defp page_metadata?(page, items, generation, cursor, stream) do
-    map_size(page) == 4 and is_list(items) and length(items) <= 100 and is_binary(generation) and
+    map_size(Map.delete(page, "_offline")) == 4 and is_list(items) and length(items) <= 100 and
+      is_binary(generation) and
       (is_nil(cursor) or is_binary(cursor)) and is_binary(stream)
   end
 

@@ -135,6 +135,7 @@ defmodule Wotex.Tracker.UI.RouteLive do
         <button class="secondary" phx-click="refresh">Refresh asset</button>
       </div>
       <.notice error={@error} />
+      <.offline_status projection={@page} />
       <p :if={@asset && is_nil(@state)} class="notice">
         Provision this asset's Thing before requesting retained position history.
       </p>
@@ -441,13 +442,18 @@ defmodule Wotex.Tracker.UI.RouteLive do
          } = page,
          thing
        )
-       when map_size(page) == 10 and is_binary(generation) and is_map(history) and is_map(route) and
+       when map_size(page) in 10..11 and is_binary(generation) and is_map(history) and
+              is_map(route) and
               (is_nil(cursor) or is_binary(cursor)) and is_binary(identity) do
-    Map.keys(history) |> Enum.sort() == ~w(after_generation last_generation record_count) and
+    page_shape?(page) and
+      Map.keys(history) |> Enum.sort() == ~w(after_generation last_generation record_count) and
       route?(route)
   end
 
   defp page?(_, _), do: false
+
+  defp page_shape?(page),
+    do: map_size(page) == 10 or (map_size(page) == 11 and Map.has_key?(page, "_offline"))
 
   defp route?(%{
          "segments" => segments,

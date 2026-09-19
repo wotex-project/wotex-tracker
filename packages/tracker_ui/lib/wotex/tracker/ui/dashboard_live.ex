@@ -260,6 +260,7 @@ defmodule Wotex.Tracker.UI.DashboardLive do
         <button class="secondary" phx-click="refresh">Refresh definition</button>
       </div>
       <.notice error={@error} />
+      <.offline_status projection={@result || @definition} />
       <.notice error={@manage_error} />
       <section :if={@definition} class="panel" aria-label="Automatic refresh">
         <h2>Automatic refresh</h2>

@@ -168,6 +168,15 @@ defmodule Wotex.Tracker.UI.SessionsTest do
     assert :ok = Sessions.logout(sessions, restored)
     assert length(Agent.get(custodian, & &1.released)) == 2
 
+    assert {:ok, %{"id" => cached, "access" => ^access}} =
+             Sessions.restore_cached(sessions, c.admin, c.scope, access)
+
+    assert {:ok, _} = Sessions.request(sessions, cached, :authorize)
+    assert :ok = Sessions.discard(sessions, cached)
+
+    assert {:error, %{"code" => "unauthorized"}} =
+             Sessions.restore_cached(sessions, c.admin, "other", access)
+
     assert {:ok, %{"id" => retry}} = Sessions.login(sessions, c.admin, c.scope)
     Agent.update(custodian, &%{&1 | mode: :error})
 

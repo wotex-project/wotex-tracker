@@ -119,6 +119,7 @@ defmodule Wotex.Tracker.UI.TripSummaryLive do
         <button class="secondary" phx-click="refresh">Refresh summary</button>
       </div>
       <.notice error={@error} />
+      <.offline_status projection={@summary} />
       <section :if={@summary} class="panel" aria-labelledby="trip-summary-title">
         <h2 id="trip-summary-title">Final distance summary</h2>
         <.form for={%{}} id="trip-summary-presentation" phx-submit="set-presentation">
@@ -283,7 +284,8 @@ defmodule Wotex.Tracker.UI.TripSummaryLive do
          thing,
          trip
        ) do
-    map_size(summary) == 22 and metadata?(generation, terminal_kind, terminal_reason, revision) and
+    map_size(Map.delete(summary, "_offline")) == 22 and
+      metadata?(generation, terminal_kind, terminal_reason, revision) and
       timeline?(started_at, confirmed_moving_at, ended_at, confirmed_ended_at) and
       status_reason?(status, reason, excluded) and
       cohort?(sample_count, included, excluded, segments, started_at, confirmed_ended_at) and

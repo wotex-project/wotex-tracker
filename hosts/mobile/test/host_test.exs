@@ -9,8 +9,10 @@ defmodule Wotex.Tracker.Mobile.HostTest do
 
     @impl true
     def request(agent, _authority, request) do
-      Agent.update(agent, &Map.update!(&1, :requests, fn requests -> [request | requests] end))
-      respond(request.path)
+      Agent.get_and_update(agent, fn state ->
+        response = if state[:offline], do: {:error, :offline}, else: respond(request.path)
+        {response, Map.update!(state, :requests, fn requests -> [request | requests] end)}
+      end)
     end
 
     defp respond(path) do
@@ -235,7 +237,10 @@ defmodule Wotex.Tracker.Mobile.HostTest do
     {cookie, csrf} = bootstrap_sign_in(c)
     token = "restart-token"
 
-    assert {302, _, _} = sign_in(c, cookie, csrf, token)
+    assert {302, login_headers, _} = sign_in(c, cookie, csrf, token)
+    browser_cookie = cookie(login_headers)
+    assert {200, _, body} = request(:get, c.origin <> "/", [{~c"cookie", browser_cookie}], nil)
+    assert body =~ "Your assets"
     assert :ok = stop_supervised(Host)
     start_supervised!({Host, c.config})
 
@@ -246,6 +251,35 @@ defmodule Wotex.Tracker.Mobile.HostTest do
     assert {200, _, body} = request(:get, c.origin <> "/", [{~c"cookie", restored_cookie}], nil)
     assert body =~ "Your assets"
     refute body =~ token
+  end
+
+  test "opens labelled cached overview data after an offline cold restart", c do
+    start_supervised!({Host, c.config})
+    {cookie, csrf} = bootstrap_sign_in(c)
+    token = "offline-token"
+    assert {302, login_headers, _} = sign_in(c, cookie, csrf, token)
+    browser_cookie = cookie(login_headers)
+
+    assert {200, _, online} =
+             request(:get, c.origin <> "/", [{~c"cookie", browser_cookie}], nil)
+
+    refute online =~ "Offline cached data"
+    assert :ok = stop_supervised(Host)
+    Agent.update(c.agent, &Map.put(&1, :offline, true))
+    start_supervised!({Host, c.config})
+
+    {302, bootstrap_headers, _} =
+      request(:get, c.origin <> "/_mobile/bootstrap/" <> c.capability, [], nil)
+
+    restored_cookie = cookie(bootstrap_headers)
+
+    assert {200, _, offline} =
+             request(:get, c.origin <> "/", [{~c"cookie", restored_cookie}], nil)
+
+    assert offline =~ "Your assets"
+    assert offline =~ "Offline cached data"
+    assert offline =~ "complete for this request"
+    refute offline =~ token
   end
 
   test "failed secure storage keeps login atomic and logout retryable", c do

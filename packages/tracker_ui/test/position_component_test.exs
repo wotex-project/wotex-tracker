@@ -47,6 +47,27 @@ defmodule Wotex.Tracker.UI.PositionComponentTest do
     assert Presenter.position_source("future-source") == "Unknown source"
   end
 
+  test "offline projection status states age, completeness and access expiry" do
+    html =
+      render_component(&Components.offline_status/1, %{
+        projection: %{
+          "_offline" => %{
+            "source" => "offline_cache",
+            "synchronized_at" => 1_700_000_000_000,
+            "age_ms" => 65_000,
+            "complete" => false,
+            "expires_at" => 1_700_003_600_000
+          }
+        }
+      })
+
+    assert html =~ "Offline cached data"
+    assert html =~ "65000 ms"
+    assert html =~ "more remote pages may exist"
+    assert html =~ "Cached access expires"
+    assert render_component(&Components.offline_status/1, %{projection: %{}}) == ""
+  end
+
   defp position,
     do: %{
       "schema" => "wtr.position-public.v1",

@@ -19,6 +19,27 @@ defmodule Wotex.Tracker.UI.Components do
     """
   end
 
+  attr(:projection, :any, default: nil)
+
+  def offline_status(assigns) do
+    assigns = assign(assigns, :offline, offline_metadata(assigns.projection))
+
+    ~H"""
+    <p :if={@offline} class="notice" role="status">
+      Offline cached data · synchronized {Presenter.timestamp(%{
+        "value" => @offline["synchronized_at"]
+      })} · age {Presenter.duration(%{
+        "type" => "integer",
+        "value" => @offline["age_ms"]
+      })} · {if @offline["complete"],
+        do: "complete for this request",
+        else: "more remote pages may exist"}. Cached access expires {Presenter.timestamp(%{
+        "value" => @offline["expires_at"]
+      })}.
+    </p>
+    """
+  end
+
   attr(:id, :string, required: true)
   attr(:observation, :map, required: true)
   attr(:resolution, :map, required: true)
@@ -286,4 +307,20 @@ defmodule Wotex.Tracker.UI.Components do
 
   defp points(%{"series" => [%{"points" => points}]}), do: points
   defp points(_), do: []
+
+  defp offline_metadata(%{
+         "_offline" =>
+           %{
+             "source" => "offline_cache",
+             "synchronized_at" => synchronized_at,
+             "age_ms" => age,
+             "complete" => complete,
+             "expires_at" => expires_at
+           } = metadata
+       })
+       when is_integer(synchronized_at) and is_integer(age) and is_boolean(complete) and
+              is_integer(expires_at),
+       do: metadata
+
+  defp offline_metadata(_), do: nil
 end

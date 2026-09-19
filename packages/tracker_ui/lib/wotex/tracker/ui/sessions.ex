@@ -4,9 +4,11 @@ defmodule Wotex.Tracker.UI.Sessions do
 
   Only an opaque random identifier leaves this process through login. Bearer
   tokens never enter a cookie, LiveView session payload or socket assign. Each
-  request uses the host's service adapter and current clock; authorization is
-  repeated by that service. Logout rejects subsequent delivery, including an
-  in-flight read. Restart requires sign-in and stores no observations.
+  request uses the host's client adapter and current clock. Online authorization
+  is repeated by the service; an explicitly restored cache-only session remains
+  subject to its host adapter's conservative authorization. Logout rejects
+  subsequent delivery, including an in-flight read. Restart requires sign-in or
+  explicit host restoration and stores no observations.
   """
 
   use GenServer
@@ -61,6 +63,30 @@ defmodule Wotex.Tracker.UI.Sessions do
   end
 
   def restore(_, _, _), do: unauthorized()
+
+  @doc false
+  @spec restore_cached(GenServer.server(), String.t(), String.t(), map()) :: Client.result()
+  def restore_cached(server, token, scope, access)
+      when is_binary(token) and is_binary(scope) and is_map(access) do
+    identity = %{
+      "scope" => scope,
+      "can_enroll" => false,
+      "can_ingest" => false,
+      "can_read_raw" => false,
+      "can_manage_queries" => false
+    }
+
+    with true <- byte_size(token) <= 256 and byte_size(scope) <= 128,
+         {:ok, access} <- session_context(%{"identity" => identity, "access" => access}, scope) do
+      GenServer.call(server, {:issue, token, scope, access, false})
+    else
+      _ -> unauthorized()
+    end
+  catch
+    :exit, _ -> unavailable()
+  end
+
+  def restore_cached(_, _, _, _), do: unauthorized()
 
   @doc false
   @spec discard(GenServer.server(), String.t()) :: :ok

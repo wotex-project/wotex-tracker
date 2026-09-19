@@ -66,6 +66,7 @@ defmodule Wotex.Tracker.UI.DashboardIndexLive do
         <button class="secondary" phx-click="refresh">Refresh</button>
       </div>
       <.notice error={@error} />
+      <.offline_status projection={@page} />
       <a :if={@identity["can_manage_queries"]} href="/dashboards/compare">
         Compare saved queries
       </a>

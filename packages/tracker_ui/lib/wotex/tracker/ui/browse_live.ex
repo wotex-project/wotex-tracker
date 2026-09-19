@@ -150,6 +150,7 @@ defmodule Wotex.Tracker.UI.BrowseLive do
         Operational history
       </a>
       <.notice error={@error} />
+      <.offline_status projection={@page} />
       <section
         :if={
           @live_action == :observations && @identity["can_ingest"] && @page && @operation &&
