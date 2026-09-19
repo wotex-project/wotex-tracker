@@ -513,6 +513,26 @@ targets or payloads. The host supplies the provider adapter explicitly; this
 contract neither selects APNs credentials nor equates provider acceptance with OS
 delivery or a user read.
 
+`APNsAdapter` is the concrete opt-in token-authenticated provider boundary. Its
+constructor admits one Apple team ID, key ID, unencrypted P-256 private-key value,
+closed sorted topic set, generic notification copy, timeout and transport. The
+opaque configuration's inspection omits the decoded private key. No path,
+environment variable or application setting is read. Each delivery creates an
+ES256 JWT with current whole-second `iat`, chooses only Apple's sandbox or
+production host from the retained endpoint environment and issues one bounded
+HTTP/2-over-verified-TLS POST through Mint. The request declares topic, alert
+push type, priority 10, zero expiry and a UUID request ID; its JSON body contains
+only generic copy and the `wtr.notification-reference.v1` opaque event reference.
+The body and response body are limited to 4,096 bytes, response headers to 32 and
+8,192 bytes, and the whole operation to at most 30 seconds. Transport failures,
+5xx responses and 429 remain retryable; 400/410 invalid-device reasons request
+conditional endpoint removal; other 4xx responses are permanent rejection.
+These mappings follow Apple's [request](https://developer.apple.com/documentation/usernotifications/sending-notification-requests-to-apns),
+[token authentication](https://developer.apple.com/documentation/usernotifications/establishing-a-token-based-connection-to-apns)
+and [response](https://developer.apple.com/documentation/usernotifications/handling-notification-responses-from-apns)
+contracts. A real signed app, provisioned device and provider key remain required
+to establish physical delivery and tap evidence.
+
 ## Structured measurement query contract
 
 `POST …/analytics/query` requires `read` authority and the exact closed

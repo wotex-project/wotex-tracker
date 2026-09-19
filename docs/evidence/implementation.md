@@ -3267,3 +3267,32 @@ production line coverage. Compiler, unused-dependency, formatter, dependency
 audit, strict Credo, ExDoc, Dialyzer, boundary checks, OpenAPI validation,
 93-member package archive inspection, licenses and the 453-file stack-language
 policy all passed.
+
+### Explicit APNs provider transport — 2026-09-19
+
+The service package now includes an opt-in APNs adapter over Mint HTTP/2 and
+verified TLS. Hosts supply an Apple team ID, key ID, unencrypted P-256 `.p8`
+contents and closed bundle-topic list directly. The adapter decodes and validates
+the key, excludes it from inspection, constructs an ES256 JWT with current
+whole-second issue time and never reads an ambient key path or application
+setting. Sandbox and production endpoint selection comes only from the retained
+endpoint binding.
+
+Every request uses explicit topic, alert push type, priority, zero expiry and UUID
+headers. The uncompressed body contains generic reviewed copy plus only the opaque
+event-reference schema and ID. Both request and response bodies, response headers,
+deadline and accepted endpoint hosts are bounded. Provider responses distinguish
+acceptance, invalid device tokens, rate limiting, retryable server/transport
+failure and permanent rejection without claiming device delivery or user reading.
+
+Tests verify the raw JOSE signature against the generated P-256 key, exact JWT
+claims, sandbox/production hosts, headers and minimal payload; closed key/topic/
+copy/timeout admission; private inspection; all provider outcome classes;
+malformed targets and payloads; signing, clock and transport failure containment;
+passive HTTP/2 request construction; fragmented response assembly; response-size
+and header limits; connection/request/receive/close failures and total deadline
+expiry. The complete service gate passed 2 properties and 284 tests at 95.0%
+production line coverage. Compiler, unused-dependency, formatter, dependency
+audit, strict Credo, ExDoc, Dialyzer, boundary checks, OpenAPI validation,
+96-member package archive inspection, licenses and the 457-file stack-language
+policy all passed.

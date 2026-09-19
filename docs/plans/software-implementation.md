@@ -267,8 +267,8 @@ registration with encrypted token custody and rotation is implemented;
 live alerts now atomically stage minimal per-endpoint references. An explicitly
 configured supervised dispatcher rechecks current authority and exact endpoint
 revision, records distinct provider outcomes and preserves retryable work. The
-concrete APNs transport adapter and notification tap routing remain subsequent
-work.
+explicit ES256/HTTP/2 APNs adapter is implemented; provisioned physical delivery
+and notification tap routing remain subsequent work.
 
 Suspicious movement is implemented as a pure three-valued conjunction over
 confirmed motion and content-bound armed/owner-presence facts. Unknown presence
@@ -289,8 +289,8 @@ result's intent and alert inside the triggering transaction. Principal-isolated
 APNs endpoint registration, encrypted token custody, rotation and removal are
 implemented. Live alerts atomically stage minimal per-endpoint references;
 the provider-neutral supervised dispatcher and durable outcome handling are
-implemented. The concrete APNs transport adapter and notification tap routing
-remain subsequent work.
+implemented. The explicit ES256/HTTP/2 APNs adapter is implemented; provisioned
+physical delivery and notification tap routing remain subsequent work.
 
 Transport degradation is implemented as pure state over content-validated
 transport decisions and a deployment-declared healthy candidate set. Fallback
@@ -319,8 +319,8 @@ browser. Suspicious-movement orchestration is implemented at definition, motion,
 arming and presence mutation boundaries. Notification endpoint registration is
 implemented and live alerts atomically stage delivery references. Explicit
 provider-neutral dispatch, exact authority/revision rechecks and durable provider
-outcomes are implemented; the concrete APNs transport and mobile tap path remain
-open.
+outcomes are implemented. The explicit ES256/HTTP/2 APNs adapter is implemented;
+provisioned physical delivery and the mobile tap path remain open.
 
 Implement explicit time/freshness, quality selection, motion/trips/stops,
 geofence membership/transitions, heartbeat, suspicious movement, low-battery,

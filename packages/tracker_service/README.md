@@ -77,7 +77,7 @@ stale timer tokens, rebuilds after restart and commits through the same atomic
 rule transaction. The explicit HTTP `Server` supervises one scheduler by default
 and exposes bounded host-only deadline metadata through
 `Server.rule_schedule/1`. Package loading remains inert. Notification delivery
-remains outside this host port.
+is disabled unless the host supplies an explicit dispatcher and provider adapter.
 
 Stateless rule results use the same intent and public-event tables through
 `RuleEvent`. Its crossing constructor restores complete fence, endpoint and
@@ -201,8 +201,39 @@ malformed outcomes stay pending. Permanent rejection and missing, rotated or
 revoked targets are distinct terminal outcomes. An invalid-token response removes
 only the still-matching endpoint revision before settling the item. Provider
 acceptance, OS delivery and user reading remain distinct. No provider or APNs
-credential is selected implicitly, and an actual APNs transport adapter remains
-deployment work.
+credential is selected implicitly.
+
+`APNsAdapter.new/1` admits an explicit Apple team ID, key ID, unencrypted P-256
+`.p8` contents and sorted closed bundle-topic list. The private key stays in the
+opaque redacted adapter value; the package never reads a key path or ambient
+application setting. The adapter creates a current ES256 provider JWT and sends a
+generic alert plus the opaque event reference through one bounded, verified Mint
+HTTP/2 TLS exchange to the endpoint selected by the registration's exact
+sandbox/production value. Requests use explicit topic, alert push type, priority,
+zero expiry and request ID headers. Responses map invalid device tokens,
+rate-limiting, server failures, timeouts and permanent rejection into the
+dispatcher outcomes above. A host wires it without transferring key custody to
+the public service API:
+
+```elixir
+{:ok, apns} =
+  Wotex.Tracker.Service.APNsAdapter.new(
+    team_id: "TEAMID1234",
+    key_id: "KEYID12345",
+    private_key: provider_key_pem,
+    topics: ["org.wotex.tracker"]
+  )
+
+# server_options contains the required listener, store and credential options
+Wotex.Tracker.Service.HTTP.Server.start_link(
+  server_options ++
+    [notification_dispatcher: [adapter: {Wotex.Tracker.Service.APNsAdapter, apns}]]
+)
+```
+
+Provider acceptance still does not prove device delivery or user interaction.
+Physical APNs delivery, application entitlements and notification-tap routing
+require separately provisioned Apple credentials and mobile acceptance evidence.
 
 Each recorded rule event also becomes a newest-first `wtr.alert.v1` record with
 the reviewed event. `Service.acknowledge_alert/6` and `POST
