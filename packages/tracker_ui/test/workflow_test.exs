@@ -6,7 +6,17 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
   import Phoenix.LiveViewTest
   import Wotex.Tracker.Service.Fixtures
   alias Phoenix.LiveView.Static
-  alias Wotex.Tracker.{HeartbeatTransition, QueryResult, QuerySpec}
+
+  alias Wotex.Tracker.{
+    Evidence,
+    EvidenceBundle,
+    HeartbeatTransition,
+    Observation,
+    PolicyFact,
+    QueryResult,
+    QuerySpec
+  }
+
   alias Wotex.Tracker.Service
 
   alias Wotex.Tracker.Service.{
@@ -3380,6 +3390,123 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert has_element?(activity, ~s(a[href="#{path}"]), "Disarmed asset")
   end
 
+  test "the arming screen presents reviewed owner presence without inferring absence", c do
+    thing = provisioned(c)
+
+    assert {:ok, %{"generation" => "4"}} =
+             Service.save_policy(
+               c.service,
+               c.admin,
+               c.scope,
+               Identifier.uuid(),
+               motion_rule(thing, "3"),
+               c.now
+             )
+
+    path = Presenter.arming_path(thing)
+    {:ok, view, _} = live(c.conn, path)
+    assert has_element?(view, "#owner-presence-title", "Owner-presence evidence")
+    assert render(view) =~ "radio silence remain"
+    assert has_element?(view, "#owner-presence-title + .reading", "Unknown")
+
+    absent = owner_presence_fact(thing, "absent", "false", c.now)
+
+    assert {:ok, %{"generation" => "5"}} =
+             Service.admit_owner_presence(
+               c.service,
+               c.admin,
+               c.scope,
+               Identifier.uuid(),
+               %{"thing_id" => thing, "fact" => absent, "expected_generation" => "4"},
+               c.now + 1
+             )
+
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, "#owner-presence-title + .reading", "Absent")
+    assert render(view) =~ "revision owner-presence-5"
+    assert render(view) =~ "cannot create or edit presence evidence"
+
+    for private <- ~w(presence-observation-ui presence-evidence-ui owner.present) do
+      refute render(view) =~ private
+    end
+
+    Agent.update(c.faults, &Map.put(&1, :owner_presence, :unavailable))
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, "#owner-presence-title + .reading", "Absent")
+    assert has_element?(view, "[role=alert]")
+
+    Agent.update(c.faults, &Map.put(&1, :owner_presence, {:deny, "forbidden"}))
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, "#owner-presence-title + .reading", "Unknown")
+    assert has_element?(view, "[role=alert]")
+
+    Agent.update(c.faults, &Map.put(&1, :owner_presence, {:reply, {:ok, %{}}}))
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, "#owner-presence-title + .reading", "Unknown")
+    assert has_element?(view, "[role=alert]")
+
+    assert {:ok, %{"value" => public_presence}} =
+             Service.get(c.service, c.reader, c.scope, "owner_presence", thing, c.now + 1)
+
+    Agent.update(
+      c.faults,
+      &Map.put(
+        &1,
+        :owner_presence,
+        {:reply, {:ok, %{"value" => Map.put(public_presence, "private", true)}}}
+      )
+    )
+
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, "#owner-presence-title + .reading", "Unknown")
+    assert has_element?(view, "[role=alert]")
+
+    for revision <- [nil, "owner-presence-x"] do
+      invalid = Map.put(public_presence, "revision", revision)
+
+      Agent.update(
+        c.faults,
+        &Map.put(&1, :owner_presence, {:reply, {:ok, %{"value" => invalid}}})
+      )
+
+      view |> element("button", "Refresh") |> render_click()
+      assert has_element?(view, "#owner-presence-title + .reading", "Unknown")
+    end
+
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, "#owner-presence-title + .reading", "Absent")
+
+    present = owner_presence_fact(thing, "present", "true", c.now + 2)
+
+    assert {:ok, %{"generation" => "6"}} =
+             Service.admit_owner_presence(
+               c.service,
+               c.admin,
+               c.scope,
+               Identifier.uuid(),
+               %{"thing_id" => thing, "fact" => present, "expected_generation" => "5"},
+               c.now + 3
+             )
+
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, "#owner-presence-title + .reading", "Present")
+
+    unknown = owner_presence_fact(thing, "unknown", "unknown", c.now + 4)
+
+    assert {:ok, %{"generation" => "7"}} =
+             Service.admit_owner_presence(
+               c.service,
+               c.admin,
+               c.scope,
+               Identifier.uuid(),
+               %{"thing_id" => thing, "fact" => unknown, "expected_generation" => "6"},
+               c.now + 5
+             )
+
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, "#owner-presence-title + .reading", "Unknown")
+  end
+
   test "arming controls fail closed for readers, stale pages and malformed state", c do
     thing = provisioned(c)
 
@@ -6306,6 +6433,49 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
         if(reason == "unqualified_materialisations", do: ["wtr1_excluded"], else: []),
       "rejected_ids" => if(reason == "rejected_samples", do: ["wtr1_rejected"], else: [])
     }
+
+  defp owner_presence_fact(thing, label, status, observed_at) do
+    observation_id = "presence-observation-ui-" <> label
+    evidence_id = "presence-evidence-ui-" <> label
+
+    {:ok, observation} =
+      Observation.new(%{
+        id: observation_id,
+        observed_at: observed_at,
+        ingress: "imported",
+        source: %{"kind" => "qualified-owner-presence"},
+        addressing: %{"thing_id" => thing},
+        payload: {:json, %{"predicate" => "owner.present", "status" => status}},
+        radio: %{},
+        transport: %{},
+        provenance: %{"kind" => "ui-test-presence-source"}
+      })
+
+    {:ok, evidence} =
+      Evidence.new(%{
+        id: evidence_id,
+        kind: :identity,
+        claim: %{
+          "schema" => "wtr.policy-fact.v1",
+          "predicate" => "owner.present",
+          "status" => status,
+          "policy_revision" => "ui-presence-source-v1",
+          "reason" => "qualified_observation"
+        },
+        source_observation_ids: [observation_id],
+        evidence_ids: [],
+        profile: {"ui-test-presence", "1"},
+        decoder: {"ui-test-presence", "1"},
+        confidence: :exact,
+        reasons: ["qualified_observation"],
+        association_id: thing
+      })
+
+    {:ok, bundle} = EvidenceBundle.new([observation], [evidence])
+    {:ok, fact} = PolicyFact.new(evidence_id, bundle)
+    {:ok, document} = PolicyFact.to_map(fact)
+    document
+  end
 
   defp dashboard_query(thing, now) do
     {:ok, spec} =

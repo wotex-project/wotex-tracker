@@ -94,7 +94,13 @@ armed/disarmed change with a current-generation check, stable recoverable
 operation reference and explicit confirmation; readers can inspect but not
 change it. A committed result is verified against the exact Thing and state, and
 the screen never presents the service commit as a device change or notification.
-Suspicious-movement orchestration and notification delivery remain open.
+The same screen presents the reviewed public owner-presence state and its times,
+or an explicit unknown when no fact exists. It does not infer absence from radio
+silence and offers no control that could manufacture owner-presence evidence.
+Administrators can create, review, exactly edit and delete an event-only
+suspicious-movement definition bound to a live motion definition. Definition,
+motion, arming and owner-presence mutations reevaluate exact bindings atomically;
+notification delivery remains open.
 These are required product deliverables and optional installations for consumers
 of the library. An incomplete backend or UI framework cannot waive a product gate.
 

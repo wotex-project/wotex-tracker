@@ -395,7 +395,10 @@ browser asset and restart probe. A shared Protection page and per-rule history
 now present committed rule status without evidence. Administrators can add,
 edit and delete heartbeat, low-battery-voltage, motion/trip and circle or polygon
 geofence rules for a provisioned asset in the browser, and review and acknowledge
-their alerts. Position-policy forms preserve ordering, lateness, sequence,
+their alerts. Once a motion definition exists, the browser also creates and
+manages an event-only suspicious-movement definition without inventing current
+state. Its arming screen presents reviewed owner-presence state read-only and
+keeps missing evidence distinct from absence. Position-policy forms preserve ordering, lateness, sequence,
 uncertainty, geometry, gap and dwell fields without choosing among position
 sources. Each provisioned asset
 lists its live rule definitions, stops offering new rules at the service's

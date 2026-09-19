@@ -93,6 +93,9 @@ defmodule Wotex.Tracker.UI.Local do
   defp dispatch(service, token, scope, :arming, args, now),
     do: Service.get(service, token, scope, "arming", args["id"], now)
 
+  defp dispatch(service, token, scope, :owner_presence, args, now),
+    do: Service.get(service, token, scope, "owner_presence", args["id"], now)
+
   defp dispatch(service, token, scope, :thing_policies, args, now),
     do: Service.thing_policies(service, token, scope, args["thing"], now)
 

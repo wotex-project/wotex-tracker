@@ -1,11 +1,12 @@
 defmodule Wotex.Tracker.UI.ArmingLive do
   @moduledoc """
-  Presents and conditionally changes one asset's committed arming fact.
+  Presents one asset's reviewed protection facts and conditionally changes arming.
 
   The page offers controls only when the asset has a motion rule and the current
   credential can administer the scope. A prepared change has a stable operation
   reference in the URL, requires explicit confirmation and never describes the
-  service commit as device contact or successful notification delivery.
+  service commit as device contact or successful notification delivery. Owner
+  presence is read-only evidence and missing state never becomes absence.
   """
 
   use Phoenix.LiveView, log: false
@@ -14,7 +15,9 @@ defmodule Wotex.Tracker.UI.ArmingLive do
   alias Wotex.Tracker.UI.{Auth, Presenter}
 
   @public_fields ~w(schema thing_id status revision changed_at changed_by)
+  @presence_fields ~w(schema thing_id status revision observed_at admitted_at admitted_by)
   @statuses ~w(armed disarmed)
+  @presence_statuses ~w(present absent unknown)
 
   @impl true
   def mount(_, _, socket) do
@@ -25,6 +28,7 @@ defmodule Wotex.Tracker.UI.ArmingLive do
        thing: nil,
        definitions: nil,
        arming: nil,
+       owner_presence: nil,
        generation: nil,
        operation: nil,
        target: nil,
@@ -133,6 +137,8 @@ defmodule Wotex.Tracker.UI.ArmingLive do
       <p>
         Arming is an explicit state committed by this service. It does not contact the tracker,
         prove current connectivity, trigger a physical Action or confirm notification delivery.
+        A commit can atomically reevaluate an exact suspicious-movement binding from retained
+        evidence.
       </p>
       <.notice error={@error} />
       <section :if={@thing} class="panel" aria-labelledby="arming-status-title">
@@ -145,6 +151,23 @@ defmodule Wotex.Tracker.UI.ArmingLive do
         </p>
         <p :if={is_nil(@arming)}>
           No arming decision has been committed. Unknown is not treated as disarmed.
+        </p>
+      </section>
+      <section :if={@thing} class="panel" aria-labelledby="owner-presence-title">
+        <h2 id="owner-presence-title">Owner-presence evidence</h2>
+        <p class="reading">{presence_label(@owner_presence)}</p>
+        <p :if={@owner_presence}>
+          Observed {Presenter.timestamp(%{"value" => @owner_presence["observed_at"]})} · admitted {Presenter.timestamp(
+            %{"value" => @owner_presence["admitted_at"]}
+          )} · revision {@owner_presence["revision"]}
+        </p>
+        <p :if={is_nil(@owner_presence)}>
+          No reviewed owner-presence fact is available. Missing evidence and radio silence remain
+          unknown; they are not proof that the owner is absent.
+        </p>
+        <p>
+          This browser can inspect the reviewed state but cannot create or edit presence evidence.
+          Private observations, evidence and fact identities stay in the service.
         </p>
       </section>
       <section :if={@thing && !motion?(@definitions)} class="panel">
@@ -177,7 +200,8 @@ defmodule Wotex.Tracker.UI.ArmingLive do
         >
           <p>
             Commit <strong>{arming_label(%{"status" => @target})}</strong> at the current service
-            generation. Suspicious-movement evaluation and notification delivery are separate work.
+            generation. The service reevaluates exact live suspicious-movement bindings in the same
+            transaction; notification delivery and every physical Action remain separate.
           </p>
           <label>
             <input type="checkbox" name="arming[confirmed]" value="yes" required />
@@ -217,6 +241,7 @@ defmodule Wotex.Tracker.UI.ArmingLive do
         error: nil
       )
       |> load_arming()
+      |> load_presence()
     else
       {:error, error} ->
         assign(socket, asset: nil, thing: nil, definitions: nil, error: error)
@@ -228,6 +253,28 @@ defmodule Wotex.Tracker.UI.ArmingLive do
           definitions: nil,
           error: %{"code" => "unavailable"}
         )
+    end
+  end
+
+  # Presence is reviewed evidence. A temporary failure preserves the last valid public fact.
+  defp load_presence(socket) do
+    case Auth.request(socket, :owner_presence, %{"id" => socket.assigns.id}) do
+      {:ok, %{"value" => value}} ->
+        if presence?(value, socket.assigns.id),
+          do: assign(socket, owner_presence: value),
+          else: assign(socket, owner_presence: nil, error: %{"code" => "unavailable"})
+
+      {:error, %{"code" => "not_found"}} ->
+        assign(socket, owner_presence: nil)
+
+      {:error, %{"code" => code} = error} when code in ~w(forbidden unauthorized) ->
+        assign(socket, owner_presence: nil, error: error)
+
+      {:error, error} ->
+        assign(socket, error: error)
+
+      _ ->
+        assign(socket, owner_presence: nil, error: %{"code" => "unavailable"})
     end
   end
 
@@ -349,6 +396,7 @@ defmodule Wotex.Tracker.UI.ArmingLive do
         thing: nil,
         definitions: nil,
         arming: nil,
+        owner_presence: nil,
         generation: nil,
         operation: nil,
         target: nil,
@@ -393,6 +441,54 @@ defmodule Wotex.Tracker.UI.ArmingLive do
 
   defp arming_revision?(_), do: false
 
+  defp presence?(value, id) do
+    presence_shape?(value) and presence_identity?(value, id) and presence_times?(value) and
+      presence_actor?(value)
+  end
+
+  defp presence_shape?(value),
+    do:
+      is_map(value) and not is_struct(value) and
+        Enum.sort(Map.keys(value)) == Enum.sort(@presence_fields)
+
+  defp presence_identity?(value, id),
+    do:
+      value["schema"] == "wtr.owner-presence.v1" and value["thing_id"] == id and
+        value["status"] in @presence_statuses and presence_revision?(value["revision"])
+
+  defp presence_times?(value),
+    do: Enum.all?([value["observed_at"], value["admitted_at"]], &timestamp?/1)
+
+  defp presence_actor?(value),
+    do:
+      is_binary(value["admitted_by"]) and
+        Regex.match?(~r/\Awtr1_[A-Za-z0-9_-]+\z/, value["admitted_by"])
+
+  defp presence_revision?("owner-presence-" <> generation),
+    do: positive_generation?(generation)
+
+  defp presence_revision?(_), do: false
+
+  defp timestamp?(value), do: is_integer(value) and value in 0..9_007_199_254_740_991
+
+  defp positive_generation?(generation) do
+    if byte_size(generation) in 1..19 do
+      parse_positive_generation(generation)
+    else
+      false
+    end
+  end
+
+  defp parse_positive_generation(generation) do
+    case Integer.parse(generation) do
+      {value, ""} when value > 0 and value < 9_223_372_036_854_775_807 ->
+        Integer.to_string(value) == generation
+
+      _ ->
+        false
+    end
+  end
+
   defp motion?(definitions) when is_list(definitions),
     do: Enum.any?(definitions, &match?(%{"kind" => "motion"}, &1))
 
@@ -401,6 +497,10 @@ defmodule Wotex.Tracker.UI.ArmingLive do
   defp arming_label(%{"status" => "armed"}), do: "Armed"
   defp arming_label(%{"status" => "disarmed"}), do: "Disarmed"
   defp arming_label(_), do: "Unknown"
+  defp presence_label(%{"status" => "present"}), do: "Present"
+  defp presence_label(%{"status" => "absent"}), do: "Absent"
+  defp presence_label(%{"status" => "unknown"}), do: "Unknown"
+  defp presence_label(_), do: "Unknown"
   defp verb("armed"), do: "arming"
   defp verb("disarmed"), do: "disarming"
 

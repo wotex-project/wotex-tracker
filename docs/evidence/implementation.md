@@ -3196,3 +3196,26 @@ presentation. The complete shared-UI gate passed 139 tests at 95.0% production
 line coverage. Compiler, unused-dependency, formatter, dependency audit, strict
 Credo, ExDoc, Dialyzer, 51-member archive inspection, licenses and the 445-file
 stack-language policy all passed.
+
+### Shared reviewed owner-presence presentation — 2026-09-19
+
+The asset arming screen now reads the authorized public owner-presence resource
+beside the committed arming fact. It admits only the exact
+`wtr.owner-presence.v1` shape, presents present, absent or unknown with observation,
+admission and revision context, and never receives the retained observation,
+evidence bundle or fact identity. Missing state and radio silence are explicitly
+unknown rather than absent, and the shared browser offers no control that could
+manufacture or edit presence evidence.
+
+Temporary read failures retain the last validated public presence fact for retry;
+terminal denial or malformed projections clear it. The arming confirmation now
+states that the service reevaluates exact suspicious-movement bindings inside the
+same transaction while notification delivery and physical Actions remain
+separate. Workflow coverage exercises missing, absent, present and explicit
+unknown facts, private-reference exclusion, malformed revisions, unavailable
+reads and current-authority denial.
+
+The complete shared-UI gate passed 140 tests at 95.0% production line coverage;
+the protection-input screen reached 97.4%. Compiler, unused-dependency,
+formatter, dependency audit, strict Credo, ExDoc, Dialyzer, 51-member archive
+inspection, licenses and the 445-file stack-language policy all passed.
