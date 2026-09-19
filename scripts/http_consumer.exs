@@ -288,7 +288,7 @@ defmodule Wotex.Tracker.HTTPConsumer do
     prefix = "/api/v1/scopes/" <> encode_segment(scope)
     rules = prefix <> "/rules"
 
-    %{"rules" => "heartbeat_battery_definitions"} =
+    %{"rules" => "heartbeat_battery_motion_geofence_definitions"} =
       data(context, "capabilities", prefix <> "/capabilities", who: :reader)
 
     request(context, "list_rules", rules, who: nil, status: 401)

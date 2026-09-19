@@ -261,11 +261,14 @@ freshness/future-skew scheduling is now implemented. Input-triggered orchestrati
 and notification delivery remain for geofence and suspicious-movement evaluation.
 Readers can inspect every persisted rule kind's current status and history through
 the read-only service `rules` resource without receiving its private evidence.
-Administrators can now persist versioned heartbeat and battery rule definitions
-for enrolled Things through the service. Saving a definition and materialising
-its Thing evaluate it atomically against committed evidence, and the scheduler
-ages the resulting state. Every rule event becomes a public alert, and administrators can acknowledge a
-live alert once. Other rule kinds, arming and notification delivery remain open.
+Administrators can now persist versioned heartbeat, battery, motion and geofence
+rule definitions for enrolled Things through the service. Saving a definition
+and materialising its Thing evaluate it atomically against committed evidence;
+position rules fail closed unless the bundle has exactly one position, rather
+than inventing source selection. The scheduler ages the time-driven state. Every
+rule event becomes a public alert, and administrators can acknowledge a live
+alert once. Arming, suspicious-movement orchestration and notification delivery
+remain open.
 
 Implement explicit time/freshness, quality selection, motion/trips/stops,
 geofence membership/transitions, heartbeat, suspicious movement, low-battery,

@@ -319,7 +319,7 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
-## HTTP and stream contract 1.22.0
+## HTTP and stream contract 1.23.0
 
 The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
 2020-12. The independently maintained Elixir audit checks document shape,
@@ -340,7 +340,7 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | `/health/live` | GET public liveness |
 | `/api/v1/openapi.json` | GET public machine contract |
 | `/api/v1/scopes/{scope}/health/ready` | GET authenticated writable-store check reporting store schema `7` |
-| `/api/v1/scopes/{scope}/capabilities` | GET explicit available/unsupported/unconfigured status; rules report `heartbeat_battery_definitions` |
+| `/api/v1/scopes/{scope}/capabilities` | GET explicit available/unsupported/unconfigured status; rules report `heartbeat_battery_motion_geofence_definitions` |
 | `…/analytics/query` | POST one read-only structured measurement query against a committed snapshot |
 | `…/analytics/pages` | POST one snapshot-pinned bucket page with an encrypted continuation |
 | `…/observations`, `…/resolutions`, `…/evidence`, `…/state`, `…/enrollments`, `…/things`, `…/saved_queries`, `…/rules`, `…/policies`, `…/alerts` | GET public snapshot pages |
@@ -349,7 +349,7 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | `…/saved_queries` | POST create or update an owned absolute or rolling query definition |
 | `…/saved_query_deletions` | POST delete an owned definition with a retained tombstone |
 | `…/saved_queries/{id}/execute` | GET execute the stored query under current read authority |
-| `…/policies` | POST create or update a heartbeat or battery rule definition for one Thing |
+| `…/policies` | POST create or update a heartbeat, battery, motion or geofence rule definition for one Thing |
 | `…/policy_deletions` | POST delete a rule definition with a retained tombstone |
 | `…/alert_acknowledgements` | POST acknowledge one live rule alert once |
 | `…/unenrollments` | POST remove one enrolled asset and its rule definitions from current views |
@@ -680,15 +680,20 @@ Reads, pages and history use `read`.
 
 A save request has exactly `id`, `kind`, `thing_id`, `parameters` and
 `expected_generation`. The ID matches `^[a-z0-9][a-z0-9-]{0,62}$`, so it can also
-form a `{kind}:{id}` rule status identifier. `kind` is `heartbeat` or `battery`:
+form a `{kind}:{id}` rule status identifier. `kind` is `heartbeat`, `battery`,
+`motion` or `geofence`:
 
 | Kind | Exact parameters |
 | --- | --- |
 | `heartbeat` | `maximum_silence_ms`, `future_skew_ms` |
 | `battery` | `measurement_kind`, `unit`, `low_threshold`, `clear_threshold`, `maximum_age_ms`, `future_skew_ms`, `accept_suspect` |
+| `motion` | `event_time`, `future_skew_ms`, `late_window_ms`, `sequence`, moving/stationary speed and distance thresholds, `max_plausible_speed_m_s`, `max_gap_ms`, `uncertainty`, `minimum_movement_ms`, `minimum_stop_ms` |
+| `geofence` | closed circle or polygon `shape`, `boundary`, `uncertainty`, `event_time`, `future_skew_ms`, `late_window_ms`, `sequence`, `max_transition_gap_ms` |
 
-Durations are integer milliseconds from 0 to seven days; thresholds are finite
-numbers and the low threshold must be below the clear threshold. The service
+Durations are bounded integer milliseconds; thresholds are finite numbers and
+the low threshold must be below the clear threshold. Motion thresholds preserve
+the pure classifier's stationary/moving hysteresis and plausible-speed limits.
+Geofence geometry is admitted through the pure bounded geometry constructor. The service
 assigns the policy revision as the decimal generation the definition commits at,
 constructs the pure policy and stores its content identity. The request cannot
 choose a revision, identity, owner, timestamp or evaluation mode.
@@ -719,8 +724,11 @@ Saving a definition evaluates it in the same transaction against the evidence
 committed by the Thing's latest materialisation at the requested snapshot. The
 stored claims and their single source observation are restored through the pure
 constructors. A heartbeat rule consumes that receiver observation; a battery rule
-consumes the declared measurement as a complete `MeasurementSample`. A new rule
-establishes a baseline, and an edit recomputes with the new revision.
+consumes the declared measurement as a complete `MeasurementSample`. Motion and
+geofence rules construct a complete `PositionSample` only when the bundle has
+exactly one position claim. Zero or multiple claims leave them unchanged: source
+selection is never implicit. A new rule establishes a baseline, and an edit
+recomputes with the new revision.
 
 Materialising a Thing evaluates every live definition bound to it against the
 newly built observation and evidence bundle. The materialisation records, rule
@@ -773,7 +781,7 @@ authorizes or dispatches a physical Action.
 cursor and `read` authorization contract. Status changes only through a rule
 definition mutation, a Thing materialisation or the host scheduler; there is no
 direct status write, arming or acknowledgement request. Service capabilities
-report `rules` as `heartbeat_battery_definitions`.
+report `rules` as `heartbeat_battery_motion_geofence_definitions`.
 
 Each `wtr.rule-status.v1` value first restores the stored document through its
 pure state constructor. A document that fails restoration or names another rule

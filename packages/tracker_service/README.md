@@ -115,7 +115,8 @@ tombstones in one commit while history, evidence and alerts are retained.
 the scope's configured credentials, their grants, expiry and durable revocation,
 without token digests.
 Scanner and public rule management remain explicitly unsupported. Analytics is
-reported as `structured_queries`, and rules as `heartbeat_battery_definitions`.
+reported as `structured_queries`, and rules as
+`heartbeat_battery_motion_geofence_definitions`.
 
 `GET …/rules`, `…/rules/{kind}:{rule_id}` and its `/history` return reviewed
 `wtr.rule-status.v1` projections of committed heartbeat, battery, transport,
@@ -124,12 +125,15 @@ restored through its pure constructor first; a damaged document returns
 `storage_unavailable`. Observations, evidence bundles, samples and coordinates
 are never included.
 
-Administrators can save and delete `wtr.rule-definition.v1` heartbeat and
-battery definitions for one enrolled Thing through `Service.save_policy/6`,
+Administrators can save and delete `wtr.rule-definition.v1` heartbeat, battery,
+motion and geofence definitions for one enrolled Thing through `Service.save_policy/6`,
 `Service.delete_policy/6`, `POST …/policies` and `POST …/policy_deletions`.
 The service assigns each revision from its commit generation, validates the
 policy through the pure constructor and requires a battery rule to name a
-declared numeric Property in the same unit. A Thing has at most eight definitions,
+declared numeric Property in the same unit. Motion and geofence definitions bind
+their complete ordering, uncertainty, dwell or geometry policy. They evaluate a
+position only when the committed bundle contains exactly one, so the service
+never chooses among sources without an admitted selection policy. A Thing has at most eight definitions,
 listed for readers through `Service.thing_policies/5` and `GET …/things/{id}/policies`.
 `Service.thing_rules/5` and `GET …/things/{id}/rules` return their committed
 statuses at the same snapshot.
@@ -243,7 +247,7 @@ and key paths. Explicit `:proxy` mode requires an HTTPS public origin and a
 protected proxy-to-listener network; forwarded headers never supply authority or
 Forms. No remote exposure is inferred.
 
-OpenAPI **3.1.0**, contract revision **1.22.0**, is packaged at
+OpenAPI **3.1.0**, contract revision **1.23.0**, is packaged at
 `priv/openapi/v1.json` and served at `/api/v1/openapi.json`. Liveness is
 `/health/live`; authenticated resources are under `/api/v1/scopes/{scope}`.
 Use `Authorization: Bearer …`, and a UUIDv4 `Idempotency-Key` for POST mutations.

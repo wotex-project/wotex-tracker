@@ -1,17 +1,21 @@
 defmodule Wotex.Tracker.Service.RuleEvaluation do
   @moduledoc false
 
-  # Evaluates a Thing's heartbeat and battery definitions against one complete
-  # receiver observation and evidence bundle. Only changed live results become
-  # transitions; the caller stages them in the same update transaction.
+  # Evaluates a Thing's definitions against one complete receiver observation and
+  # evidence bundle. Only changed live results become transitions; the caller
+  # stages them in the same update transaction.
 
   alias Wotex.Tracker.{
     BatteryTransition,
     Evidence,
     EvidenceBundle,
+    GeofenceTransition,
     HeartbeatTransition,
     MeasurementSample,
-    Observation
+    MotionTransition,
+    Observation,
+    Position,
+    PositionSample
   }
 
   alias Wotex.Tracker.Service.{RuleDefinition, RuleTransition, Snapshot, Store}
@@ -85,6 +89,8 @@ defmodule Wotex.Tracker.Service.RuleEvaluation do
 
   defp restore("heartbeat", document), do: stored(HeartbeatTransition.state_from_map(document))
   defp restore("battery", document), do: stored(BatteryTransition.state_from_map(document))
+  defp restore("motion", document), do: stored(MotionTransition.state_from_map(document))
+  defp restore("geofence", document), do: stored(GeofenceTransition.state_from_map(document))
 
   defp stored({:ok, state}), do: {:ok, state}
   defp stored(_), do: {:error, :storage_unavailable}
@@ -97,6 +103,33 @@ defmodule Wotex.Tracker.Service.RuleEvaluation do
       {:ok, sample} -> result(BatteryTransition.evaluate(previous, sample, policy, :live, now))
       :none -> {:ok, nil}
       error -> result(error)
+    end
+  end
+
+  defp evaluate(%{kind: "motion", policy: policy}, previous, _observation, bundle, now) do
+    case position_sample(bundle) do
+      {:ok, sample} -> result(MotionTransition.evaluate(previous, sample, policy, :live, now))
+      :none -> {:ok, nil}
+      error -> result(error)
+    end
+  end
+
+  defp evaluate(
+         %{kind: "geofence", fence: fence, policy: policy},
+         previous,
+         _observation,
+         bundle,
+         now
+       ) do
+    case position_sample(bundle) do
+      {:ok, sample} ->
+        result(GeofenceTransition.evaluate(previous, fence, sample, policy, :live, now))
+
+      :none ->
+        {:ok, nil}
+
+      error ->
+        result(error)
     end
   end
 
@@ -123,6 +156,24 @@ defmodule Wotex.Tracker.Service.RuleEvaluation do
         MeasurementSample.new(evidence.id, bundle)
 
       [] ->
+        :none
+    end
+  end
+
+  # Position selection is intentionally not implicit. Until a definition carries
+  # an admitted selection policy, zero or multiple position claims leave the rule
+  # unchanged instead of silently choosing a source.
+  defp position_sample(bundle) do
+    bundle.evidence
+    |> Map.values()
+    |> Enum.filter(&(&1.kind == :position))
+    |> Enum.sort_by(& &1.id)
+    |> case do
+      [evidence] ->
+        with {:ok, position} <- Position.new(evidence.id, bundle),
+             do: PositionSample.new(position, bundle)
+
+      _ ->
         :none
     end
   end

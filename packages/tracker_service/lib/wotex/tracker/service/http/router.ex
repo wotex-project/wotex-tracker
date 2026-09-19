@@ -393,7 +393,7 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
            "import" => "available",
            "ble_scan" => "unsupported",
            "cellular" => "unsupported",
-           "rules" => "heartbeat_battery_definitions",
+           "rules" => "heartbeat_battery_motion_geofence_definitions",
            "analytics" => "structured_queries",
            "runtime" => %{
              "readproperty" => "available",

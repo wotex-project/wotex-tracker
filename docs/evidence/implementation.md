@@ -2750,3 +2750,31 @@ Dialyzer, 43-member package archive inspection, licenses and the 424-file
 stack-language policy all passed. Workflow coverage exercises overview, detail
 and history presentation; component coverage exercises valid, unavailable,
 empty and malformed values without turning missing coordinates into `(0, 0)`.
+
+### Managed motion and geofence definitions — 2026-09-19
+
+Administrators can now persist closed motion and geofence definitions beside
+heartbeat and battery policies. Motion admission reconstructs the complete
+ordering, uncertainty, movement-threshold, plausibility and dwell policy through
+the pure constructors. Geofence admission reconstructs bounded circle or polygon
+geometry, boundary/uncertainty treatment, ordering and transition-gap policy. A
+geofence definition identity binds both the geometry and transition policy, and
+every edit receives the commit generation as its new revision.
+
+Saving a definition evaluates the Thing's committed evidence in the same atomic
+transaction. Later materialisations restore every definition and persist motion
+candidate/trip or geofence membership transitions and stable alert intents at the
+same generation. A bundle with exactly one position creates a complete
+`PositionSample`; zero or multiple positions leave the rule unchanged, so the
+host never invents an implicit source-selection policy. Malformed position
+evidence fails closed.
+
+OpenAPI contract 1.23.0 exposes all four definition kinds and reports
+`heartbeat_battery_motion_geofence_definitions` in service capabilities. The
+complete service gate passed 2 properties and 209 tests at 95.0% production line
+coverage. Compiler, unused-dependency, formatter, dependency audit, strict Credo,
+ExDoc, Dialyzer, boundary checks, OpenAPI validation, 82-member package archive
+inspection, licenses and the 425-file stack-language policy all passed. Tests
+cover circle and polygon policies, alternate clock/sequence/uncertainty modes,
+closed-map rejection, policy-identity changes, durable entry/exit and trip-start
+alerts, and missing, ambiguous or malformed position input.

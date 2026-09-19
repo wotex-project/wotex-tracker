@@ -1,11 +1,21 @@
 defmodule Wotex.Tracker.Service.RuleDefinition do
   @moduledoc false
 
-  # Administrators bind a closed heartbeat or battery policy to one enrolled Thing.
+  # Administrators bind a closed heartbeat, battery, motion or geofence policy to
+  # one enrolled Thing.
   # The service assigns the policy revision from the definition's commit
   # generation and validates it through the pure constructor before storage.
 
-  alias Wotex.Tracker.{BatteryTransition, HeartbeatTransition}
+  alias Wotex.Tracker.{
+    BatteryTransition,
+    Geofence,
+    GeofenceTransition,
+    HeartbeatTransition,
+    MotionTransition,
+    PositionMovement,
+    PositionOrder
+  }
+
   alias Wotex.Tracker.Service.{Codec, RuleEvaluation, Store, Update}
 
   @save_fields ~w(id kind thing_id parameters expected_generation)
@@ -14,7 +24,11 @@ defmodule Wotex.Tracker.Service.RuleDefinition do
   @parameters %{
     "heartbeat" => ~w(maximum_silence_ms future_skew_ms),
     "battery" =>
-      ~w(measurement_kind unit low_threshold clear_threshold maximum_age_ms future_skew_ms accept_suspect)
+      ~w(measurement_kind unit low_threshold clear_threshold maximum_age_ms future_skew_ms accept_suspect),
+    "motion" =>
+      ~w(event_time future_skew_ms late_window_ms sequence moving_speed_m_s stationary_speed_m_s moving_distance_m stationary_distance_m max_plausible_speed_m_s max_gap_ms uncertainty minimum_movement_ms minimum_stop_ms),
+    "geofence" =>
+      ~w(shape boundary uncertainty event_time future_skew_ms late_window_ms sequence max_transition_gap_ms)
   }
   @maximum_per_thing 8
 
@@ -24,8 +38,13 @@ defmodule Wotex.Tracker.Service.RuleDefinition do
          "urn:uuid:" <> _ <- request["thing_id"],
          true <- Codec.id?(request["thing_id"]),
          {:ok, generation} <- Codec.generation(request["expected_generation"]),
-         {:ok, _policy} <-
-           policy(request["kind"], request["id"], revision(generation), request["parameters"]) do
+         {:ok, _definition} <-
+           definition_policy(
+             request["kind"],
+             request["id"],
+             revision(generation),
+             request["parameters"]
+           ) do
       :ok
     else
       _ -> {:error, :invalid_request}
@@ -46,9 +65,10 @@ defmodule Wotex.Tracker.Service.RuleDefinition do
     {:ok, generation} = Codec.generation(request["expected_generation"])
     revision = revision(generation)
     # Admission already constructed this exact policy from the same request.
-    {:ok, policy} = policy(request["kind"], request["id"], revision, request["parameters"])
+    {:ok, definition} =
+      definition_policy(request["kind"], request["id"], revision, request["parameters"])
 
-    definition = %{kind: request["kind"], thing_id: request["thing_id"], policy: policy}
+    definition = Map.put(definition, :thing_id, request["thing_id"])
 
     with {:ok, thing} <- fetch(service, access, "things", request["thing_id"], request, now),
          :ok <- supported(request, thing["value"]["public"]),
@@ -78,7 +98,7 @@ defmodule Wotex.Tracker.Service.RuleDefinition do
         "kind" => request["kind"],
         "thing_id" => request["thing_id"],
         "revision" => revision,
-        "policy_identity" => policy.identity,
+        "policy_identity" => policy_identity(definition),
         "parameters" => request["parameters"],
         "created_at" => created_at || now,
         "updated_at" => now
@@ -111,10 +131,11 @@ defmodule Wotex.Tracker.Service.RuleDefinition do
          true <- public["schema"] == "wtr.rule-definition.v1" and public["id"] == id,
          true <- Codec.time?(public["created_at"]) and Codec.time?(public["updated_at"]),
          true <- public["updated_at"] >= public["created_at"],
-         {:ok, policy} <-
-           policy(public["kind"], id, public["revision"], public["parameters"]),
-         true <- policy.identity == public["policy_identity"] do
-      {:ok, %{kind: public["kind"], thing_id: public["thing_id"], policy: policy}}
+         {:ok, definition} <-
+           definition_policy(public["kind"], id, public["revision"], public["parameters"]),
+         definition = Map.put(definition, :thing_id, public["thing_id"]),
+         true <- policy_identity(definition) == public["policy_identity"] do
+      {:ok, definition}
     else
       _ -> {:error, :storage_unavailable}
     end
@@ -122,7 +143,7 @@ defmodule Wotex.Tracker.Service.RuleDefinition do
 
   def definition(_, _), do: {:error, :storage_unavailable}
 
-  defp policy("heartbeat", id, revision, parameters) do
+  defp definition_policy("heartbeat", id, revision, parameters) do
     with true <- exact?(parameters, @parameters["heartbeat"]),
          {:ok, policy} <-
            HeartbeatTransition.new(%{
@@ -131,13 +152,13 @@ defmodule Wotex.Tracker.Service.RuleDefinition do
              maximum_silence_ms: parameters["maximum_silence_ms"],
              future_skew_ms: parameters["future_skew_ms"]
            }) do
-      {:ok, policy}
+      {:ok, %{kind: "heartbeat", policy: policy}}
     else
       _ -> {:error, :invalid_policy}
     end
   end
 
-  defp policy("battery", id, revision, parameters) do
+  defp definition_policy("battery", id, revision, parameters) do
     with true <- exact?(parameters, @parameters["battery"]),
          {:ok, policy} <-
            BatteryTransition.new(%{
@@ -151,16 +172,143 @@ defmodule Wotex.Tracker.Service.RuleDefinition do
              future_skew_ms: parameters["future_skew_ms"],
              accept_suspect: parameters["accept_suspect"]
            }) do
-      {:ok, policy}
+      {:ok, %{kind: "battery", policy: policy}}
     else
       _ -> {:error, :invalid_policy}
     end
   end
 
-  defp policy(_, _, _, _), do: {:error, :invalid_policy}
+  defp definition_policy("motion", id, revision, parameters) do
+    with true <- exact?(parameters, @parameters["motion"]),
+         {:ok, order} <- order_policy(revision, parameters),
+         {:ok, uncertainty} <- uncertainty(parameters["uncertainty"]),
+         {:ok, movement} <-
+           PositionMovement.new(%{
+             id: id,
+             revision: revision,
+             order_policy: order,
+             moving_speed_m_s: parameters["moving_speed_m_s"],
+             stationary_speed_m_s: parameters["stationary_speed_m_s"],
+             moving_distance_m: parameters["moving_distance_m"],
+             stationary_distance_m: parameters["stationary_distance_m"],
+             max_plausible_speed_m_s: parameters["max_plausible_speed_m_s"],
+             max_gap_ms: parameters["max_gap_ms"],
+             uncertainty: uncertainty
+           }),
+         {:ok, policy} <-
+           MotionTransition.new(%{
+             id: id,
+             revision: revision,
+             movement_policy: movement,
+             minimum_movement_ms: parameters["minimum_movement_ms"],
+             minimum_stop_ms: parameters["minimum_stop_ms"]
+           }) do
+      {:ok, %{kind: "motion", policy: policy}}
+    else
+      _ -> {:error, :invalid_policy}
+    end
+  end
+
+  defp definition_policy("geofence", id, revision, parameters) do
+    with true <- exact?(parameters, @parameters["geofence"]),
+         {:ok, shape} <- shape(parameters["shape"]),
+         {:ok, boundary} <- boundary(parameters["boundary"]),
+         {:ok, uncertainty} <- uncertainty(parameters["uncertainty"]),
+         {:ok, fence} <-
+           Geofence.new(%{
+             id: id,
+             revision: revision,
+             shape: shape,
+             boundary: boundary,
+             uncertainty: uncertainty
+           }),
+         {:ok, order} <- order_policy(revision, parameters),
+         {:ok, policy} <-
+           GeofenceTransition.new(%{
+             id: id,
+             revision: revision,
+             order_policy: order,
+             max_transition_gap_ms: parameters["max_transition_gap_ms"]
+           }) do
+      {:ok, %{kind: "geofence", fence: fence, policy: policy}}
+    else
+      _ -> {:error, :invalid_policy}
+    end
+  end
+
+  defp definition_policy(_, _, _, _), do: {:error, :invalid_policy}
+
+  defp order_policy(revision, parameters) do
+    with {:ok, event_time} <- event_time(parameters["event_time"]),
+         {:ok, sequence} <- sequence(parameters["sequence"]) do
+      PositionOrder.new(%{
+        revision: revision,
+        event_time: event_time,
+        future_skew_ms: parameters["future_skew_ms"],
+        late_window_ms: parameters["late_window_ms"],
+        sequence: sequence
+      })
+    end
+  end
+
+  defp shape(%{"kind" => "circle"} = value) when map_size(value) == 4 do
+    {:ok,
+     %{
+       kind: :circle,
+       latitude: value["latitude"],
+       longitude: value["longitude"],
+       radius_m: value["radius_m"]
+     }}
+  end
+
+  defp shape(%{"kind" => "polygon", "vertices" => vertices} = value)
+       when map_size(value) == 2 and is_list(vertices) do
+    Enum.reduce_while(vertices, {:ok, []}, fn
+      %{"latitude" => latitude, "longitude" => longitude} = vertex, {:ok, acc}
+      when map_size(vertex) == 2 ->
+        {:cont, {:ok, [%{latitude: latitude, longitude: longitude} | acc]}}
+
+      _, _ ->
+        {:halt, {:error, :invalid_policy}}
+    end)
+    |> case do
+      {:ok, admitted} -> {:ok, %{kind: :polygon, vertices: Enum.reverse(admitted)}}
+      error -> error
+    end
+  end
+
+  defp shape(_), do: {:error, :invalid_policy}
+
+  defp event_time("trusted_fix"), do: {:ok, :trusted_fix}
+  defp event_time("trusted_fix_or_receiver"), do: {:ok, :trusted_fix_or_receiver}
+  defp event_time(_), do: {:error, :invalid_policy}
+
+  defp sequence("none"), do: {:ok, :none}
+  defp sequence("optional"), do: {:ok, :optional}
+  defp sequence("required"), do: {:ok, :required}
+  defp sequence(_), do: {:error, :invalid_policy}
+
+  defp boundary("inside"), do: {:ok, :inside}
+  defp boundary("outside"), do: {:ok, :outside}
+  defp boundary(_), do: {:error, :invalid_policy}
+
+  defp uncertainty("require_bound"), do: {:ok, :require_bound}
+  defp uncertainty("coordinate_only"), do: {:ok, :coordinate_only}
+  defp uncertainty(_), do: {:error, :invalid_policy}
+
+  defp policy_identity(%{kind: "geofence", fence: fence, policy: policy}) do
+    Codec.digest(%{
+      "schema" => "wtr.geofence-definition-policy.v1",
+      "fence_identity" => fence.identity,
+      "transition_identity" => policy.identity
+    })
+  end
+
+  defp policy_identity(%{policy: policy}), do: policy.identity
 
   # A battery rule must consume a declared numeric Property in its exact unit.
   defp supported(%{"kind" => "heartbeat"}, _td), do: :ok
+  defp supported(%{"kind" => kind}, _td) when kind in ~w(motion geofence), do: :ok
 
   defp supported(
          %{"kind" => "battery", "parameters" => %{"measurement_kind" => kind, "unit" => unit}},

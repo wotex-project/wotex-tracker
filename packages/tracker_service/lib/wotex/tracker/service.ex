@@ -273,7 +273,7 @@ defmodule Wotex.Tracker.Service do
         "query"
       )
 
-  @doc "Saves one heartbeat or battery rule definition for an enrolled Thing."
+  @doc "Saves one closed rule definition for an enrolled Thing."
   @spec save_policy(t(), String.t(), String.t(), String.t(), map(), integer()) ::
           {:ok, map()} | {:error, map()}
   def save_policy(service, token, scope, operation, request, now),

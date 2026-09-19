@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "WoTEx Tracker service",
-    "version": "1.22.0",
-    "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries, persisted rule status and administrator-managed heartbeat and battery rule definitions evaluated against committed Thing evidence, acknowledgeable rule alerts listed per Thing for defined rules, administrator unenrollment, pinned incident snapshots and an administrator credential inventory. No scanner, notification delivery or physical interaction is implied."
+    "version": "1.23.0",
+    "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries, persisted rule status and administrator-managed heartbeat, battery, motion and geofence rule definitions evaluated against committed Thing evidence, acknowledgeable rule alerts listed per Thing for defined rules, administrator unenrollment, pinned incident snapshots and an administrator credential inventory. No scanner, notification delivery or physical interaction is implied."
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "security": [
@@ -163,7 +163,7 @@
                           "const": "unsupported"
                         },
                         "rules": {
-                          "const": "heartbeat_battery_definitions"
+                          "const": "heartbeat_battery_motion_geofence_definitions"
                         },
                         "analytics": {
                           "const": "structured_queries"
@@ -8059,6 +8059,226 @@
         ],
         "additionalProperties": false
       },
+      "MotionRuleParameters": {
+        "type": "object",
+        "properties": {
+          "event_time": {
+            "enum": [
+              "trusted_fix",
+              "trusted_fix_or_receiver"
+            ]
+          },
+          "future_skew_ms": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 604800000
+          },
+          "late_window_ms": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 604800000
+          },
+          "sequence": {
+            "enum": [
+              "none",
+              "optional",
+              "required"
+            ]
+          },
+          "moving_speed_m_s": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "stationary_speed_m_s": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "moving_distance_m": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "stationary_distance_m": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "max_plausible_speed_m_s": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000000
+          },
+          "max_gap_ms": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 604800000
+          },
+          "uncertainty": {
+            "enum": [
+              "require_bound",
+              "coordinate_only"
+            ]
+          },
+          "minimum_movement_ms": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 604800000
+          },
+          "minimum_stop_ms": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 604800000
+          }
+        },
+        "required": [
+          "event_time",
+          "future_skew_ms",
+          "late_window_ms",
+          "sequence",
+          "moving_speed_m_s",
+          "stationary_speed_m_s",
+          "moving_distance_m",
+          "stationary_distance_m",
+          "max_plausible_speed_m_s",
+          "max_gap_ms",
+          "uncertainty",
+          "minimum_movement_ms",
+          "minimum_stop_ms"
+        ],
+        "additionalProperties": false,
+        "description": "Stationary thresholds must not exceed moving thresholds, and moving speed must not exceed the plausible-speed limit. Position input is evaluated only when the committed evidence has exactly one position; the service does not select a source implicitly."
+      },
+      "GeofenceRuleParameters": {
+        "type": "object",
+        "properties": {
+          "shape": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "const": "circle"
+                  },
+                  "latitude": {
+                    "type": "number",
+                    "minimum": -90,
+                    "maximum": 90
+                  },
+                  "longitude": {
+                    "type": "number",
+                    "minimum": -180,
+                    "maximum": 180
+                  },
+                  "radius_m": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1000000
+                  }
+                },
+                "required": [
+                  "kind",
+                  "latitude",
+                  "longitude",
+                  "radius_m"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "const": "polygon"
+                  },
+                  "vertices": {
+                    "type": "array",
+                    "minItems": 3,
+                    "maxItems": 64,
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "latitude": {
+                          "type": "number",
+                          "minimum": -90,
+                          "maximum": 90
+                        },
+                        "longitude": {
+                          "type": "number",
+                          "minimum": -180,
+                          "maximum": 180
+                        }
+                      },
+                      "required": [
+                        "latitude",
+                        "longitude"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "kind",
+                  "vertices"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "boundary": {
+            "enum": [
+              "inside",
+              "outside"
+            ]
+          },
+          "uncertainty": {
+            "enum": [
+              "require_bound",
+              "coordinate_only"
+            ]
+          },
+          "event_time": {
+            "enum": [
+              "trusted_fix",
+              "trusted_fix_or_receiver"
+            ]
+          },
+          "future_skew_ms": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 604800000
+          },
+          "late_window_ms": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 604800000
+          },
+          "sequence": {
+            "enum": [
+              "none",
+              "optional",
+              "required"
+            ]
+          },
+          "max_transition_gap_ms": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 604800000
+          }
+        },
+        "required": [
+          "shape",
+          "boundary",
+          "uncertainty",
+          "event_time",
+          "future_skew_ms",
+          "late_window_ms",
+          "sequence",
+          "max_transition_gap_ms"
+        ],
+        "additionalProperties": false,
+        "description": "The complete geometry, uncertainty, ordering and transition-gap policy. Position input is evaluated only when the committed evidence has exactly one position; the service does not select a source implicitly."
+      },
       "RuleDefinition": {
         "description": "Reviewed rule definition. The acting principal is retained privately. Saving a definition evaluates it against the Thing's committed evidence in the same commit, and each later materialisation of that Thing evaluates it again.",
         "oneOf": [
@@ -8236,11 +8456,121 @@
               "updated_at"
             ],
             "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "schema": {
+                "const": "wtr.rule-definition.v1"
+              },
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9-]{0,62}$"
+              },
+              "kind": {
+                "const": "motion"
+              },
+              "thing_id": {
+                "type": "string",
+                "pattern": "^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+              },
+              "revision": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]{0,18})$",
+                "description": "Canonical decimal integer below 9223372036854775807."
+              },
+              "policy_identity": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "x-max-utf8-bytes": 256
+              },
+              "parameters": {
+                "$ref": "#/components/schemas/MotionRuleParameters"
+              },
+              "created_at": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "updated_at": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "schema",
+              "id",
+              "kind",
+              "thing_id",
+              "revision",
+              "policy_identity",
+              "parameters",
+              "created_at",
+              "updated_at"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "schema": {
+                "const": "wtr.rule-definition.v1"
+              },
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9-]{0,62}$"
+              },
+              "kind": {
+                "const": "geofence"
+              },
+              "thing_id": {
+                "type": "string",
+                "pattern": "^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+              },
+              "revision": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]{0,18})$",
+                "description": "Canonical decimal integer below 9223372036854775807."
+              },
+              "policy_identity": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "x-max-utf8-bytes": 256
+              },
+              "parameters": {
+                "$ref": "#/components/schemas/GeofenceRuleParameters"
+              },
+              "created_at": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "updated_at": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "schema",
+              "id",
+              "kind",
+              "thing_id",
+              "revision",
+              "policy_identity",
+              "parameters",
+              "created_at",
+              "updated_at"
+            ],
+            "additionalProperties": false
           }
         ]
       },
       "SaveRuleDefinitionRequest": {
-        "description": "Binds one closed heartbeat or battery policy to an existing Thing. The service assigns the policy revision from the commit generation. Kind and Thing are immutable for an ID; a battery rule requires a declared numeric Property in the same unit. At most eight definitions may refer to one Thing. A deleted ID can be reused only with its original kind and Thing.",
+        "description": "Binds one closed heartbeat, battery, motion or geofence policy to an existing Thing. The service assigns the policy revision from the commit generation. Kind and Thing are immutable for an ID; a battery rule requires a declared numeric Property in the same unit. At most eight definitions may refer to one Thing. A deleted ID can be reused only with its original kind and Thing.",
         "oneOf": [
           {
             "type": "object",
@@ -8355,6 +8685,70 @@
                 ],
                 "additionalProperties": false,
                 "description": "low_threshold must be below clear_threshold."
+              },
+              "expected_generation": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]{0,18})$",
+                "description": "Canonical decimal integer below 9223372036854775807."
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "thing_id",
+              "parameters",
+              "expected_generation"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9-]{0,62}$"
+              },
+              "kind": {
+                "const": "motion"
+              },
+              "thing_id": {
+                "type": "string",
+                "pattern": "^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+              },
+              "parameters": {
+                "$ref": "#/components/schemas/MotionRuleParameters"
+              },
+              "expected_generation": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]{0,18})$",
+                "description": "Canonical decimal integer below 9223372036854775807."
+              }
+            },
+            "required": [
+              "id",
+              "kind",
+              "thing_id",
+              "parameters",
+              "expected_generation"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9-]{0,62}$"
+              },
+              "kind": {
+                "const": "geofence"
+              },
+              "thing_id": {
+                "type": "string",
+                "pattern": "^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+              },
+              "parameters": {
+                "$ref": "#/components/schemas/GeofenceRuleParameters"
               },
               "expected_generation": {
                 "type": "string",
