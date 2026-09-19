@@ -4846,6 +4846,25 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert render(route) =~ "No qualified position can be plotted"
     assert render(route) =~ "Continuity is local to this page"
 
+    route |> element("button", "Export this route page (JSON)") |> render_click()
+    assert_push_event(route, "download-route-page", %{"content" => route_json})
+    route_export = Jason.decode!(route_json)
+    assert route_export["schema"] == "wtr.route-page-export.v1"
+    assert route_export["thing_id"] == thing
+    assert route_export["continuity"] == "page_local_only"
+    assert route_export["has_more"] == false
+    refute Map.has_key?(route_export, "cursor")
+    refute route_json =~ "wtrc1."
+
+    Agent.update(c.faults, &Map.put(&1, :route_history, :unavailable))
+    route |> element("button", "Export this route page (JSON)") |> render_click()
+    refute_push_event(route, "download-route-page", %{"content" => _})
+    assert has_element?(route, "h2", "Route page")
+    assert has_element?(route, "[role=alert]")
+
+    route |> element("button", "Export this route page (JSON)") |> render_click()
+    assert_push_event(route, "download-route-page", %{"content" => _})
+
     render_patch(route, path)
     route |> element("button", "Refresh asset") |> render_click()
     route |> form("#route-query") |> render_submit()
@@ -4923,8 +4942,17 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
       refute has_element?(view, "button", "Previous route page")
     end
 
+    Agent.update(c.faults, &Map.put(&1, :route_history, {:reply, {:ok, second}}))
+    view |> element("button", "Export this route page (JSON)") |> render_click()
+    refute_push_event(view, "download-route-page", %{"content" => _})
+    refute has_element?(view, "h2", "Route page")
+    assert has_element?(view, "[role=alert]", "service changed")
+
+    view |> element("button", "Refresh asset") |> render_click()
+    assert has_element?(view, "h2", "Route page")
+
     Agent.update(c.faults, &Map.put(&1, :route_history, {:deny, "forbidden"}))
-    view |> element("button", "Next route page") |> render_click()
+    view |> element("button", "Export this route page (JSON)") |> render_click()
     refute has_element?(view, "#route-query")
     refute has_element?(view, "h2", "Route page")
     assert has_element?(view, "[role=alert]", "does not permit")

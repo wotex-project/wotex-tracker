@@ -264,3 +264,5 @@ antimeridian delta and provides the exact coordinates and gap records in tables
 and lists. It supplies no basemap or road matching. Temporary page failures keep
 the current page visible; terminal authorization loss clears it. Previous and
 next pages are reloaded under current authority and are never visually joined.
+A route-page JSON export first reruns the exact request, requires the same page
+identity and omits the encrypted continuation cursor from the downloaded document.

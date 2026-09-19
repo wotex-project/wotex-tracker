@@ -10,7 +10,7 @@ defmodule Wotex.Tracker.UI.RouteLive do
 
   use Phoenix.LiveView, log: false
   import Wotex.Tracker.UI.Components
-  alias Wotex.Tracker.UI.{Auth, Presenter, RouteChart}
+  alias Wotex.Tracker.UI.{Auth, Presenter, RouteChart, RouteExport}
 
   @back_limit 32
   @day_ms 86_400_000
@@ -91,6 +91,30 @@ defmodule Wotex.Tracker.UI.RouteLive do
         {:noreply, assign(previous, back: rest)}
     end
   end
+
+  def handle_event(
+        "export-page",
+        _,
+        %{assigns: %{page: %{} = shown, request: %{} = request}} = socket
+      ) do
+    with :ok <- RouteExport.verify(socket, shown, request),
+         {:ok, socket} <- RouteExport.push(socket, shown) do
+      {:noreply, socket}
+    else
+      {:error, %{"code" => code} = error}
+      when code in ~w(forbidden unauthorized not_found) ->
+        {:noreply, clear(socket, error)}
+
+      {:error, %{"code" => "conflict"} = error} ->
+        {:noreply, assign(socket, request: nil, page: nil, chart: nil, back: [], error: error)}
+
+      {:error, error} ->
+        {:noreply, assign(socket, error: error)}
+    end
+  end
+
+  def handle_event("export-page", _, socket),
+    do: {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
 
   def handle_event("run", _, socket),
     do: {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
@@ -287,6 +311,7 @@ defmodule Wotex.Tracker.UI.RouteLive do
           </ul>
         </section>
         <div class="chart-controls" role="group" aria-label="Retained route pages">
+          <button class="secondary" phx-click="export-page">Export this route page (JSON)</button>
           <button :if={@back != []} class="secondary" phx-click="previous-page">
             Previous route page
           </button>

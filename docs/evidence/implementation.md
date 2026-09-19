@@ -2866,3 +2866,24 @@ both the route screen and coordinate projector reached 95.2%. Compiler,
 unused-dependency, formatter, dependency audit, strict Credo, ExDoc, Dialyzer,
 45-member package archive inspection, licenses and the 430-file stack-language
 policy all passed.
+
+### Reauthorized route-page export — 2026-09-19
+
+The route-history screen now exports one displayed public page only after rerunning
+its exact cursor-bound request under current service authority and reproducing the
+same content identity. The bounded `wtr.route-page-export.v1` document retains the
+Thing, snapshot, retained-history interval, requested window, page-local
+continuity declaration and complete public replay. It reports whether another
+page existed but omits the encrypted continuation cursor, so the file cannot
+resume or authorize traversal.
+
+A temporary service failure emits no download and leaves the current page
+visible. A changed page identity clears the stale result; forbidden,
+unauthorized or missing data clears route state. Tests decode the download,
+verify its positionless exclusion and cursor absence, then cover temporary retry,
+identity conflict and terminal denial.
+
+The complete shared-UI gate passed 130 tests at 95.0% production line coverage;
+the route export module reached 100%. Compiler, unused-dependency, formatter,
+dependency audit, strict Credo, ExDoc, Dialyzer, 46-member package archive
+inspection, licenses and the 431-file stack-language policy all passed.

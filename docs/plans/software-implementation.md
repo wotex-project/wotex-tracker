@@ -343,7 +343,8 @@ The service boundary for a later history screen is implemented as authorized,
 snapshot-pinned route pages with explicit gaps and page-local continuity.
 The shared route-history screen now selects that closed policy, plots only the
 returned page-local segments and exposes exact points, rejections, exclusions
-and break reasons without a basemap or cross-page join.
+and break reasons without a basemap or cross-page join. Its bounded page export
+reauthorizes and reproduces the displayed identity before emitting cursor-free JSON.
 The asset page can also read declared scalar Properties from the committed
 service snapshot through current `read` authority. Overview cards fetch each
 asset's retained state separately and disclose unprovisioned, unavailable and

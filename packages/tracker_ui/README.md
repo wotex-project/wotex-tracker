@@ -127,7 +127,9 @@ SVG uses separate paths for service segments and the short antimeridian delta;
 it has no basemap and makes no claim between recorded points. Missing or
 ambiguous materialisations and rejected samples remain visible. Previous/next
 navigation reloads every page under current authority, retains the displayed
-page on temporary failure and never connects coordinates across pages.
+page on temporary failure and never connects coordinates across pages. Page
+export reruns the exact cursor-bound request under current authority, requires
+the displayed content identity and downloads a bounded cursor-free JSON document.
 
 The analytics screen builds a closed absolute UTC query for one retained asset
 using a currently recorded numeric measurement and unit. It restricts the

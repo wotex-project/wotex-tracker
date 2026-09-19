@@ -23,7 +23,8 @@ retained-data deletion and trip/stop presentation remain open. The browser now
 uses the service's bounded snapshot-pinned route pages, displays exact points and
 explicit missing, ambiguous and rejected-position gaps, and plots only separate
 page-local segments. It supplies no basemap or road matching and never connects
-segments across page boundaries.
+segments across page boundaries. A page export reauthorizes and reproduces the
+displayed identity, then downloads bounded JSON without a continuation cursor.
 The browser observation page can download native capture JSON and full evidence
 claims only for a current `raw` grant. It asks the authorized service again for
 each download and never places raw bytes in the ordinary page. A separate
