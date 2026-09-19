@@ -120,11 +120,15 @@ through the authorized service. The window policy can be a fixed time range reru
 data, a rolling window, or an incident snapshot of the exact displayed result;
 the service refuses a snapshot when a commit superseded the displayed result. It verifies a committed receipt against the
 saved definition's asset series and suppresses duplicate writes after an
-uncertain reply. This is historical inspection with explicit refresh; follow-live refresh on this
-page, general dashboard composition and a live public-provider prompt run are
-still open. An
-administrator can also edit a saved dashboard's title and view or delete it with
-a generation check and recoverable operation receipt.
+uncertain reply. After a successful unsaved query, any reader can opt into
+follow mode. It checks the committed scope cursor every 5 seconds, reruns only
+after a commit and preserves the selected duration while moving the absolute UTC
+window to the asset's newest retained state. A temporary failure retains a
+marked stale result for retry; current denial clears it. Manual queries and
+historical navigation stop following. General dashboard composition and a
+recorded live public-provider prompt run remain open. An administrator can also
+edit a saved dashboard's title and view or delete it with a generation check and
+recoverable operation receipt.
 
 An enabled host also exposes administrator-only operational history. Its closed
 one-, five- and fifteen-minute windows plot discrete telemetry measurements by

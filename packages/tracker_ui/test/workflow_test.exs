@@ -1044,6 +1044,163 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     refute has_element?(view, "svg[role=img]")
   end
 
+  test "unsaved analytics follows committed state and retains a marked stale result", c do
+    {thing, _} = enrolled(c)
+
+    {:ok, _} =
+      Service.materialize(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"thing_id" => thing, "expected_generation" => "2"},
+        c.now
+      )
+
+    {:ok, view, _} = live(c.conn, Presenter.path(:asset, thing) <> "/analytics")
+    view |> form("#analytics-query") |> render_submit()
+    view |> element("button", "Start follow mode") |> render_click()
+    assert render(view) =~ "Follow mode active"
+
+    {:ok, imported} =
+      Service.submit(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        import_request(%{id: "follow-state", observed_at: c.now + 1_000}, generation(c)),
+        c.now
+      )
+
+    {:ok, _} =
+      Service.associate(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{
+          "thing_id" => thing,
+          "observation_id" => imported["data"]["observation_id"],
+          "owner_confirmed" => true,
+          "expected_generation" => generation(c)
+        },
+        c.now
+      )
+
+    {:ok, _} =
+      Service.materialize(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"thing_id" => thing, "expected_generation" => generation(c)},
+        c.now
+      )
+
+    Agent.update(c.faults, &Map.put(&1, :analytics, :unavailable))
+    send(view.pid, {:follow, 1})
+    assert render(view) =~ "displayed result is stale"
+    assert render(view) =~ "24.3"
+
+    send(view.pid, {:follow, 1})
+    assert render(view) =~ "Follow mode active"
+    refute render(view) =~ "displayed result is stale"
+
+    shifted_to =
+      DateTime.from_unix!(c.now + 1_001, :millisecond) |> DateTime.to_iso8601()
+
+    assert has_element?(view, "#query-to[value='#{shifted_to}']")
+
+    for fault <- [:unavailable, {:reply, {:ok, %{}}}] do
+      Agent.update(c.faults, &Map.put(&1, :events, fault))
+      send(view.pid, {:follow, 1})
+      assert render(view) =~ "displayed result is stale"
+      send(view.pid, {:follow, 1})
+      assert render(view) =~ "Follow mode active"
+    end
+
+    Agent.update(
+      c.faults,
+      &Map.put(&1, :events, {:reply, {:error, %{"code" => "cursor_expired"}}})
+    )
+
+    Agent.update(c.faults, &Map.put(&1, :analytics, :unavailable))
+    send(view.pid, {:follow, 1})
+    assert render(view) =~ "displayed result is stale"
+    send(view.pid, {:follow, 1})
+    assert render(view) =~ "Follow mode active"
+
+    # A quiet check does not execute the structured query again.
+    Agent.update(c.faults, &Map.put(&1, :analytics, :unavailable))
+    send(view.pid, {:follow, 1})
+    assert render(view) =~ "Follow mode active"
+    assert Agent.get(c.faults, &Map.get(&1, :analytics)) == :unavailable
+    Agent.update(c.faults, &Map.delete(&1, :analytics))
+
+    view |> element("button", "Earlier") |> render_click()
+    assert has_element?(view, "button", "Start follow mode")
+    refute has_element?(view, "button", "Stop follow mode")
+
+    Agent.update(c.faults, &Map.put(&1, :analytics, :unavailable))
+    send(view.pid, {:follow, 1})
+    render(view)
+    assert Agent.get(c.faults, &Map.get(&1, :analytics)) == :unavailable
+  end
+
+  test "unsaved analytics follow clears its result when current access disappears", c do
+    {thing, _} = enrolled(c)
+
+    {:ok, _} =
+      Service.materialize(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"thing_id" => thing, "expected_generation" => "2"},
+        c.now
+      )
+
+    {:ok, view, _} = live(c.conn, Presenter.path(:asset, thing) <> "/analytics")
+    view |> form("#analytics-query") |> render_submit()
+    view |> element("button", "Start follow mode") |> render_click()
+    commit_change(c, "follow-revoked")
+    Agent.update(c.faults, &Map.put(&1, :get, {:deny, "forbidden"}))
+    send(view.pid, {:follow, 1})
+
+    refute has_element?(view, "h2", "Query result")
+    refute has_element?(view, "button", "Stop follow mode")
+    assert has_element?(view, "[role=alert]")
+  end
+
+  test "unsaved analytics follow recovers when its initial cursor snapshot is unavailable", c do
+    {thing, _} = enrolled(c)
+
+    {:ok, _} =
+      Service.materialize(
+        c.service,
+        c.admin,
+        c.scope,
+        Identifier.uuid(),
+        %{"thing_id" => thing, "expected_generation" => "2"},
+        c.now
+      )
+
+    {:ok, view, _} = live(c.conn, Presenter.path(:asset, thing) <> "/analytics")
+    view |> form("#analytics-query") |> render_submit()
+    Agent.update(c.faults, &Map.put(&1, :list, :unavailable))
+    view |> element("button", "Start follow mode") |> render_click()
+    assert render(view) =~ "displayed result is stale"
+
+    Agent.update(c.faults, &Map.put(&1, :list, {:reply, {:ok, %{}}}))
+    send(view.pid, {:follow, 1})
+    assert render(view) =~ "displayed result is stale"
+    send(view.pid, {:follow, 1})
+    assert render(view) =~ "Follow mode active"
+
+    view |> element("button", "Stop follow mode") |> render_click()
+    refute has_element?(view, "button", "Stop follow mode")
+  end
+
   test "host operational pages require admin authority and retain a pinned collector page", c do
     cursor = %{
       "schema" => "wtr.operational-window-cursor.v1",
@@ -1325,10 +1482,13 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
 
     view |> form("#analytics-query") |> render_submit()
     assert has_element?(view, "h2", "Query result")
+    view |> element("button", "Start follow mode") |> render_click()
+    assert has_element?(view, "button", "Stop follow mode")
     Agent.update(c.faults, &Map.put(&1, :analytics, {:deny, "forbidden"}))
     view |> element("button", "Export result JSON") |> render_click()
     refute_push_event(view, "download-query-result", %{"content" => _})
     refute has_element?(view, "h2", "Query result")
+    refute has_element?(view, "button", "Stop follow mode")
     assert has_element?(view, "[role=alert]")
   end
 

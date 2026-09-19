@@ -70,6 +70,17 @@ The quality selector admits valid readings, suspect readings, or both. Invalid
 readings remain excluded. The selected quality set is part of the closed query
 identity and persists with a saved dashboard; an unrecognized selection is
 rejected before the service request.
+After a successful unsaved query, **Start follow mode** captures the committed
+scope event cursor before refreshing the result. Every five seconds it checks
+for later commits. A changed scope causes one authorized state read and query;
+the query duration stays fixed while its absolute UTC window moves to end just
+after the asset's newest retained observation. A commit racing the query remains
+visible to the next cursor check. Temporary service failure keeps the previous
+result marked **stale** and retries from a fresh snapshot. Lost read authority or
+a missing asset clears the result and stops following. Running or prompting a
+new query, shifting or zooming the historical window, refreshing the asset,
+preparing a save or pressing **Stop follow mode** cancels the timer. A quiet
+scope does not rerun the query.
 The Dashboards navigation lists retained saved definitions in bounded pages.
 Opening one shows its stored query and window policy; running it invokes
 `Service.execute_saved_query/5` after current authorization. A rolling
@@ -165,7 +176,8 @@ and sixteen starts per principal per second. Each accepted query uses its own
 read-only SQLite connection. Caller loss, store shutdown or the configured
 five-second deadline cancels the connection through its busy and progress
 handlers and releases the reservation. Named display timezones, prompt
-translation and graph rendering remain required by the analytics target contract.
+provider interoperability and physical cross-surface graph acceptance remain
+required by the analytics target contract.
 
 The service emits closed `request.stop`, `query.stop`, `ingest.stop`,
 `store.stop`, `queue.stop`, `publication.stop` and `resource.stop` telemetry.

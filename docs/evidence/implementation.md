@@ -2624,3 +2624,30 @@ archive inspection, licenses and the 419-file stack-language policy all passed.
 Tests cover ordered multi-batch delivery, no duplicate acknowledged samples,
 retention and restart continuity, invalid checkpoints, retry identity, adapter
 rejection, crash, timeout, configuration closure and diagnostic redaction.
+
+### Unsaved analytics follow mode — 2026-09-19
+
+The per-asset analytics page now offers an explicit follow mode after a
+successful structured query. It captures the scope event cursor before its
+first refresh and checks that cursor every five seconds. A later commit causes
+one fresh authorized state read and query; the selected duration is retained
+while the absolute UTC window moves to end immediately after the asset's newest
+retained observation. Quiet checks do not execute analytics. A commit racing a
+query stays visible to the next cursor check because the cursor advances only
+after the query succeeds.
+
+A temporary check or query failure retains the prior graph and exact table with
+a visible stale state, then retries from a fresh snapshot. Forbidden,
+unauthorized or missing state clears the result and stops following. Manual
+queries, prompted queries, asset refresh, historical shift/zoom and save
+preparation cancel the timer; an epoch guard prevents an already-delivered old
+timer message from changing the page. Export terminal denial also cancels an
+active follow timer.
+
+LiveView workflow tests cover commit-driven window movement, temporary failure
+and recovery, no rerun on a quiet cursor, explicit historical pause, obsolete
+timer rejection, initial cursor-snapshot recovery, malformed cursor metadata,
+manual stop and terminal authorization loss. The complete shared-UI gate passed
+118 tests at 95.0% production line coverage, with compiler, unused-dependency,
+formatter, dependency audit, strict Credo, ExDoc, Dialyzer, package archive,
+license and stack-language checks all passing.

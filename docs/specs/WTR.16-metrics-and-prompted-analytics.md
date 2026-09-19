@@ -51,7 +51,13 @@ return that same result or report that retained data no longer reproduces it. Ow
 with the service. An open dashboard can follow committed changes: it checks the
 scope's committed event cursor every 5 seconds, reruns only after a commit and
 reruns a rolling window every 30 seconds, distinguishing a temporary stale
-result from an invalidated read. The per-asset analytics page has no follow mode.
+result from an invalidated read. After an unsaved per-asset query, a reader can
+also opt into a five-second committed-event check. Each changed scope snapshot
+retains the selected duration and shifts its absolute UTC window to the newest
+retained asset state before the ordinary authorized query runs. Temporary
+failure leaves the previous result visibly stale for retry; terminal denial
+clears it. Historical navigation, a changed query or preparing a save stops
+follow mode, and obsolete timer messages cannot replace the current view.
 The saved-dashboard list can revisit up to 32 earlier authorized pages; a
 changed list generation requires a new first-page refresh.
 The browser can combine two to eight compatible saved definitions with distinct

@@ -405,9 +405,12 @@ and an accessible table. Gap-separated paths and time-window controls support
 historical exploration. A valid/suspect quality selector feeds the same closed
 query and persists with a saved definition. The optional browser host records
 closed LiveView render durations in the same volatile collector. Reconnect and
-OS-native resource events,
-follow-live refresh outside saved dashboards, general dashboard composition and sharing, prompting and the physical UI
-acceptance gates remain.
+OS-native resource events remain. The unsaved per-asset analytics page can opt
+into a five-second committed-event check that reruns only after a change, keeps
+the selected duration while moving to the newest retained asset state, marks a
+temporary failure stale and stops on terminal denial or historical navigation.
+General dashboard composition and sharing, a recorded real public-provider
+prompt run and the physical UI acceptance gates remain.
 The shared browser can also list saved query definitions and rerun one under
 current read authority. Administrators can save a displayed graph with a fixed
 or rolling window and recover a lost reply by operation reference.

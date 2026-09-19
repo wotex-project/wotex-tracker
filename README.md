@@ -105,8 +105,12 @@ asset and inspect qualified buckets, source gaps, counts and snapshot identity.
 It offers line, area and point graphs with separate paths across gaps, an exact
 table and time-window navigation. The browser can list and rerun saved query
 definitions under current read authority, and an administrator can save the
-current graph as a fixed or rolling definition. Scheduled live refresh,
-dashboard editing/composition/sharing, and prompted queries remain to be built.
+current graph as a fixed, rolling or incident-snapshot definition, edit or
+delete it, and combine compatible definitions. Open saved dashboards and the
+unsaved analytics page can follow committed changes with explicit stale and
+terminal-denial behavior. An optional bounded prompt adapter proposes the same
+closed query form. General dashboard composition and sharing, a recorded real
+public-provider prompt run and physical cross-surface acceptance remain open.
 
 The service package also defines closed `:telemetry` events for requests,
 queries, import stages, commits, forward queues, publication reconciliation and

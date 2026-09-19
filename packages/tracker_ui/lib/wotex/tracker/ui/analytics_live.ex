@@ -5,6 +5,9 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
   The screen builds a closed `Wotex.Tracker.QuerySpec` from available retained
   measurements and asks the service to execute it under current authority.
   Charts keep empty buckets as gaps and provide an exact values table. An
+  optional follow mode checks committed scope events and shifts the selected
+  duration to the newest retained asset state before rerunning. Historical
+  navigation and form changes stop following explicitly. An
   administrator can save the displayed query with a stable operation reference;
   an optional prompt provider cannot bypass query admission.
   """
@@ -29,6 +32,7 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
     "valid_suspect" => [:valid, :suspect]
   }
   @counter_kinds ~w(movementCounter measurementSequence)
+  @follow_interval_ms 5_000
 
   @impl true
   def mount(_, _, socket) do
@@ -51,6 +55,11 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
        prompt_explanation: nil,
        prompt_clarification: nil,
        prompt_error: nil,
+       follow_epoch: 0,
+       follow_timer: nil,
+       follow_status: nil,
+       follow_error: nil,
+       follow_cursor: nil,
        error: nil
      )}
   end
@@ -62,6 +71,7 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
         socket
       else
         socket
+        |> stop_follow()
         |> assign(id: id, result: nil, chart: nil, error: nil, save_generation: nil)
         |> load()
       end
@@ -71,18 +81,41 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
 
   @impl true
   def handle_event("refresh", _, socket),
-    do: {:noreply, socket |> assign(result: nil, chart: nil, error: nil) |> load()}
+    do:
+      {:noreply, socket |> stop_follow() |> assign(result: nil, chart: nil, error: nil) |> load()}
 
   def handle_event("run", %{"query" => input}, %{assigns: %{state: %{}, asset: %{}}} = socket)
       when is_map(input) do
     {:noreply,
-     socket |> assign(prompt_explanation: nil, prompt_clarification: nil) |> run_query(input)}
+     socket
+     |> stop_follow()
+     |> assign(prompt_explanation: nil, prompt_clarification: nil)
+     |> run_query(input)}
   end
+
+  def handle_event("start-follow", _, socket) do
+    if socket.assigns.result && is_nil(socket.assigns.follow_timer) &&
+         is_nil(socket.assigns.save_operation) do
+      socket =
+        socket
+        |> assign(follow_epoch: socket.assigns.follow_epoch + 1)
+        |> schedule_follow()
+        |> follow_latest()
+
+      {:noreply, socket}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_event("stop-follow", _, socket), do: {:noreply, stop_follow(socket)}
 
   def handle_event("ask", %{"prompt" => %{"question" => question}}, socket)
       when is_binary(question) do
     socket =
-      assign(socket,
+      socket
+      |> stop_follow()
+      |> assign(
         prompt_question: question,
         prompt_error: nil,
         prompt_clarification: nil,
@@ -111,6 +144,8 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
   end
 
   def handle_event("navigate", %{"direction" => direction}, %{assigns: %{result: %{}}} = socket) do
+    socket = stop_follow(socket)
+
     with {:ok, from_at} <- utc_milliseconds(socket.assigns.query["from"]),
          {:ok, to_at} <- utc_milliseconds(socket.assigns.query["to"]),
          {:ok, {new_from, new_to}} <- QueryWindow.move(direction, from_at, to_at) do
@@ -136,6 +171,8 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
           }
         } = socket
       ) do
+    socket = stop_follow(socket)
+
     case Auth.request(socket, :list, %{"resource" => "saved_queries", "params" => %{"limit" => 1}}) do
       {:ok, %{"generation" => generation}} ->
         socket =
@@ -206,7 +243,10 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
 
       {:error, %{"code" => code} = error}
       when code in ~w(forbidden unauthorized not_found conflict) ->
-        {:noreply, assign(socket, result: nil, chart: nil, error: error)}
+        {:noreply,
+         socket
+         |> stop_follow()
+         |> assign(result: nil, chart: nil, error: error)}
 
       {:error, error} ->
         {:noreply, assign(socket, error: error)}
@@ -220,6 +260,17 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
     do: {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
 
   def handle_event(_, _, socket), do: {:noreply, socket}
+
+  @impl true
+  def handle_info({:follow, epoch}, socket) do
+    if is_reference(socket.assigns.follow_timer) and epoch == socket.assigns.follow_epoch do
+      {:noreply, socket |> check_follow_changes() |> reschedule_follow()}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_info(_, socket), do: {:noreply, socket}
 
   @impl true
   def render(assigns) do
@@ -325,6 +376,25 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
         <button class="secondary" phx-click="navigate" phx-value-direction="zoom_out">Zoom out</button>
       </div>
       <.query_result :if={@result} result={@result} chart={@chart} view={@query["view"]} />
+      <section :if={@result} class="panel" aria-label="Follow live analytics">
+        <h2>Follow committed changes</h2>
+        <p>
+          Follow mode checks for committed scope changes every 5 seconds. After a change, it keeps
+          this query's duration and moves its UTC window to the newest retained state for this asset.
+          Manual query or time-window changes stop follow mode.
+        </p>
+        <button :if={is_nil(@follow_timer)} phx-click="start-follow">Start follow mode</button>
+        <button :if={@follow_timer} class="secondary" phx-click="stop-follow">
+          Stop follow mode
+        </button>
+        <p :if={@follow_timer && @follow_status == :current} role="status">
+          Follow mode active; displaying the latest successful committed snapshot.
+        </p>
+        <p :if={@follow_timer && @follow_status == :stale} role="status">
+          The displayed result is stale. Follow mode will retry in 5 seconds.
+        </p>
+        <.notice error={@follow_error} />
+      </section>
       <button :if={@result} class="secondary" phx-click="export-result">
         Export result JSON
       </button>
@@ -378,6 +448,147 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
     </main>
     """
   end
+
+  # The event cursor is captured before the run. It advances only after a
+  # successful query, so a commit racing that query is observed on the next check.
+  defp follow_latest(socket) do
+    case Auth.request(socket, :list, %{"resource" => "state", "params" => %{"limit" => 1}}) do
+      {:ok, %{"stream_cursor" => cursor}} when is_binary(cursor) ->
+        socket = refresh_follow(socket)
+
+        if socket.assigns.follow_status == :current and
+             is_reference(socket.assigns.follow_timer),
+           do: assign(socket, follow_cursor: cursor),
+           else: socket
+
+      {:error, error} ->
+        follow_failure(socket, error)
+
+      _ ->
+        follow_failure(socket, %{"code" => "storage_unavailable"})
+    end
+  end
+
+  defp check_follow_changes(%{assigns: %{follow_cursor: nil}} = socket),
+    do: follow_latest(socket)
+
+  # A stale result retries from a fresh snapshot even if the triggering event
+  # cursor has since expired or a quiet scope has no additional commit.
+  defp check_follow_changes(%{assigns: %{follow_status: :stale}} = socket),
+    do: follow_latest(socket)
+
+  defp check_follow_changes(socket) do
+    case Auth.request(socket, :events, %{"cursor" => socket.assigns.follow_cursor}) do
+      {:ok, %{"items" => []}} ->
+        socket
+
+      {:ok, %{"items" => [_ | _]}} ->
+        follow_latest(socket)
+
+      {:error, %{"code" => code}} when code in ~w(cursor_expired invalid_cursor) ->
+        follow_latest(socket)
+
+      {:error, error} ->
+        follow_failure(socket, error)
+
+      _ ->
+        follow_failure(socket, %{"code" => "storage_unavailable"})
+    end
+  end
+
+  defp refresh_follow(socket) do
+    case Auth.request(socket, :get, %{"resource" => "state", "id" => socket.assigns.id}) do
+      {:ok, %{"value" => state}} ->
+        measurements = numeric_measurements(state)
+
+        with {:ok, input} <- follow_input(socket.assigns.query, state),
+             {:ok, document} <- document(assign(socket, measurements: measurements), input),
+             {:ok, result} <- Auth.request(socket, :analytics, %{"query" => document}) do
+          assign(socket,
+            state: state,
+            measurements: measurements,
+            query: input,
+            result: result,
+            chart: Chart.project(result),
+            error: nil,
+            follow_status: :current,
+            follow_error: nil
+          )
+        else
+          {:error, error} -> follow_failure(socket, error)
+        end
+
+      {:error, error} ->
+        follow_failure(socket, error)
+
+      _ ->
+        follow_failure(socket, %{"code" => "storage_unavailable"})
+    end
+  end
+
+  defp follow_input(query, %{"observed_at" => %{"value" => observed_at}})
+       when is_integer(observed_at) do
+    with {:ok, from_at} <- utc_milliseconds(query["from"]),
+         {:ok, to_at} <- utc_milliseconds(query["to"]),
+         true <- to_at > from_at do
+      live_to = observed_at + 1
+
+      {:ok,
+       query
+       |> Map.put("from", iso8601(max(0, live_to - (to_at - from_at))))
+       |> Map.put("to", iso8601(live_to))}
+    else
+      _ -> {:error, %{"code" => "invalid_request"}}
+    end
+  end
+
+  defp follow_input(_, _), do: {:error, %{"code" => "storage_unavailable"}}
+
+  defp follow_failure(socket, %{"code" => code} = error)
+       when code in ~w(forbidden unauthorized not_found) do
+    socket
+    |> stop_follow()
+    |> assign(
+      asset: nil,
+      state: nil,
+      measurements: [],
+      query: %{},
+      result: nil,
+      chart: nil,
+      error: error
+    )
+  end
+
+  defp follow_failure(socket, error),
+    do: assign(socket, follow_status: :stale, follow_error: error)
+
+  defp schedule_follow(socket) do
+    timer =
+      Process.send_after(self(), {:follow, socket.assigns.follow_epoch}, @follow_interval_ms)
+
+    assign(socket, follow_timer: timer)
+  end
+
+  defp reschedule_follow(%{assigns: %{follow_timer: timer}} = socket)
+       when is_reference(timer),
+       do: schedule_follow(socket)
+
+  defp reschedule_follow(socket), do: socket
+
+  defp stop_follow(%{assigns: %{follow_timer: timer}} = socket)
+       when is_reference(timer) do
+    Process.cancel_timer(timer)
+
+    assign(socket,
+      follow_epoch: socket.assigns.follow_epoch + 1,
+      follow_timer: nil,
+      follow_status: nil,
+      follow_error: nil,
+      follow_cursor: nil
+    )
+  end
+
+  defp stop_follow(socket), do: socket
 
   defp load(socket) do
     case Auth.request(socket, :get, %{
