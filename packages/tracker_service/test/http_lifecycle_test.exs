@@ -4,6 +4,17 @@ defmodule Wotex.Tracker.HTTPLifecycleTest do
   import Wotex.Tracker.Service.Fixtures
   alias Wotex.Tracker.Service
   alias Wotex.Tracker.Service.HTTP.{Config, Server}
+  alias Wotex.Tracker.Service.NotificationAdapter
+
+  defmodule NotificationAdapterFixture do
+    @behaviour NotificationAdapter
+
+    @impl true
+    def deliver(owner, target, payload) do
+      send(owner, {:notification_delivery, target, payload})
+      {:retry, :unavailable}
+    end
+  end
 
   setup do
     Application.ensure_all_started(:inets)
@@ -74,6 +85,26 @@ defmodule Wotex.Tracker.HTTPLifecycleTest do
     assert {:error, :storage_unavailable} = Server.child(self(), :missing)
   end
 
+  test "notification delivery is an explicit supervised and inspectable child", context do
+    dispatcher = [
+      adapter: {NotificationAdapterFixture, self()},
+      scopes: [context.scope],
+      interval_ms: 60_000,
+      retry_after_ms: 1_000,
+      max_batch: 4,
+      timeout_ms: 1_000
+    ]
+
+    configured = Keyword.put(options(context), :notification_dispatcher, dispatcher)
+    assert {:ok, _} = Config.new(configured)
+    server = start_supervised!({Server, configured})
+    assert {:ok, child} = Server.child(server, :notification_dispatcher)
+    assert Process.alive?(child)
+
+    assert {:ok, %{"schema" => "wtr.notification-dispatcher.v1"}} =
+             Server.notification_dispatcher(server)
+  end
+
   test "IPv6, explicit loopback origins and proxy exposure require complete bounded configuration",
        context do
     for change <- [
@@ -98,7 +129,16 @@ defmodule Wotex.Tracker.HTTPLifecycleTest do
           ],
           [exposure: :proxy, public_origin: "https://user:secret@example.test"],
           [rule_scheduler: [max_rules: 0]],
-          [rule_scheduler: [unknown: true]]
+          [rule_scheduler: [unknown: true]],
+          [notification_dispatcher: []],
+          [notification_dispatcher: [adapter: {String, nil}]],
+          [
+            notification_dispatcher: [
+              adapter: {NotificationAdapterFixture, self()},
+              scopes: [],
+              max_batch: 0
+            ]
+          ]
         ] do
       assert {:error, :invalid_configuration} =
                Config.new(Keyword.merge(options(context), change))

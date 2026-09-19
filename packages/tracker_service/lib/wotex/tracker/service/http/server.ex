@@ -12,7 +12,14 @@ defmodule Wotex.Tracker.Service.HTTP.Server do
   use Supervisor
   alias Wotex.Tracker.Service
   alias Wotex.Tracker.Service.HTTP.{Capacity, Config, Router}
-  alias Wotex.Tracker.Service.{OperationalHistory, ResourceSampler, RuleScheduler, Store}
+
+  alias Wotex.Tracker.Service.{
+    NotificationDispatcher,
+    OperationalHistory,
+    ResourceSampler,
+    RuleScheduler,
+    Store
+  }
 
   @doc "Starts a fully explicit isolated service instance; invalid configuration starts nothing."
   @spec start_link(keyword()) :: Supervisor.on_start()
@@ -43,6 +50,12 @@ defmodule Wotex.Tracker.Service.HTTP.Server do
   def rule_schedule(server) do
     with {:ok, scheduler} <- child(server, :rule_scheduler),
          do: RuleScheduler.snapshot(scheduler)
+  end
+
+  @doc "Returns bounded host-only notification delivery metadata when configured."
+  def notification_dispatcher(server) do
+    with {:ok, dispatcher} <- child(server, :notification_dispatcher),
+         do: NotificationDispatcher.snapshot(dispatcher)
   end
 
   @doc false
@@ -76,26 +89,43 @@ defmodule Wotex.Tracker.Service.HTTP.Server do
         clock: config.clock
       )
 
-    children = [
-      Supervisor.child_spec(
-        {OperationalHistory, Keyword.put(config.operational_history, :clock, config.clock)},
-        id: :operational_history
-      ),
-      Supervisor.child_spec({Capacity, config}, id: :capacity),
-      Supervisor.child_spec({Store, store_options}, id: :store),
-      Supervisor.child_spec(
-        {RuleScheduler,
-         Keyword.merge(config.rule_scheduler,
-           store: {:supervisor, self()},
-           clock: config.clock
-         )},
-        id: :rule_scheduler
-      ),
-      Supervisor.child_spec({Bandit, listener(config, self())}, id: :listener),
-      Supervisor.child_spec({ResourceSampler, []}, id: :resource_sampler)
-    ]
+    children =
+      [
+        Supervisor.child_spec(
+          {OperationalHistory, Keyword.put(config.operational_history, :clock, config.clock)},
+          id: :operational_history
+        ),
+        Supervisor.child_spec({Capacity, config}, id: :capacity),
+        Supervisor.child_spec({Store, store_options}, id: :store)
+      ] ++
+        notification_children(config) ++
+        [
+          Supervisor.child_spec(
+            {RuleScheduler,
+             Keyword.merge(config.rule_scheduler,
+               store: {:supervisor, self()},
+               clock: config.clock
+             )},
+            id: :rule_scheduler
+          ),
+          Supervisor.child_spec({Bandit, listener(config, self())}, id: :listener),
+          Supervisor.child_spec({ResourceSampler, []}, id: :resource_sampler)
+        ]
 
     Supervisor.init(children, strategy: :rest_for_one)
+  end
+
+  defp notification_children(%{notification_dispatcher: nil}), do: []
+
+  defp notification_children(config) do
+    options =
+      Keyword.merge(config.notification_dispatcher,
+        store: {:supervisor, self()},
+        credentials: config.credentials,
+        clock: config.clock
+      )
+
+    [Supervisor.child_spec({NotificationDispatcher, options}, id: :notification_dispatcher)]
   end
 
   defp origin(server, %{public_origin: :listener}) do

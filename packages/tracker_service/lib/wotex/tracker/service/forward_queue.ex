@@ -5,6 +5,7 @@ defmodule Wotex.Tracker.Service.ForwardQueue do
 
   @completion_fields ~w(status layer at reference)a
   @completion_statuses ~w(sent acknowledged)a
+  @discard_reasons ~w(endpoint_missing endpoint_rotated authorization_revoked provider_rejected invalid_token)
 
   def enqueue(db, item, options) do
     transaction(db, options, fn -> stage(db, item, options) end)
@@ -36,29 +37,7 @@ defmodule Wotex.Tracker.Service.ForwardQueue do
           [scope, now, limit]
         )
 
-      items =
-        Enum.map(rows, fn [id, digest, document, bytes, _admitted, expires, attempts, maximum] ->
-          attempt = attempts + 1
-          retry_at = min(expires, now + retry_after_ms)
-
-          SQL.rows!(
-            db,
-            "UPDATE forward_queue SET attempts=?,next_attempt_at=? " <>
-              "WHERE scope=? AND id=? AND status='pending'",
-            [attempt, retry_at, scope, id]
-          )
-
-          document
-          |> Codec.decode!()
-          |> Map.merge(%{
-            "queue_identity" => digest,
-            "size_bytes" => bytes,
-            "expires_at" => expires,
-            "attempt" => attempt,
-            "maximum_attempts" => maximum,
-            "retry_at" => retry_at
-          })
-        end)
+      items = claim_rows(db, scope, now, retry_after_ms, rows)
 
       %{
         "schema" => "wtr.forward-claim.v1",
@@ -70,11 +49,47 @@ defmodule Wotex.Tracker.Service.ForwardQueue do
     end)
   end
 
+  def claim_notifications(db, scope, now, limit, retry_after_ms, options) do
+    transaction(db, options, fn ->
+      expire(db, scope, now)
+      exhaust(db, scope, now)
+
+      rows =
+        SQL.rows!(
+          db,
+          "SELECT id,digest,document,size_bytes,admitted_at,expires_at,attempts,max_attempts " <>
+            "FROM forward_queue WHERE scope=? AND status='pending' AND next_attempt_at<=? " <>
+            "AND json_extract(document,'$.bearer')='push' " <>
+            "AND json_extract(document,'$.application_protocol')='apns' " <>
+            "AND json_extract(document,'$.payload.schema')='wtr.notification-reference.v1' " <>
+            "ORDER BY admitted_at,id LIMIT ?",
+          [scope, now, limit]
+        )
+
+      %{
+        "schema" => "wtr.forward-claim.v1",
+        "scope" => scope,
+        "claimed_at" => now,
+        "retry_after_ms" => retry_after_ms,
+        "items" => claim_rows(db, scope, now, retry_after_ms, rows)
+      }
+    end)
+  end
+
   def complete(db, scope, id, identity, completion, options) do
     transaction(db, options, fn ->
       case row(db, scope, id) do
         nil -> throw({:storage, :not_found})
         stored -> complete_row(db, stored, identity, completion)
+      end
+    end)
+  end
+
+  def discard(db, scope, id, identity, reason, now, options) do
+    transaction(db, options, fn ->
+      case row(db, scope, id) do
+        nil -> throw({:storage, :not_found})
+        stored -> discard_row(db, stored, identity, reason, now)
       end
     end)
   end
@@ -125,6 +140,33 @@ defmodule Wotex.Tracker.Service.ForwardQueue do
     else
       _ -> {:error, :invalid_forward_completion}
     end
+  end
+
+  def discard_reason?(value), do: value in @discard_reasons
+
+  defp claim_rows(db, scope, now, retry_after_ms, rows) do
+    Enum.map(rows, fn [id, digest, document, bytes, _admitted, expires, attempts, maximum] ->
+      attempt = attempts + 1
+      retry_at = min(expires, now + retry_after_ms)
+
+      SQL.rows!(
+        db,
+        "UPDATE forward_queue SET attempts=?,next_attempt_at=? " <>
+          "WHERE scope=? AND id=? AND status='pending'",
+        [attempt, retry_at, scope, id]
+      )
+
+      document
+      |> Codec.decode!()
+      |> Map.merge(%{
+        "queue_identity" => digest,
+        "size_bytes" => bytes,
+        "expires_at" => expires,
+        "attempt" => attempt,
+        "maximum_attempts" => maximum,
+        "retry_at" => retry_at
+      })
+    end)
   end
 
   defp insert(db, item, options) do
@@ -223,6 +265,41 @@ defmodule Wotex.Tracker.Service.ForwardQueue do
     )
 
     project(%{stored | status: "delivered", outcome: outcome, settled_at: completion.at})
+  end
+
+  defp discard_row(_db, %{digest: digest}, identity, _reason, _now) when digest != identity,
+    do: throw({:storage, :forward_conflict})
+
+  defp discard_row(_db, %{status: "delivered"}, _identity, _reason, _now),
+    do: throw({:storage, :forward_conflict})
+
+  defp discard_row(
+         _db,
+         %{status: "discarded", outcome: outcome} = stored,
+         _identity,
+         reason,
+         _now
+       ) do
+    if outcome == reason,
+      do: project(stored),
+      else: throw({:storage, :forward_conflict})
+  end
+
+  defp discard_row(_db, %{attempts: 0}, _identity, _reason, _now),
+    do: throw({:storage, :forward_not_claimed})
+
+  defp discard_row(_db, %{admitted_at: admitted}, _identity, _reason, now) when now < admitted,
+    do: throw({:storage, :invalid_forward_discard})
+
+  defp discard_row(db, stored, _identity, reason, now) do
+    SQL.rows!(
+      db,
+      "UPDATE forward_queue SET status='discarded',outcome=?,settled_at=? " <>
+        "WHERE scope=? AND id=? AND status='pending'",
+      [reason, now, stored.scope, stored.id]
+    )
+
+    project(%{stored | status: "discarded", outcome: reason, settled_at: now})
   end
 
   defp validate_completion!(%{status: :sent, layer: :none, at: at}, "none", admitted)

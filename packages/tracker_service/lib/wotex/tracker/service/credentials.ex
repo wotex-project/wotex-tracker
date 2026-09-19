@@ -46,6 +46,11 @@ defmodule Wotex.Tracker.Service.Credentials do
   @spec instance_id(t()) :: String.t()
   def instance_id(%__MODULE__{instance_id: instance}), do: instance
 
+  @doc false
+  @spec scopes(t()) :: [String.t()]
+  def scopes(%__MODULE__{entries: entries}),
+    do: entries |> Enum.flat_map(&Map.keys(&1.grants)) |> Enum.uniq() |> Enum.sort()
+
   @doc "Generates a 256-bit bearer token; the host must deliver/store it confidentially."
   @spec generate_token() :: String.t()
   def generate_token, do: Base.url_encode64(:crypto.strong_rand_bytes(32), padding: false)

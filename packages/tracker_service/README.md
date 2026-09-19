@@ -191,8 +191,18 @@ only `wtr.notification-reference.v1` and the opaque alert ID; rule kind, locatio
 evidence and credentials are excluded. Replay alerts stage nothing. Queue
 overflow records a dropped outcome without rolling back canonical rule state or
 the alert, and a pre-commit failure rolls the rule, alert and staged reference
-back together. Provider acceptance, OS delivery and user reading remain distinct;
-this package does not yet dispatch the queued APNs request.
+back together. Hosts may explicitly configure `NotificationDispatcher` with one
+provider adapter. Its supervised bounded worker claims only those notification
+references, resolves the exact endpoint revision, rechecks the registration's
+retained authority immediately before every provider call and never passes more
+than the private target plus opaque alert reference to the adapter. Provider
+acceptance completes the durable item at the application layer; retryable or
+malformed outcomes stay pending. Permanent rejection and missing, rotated or
+revoked targets are distinct terminal outcomes. An invalid-token response removes
+only the still-matching endpoint revision before settling the item. Provider
+acceptance, OS delivery and user reading remain distinct. No provider or APNs
+credential is selected implicitly, and an actual APNs transport adapter remains
+deployment work.
 
 Each recorded rule event also becomes a newest-first `wtr.alert.v1` record with
 the reviewed event. `Service.acknowledge_alert/6` and `POST

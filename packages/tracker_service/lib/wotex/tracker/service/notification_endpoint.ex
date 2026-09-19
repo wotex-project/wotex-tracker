@@ -5,7 +5,15 @@ defmodule Wotex.Tracker.Service.NotificationEndpoint do
   # the generic record store, while the public projection remains sufficient
   # for an administrator to distinguish and rotate an app installation.
 
-  alias Wotex.Tracker.Service.{Authority, Codec, Credentials, Projection, Store, Update}
+  alias Wotex.Tracker.Service.{
+    Authority,
+    Codec,
+    Credentials,
+    NotificationTarget,
+    Projection,
+    Store,
+    Update
+  }
 
   @register_fields ~w(id provider app_id environment token expected_generation)
   @unregister_fields ~w(id expected_generation)
@@ -160,6 +168,64 @@ defmodule Wotex.Tracker.Service.NotificationEndpoint do
     end
   end
 
+  @doc false
+  def resolve(service, scope, candidate_id, now) do
+    with {:ok, {internal_id, revision}} <- candidate(candidate_id),
+         {:ok, %{"value" => value}} <-
+           Store.notification_endpoint(service.store, scope, internal_id),
+         {:ok, target} <- target(service, scope, internal_id, value),
+         true <- target.revision == revision,
+         :ok <- Store.authorized(service.store, target.access, "admin", now) do
+      {:ok, target}
+    else
+      {:error, :not_found} ->
+        {:error, :endpoint_missing}
+
+      false ->
+        {:error, :endpoint_rotated}
+
+      {:error, reason} when reason in [:unauthorized, :forbidden] ->
+        {:error, :authorization_revoked}
+
+      _ ->
+        {:error, :storage_unavailable}
+    end
+  end
+
+  @doc false
+  def invalidate(service, %NotificationTarget{} = target, queue_id, now),
+    do: invalidate(service, target, queue_id, now, 3)
+
+  defp invalidate(_service, _target, _queue_id, _now, 0), do: {:error, :conflict}
+
+  defp invalidate(service, target, queue_id, now, attempts) do
+    case Store.notification_endpoint(service.store, target.scope, target.internal_id) do
+      {:ok, %{"generation" => generation, "value" => value}} ->
+        with {:ok, current} <- target(service, target.scope, target.internal_id, value),
+             true <- current.revision == target.revision,
+             {:ok, update} <- invalidation_update(service, current, queue_id, generation, now) do
+          commit_invalidation(service, target, queue_id, now, attempts, update)
+        else
+          false -> {:error, :endpoint_rotated}
+          error -> error
+        end
+
+      {:error, :not_found} ->
+        {:error, :endpoint_missing}
+
+      error ->
+        error
+    end
+  end
+
+  defp commit_invalidation(service, target, queue_id, now, attempts, update) do
+    case Store.mutate(service.store, update) do
+      {:ok, _receipt} -> :ok
+      {:error, :conflict} -> invalidate(service, target, queue_id, now, attempts - 1)
+      error -> error
+    end
+  end
+
   defp existing_or_capacity(service, access, internal_id, request, now) do
     case current(service, access, internal_id, request, now) do
       {:ok, %{"value" => value}} ->
@@ -293,6 +359,88 @@ defmodule Wotex.Tracker.Service.NotificationEndpoint do
     do:
       public["provider"] == request["provider"] and public["app_id"] == request["app_id"] and
         public["environment"] == request["environment"]
+
+  defp target(service, scope, internal_id, value) do
+    with {:ok, access} <- Authority.restore(value["authority"]),
+         true <- access.scope == scope,
+         {:ok, public} <- project(service, access, internal_id, value),
+         {:ok, token} <- open(service, access, internal_id, public, value["secret"]),
+         true <- token?(token) do
+      {:ok,
+       %NotificationTarget{
+         scope: scope,
+         internal_id: internal_id,
+         id: public["id"],
+         provider: public["provider"],
+         app_id: public["app_id"],
+         environment: public["environment"],
+         revision: public["revision"],
+         token: token,
+         access: access
+       }}
+    else
+      _ -> {:error, :storage_unavailable}
+    end
+  end
+
+  defp candidate(candidate_id) when is_binary(candidate_id) do
+    case String.split(candidate_id, "@", parts: 2) do
+      [internal_id, revision] ->
+        if Codec.id?(internal_id) and Codec.id?(revision),
+          do: {:ok, {internal_id, revision}},
+          else: {:error, :invalid_candidate}
+
+      _ ->
+        {:error, :invalid_candidate}
+    end
+  end
+
+  defp candidate(_), do: {:error, :invalid_candidate}
+
+  defp invalidation_update(service, target, queue_id, generation, now) do
+    operation =
+      "notification-invalid:" <>
+        Codec.digest(%{
+          "scope" => target.scope,
+          "endpoint" => target.internal_id,
+          "revision" => target.revision,
+          "queue" => queue_id
+        })
+
+    Update.new(%{
+      principal: target.access.principal,
+      scope: target.scope,
+      authority: target.access,
+      operation_id: operation,
+      expected_generation: generation,
+      now: now,
+      request: %{
+        "operation" => "invalidate_notification_endpoint",
+        "endpoint_id" => target.id,
+        "revision" => target.revision,
+        "queue_id" => queue_id
+      },
+      observation: nil,
+      publication: nil,
+      response: %{"endpoint_id" => target.id, "action" => "invalidated"},
+      records: [%{kind: "notification_endpoints", id: target.internal_id, value: nil}],
+      events: [
+        %{
+          "type" => "notification_endpoint.changed",
+          "data" => %{
+            "id" =>
+              Projection.pseudonym(
+                service.credentials,
+                target.scope,
+                "notification-endpoint-event",
+                target.access.principal <> ":" <> target.id
+              ),
+            "action" => "invalidated"
+          }
+        }
+      ]
+    })
+  end
 
   defp internal_id(service, access, id),
     do:

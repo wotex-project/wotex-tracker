@@ -189,6 +189,163 @@ defmodule Wotex.Tracker.Service.ForwardQueueTest do
              )
   end
 
+  test "notification claims are isolated and explicit discards require the exact claimed item" do
+    {store, _} = store()
+    ordinary = item("ordinary")
+
+    notification =
+      item("notification",
+        bearer: "push",
+        protocol: "apns",
+        candidate: "endpoint@revision",
+        payload: %{"schema" => "wtr.notification-reference.v1", "event_ref" => "alert-1"},
+        source: :lossy,
+        acknowledgement: :application
+      )
+
+    assert {:ok, _} = Store.enqueue_forward(store, ordinary)
+    assert {:ok, _} = Store.enqueue_forward(store, notification)
+
+    assert {:ok, %{"items" => [claimed]}} =
+             Store.claim_notifications(store, "workshop", now(), 10, 100)
+
+    assert claimed["id"] == notification.id
+    assert claimed["attempt"] == 1
+
+    assert {:ok, %{"items" => [%{"id" => "ordinary"}]}} =
+             Store.claim_forward(store, "workshop", now(), 10, 100)
+
+    assert {:error, :forward_conflict} =
+             Store.discard_forward(
+               store,
+               notification.scope,
+               notification.id,
+               ordinary.identity,
+               "provider_rejected",
+               now() + 1
+             )
+
+    assert {:ok, discarded} =
+             Store.discard_forward(
+               store,
+               notification.scope,
+               notification.id,
+               notification.identity,
+               "provider_rejected",
+               now() + 1
+             )
+
+    assert discarded["status"] == "discarded"
+    assert discarded["reason"] == "provider_rejected"
+    assert discarded["settled_at"] == now() + 1
+
+    assert {:ok, ^discarded} =
+             Store.discard_forward(
+               store,
+               notification.scope,
+               notification.id,
+               notification.identity,
+               "provider_rejected",
+               now() + 2
+             )
+
+    assert {:error, :forward_conflict} =
+             Store.discard_forward(
+               store,
+               notification.scope,
+               notification.id,
+               notification.identity,
+               "invalid_token",
+               now() + 2
+             )
+  end
+
+  test "discard admission is closed and an unclaimed item remains pending" do
+    {store, _} = store()
+    pending = item("pending-discard")
+    assert {:ok, _} = Store.enqueue_forward(store, pending)
+
+    assert {:error, :forward_not_claimed} =
+             Store.discard_forward(
+               store,
+               pending.scope,
+               pending.id,
+               pending.identity,
+               "endpoint_missing",
+               now()
+             )
+
+    assert {:error, :invalid_query} =
+             Store.claim_notifications(store, "", now(), 1, 1)
+
+    assert {:error, :invalid_query} =
+             Store.discard_forward(
+               store,
+               pending.scope,
+               pending.id,
+               pending.identity,
+               "invented_reason",
+               now()
+             )
+
+    assert {:ok, %{"status" => "pending"}} =
+             Store.forward_status(store, pending.scope, pending.id)
+
+    assert {:error, :not_found} =
+             Store.discard_forward(
+               store,
+               pending.scope,
+               "missing",
+               pending.identity,
+               "endpoint_missing",
+               now()
+             )
+
+    assert {:error, :invalid_query} = Store.notification_endpoint(store, "", "endpoint")
+  end
+
+  test "discard cannot replace delivery or predate queue admission" do
+    {store, _} = store()
+    delivered = item("already-delivered")
+    assert {:ok, _} = Store.enqueue_forward(store, delivered)
+    assert {:ok, %{"items" => [_]}} = Store.claim_forward(store, delivered.scope, now(), 1, 1)
+
+    assert {:ok, _} =
+             Store.complete_forward(
+               store,
+               delivered.scope,
+               delivered.id,
+               delivered.identity,
+               completion(:acknowledged, :durable_admission)
+             )
+
+    assert {:error, :forward_conflict} =
+             Store.discard_forward(
+               store,
+               delivered.scope,
+               delivered.id,
+               delivered.identity,
+               "provider_rejected",
+               now() + 2
+             )
+
+    future = item("future-discard", admitted_at: now() + 10)
+    assert {:ok, _} = Store.enqueue_forward(store, future)
+
+    assert {:ok, %{"items" => [_]}} =
+             Store.claim_forward(store, future.scope, now() + 10, 1, 1)
+
+    assert {:error, :invalid_forward_discard} =
+             Store.discard_forward(
+               store,
+               future.scope,
+               future.id,
+               future.identity,
+               "provider_rejected",
+               now()
+             )
+  end
+
   test "terminal cleanup is explicit, scoped and bounded by settlement time" do
     {store, _} = store(forward_max_items: 1)
     lossy = item("dropped", source: :lossy)

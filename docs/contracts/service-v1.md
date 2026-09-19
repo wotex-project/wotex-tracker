@@ -498,6 +498,21 @@ monotonic timer, rechecks durable identity and commits the pure live transition.
 Event intents may require separate physical authorization; no Action or
 notification is dispatched.
 
+An optional explicit `notification_dispatcher` host configuration supervises a
+bounded provider-neutral delivery worker after the store. It claims only APNs
+items carrying `wtr.notification-reference.v1`, resolves the exact encrypted
+endpoint revision and rechecks the retained administrator credential against
+current grants, expiry and durable revocation before each provider call. The
+adapter receives only the private endpoint target and opaque alert reference.
+Provider acceptance completes the queue item at application acknowledgement;
+retryable, crashing and malformed outcomes leave it pending. Missing, rotated or
+revoked endpoints and permanent provider rejection are separate terminal reasons.
+An invalid-token response tombstones only the still-matching endpoint revision.
+`Server.notification_dispatcher/1` exposes bounded host-only counts, never tokens,
+targets or payloads. The host supplies the provider adapter explicitly; this
+contract neither selects APNs credentials nor equates provider acceptance with OS
+delivery or a user read.
+
 ## Structured measurement query contract
 
 `POST …/analytics/query` requires `read` authority and the exact closed

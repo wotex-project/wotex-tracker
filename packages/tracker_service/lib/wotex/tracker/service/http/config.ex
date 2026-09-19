@@ -1,10 +1,10 @@
 defmodule Wotex.Tracker.Service.HTTP.Config do
   @moduledoc false
 
-  alias Wotex.Tracker.Service.Credentials
+  alias Wotex.Tracker.Service.{Codec, Credentials}
 
   @required ~w(directory credentials ip port public_origin exposure)a
-  @optional ~w(tls clock request_timeout stream_lifetime poll_interval store_options operational_history rule_scheduler)a
+  @optional ~w(tls clock request_timeout stream_lifetime poll_interval store_options operational_history rule_scheduler notification_dispatcher)a
 
   def new(options) when is_list(options) do
     if Keyword.keyword?(options) and length(options) == map_size(Map.new(options)),
@@ -25,7 +25,8 @@ defmodule Wotex.Tracker.Service.HTTP.Config do
           poll_interval: 1000,
           store_options: [],
           operational_history: [],
-          rule_scheduler: []
+          rule_scheduler: [],
+          notification_dispatcher: nil
         },
         input
       )
@@ -50,7 +51,8 @@ defmodule Wotex.Tracker.Service.HTTP.Config do
     do:
       is_function(value.clock, 0) and store_options?(value.store_options) and
         history_options?(value.operational_history) and
-        scheduler_options?(value.rule_scheduler)
+        scheduler_options?(value.rule_scheduler) and
+        dispatcher_options?(value.notification_dispatcher)
 
   defp budgets?(value),
     do:
@@ -60,7 +62,11 @@ defmodule Wotex.Tracker.Service.HTTP.Config do
   defp store_options?(options),
     do:
       is_list(options) and Keyword.keyword?(options) and
-        Enum.all?(Keyword.keys(options), &(&1 in ~w(max_rows max_pages busy_timeout timeout)a))
+        length(options) == length(Enum.uniq(Keyword.keys(options))) and
+        Enum.all?(
+          Keyword.keys(options),
+          &(&1 in ~w(max_rows max_pages busy_timeout timeout forward_max_items forward_max_bytes forward_max_age_ms forward_max_attempts)a)
+        )
 
   defp history_options?(options),
     do:
@@ -82,6 +88,47 @@ defmodule Wotex.Tracker.Service.HTTP.Config do
           Keyword.get(options, :monotonic_clock, fn -> System.monotonic_time(:millisecond) end),
           0
         )
+
+  defp dispatcher_options?(nil), do: true
+
+  defp dispatcher_options?(options) when is_list(options) do
+    allowed = [:adapter, :scopes, :interval_ms, :retry_after_ms, :max_batch, :timeout_ms]
+
+    Keyword.keyword?(options) and
+      length(options) == length(Enum.uniq(Keyword.keys(options))) and
+      Enum.all?(Keyword.keys(options), &(&1 in allowed)) and
+      dispatcher_values?(options)
+  end
+
+  defp dispatcher_options?(_), do: false
+
+  defp dispatcher_values?(options),
+    do:
+      Keyword.has_key?(options, :adapter) and adapter?(Keyword.get(options, :adapter)) and
+        scopes?(Keyword.get(options, :scopes)) and
+        option_integer?(options, :interval_ms, 1..60_000) and
+        option_integer?(options, :retry_after_ms, 1..86_400_000) and
+        option_integer?(options, :max_batch, 1..32) and
+        option_integer?(options, :timeout_ms, 1..30_000)
+
+  defp adapter?({module, _context}) when is_atom(module),
+    do: function_exported?(module, :deliver, 3)
+
+  defp adapter?(_), do: false
+
+  defp scopes?(nil), do: true
+
+  defp scopes?(scopes),
+    do:
+      is_list(scopes) and scopes != [] and length(scopes) <= 64 and
+        scopes == Enum.sort(Enum.uniq(scopes)) and Enum.all?(scopes, &Codec.id?/1)
+
+  defp option_integer?(options, key, range) do
+    case Keyword.fetch(options, key) do
+      :error -> true
+      {:ok, value} -> is_integer(value) and value in range
+    end
+  end
 
   defp budget?(value, max), do: is_integer(value) and value in 1..max
 

@@ -100,6 +100,13 @@ defmodule Wotex.Tracker.Service.Store do
   @spec fetch(t(), map()) :: {:ok, map()} | {:error, atom()}
   def fetch(store, query), do: StoreCall.run(store, {:fetch, query})
 
+  @doc false
+  def notification_endpoint(store, scope, internal_id) do
+    if Codec.id?(scope) and Codec.id?(internal_id),
+      do: StoreCall.run(store, {:notification_endpoint, scope, internal_id}),
+      else: {:error, :invalid_query}
+  end
+
   @doc "Checks current scope authority and reads one exact historical record atomically."
   @spec authorized_fetch(t(), Access.t(), String.t(), map(), integer()) ::
           {:ok, map()} | {:error, atom()}
@@ -233,6 +240,14 @@ defmodule Wotex.Tracker.Service.Store do
        else: {:error, :invalid_query}
   end
 
+  @doc false
+  def claim_notifications(store, scope, now, limit, retry_after_ms) do
+    if Codec.id?(scope) and Codec.time?(now) and is_integer(limit) and limit in 1..32 and
+         is_integer(retry_after_ms) and retry_after_ms in 1..86_400_000,
+       do: StoreCall.run(store, {:claim_notifications, scope, now, limit, retry_after_ms}),
+       else: {:error, :invalid_query}
+  end
+
   @doc "Returns one durable queue receipt without changing retry or expiry state."
   @spec forward_status(t(), String.t(), String.t()) :: {:ok, map()} | {:error, atom()}
   def forward_status(store, scope, id) do
@@ -251,6 +266,14 @@ defmodule Wotex.Tracker.Service.Store do
     else
       _ -> {:error, :invalid_query}
     end
+  end
+
+  @doc false
+  def discard_forward(store, scope, id, identity, reason, now) do
+    if Codec.id?(scope) and Codec.id?(id) and Codec.id?(identity) and
+         ForwardQueue.discard_reason?(reason) and Codec.time?(now),
+       do: StoreCall.run(store, {:discard_forward, scope, id, identity, reason, now}),
+       else: {:error, :invalid_query}
   end
 
   @doc "Explicitly removes terminal queue receipts settled at or before a cutoff."
@@ -481,6 +504,16 @@ defmodule Wotex.Tracker.Service.Store do
 
   defp dispatch({:snapshot, query}, state), do: Read.snapshot(state.db, query)
   defp dispatch({:fetch, query}, state), do: Read.fetch(state.db, query)
+
+  defp dispatch({:notification_endpoint, scope, internal_id}, state),
+    do:
+      Read.fetch(state.db, %{
+        scope: scope,
+        kind: "notification_endpoints",
+        id: internal_id,
+        generation: nil
+      })
+
   defp dispatch({:history, query}, state), do: Read.history(state.db, query)
 
   defp dispatch({:authorized_history, access, permission, query, now}, state),
@@ -631,11 +664,25 @@ defmodule Wotex.Tracker.Service.Store do
   defp dispatch({:claim_forward, scope, now, limit, retry_after_ms}, state),
     do: ForwardQueue.claim(state.db, scope, now, limit, retry_after_ms, state.options)
 
+  defp dispatch({:claim_notifications, scope, now, limit, retry_after_ms}, state),
+    do:
+      ForwardQueue.claim_notifications(
+        state.db,
+        scope,
+        now,
+        limit,
+        retry_after_ms,
+        state.options
+      )
+
   defp dispatch({:forward_status, scope, id}, state),
     do: ForwardQueue.status(state.db, scope, id)
 
   defp dispatch({:complete_forward, scope, id, identity, completion}, state),
     do: ForwardQueue.complete(state.db, scope, id, identity, completion, state.options)
+
+  defp dispatch({:discard_forward, scope, id, identity, reason, now}, state),
+    do: ForwardQueue.discard(state.db, scope, id, identity, reason, now, state.options)
 
   defp dispatch({:cleanup_forward, scope, before}, state),
     do: ForwardQueue.cleanup(state.db, scope, before, state.options)
@@ -717,7 +764,13 @@ defmodule Wotex.Tracker.Service.Store do
   defp emit_call({:claim_forward, scope, _, _, _}, result, state, started),
     do: emit_queue(:claim, scope, result, state, started)
 
+  defp emit_call({:claim_notifications, scope, _, _, _}, result, state, started),
+    do: emit_queue(:claim, scope, result, state, started)
+
   defp emit_call({:complete_forward, scope, _, _, _}, result, state, started),
+    do: emit_queue(:complete, scope, result, state, started)
+
+  defp emit_call({:discard_forward, scope, _, _, _, _}, result, state, started),
     do: emit_queue(:complete, scope, result, state, started)
 
   defp emit_call({:cleanup_forward, scope, _}, result, state, started),

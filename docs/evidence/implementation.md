@@ -3239,3 +3239,31 @@ The complete shared-UI gate passed 141 tests at 95.0% production line coverage;
 the alert detail reached 96.1%. Compiler, unused-dependency, formatter,
 dependency audit, strict Credo, ExDoc, Dialyzer, 51-member archive inspection,
 licenses and the 445-file stack-language policy all passed.
+
+### Supervised notification delivery boundary — 2026-09-19
+
+The explicit service host can now supervise one caller-configured notification
+dispatcher. Its bounded worker claims only minimal APNs reference items from the
+durable forward queue, binds each claim to the exact encrypted endpoint revision
+and rechecks the retained administrator access proof against current configured
+grants, expiry and durable revocation before invoking the adapter. No provider is
+selected when the dispatcher is absent.
+
+Provider acceptance records application acknowledgement without claiming OS
+delivery or a user read. Retryable, malformed, crashing and timed-out adapter
+outcomes remain pending for the durable retry policy. Missing, rotated and
+revoked endpoints and permanent provider rejection have distinct terminal
+receipts. An invalid-token result conditionally tombstones only the revision that
+was sent; concurrent rotation preserves the replacement, and concurrent
+revocation prevents the cleanup mutation and leaves the item retryable.
+
+Tests cover notification-only claiming, isolation from ordinary forwarding,
+exact queue identity and claim requirements, acceptance, retries, malformed and
+crashing adapters, worker timeout, endpoint removal and rotation, authorization
+revocation, invalid-token cleanup, concurrent rotation/revocation, terminal
+outcome races, supervised store discovery, unavailable storage and redacted
+status. The complete service gate passed 2 properties and 275 tests at 95.0%
+production line coverage. Compiler, unused-dependency, formatter, dependency
+audit, strict Credo, ExDoc, Dialyzer, boundary checks, OpenAPI validation,
+93-member package archive inspection, licenses and the 453-file stack-language
+policy all passed.
