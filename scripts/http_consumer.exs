@@ -74,6 +74,49 @@ defmodule Wotex.Tracker.HTTPConsumer do
     IO.puts("HTTP_CONSUMER_PASS openapi=true trip_summary=true private_ids=false")
   end
 
+  defp run(context, %{"mode" => "arming", "thing" => thing}) do
+    prefix = "/api/v1/scopes/" <> encode_segment(context.scope)
+    arming = prefix <> "/arming"
+    item = arming <> "/" <> encode_segment(thing)
+
+    request(context, "get_arming", item, who: :reader, status: 404)
+
+    request(context, "set_arming", arming,
+      body: %{
+        "thing_id" => thing,
+        "status" => "armed",
+        "expected_generation" => "3"
+      },
+      who: :reader,
+      status: 403
+    )
+
+    %{"generation" => "4", "data" => %{"thing_id" => ^thing, "status" => "armed"}} =
+      data(context, "set_arming", arming,
+        body: %{
+          "thing_id" => thing,
+          "status" => "armed",
+          "expected_generation" => "3"
+        }
+      )
+
+    {response, bytes} = request(context, "get_arming", item, who: :reader)
+    %{"value" => %{"thing_id" => ^thing, "status" => "armed", "revision" => "arming-4"}} =
+      response["data"]
+
+    for private <- ["arming-fact-", "arming-observation-", "administrator_committed"] do
+      false = String.contains?(bytes, private)
+    end
+
+    %{"items" => [%{"id" => ^thing, "value" => %{"status" => "armed"}}]} =
+      data(context, "list_arming", arming, who: :reader)
+
+    %{"items" => [%{"id" => ^thing, "value" => %{"status" => "armed"}, "deleted" => false}]} =
+      data(context, "history_arming", item <> "/history", who: :reader)
+
+    IO.puts("HTTP_CONSUMER_PASS openapi=true arming=true private_fact=false")
+  end
+
   defp run(context, descriptor) do
     workflow(context, descriptor)
 

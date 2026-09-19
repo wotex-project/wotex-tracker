@@ -14,6 +14,7 @@ defmodule Wotex.Tracker.Service do
   alias Wotex.Tracker.Service.{
     Alert,
     AnalyticsPage,
+    Arming,
     Association,
     Codec,
     Credentials,
@@ -40,7 +41,7 @@ defmodule Wotex.Tracker.Service do
 
   @maximum_time 9_007_199_254_740_991
 
-  @resources ~w(observations resolutions evidence state enrollments things saved_queries rules policies alerts)
+  @resources ~w(observations resolutions evidence state enrollments things saved_queries rules policies alerts arming)
   @derive {Inspect, only: [:base_url]}
   @enforce_keys [:store, :credentials, :catalogue, :model, :decoders, :base_url]
   defstruct @enforce_keys
@@ -312,6 +313,19 @@ defmodule Wotex.Tracker.Service do
         RuleDefinition,
         :delete,
         "policy"
+      )
+
+  @doc "Commits one explicit armed or disarmed fact for an enrolled Thing."
+  @spec set_arming(t(), String.t(), String.t(), String.t(), map(), integer()) ::
+          {:ok, map()} | {:error, map()}
+  def set_arming(service, token, scope, operation, request, now),
+    do:
+      admin_mutation(
+        service,
+        {token, scope, operation, request, now},
+        Arming,
+        :set,
+        "arming"
       )
 
   @doc """
@@ -741,6 +755,7 @@ defmodule Wotex.Tracker.Service do
   defp admit_admin(module, :save, request), do: module.admit_save(request)
   defp admit_admin(module, :delete, request), do: module.admit_delete(request)
   defp admit_admin(module, :acknowledge, request), do: module.admit_acknowledge(request)
+  defp admit_admin(module, :set, request), do: module.admit_set(request)
 
   defp prepare_admin(module, :save, service, access, operation, request, now),
     do: module.prepare_save(service, access, operation, request, now)
@@ -750,6 +765,9 @@ defmodule Wotex.Tracker.Service do
 
   defp prepare_admin(module, :acknowledge, service, access, operation, request, now),
     do: module.prepare_acknowledge(service, access, operation, request, now)
+
+  defp prepare_admin(module, :set, service, access, operation, request, now),
+    do: module.prepare_set(service, access, operation, request, now)
 
   defp storage_kind("observations"), do: "resolutions"
   defp storage_kind(resource), do: resource

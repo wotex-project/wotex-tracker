@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "WoTEx Tracker service",
-    "version": "1.27.0",
-    "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries, snapshot-pinned gap-honest route replay from retained private evidence, half-open time-windowed trip lifecycle pages and bounded completed-trip distance reconstruction, persisted rule status and administrator-managed heartbeat, battery, motion and geofence rule definitions evaluated against committed Thing evidence, acknowledgeable rule alerts listed per Thing for defined rules, administrator unenrollment, pinned incident snapshots and an administrator credential inventory. No scanner, notification delivery or physical interaction is implied."
+    "version": "1.28.0",
+    "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries, snapshot-pinned gap-honest route replay from retained private evidence, half-open time-windowed trip lifecycle pages and bounded completed-trip distance reconstruction, persisted rule status and administrator-managed heartbeat, battery, motion and geofence rule definitions evaluated against committed Thing evidence, explicit administrator-committed arming facts, acknowledgeable rule alerts listed per Thing for defined rules, administrator unenrollment, pinned incident snapshots and an administrator credential inventory. No scanner, notification delivery or physical interaction is implied."
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "security": [
@@ -177,6 +177,9 @@
                         "trip_summaries": {
                           "const": "bounded_gap_honest_reconstruction"
                         },
+                        "arming": {
+                          "const": "explicit_administrative_fact"
+                        },
                         "runtime": {
                           "type": "object",
                           "properties": {
@@ -211,6 +214,7 @@
                         "route_history",
                         "trip_history",
                         "trip_summaries",
+                        "arming",
                         "runtime",
                         "directory"
                       ],
@@ -5083,6 +5087,262 @@
         }
       }
     },
+    "/api/v1/scopes/{scope}/arming": {
+      "get": {
+        "operationId": "list_arming",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ArmingPage"
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "set_arming",
+        "description": "Commit an explicit armed or disarmed administrative fact for one enrolled Thing. The operation records no device contact or physical Action.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Receipt"
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Receipt"
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetArmingRequest"
+              }
+            }
+          },
+          "description": "At most 1 MiB, UTF-8 JSON; duplicate keys and unknown fields are rejected."
+        }
+      }
+    },
+    "/api/v1/scopes/{scope}/arming/{id}": {
+      "get": {
+        "operationId": "get_arming",
+        "description": "Read the reviewed current arming state. Private operation evidence and PolicyFact identities are never returned.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "pattern": "^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                        },
+                        "generation": {
+                          "type": "string",
+                          "pattern": "^(0|[1-9][0-9]{0,18})$",
+                          "description": "Canonical decimal integer below 9223372036854775807."
+                        },
+                        "value": {
+                          "$ref": "#/components/schemas/Arming"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "generation",
+                        "value"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scopes/{scope}/arming/{id}/history": {
+      "get": {
+        "operationId": "history_arming",
+        "description": "Read ascending immutable arming-state versions, including an unenrollment tombstone.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/ID"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ArmingHistoryPage"
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/scopes/{scope}/alert_acknowledgements": {
       "post": {
         "operationId": "acknowledge_alert",
@@ -5712,6 +5972,237 @@
       }
     },
     "schemas": {
+      "Arming": {
+        "description": "Reviewed current armed state committed by an administrator. This state proves no device contact and exposes no retained private PolicyFact input.",
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "wtr.arming.v1"
+          },
+          "thing_id": {
+            "type": "string",
+            "pattern": "^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+          },
+          "status": {
+            "enum": [
+              "armed",
+              "disarmed"
+            ]
+          },
+          "revision": {
+            "type": "string",
+            "pattern": "^arming-[1-9][0-9]{0,18}$"
+          },
+          "changed_at": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "changed_by": {
+            "type": "string",
+            "pattern": "^wtr1_[A-Za-z0-9_-]+$"
+          }
+        },
+        "required": [
+          "schema",
+          "thing_id",
+          "status",
+          "revision",
+          "changed_at",
+          "changed_by"
+        ],
+        "additionalProperties": false
+      },
+      "SetArmingRequest": {
+        "type": "object",
+        "properties": {
+          "thing_id": {
+            "type": "string",
+            "pattern": "^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+          },
+          "status": {
+            "enum": [
+              "armed",
+              "disarmed"
+            ]
+          },
+          "expected_generation": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,18})$",
+            "description": "Canonical decimal integer below 9223372036854775807."
+          }
+        },
+        "required": [
+          "thing_id",
+          "status",
+          "expected_generation"
+        ],
+        "additionalProperties": false
+      },
+      "ArmingItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+          },
+          "generation": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,18})$",
+            "description": "Canonical decimal integer below 9223372036854775807."
+          },
+          "value": {
+            "$ref": "#/components/schemas/Arming"
+          }
+        },
+        "required": [
+          "id",
+          "generation",
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      "ArmingPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ArmingItem"
+            },
+            "maxItems": 100
+          },
+          "generation": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,18})$",
+            "description": "Canonical decimal integer below 9223372036854775807."
+          },
+          "cursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4096,
+                "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "stream_cursor": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+          }
+        },
+        "required": [
+          "items",
+          "generation",
+          "cursor",
+          "stream_cursor"
+        ],
+        "additionalProperties": false
+      },
+      "ArmingHistoryPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "generation": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]{0,18})$",
+                      "description": "Canonical decimal integer below 9223372036854775807."
+                    },
+                    "value": {
+                      "$ref": "#/components/schemas/Arming"
+                    },
+                    "deleted": {
+                      "const": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "generation",
+                    "value",
+                    "deleted"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "generation": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]{0,18})$",
+                      "description": "Canonical decimal integer below 9223372036854775807."
+                    },
+                    "value": {
+                      "type": "null"
+                    },
+                    "deleted": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "generation",
+                    "value",
+                    "deleted"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "maxItems": 100
+          },
+          "generation": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,18})$",
+            "description": "Canonical decimal integer below 9223372036854775807."
+          },
+          "cursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4096,
+                "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "stream_cursor": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+          }
+        },
+        "required": [
+          "items",
+          "generation",
+          "cursor",
+          "stream_cursor"
+        ],
+        "additionalProperties": false
+      },
       "NativeJSON": {
         "anyOf": [
           {
@@ -6674,6 +7165,23 @@
                     "required": [
                       "policy_id",
                       "action"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "thing_id": {
+                        "type": "string",
+                        "pattern": "^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                      },
+                      "status": {
+                        "enum": ["armed", "disarmed"]
+                      }
+                    },
+                    "required": [
+                      "thing_id",
+                      "status"
                     ],
                     "additionalProperties": false
                   },

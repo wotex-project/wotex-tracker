@@ -128,7 +128,10 @@ quality and hysteresis; its SQLite host integration atomically persists changed
 state and stable event intent. See the [battery guide](docs/guides/battery.md).
 The suspicious-movement rule combines confirmed motion, armed state and explicit
 owner-presence facts with three-valued logic; see the
-[policy guide](docs/guides/suspicious-movement.md).
+[policy guide](docs/guides/suspicious-movement.md). The service now commits an
+administrator's explicit armed/disarmed fact for an enrolled Thing, retains its
+closed private evidence and exposes only a reviewed public state; it does not
+claim device contact or evaluate the suspicious-movement rule by itself.
 Evidence-qualified transport selection keeps bearer, application protocol,
 budgets and acknowledgement layers explicit; see the
 [transport policy guide](docs/guides/transport-policy.md). A pure transport

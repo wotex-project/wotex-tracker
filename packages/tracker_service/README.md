@@ -142,6 +142,14 @@ Saving a definition evaluates it against the Thing's committed evidence, and eac
 materialisation of that Thing evaluates its definitions in the same transaction.
 A deleted definition keeps its status history but is no longer scheduled.
 
+`Service.set_arming/6` and `POST …/arming` commit one conditional `armed` or
+`disarmed` state for an enrolled Thing. The private record retains a complete
+exact `asset.armed` policy fact backed by administrative-operation evidence;
+the reviewed `arming` resource returns only the public state, commit-derived
+revision, change time and pseudonymous actor. It does not claim device contact,
+evaluate suspicious movement or dispatch a physical Action. Unenrollment removes
+the current state while retaining its version history.
+
 Each recorded rule event also becomes a newest-first `wtr.alert.v1` record with
 the reviewed event. `Service.acknowledge_alert/6` and `POST
 …/alert_acknowledgements` let an administrator acknowledge a live alert once;
@@ -274,7 +282,7 @@ and key paths. Explicit `:proxy` mode requires an HTTPS public origin and a
 protected proxy-to-listener network; forwarded headers never supply authority or
 Forms. No remote exposure is inferred.
 
-OpenAPI **3.1.0**, contract revision **1.27.0**, is packaged at
+OpenAPI **3.1.0**, contract revision **1.28.0**, is packaged at
 `priv/openapi/v1.json` and served at `/api/v1/openapi.json`. Liveness is
 `/health/live`; authenticated resources are under `/api/v1/scopes/{scope}`.
 Use `Authorization: Bearer …`, and a UUIDv4 `Idempotency-Key` for POST mutations.

@@ -29,7 +29,8 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
     "saved_query_deletions" => {:delete_query, "admin"},
     "policies" => {:save_policy, "admin"},
     "policy_deletions" => {:delete_policy, "admin"},
-    "alert_acknowledgements" => {:acknowledge_alert, "admin"}
+    "alert_acknowledgements" => {:acknowledge_alert, "admin"},
+    "arming" => {:set_arming, "admin"}
   }
 
   @impl true
@@ -445,6 +446,7 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
            "route_history" => "snapshot_pinned_gap_honest_pages",
            "trip_history" => "snapshot_pinned_event_pages",
            "trip_summaries" => "bounded_gap_honest_reconstruction",
+           "arming" => "explicit_administrative_fact",
            "runtime" => %{
              "readproperty" => "available",
              "observeproperty" => "available",

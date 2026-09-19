@@ -28,6 +28,17 @@ defmodule Wotex.Tracker.HTTPTest do
 
   test "an independent HTTP process validates a completed trip summary", do: trip_summary_peer()
 
+  test "an independent HTTP process commits and reads arming state" do
+    context = service()
+    {thing, _td} = materialized(context)
+    server = start_supervised!({Server, options(context)})
+
+    output = run_consumer(context, server, %{"mode" => "arming", "thing" => thing})
+    assert output =~ "HTTP_CONSUMER_PASS openapi=true arming=true private_fact=false"
+    assert {:ok, capacity} = Server.child(server, :capacity)
+    assert_capacity_released(capacity)
+  end
+
   test "instances use distinct listeners and stores; invalid exposure and configuration fail closed" do
     first = service()
     second = service()

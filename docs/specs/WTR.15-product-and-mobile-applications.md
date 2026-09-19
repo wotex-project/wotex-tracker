@@ -85,7 +85,9 @@ alerts of those definitions newest first.
 Recorded rule events appear as newest-first alerts, and an administrator can
 acknowledge a live alert once without changing the rule or dispatching an
 Action. Administrators can create and exactly edit movement/trip and circle or
-polygon geofence rules. Arming and notification delivery remain open.
+polygon geofence rules. The service can now commit and read a private-fact-backed
+armed or disarmed state without claiming device contact; shared browser arming,
+suspicious-movement orchestration and notification delivery remain open.
 These are required product deliverables and optional installations for consumers
 of the library. An incomplete backend or UI framework cannot waive a product gate.
 

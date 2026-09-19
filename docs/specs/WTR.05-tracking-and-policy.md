@@ -9,15 +9,16 @@ crossing evaluation; motion/trip transitions and bounded trip distance; and
 heartbeat, battery, suspicious-movement and transport-degradation policy.
 `RouteReplay` now projects a bounded position-sample page into exact points,
 rejections and gap-separated segments without inferring missing travel. The
-service persists the implemented rule-transition forms and exposes redacted
-status. It also reconstructs one immutable completed trip at a time from a
+service persists the implemented rule-transition forms, exposes redacted status
+and commits an authorized evidence-backed administrative arming fact for an
+enrolled Thing without claiming device contact. It also reconstructs one immutable completed trip at a
 maximum of 100 retained materialisations under current read authority,
 preserving every excluded segment and all distance uncertainty while keeping
 private input identities internal. The trusted decoder seam admits bounded
 profile-backed position claims into immutable evidence, and an explicitly
-configured service exposes a closed redacted state projection. Position
-map/history workflows, rule-definition orchestration for position rules,
-notification delivery and product hardware acceptance remain unfinished.
+configured service exposes a closed redacted state projection. Owner-presence
+admission, suspicious-movement orchestration, notification delivery and product
+hardware acceptance remain unfinished.
 
 ## Tracking is evidence, not a GPS field
 

@@ -270,7 +270,11 @@ confirmed motion and content-bound armed/owner-presence facts. Unknown presence
 remains unknown unless the rule explicitly treats it as absence. See the
 [suspicious-movement guide](../guides/suspicious-movement.md). Atomic host
 deduplication now restores all inputs, re-evaluates the rule and records its event
-intent without synthetic state. Notification delivery remains subsequent work.
+intent without synthetic state. The service now commits an authorized, retained
+`asset.armed` fact for an enrolled Thing and exposes only its reviewed public
+state; this administrative operation claims no device contact. Owner-presence
+admission, input-triggered suspicious-movement orchestration and notification
+delivery remain subsequent work.
 
 Transport degradation is implemented as pure state over content-validated
 transport decisions and a deployment-declared healthy candidate set. Fallback
@@ -289,8 +293,8 @@ and materialising its Thing evaluate it atomically against committed evidence;
 position rules fail closed unless the bundle has exactly one position, rather
 than inventing source selection. The scheduler ages the time-driven state. Every
 rule event becomes a public alert, and administrators can acknowledge a live
-alert once. Arming, suspicious-movement orchestration and notification delivery
-remain open.
+alert once. Browser arming, suspicious-movement orchestration and notification
+delivery remain open.
 
 Implement explicit time/freshness, quality selection, motion/trips/stops,
 geofence membership/transitions, heartbeat, suspicious movement, low-battery,
