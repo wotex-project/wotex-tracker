@@ -2912,6 +2912,25 @@ Focused coverage proves event-kind and Thing filtering, immutable continuation
 snapshots, endpoint/caller/Thing/page-size cursor binding, closed query admission,
 unknown Things and authorization failure.
 
+### Cursor-bound trip time windows — 2026-09-19
+
+Trip lifecycle pages now accept optional paired `from_at` and `to_at` Unix
+millisecond bounds over the event's effective time. The interval is half-open.
+Filtering occurs in the snapshot SQL query alongside the Thing and closed event
+kind set, so out-of-window or unrelated alerts cannot consume a page. A
+continuation carries the exact bounds inside its authenticated payload; clients
+cannot alter or partially resupply the window while continuing a traversal.
+
+OpenAPI contract 1.26.0 publishes the two bounded query parameters and the
+independent HTTP consumer exercises canonical parsing and malformed-bound
+rejection. Focused service tests cover boundary inclusion/exclusion, cursor
+continuation and missing, equal or cursor-mixed bounds.
+
+The complete service gate passed 2 properties and 221 tests at 95.1% production
+line coverage. Compiler, unused-dependency, formatter, dependency audit, strict
+Credo, ExDoc, Dialyzer, boundary checks, OpenAPI validation, 83-member package
+archive inspection, licenses and the 434-file stack-language policy all passed.
+
 ### Shared trip and stop timeline — 2026-09-19
 
 The shared LiveView package now links every provisioned asset to an authorized

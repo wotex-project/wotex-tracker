@@ -123,7 +123,28 @@ defmodule Wotex.Tracker.Service.Cursor do
          } = data
        )
        when map_size(data) == 5 do
-    kind in ~w(thing_alerts thing_trips) and Codec.id?(thing) and
+    kind == "thing_alerts" and Codec.id?(thing) and
+      data?(%{
+        "kind" => "alerts",
+        "generation" => generation,
+        "after" => after_id,
+        "limit" => limit
+      })
+  end
+
+  defp data?(
+         %{
+           "kind" => "thing_trips",
+           "thing" => thing,
+           "generation" => generation,
+           "after" => after_id,
+           "limit" => limit,
+           "from_at" => from_at,
+           "to_at" => to_at
+         } = data
+       )
+       when map_size(data) == 7 do
+    Codec.id?(thing) and Codec.time?(from_at) and Codec.time?(to_at) and from_at < to_at and
       data?(%{
         "kind" => "alerts",
         "generation" => generation,

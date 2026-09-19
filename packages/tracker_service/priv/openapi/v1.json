@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "WoTEx Tracker service",
-    "version": "1.25.0",
-    "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries, snapshot-pinned gap-honest route replay from retained private evidence, snapshot-pinned trip lifecycle event pages, persisted rule status and administrator-managed heartbeat, battery, motion and geofence rule definitions evaluated against committed Thing evidence, acknowledgeable rule alerts listed per Thing for defined rules, administrator unenrollment, pinned incident snapshots and an administrator credential inventory. No scanner, notification delivery or physical interaction is implied."
+    "version": "1.26.0",
+    "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries, snapshot-pinned gap-honest route replay from retained private evidence, half-open time-windowed and snapshot-pinned trip lifecycle event pages, persisted rule status and administrator-managed heartbeat, battery, motion and geofence rule definitions evaluated against committed Thing evidence, acknowledgeable rule alerts listed per Thing for defined rules, administrator unenrollment, pinned incident snapshots and an administrator credential inventory. No scanner, notification delivery or physical interaction is implied."
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "security": [
@@ -4227,6 +4227,12 @@
           },
           {
             "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "$ref": "#/components/parameters/TripFrom"
+          },
+          {
+            "$ref": "#/components/parameters/TripTo"
           }
         ],
         "responses": {
@@ -4264,7 +4270,7 @@
             }
           }
         },
-        "description": "Pages, newest first, trip.started, trip.stopped and trip.interrupted alerts for one Thing at a cursor-bound committed snapshot. Requires read authority. The cursor binds the principal, scope, service instance, Thing, snapshot and page size. Unrelated alerts cannot consume a page; an unknown Thing has none."
+        "description": "Pages, newest first, trip.started, trip.stopped and trip.interrupted alerts for one Thing at a cursor-bound committed snapshot and optional from-inclusive/to-exclusive effective-time window. Bounds must be supplied together. Requires read authority. The cursor binds the principal, scope, service instance, Thing, snapshot, time window and page size. Unrelated alerts cannot consume a page; an unknown Thing has none."
       }
     },
     "/api/v1/scopes/{scope}/things/{id}/policies": {
@@ -5605,6 +5611,26 @@
           "minLength": 1,
           "maxLength": 4096,
           "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+        }
+      },
+      "TripFrom": {
+        "name": "from_at",
+        "in": "query",
+        "schema": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991,
+          "description": "Optional trip effective-time lower bound in Unix milliseconds, inclusive. Supply with to_at."
+        }
+      },
+      "TripTo": {
+        "name": "to_at",
+        "in": "query",
+        "schema": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991,
+          "description": "Optional trip effective-time upper bound in Unix milliseconds, exclusive. Supply with from_at."
         }
       },
       "Resume": {

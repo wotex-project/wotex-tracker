@@ -62,6 +62,27 @@ defmodule Wotex.Tracker.Service.TripHistoryTest do
              Service.thing_trips(c.service, "invalid", c.scope, c.thing, %{}, c.now)
   end
 
+  test "trip windows are half-open and their bounds are cursor-bound", c do
+    window = %{"from_at" => c.now + 4, "to_at" => c.now + 6, "limit" => 1}
+
+    assert {:ok, %{"items" => [interrupted], "cursor" => cursor}} =
+             trips(c, c.thing, window)
+
+    assert interrupted["value"]["event"]["kind"] == "trip.interrupted"
+
+    assert {:ok, %{"items" => [stopped]}} = trips(c, c.thing, %{"cursor" => cursor})
+    assert stopped["value"]["event"]["kind"] == "trip.stopped"
+
+    for params <- [
+          %{"from_at" => c.now + 4},
+          %{"to_at" => c.now + 6},
+          %{"from_at" => c.now + 6, "to_at" => c.now + 6},
+          %{"from_at" => c.now + 4, "to_at" => c.now + 6, "cursor" => cursor}
+        ] do
+      assert {:error, %{"code" => "invalid_request"}} = trips(c, c.thing, params)
+    end
+  end
+
   test "trip query admission is closed and unknown Things have no events", c do
     unknown = "urn:uuid:" <> Identifier.uuid()
     assert {:ok, %{"items" => [], "cursor" => nil}} = trips(c, unknown, %{})

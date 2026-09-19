@@ -319,7 +319,7 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
-## HTTP and stream contract 1.25.0
+## HTTP and stream contract 1.26.0
 
 The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
 2020-12. The independently maintained Elixir audit checks document shape,
@@ -806,7 +806,10 @@ size; an unknown Thing has none.
 `read` authorization and public alert projection but select only
 `trip.started`, `trip.stopped` and `trip.interrupted` in the snapshot query.
 The encrypted cursor binds the endpoint, principal, scope, service instance,
-Thing, generation and page size for seven days. Later commits are excluded from
+Thing, generation, effective-time window and page size for seven days. Optional
+`from_at` and `to_at` Unix-millisecond bounds must be supplied together; the
+lower bound is included and upper bound excluded. A continuation takes its
+window only from the authenticated cursor. Later commits are excluded from
 continuations, generic alert cursors cannot cross the boundary, and battery,
 geofence or other alerts never consume the trip page limit. An unknown Thing
 returns an empty page.

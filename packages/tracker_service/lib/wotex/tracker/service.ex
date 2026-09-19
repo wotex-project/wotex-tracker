@@ -37,6 +37,8 @@ defmodule Wotex.Tracker.Service do
     Update
   }
 
+  @maximum_time 9_007_199_254_740_991
+
   @resources ~w(observations resolutions evidence state enrollments things saved_queries rules policies alerts)
   @derive {Inspect, only: [:base_url]}
   @enforce_keys [:store, :credentials, :catalogue, :model, :decoders, :base_url]
@@ -416,8 +418,7 @@ defmodule Wotex.Tracker.Service do
            {:ok, items} <- Projection.public_items("alerts", page["items"]) do
         document = page_document(service, access, "alerts", page, items, query.limit, now)
 
-        {:ok,
-         %{document | "cursor" => thing_trip_next(service, access, thing, page, query.limit, now)}}
+        {:ok, %{document | "cursor" => thing_trip_next(service, access, thing, page, query, now)}}
       end
 
     Result.normalize(result)
@@ -957,7 +958,9 @@ defmodule Wotex.Tracker.Service do
          after: data["after"],
          limit: data["limit"],
          thing: thing,
-         event_kinds: ~w(trip.started trip.stopped trip.interrupted)
+         event_kinds: ~w(trip.started trip.stopped trip.interrupted),
+         from_at: data["from_at"],
+         to_at: data["to_at"]
        }}
     else
       false -> {:error, :invalid_cursor}
@@ -965,22 +968,53 @@ defmodule Wotex.Tracker.Service do
     end
   end
 
-  defp thing_trip_query(service, access, thing, params, now) do
-    with true <- Codec.id?(thing),
-         {:ok, query} <- page_query(service, access, "alerts", params, now) do
+  defp thing_trip_query(_service, access, thing, params, _now) do
+    if Codec.id?(thing),
+      do: thing_trip_first_query(access, thing, params),
+      else: {:error, :invalid_query}
+  end
+
+  defp thing_trip_first_query(access, thing, params)
+       when is_map(params) and not is_struct(params) do
+    with true <- Enum.all?(Map.keys(params), &(&1 in ["limit", "from_at", "to_at"])),
+         limit = Map.get(params, "limit", 25),
+         true <- is_integer(limit) and limit in 1..100,
+         {:ok, {from_at, to_at}} <- trip_window(params) do
       {:ok,
-       query
+       %{
+         scope: access.scope,
+         kind: "alerts",
+         generation: nil,
+         after: "",
+         limit: limit
+       }
        |> Map.put(:thing, thing)
-       |> Map.put(:event_kinds, ~w(trip.started trip.stopped trip.interrupted))}
+       |> Map.put(:event_kinds, ~w(trip.started trip.stopped trip.interrupted))
+       |> Map.put(:from_at, from_at)
+       |> Map.put(:to_at, to_at)}
     else
-      false -> {:error, :invalid_query}
+      false -> {:error, :invalid_request}
       error -> error
     end
   end
 
-  defp thing_trip_next(_service, _access, _thing, %{"next" => nil}, _limit, _now), do: nil
+  defp thing_trip_first_query(_access, _thing, _params), do: {:error, :invalid_request}
 
-  defp thing_trip_next(service, access, thing, page, limit, now) do
+  defp trip_window(%{"from_at" => from_at, "to_at" => to_at}) do
+    if Codec.time?(from_at) and Codec.time?(to_at) and from_at < to_at,
+      do: {:ok, {from_at, to_at}},
+      else: {:error, :invalid_request}
+  end
+
+  defp trip_window(params) do
+    if Map.has_key?(params, "from_at") or Map.has_key?(params, "to_at"),
+      do: {:error, :invalid_request},
+      else: {:ok, {0, @maximum_time}}
+  end
+
+  defp thing_trip_next(_service, _access, _thing, %{"next" => nil}, _query, _now), do: nil
+
+  defp thing_trip_next(service, access, thing, page, query, now) do
     {:ok, next} =
       Cursor.issue(
         Credentials.derive_key(service.credentials, :cursor),
@@ -990,7 +1024,9 @@ defmodule Wotex.Tracker.Service do
           "thing" => thing,
           "generation" => page["generation"],
           "after" => page["next"],
-          "limit" => limit
+          "limit" => query.limit,
+          "from_at" => query.from_at,
+          "to_at" => query.to_at
         },
         now
       )

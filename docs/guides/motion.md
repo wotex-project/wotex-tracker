@@ -84,7 +84,10 @@ stable trip event intent at one generation. Exact retries deduplicate; replay
 intents retain prohibited physical dispatch. The service exposes Thing-bound
 start, stop and interruption intents through a dedicated snapshot-pinned page;
 this is an exact event timeline, not an inferred trip summary. Final distance
-summary materialization and notification delivery remain caller-owned.
+summary materialization and notification delivery remain caller-owned. Callers
+may apply a from-inclusive/to-exclusive effective-time window; the service binds
+those exact bounds into page continuations rather than filtering a generic alert
+page after reading it.
 
 ## Bounded trip distance
 

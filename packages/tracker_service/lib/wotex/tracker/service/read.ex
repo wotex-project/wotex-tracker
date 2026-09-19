@@ -434,11 +434,20 @@ defmodule Wotex.Tracker.Service.Read do
     do: Codec.id?(thing) and valid_query?(Map.delete(query, :thing))
 
   # Trip pages use a closed event-kind set so unrelated alerts never consume the page bound.
-  defp valid_query?(%{kind: "alerts", thing: thing, event_kinds: event_kinds} = query)
-       when map_size(query) == 7,
+  defp valid_query?(
+         %{
+           kind: "alerts",
+           thing: thing,
+           event_kinds: event_kinds,
+           from_at: from_at,
+           to_at: to_at
+         } = query
+       )
+       when map_size(query) == 9,
        do:
          Codec.id?(thing) and event_kinds == ~w(trip.started trip.stopped trip.interrupted) and
-           valid_query?(Map.drop(query, [:thing, :event_kinds]))
+           Codec.time?(from_at) and Codec.time?(to_at) and from_at < to_at and
+           valid_query?(Map.drop(query, [:thing, :event_kinds, :from_at, :to_at]))
 
   defp valid_query?(_), do: false
 
@@ -487,7 +496,11 @@ defmodule Wotex.Tracker.Service.Read do
     )
   end
 
-  defp page(db, %{thing: thing, event_kinds: event_kinds} = query, generation) do
+  defp page(
+         db,
+         %{thing: thing, event_kinds: event_kinds, from_at: from_at, to_at: to_at} = query,
+         generation
+       ) do
     SQL.rows!(
       db,
       """
@@ -495,9 +508,12 @@ defmodule Wotex.Tracker.Service.Read do
       WHERE r.scope=? AND r.kind='alerts' AND r.id>? AND r.generation<=?
       AND r.generation=(SELECT max(v.generation) FROM records v WHERE v.scope=r.scope AND v.kind=r.kind AND v.id=r.id AND v.generation<=?)
       AND json_extract(r.document,'$.public.thing_id')=?
-      AND json_extract(r.document,'$.public.event.kind') IN (?,?,?) ORDER BY r.id LIMIT ?
+      AND json_extract(r.document,'$.public.event.kind') IN (?,?,?)
+      AND json_extract(r.document,'$.public.event.effective_at')>=?
+      AND json_extract(r.document,'$.public.event.effective_at')<? ORDER BY r.id LIMIT ?
       """,
-      [query.scope, query.after, generation, generation, thing] ++ event_kinds ++ [query.limit]
+      [query.scope, query.after, generation, generation, thing] ++
+        event_kinds ++ [from_at, to_at, query.limit]
     )
   end
 

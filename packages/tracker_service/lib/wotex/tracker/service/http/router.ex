@@ -322,7 +322,7 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
     {service, token, scope, now} = context
 
     result =
-      with {:ok, params} <- list_params(params),
+      with {:ok, params} <- trip_params(params),
            do: Service.thing_trips(service, token, scope, thing, params, now)
 
     {conn, result}
@@ -495,6 +495,36 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
   end
 
   defp list_params(params), do: {:ok, params}
+
+  defp trip_params(params) when is_map(params) do
+    with true <- Enum.all?(Map.keys(params), &(&1 in ["limit", "cursor", "from_at", "to_at"])),
+         {:ok, params} <- list_params(params),
+         {:ok, params} <- time_param(params, "from_at"),
+         {:ok, params} <- time_param(params, "to_at") do
+      {:ok, params}
+    else
+      false -> Wire.error(:invalid_request)
+      error -> error
+    end
+  end
+
+  defp time_param(params, key) do
+    case Map.fetch(params, key) do
+      :error -> {:ok, params}
+      {:ok, value} -> parsed_time_param(params, key, value)
+    end
+  end
+
+  defp parsed_time_param(params, key, value) when is_binary(value) do
+    with {integer, ""} when integer in 0..9_007_199_254_740_991 <- Integer.parse(value),
+         true <- Integer.to_string(integer) == value do
+      {:ok, Map.put(params, key, integer)}
+    else
+      _ -> Wire.error(:invalid_request)
+    end
+  end
+
+  defp parsed_time_param(_params, _key, _value), do: Wire.error(:invalid_request)
 
   defp property_cursor(conn, params) do
     case {params, Wire.single_header(conn, "last-event-id")} do

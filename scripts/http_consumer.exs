@@ -711,6 +711,13 @@ defmodule Wotex.Tracker.HTTPConsumer do
     thing_trips = prefix <> "/things/" <> encode_segment(thing) <> "/trips"
     %{"items" => [], "cursor" => nil} = data(context, "list_thing_trips", thing_trips)
 
+    %{"items" => [], "cursor" => nil} =
+      data(
+        context,
+        "list_thing_trips",
+        thing_trips <> "?from_at=0&to_at=1"
+      )
+
     low =
       policy
       |> put_in(["parameters", "low_threshold"], 3.0)
@@ -732,6 +739,7 @@ defmodule Wotex.Tracker.HTTPConsumer do
     request(context, "list_thing_alerts", thing_alerts, who: nil, status: 401)
     %{"items" => [], "cursor" => nil} = data(context, "list_thing_trips", thing_trips)
     request(context, "list_thing_trips", thing_trips <> "?limit=0", status: 400)
+    request(context, "list_thing_trips", thing_trips <> "?from_at=00&to_at=1", status: 400)
     request(context, "list_thing_trips", thing_trips, who: nil, status: 401)
 
     %{"generation" => "14", "data" => %{"action" => "deleted"}} =
