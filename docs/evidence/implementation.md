@@ -3373,3 +3373,38 @@ Dependency audits additionally passed for the headless and UI-enabled ordinary
 application and Nerves host profiles. The QEMU dependency audit passed on its
 qualified OTP 29.0.4 / Elixir 1.20.4 host toolchain, matching the target's OTP
 major version.
+
+### Account-bound offline mobile projection cache — 2026-09-20
+
+The independent mobile host now pins Mob 0.9.1 with Elixir 1.19.5 / OTP
+27.3.4.15 while leaving the root and other hosts on their existing runtime
+floor. Its first executable component is a serialized SQLite cache restricted
+to overview, history, dashboard and map projections. Every read identifies its
+offline source, synchronization age, completeness and credential-expiry bound;
+empty and stale entries remain explicit misses.
+
+The database lives only below an absolute private nonsymlink directory, uses a
+private regular file, strict tables, full synchronization and secure deletion,
+and validates its schema and integrity on reopen. Entry bytes, total bytes,
+count, retention age, JSON shape and nesting are bounded. The retained binding
+is a length-prefixed hash of the exact canonical HTTPS origin, principal, scope,
+credential ID and secure-storage installation ID. No binding identity is stored
+in clear text. Switching any bound component, credential expiry and explicit
+sign-out securely purge the cache. Credential-, token-, proof-, raw- and
+authorization-shaped fields are rejected, and no offline mutation or physical
+Action queue exists.
+
+Tests cover all four projection classes, restart recovery, expiry boundaries,
+same-credential renewal, every account-binding component, delimiter-bearing
+identities, secure purge, least-recently-used count/byte eviction, stale
+retention, malformed and oversized projections, unsafe paths and file modes,
+future/malformed/corrupt SQLite state, closed-database failures and concurrent
+writers. The complete mobile-host gate passed 16 tests at 95.3% production line
+coverage. Locked dependency resolution, compiler, unused-dependency, formatter,
+dependency audit, strict Credo, ExDoc, Dialyzer, licenses and the 474-file
+stack-language policy all passed. CI now selects the mobile host's exact runtime
+cohort independently from the 1.18 host profiles.
+
+This is offline-cache software evidence only. Local LiveView/Mob composition,
+platform secure storage, lifecycle/reconnect behavior, native bridges, Xcode,
+signing and every physical-iPhone acceptance gate remain unpassed.

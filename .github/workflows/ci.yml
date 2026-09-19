@@ -58,21 +58,38 @@ jobs:
           - profile: service
             directory: packages/tracker_service
             ui: false
+            elixir: "1.18.4-otp-27"
+            otp: "27.3.4.15"
           - profile: ui
             directory: packages/tracker_ui
             ui: false
+            elixir: "1.18.4-otp-27"
+            otp: "27.3.4.15"
           - profile: host
             directory: hosts/app
             ui: false
+            elixir: "1.18.4-otp-27"
+            otp: "27.3.4.15"
           - profile: host-ui
             directory: hosts/app
             ui: true
+            elixir: "1.18.4-otp-27"
+            otp: "27.3.4.15"
           - profile: nerves
             directory: hosts/nerves
             ui: false
+            elixir: "1.18.4-otp-27"
+            otp: "27.3.4.15"
           - profile: nerves-ui
             directory: hosts/nerves
             ui: true
+            elixir: "1.18.4-otp-27"
+            otp: "27.3.4.15"
+          - profile: mobile
+            directory: hosts/mobile
+            ui: false
+            elixir: "1.19.5-otp-27"
+            otp: "27.3.4.15"
     defaults:
       run:
         working-directory: wotex-tracker/${{ matrix.directory }}
@@ -107,8 +124,8 @@ jobs:
           persist-credentials: false
       - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
-          elixir-version: "1.18.4-otp-27"
-          otp-version: "27.3.4.15"
+          elixir-version: ${{ matrix.elixir }}
+          otp-version: ${{ matrix.otp }}
       - name: Install Nerves bootstrap
         if: startsWith(matrix.profile, 'nerves')
         working-directory: wotex-tracker

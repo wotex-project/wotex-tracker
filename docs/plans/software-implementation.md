@@ -449,8 +449,13 @@ The versioned API exposes one current-access projection after read authorization
 including only the current credential's non-secret identity, requested-scope
 grants and expiry. Both the in-process and remote HTTPS UI adapters consume that
 projection. The remote adapter uses verified TLS, bounded one-shot requests and
-stable mutation identity without automatic replay. Mobile host composition and
-its bounded cache policy remain subsequent work.
+stable mutation identity without automatic replay. The independent mobile host
+now pins Mob 0.9.1 to Elixir 1.19.5 / OTP 27 without raising the root floor. Its
+SQLite cache retains only size-, age- and account-bounded overview, history,
+dashboard and map projections, labels age/completeness, securely purges on
+authority changes, expiry and sign-out, and exposes no offline mutation or
+physical-Action queue. Local LiveView composition, secure storage and every
+native/device gate remain subsequent work.
 
 Acceptance: real iPhone secure storage, authorized BLE central provisioning,
 notification registration and cold/warm/background tap routing, suspend/resume,

@@ -71,6 +71,15 @@ uncertainty, clock and quality disclosures; the UI does not imply a live, fused 
 canonical location. Live scanning, maps and the rest of the application remain
 subsequent work.
 
+The independent mobile host now pins its Mob runtime cohort without changing the
+root library's Elixir floor. Its first executable boundary is a private SQLite
+cache for bounded overview, history, dashboard and map projections. Cache reads
+identify offline source, synchronization age and completeness; exact server,
+account, scope, credential and installation changes, credential expiry and
+sign-out purge retained data. Credentials, raw evidence, pending mutations and
+physical Actions are not cache entries. The local LiveView shell and all native,
+signed-device and distribution gates remain open.
+
 The WTR.05 pure foundation admits position evidence, freshness, deterministic
 selection, event ordering with modular sequence evidence, and bounded geofence
 membership. See the [position guide](docs/guides/positions.md) and

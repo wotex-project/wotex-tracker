@@ -1,0 +1,6 @@
+/mob.exs
+/.mob/
+/ios/build/
+/ios/DerivedData/
+/*.xcodeproj/xcuserdata/
+/*.xcworkspace/xcuserdata/
