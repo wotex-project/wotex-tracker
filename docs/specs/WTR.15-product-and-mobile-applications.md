@@ -19,7 +19,10 @@ as JSON after reauthorizing and matching its committed snapshot. This is a
 page export. It can also traverse and export a complete retained state history
 when it fits 1,000 rows and 1 MB, reauthorizing every page and rejecting a
 changed snapshot or exceeded budget without a partial file. Larger history,
-route replay and retained-data deletion workflows remain open.
+retained-data deletion and browser route presentation remain open. The service
+already exposes bounded snapshot-pinned route pages with explicit missing,
+ambiguous and rejected-position gaps; the browser must preserve those gaps and
+must not connect segments across page boundaries.
 The browser observation page can download native capture JSON and full evidence
 claims only for a current `raw` grant. It asks the authorized service again for
 each download and never places raw bytes in the ordinary page. A separate
@@ -57,7 +60,8 @@ any reader and offers no new rule once the asset has eight. It also pages the
 alerts of those definitions newest first.
 Recorded rule events appear as newest-first alerts, and an administrator can
 acknowledge a live alert once without changing the rule or dispatching an
-Action. Geofences, movement rules, arming and notification delivery remain open.
+Action. Administrators can create and exactly edit movement/trip and circle or
+polygon geofence rules. Arming and notification delivery remain open.
 These are required product deliverables and optional installations for consumers
 of the library. An incomplete backend or UI framework cannot waive a product gate.
 

@@ -157,7 +157,13 @@ defmodule Wotex.Tracker.HTTPFailureTest do
               }
             }} = request(server, context, :post, "/analytics/query", Codec.encode!(document))
 
-    assert {200, %{"data" => %{"analytics" => "structured_queries"}}} =
+    assert {200,
+            %{
+              "data" => %{
+                "analytics" => "structured_queries",
+                "route_history" => "snapshot_pinned_gap_honest_pages"
+              }
+            }} =
              request(server, context, :get, "/capabilities")
 
     forged = Map.put(document, "identity", "forged")

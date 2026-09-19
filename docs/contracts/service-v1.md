@@ -319,7 +319,7 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
-## HTTP and stream contract 1.23.0
+## HTTP and stream contract 1.24.0
 
 The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
 2020-12. The independently maintained Elixir audit checks document shape,
@@ -343,6 +343,7 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | `/api/v1/scopes/{scope}/capabilities` | GET explicit available/unsupported/unconfigured status; rules report `heartbeat_battery_motion_geofence_definitions` |
 | `…/analytics/query` | POST one read-only structured measurement query against a committed snapshot |
 | `…/analytics/pages` | POST one snapshot-pinned bucket page with an encrypted continuation |
+| `…/routes/pages` | POST one snapshot-pinned, gap-honest retained route page with an encrypted continuation |
 | `…/observations`, `…/resolutions`, `…/evidence`, `…/state`, `…/enrollments`, `…/things`, `…/saved_queries`, `…/rules`, `…/policies`, `…/alerts` | GET public snapshot pages |
 | `…/{resource}/{id}` | GET one public value |
 | `…/{resource}/{id}/history` | GET ascending committed public versions, including deletion records |
@@ -367,8 +368,9 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | `…/events/stream` | GET resumable SSE |
 
 Scoped endpoints require a canonical bearer token in `Authorization`; POST
-mutations additionally require a UUIDv4 `Idempotency-Key`. Analytics queries and
-pages are read-only POST operations and do not use an idempotency key. No cookies or implicit
+mutations additionally require a UUIDv4 `Idempotency-Key`. Analytics queries,
+analytics pages and route pages are read-only POST operations and do not use an
+idempotency key. No cookies or implicit
 loopback authority are accepted. Success envelopes have exactly `schema`
 (`wtr.response.v1`) and `data`; failures have `schema` and bounded `error` with
 stable `code`/`path`. Mutation failures identify `not_committed`; a lost
@@ -492,6 +494,41 @@ five-second deadline repeatedly interrupts the SQLite progress/busy handlers
 until the worker exits, then releases its reservation. Analytics connections are
 separate from the serialized writer connection and open the already admitted
 private database read-only.
+
+## Retained route page contract
+
+`POST …/routes/pages` requires `read` authority and exactly one
+`wtr.route-page-request.v1` document. It names a UUID Thing, a
+from-inclusive/to-exclusive Unix-millisecond window, `trusted_fix` or explicit
+`trusted_fix_or_receiver` event-time policy, a nonempty unique subset of
+`valid`/`suspect` qualities, positive time/distance gap limits, a page size from
+1 through 100 and a nullable cursor. Unknown fields and malformed policies fail
+before retained evidence is read.
+
+The first request pins the current scope generation and pages the Thing's private
+evidence versions in ascending generation order. Each item must reconstruct one
+source observation and a valid complete evidence bundle. Exactly one position is
+evaluated as a `PositionSample`; no position becomes `missing_position`, and
+multiple positions become `ambiguous_positions`. The latter two are public
+exclusions, not silently selected or discarded samples. Every private observation
+fetch rechecks current authority at the pinned generation. Damaged retained
+evidence fails the whole page as unavailable storage.
+
+The service applies the pure route replay policy to qualified samples and then
+splits its segments around any in-window exclusion. The public
+`wtr.route-page.v1` response uses tagged scalars and scope pseudonyms for point,
+rejection and exclusion IDs. Raw evidence, bundle, observation and sample IDs
+never cross the boundary. It reports the pinned generation, exact materialisation
+history interval, requested window, replay counts, breaks/rejections/exclusions,
+content identity and nullable next cursor. The half-open requested window filters
+samples and exclusions but does not change the retained page's record count.
+
+A continuation binds the Thing, exact request identity, page size, generation,
+next evidence version, principal, scope and service instance for seven days.
+Later writes cannot enter the traversal and current authority is checked on every
+page. Each response declares `page_local_only` continuity: a client must never
+join a page's final segment to the next page's first segment. A larger page or a
+new request is required when cross-record continuity matters.
 
 This revision does not page query input, translate prompts or render graphs.
 Saved absolute and rolling queries are part of this contract.

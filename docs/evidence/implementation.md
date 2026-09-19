@@ -2805,3 +2805,33 @@ license and 425-file stack-language checks all passed. Workflow coverage creates
 both position-rule kinds and edits a motion definition without discarding its
 host-committed transition state; focused form tests cover exact round trips,
 polygon parsing, invalid admission and redacted summaries.
+
+### Authorized retained route pages — 2026-09-19
+
+The service now reconstructs bounded route replay from retained private evidence
+through `Service.route_history/5` and the read-only `POST …/routes/pages`
+operation. A first request pins the scope generation and an encrypted
+continuation binds the exact Thing, half-open window, replay policy, page size,
+principal, scope and service instance. Later writes stay outside the traversal
+and every page rechecks current read authority, including each private source
+observation fetch.
+
+Each retained materialisation must restore a complete evidence bundle and one
+source observation. Exactly one position becomes a `PositionSample`; missing and
+ambiguous positions become pseudonymized exclusions that split otherwise
+adjacent segments. Damaged retained evidence fails the whole page. Public points,
+rejections and exclusions contain tagged scalar values and scoped pseudonyms,
+never raw evidence, bundle, observation or sample identities. Each response
+declares page-local continuity, so clients cannot infer a path between pages.
+
+OpenAPI contract 1.24.0 publishes closed request, page, policy, route, point,
+segment, break, rejection and exclusion schemas. The independent HTTP consumer
+validates an actual route-page response against the served contract. The complete
+service gate passed 2 properties and 217 tests at 95.1% production line coverage;
+the new route module reached 98.3%. Compiler, unused-dependency, formatter,
+dependency audit, strict Credo, ExDoc, Dialyzer, boundary checks, OpenAPI
+validation, 83-member package archive inspection, licenses and the 427-file
+stack-language policy all passed. Focused coverage includes missing/ambiguous and
+malformed materialisations, quality rejection/inclusion, receiver fallback,
+untrusted clocks, half-open windows, both antimeridian directions, ordinary
+distance, snapshot isolation and cursor request/caller binding.

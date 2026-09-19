@@ -28,6 +28,7 @@ defmodule Wotex.Tracker.Service do
     Materialize,
     Projection,
     Result,
+    RouteHistory,
     RuleDefinition,
     SavedQuery,
     Snapshot,
@@ -249,6 +250,17 @@ defmodule Wotex.Tracker.Service do
     result =
       with {:ok, access} <- authorize(service, token, scope, "read", now),
            do: AnalyticsPage.run(service, access, request, now)
+
+    Result.normalize(result)
+  end
+
+  @doc "Pages one gap-honest route projection from private retained position evidence."
+  @spec route_history(t(), String.t(), String.t(), map(), integer()) ::
+          {:ok, map()} | {:error, map()}
+  def route_history(service, token, scope, request, now) do
+    result =
+      with {:ok, access} <- authorize(service, token, scope, "read", now),
+           do: RouteHistory.run(service, access, request, now)
 
     Result.normalize(result)
   end

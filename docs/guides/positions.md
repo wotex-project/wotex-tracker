@@ -6,10 +6,10 @@ Deterministic selection, event ordering, geofences, motion/trips, trip distance
 and gap-honest route replay build on the same evidence-bound sample. These pure
 modules start no process, read no clock and make no physical-device qualification
 claim. The service persists several rule transitions, but position maps and
-gap-honest route-history workflows remain unfinished integration work. Trusted profile
-decoders can admit normalized position claims into the same immutable evidence
-pipeline, and an explicitly configured service projects them into authorized
-public state without exposing raw receiver lineage.
+gap-honest route pages now use the same evidence boundary. Trusted profile
+decoders can admit normalized position claims into the immutable pipeline, and
+an explicitly configured service projects current state and retained route pages
+without exposing raw receiver lineage.
 
 ## Position claim v1
 
@@ -236,3 +236,24 @@ Segments are display instructions, not reconstructed travel. The result never
 joins across a rejection or excessive gap, never supplies a crossing time and
 does not claim map coverage, motion, trip membership or physical accuracy beyond
 the retained evidence. Its policy and complete projection are content-identified.
+
+## Retained service route pages
+
+`Service.route_history/5` exposes bounded replay through the read-only
+`POST …/routes/pages` boundary. A request names one Thing, a half-open time
+window, clock/quality policy, maximum adjacent time and distance, page size and
+nullable cursor. The first page pins the current committed generation; later
+writes stay outside its encrypted continuation and every page rechecks current
+scope authority.
+
+The service restores complete samples from private retained evidence and emits
+only the reviewed `wtr.route-replay-public.v1` projection. Public point,
+rejection and exclusion IDs are scope pseudonyms. Evidence, bundle, observation
+and sample identities remain private. A materialisation with no position or more
+than one position is an explicit exclusion and splits otherwise adjacent route
+segments. Corrupt retained evidence fails the page rather than fabricating a gap.
+
+Continuity is deliberately `page_local_only`. A client may draw only the segments
+returned in one page; it must not connect coordinates across page boundaries.
+Changing the Thing, window, policy, page size, principal, scope or instance makes
+an existing cursor invalid.

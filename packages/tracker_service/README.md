@@ -116,7 +116,8 @@ the scope's configured credentials, their grants, expiry and durable revocation,
 without token digests.
 Scanner and public rule management remain explicitly unsupported. Analytics is
 reported as `structured_queries`, and rules as
-`heartbeat_battery_motion_geofence_definitions`.
+`heartbeat_battery_motion_geofence_definitions`; retained route history is
+reported as `snapshot_pinned_gap_honest_pages`.
 
 `GET …/rules`, `…/rules/{kind}:{rule_id}` and its `/history` return reviewed
 `wtr.rule-status.v1` projections of committed heartbeat, battery, transport,
@@ -163,6 +164,17 @@ window into bounded bucket pages. An encrypted seven-day cursor binds the exact
 query, page size, next page, principal, scope, instance and first committed
 generation. Continuations exclude later writes and recheck current `read`
 authority without retaining a SQLite transaction between requests.
+
+`Service.route_history/5` and `POST …/routes/pages` reconstruct one bounded page
+of retained position materialisations under current `read` authority. The first
+page pins the committed generation; its encrypted continuation binds the exact
+Thing, time window, replay policy, page size, principal, scope and instance.
+Every retained observation is reauthorized before its private evidence is
+restored. Public pages contain pseudonymized point/rejection identities and
+tagged scalars, never raw evidence, bundle, observation or sample identities.
+Missing or ambiguous position materialisations are explicit exclusions that
+split otherwise adjacent segments. Route continuity is page-local: clients must
+not join the last segment of one page to the first segment of another.
 
 Analytics execution is capped at eight concurrent queries, two per principal and
 sixteen starts per principal in each one-second window. Caller loss, store
@@ -247,11 +259,12 @@ and key paths. Explicit `:proxy` mode requires an HTTPS public origin and a
 protected proxy-to-listener network; forwarded headers never supply authority or
 Forms. No remote exposure is inferred.
 
-OpenAPI **3.1.0**, contract revision **1.23.0**, is packaged at
+OpenAPI **3.1.0**, contract revision **1.24.0**, is packaged at
 `priv/openapi/v1.json` and served at `/api/v1/openapi.json`. Liveness is
 `/health/live`; authenticated resources are under `/api/v1/scopes/{scope}`.
 Use `Authorization: Bearer …`, and a UUIDv4 `Idempotency-Key` for POST mutations.
-The read-only analytics POST operations use authorization without an idempotency key.
+The read-only analytics and route-page POST operations use authorization without
+an idempotency key.
 Saved-query writes use the same mutation receipt/idempotency contract as other
 durable resources; saved-query execution is a read-only GET.
 API responses have `schema: wtr.response.v1` and `data` or `error`. Successful

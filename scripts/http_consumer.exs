@@ -203,6 +203,29 @@ defmodule Wotex.Tracker.HTTPConsumer do
         body: %{"thing_id" => thing, "expected_generation" => "2"}
       )
 
+    route_request = %{
+      "schema" => "wtr.route-page-request.v1",
+      "thing_id" => thing,
+      "from_at" => descriptor["now"] - 1,
+      "to_at" => descriptor["now"] + 1,
+      "event_time" => "trusted_fix",
+      "qualities" => ["valid"],
+      "max_gap_ms" => 300_000,
+      "max_gap_m" => 10_000,
+      "page_size" => 25,
+      "cursor" => nil
+    }
+
+    route_page =
+      data(context, "page_route", prefix <> "/routes/pages",
+        body: route_request,
+        who: :reader
+      )
+
+    "empty" = route_page["route"]["status"]
+    1 = route_page["route"]["excluded_count"]
+    nil = route_page["cursor"]
+
     query = query(thing, descriptor["now"], "independent-temperature-history", 1)
 
     analytics =

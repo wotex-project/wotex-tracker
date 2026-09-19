@@ -70,6 +70,9 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
   defp request_operation(%{path_info: ["api", "v1", "scopes", _, "analytics", "pages"]}),
     do: :analytics
 
+  defp request_operation(%{path_info: ["api", "v1", "scopes", _, "routes", "pages"]}),
+    do: :route
+
   defp request_operation(%{
          path_info: ["api", "v1", "scopes", _, "saved_queries", _, "execute"]
        }),
@@ -128,6 +131,12 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
        when operation in ["query", "pages"],
        do: {conn, result}
 
+  defp uncommitted(
+         {%{method: "POST", path_info: ["api", "v1", "scopes", _scope, "routes", "pages"]} =
+            conn, result}
+       ),
+       do: {conn, result}
+
   defp uncommitted({%{method: "POST"} = conn, {:error, code}}) when is_atom(code),
     do: {conn, Wire.mutation_error(code, operation_id(conn))}
 
@@ -168,6 +177,9 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
           path_info: ["api", "v1", "scopes", _scope, "analytics", operation]
         }
         when operation in ["query", "pages"] ->
+          error
+
+        %{method: "POST", path_info: ["api", "v1", "scopes", _scope, "routes", "pages"]} ->
           error
 
         %{method: "POST"} ->
@@ -220,6 +232,22 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
     with {:ok, _} <- Service.authorize(service, token, scope, "read", now),
          {:ok, body, conn} <- Wire.body(conn) do
       {conn, Service.analytics(service, token, scope, body, now)}
+    else
+      {:error, code, conn} -> {conn, Wire.error(code)}
+      error -> {conn, normalize(error)}
+    end
+  end
+
+  defp scoped(
+         %{method: "POST"} = conn,
+         ["routes", "pages"],
+         params,
+         {service, token, scope, now}
+       )
+       when map_size(params) == 0 do
+    with {:ok, _} <- Service.authorize(service, token, scope, "read", now),
+         {:ok, body, conn} <- Wire.body(conn) do
+      {conn, Service.route_history(service, token, scope, body, now)}
     else
       {:error, code, conn} -> {conn, Wire.error(code)}
       error -> {conn, normalize(error)}
@@ -395,6 +423,7 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
            "cellular" => "unsupported",
            "rules" => "heartbeat_battery_motion_geofence_definitions",
            "analytics" => "structured_queries",
+           "route_history" => "snapshot_pinned_gap_honest_pages",
            "runtime" => %{
              "readproperty" => "available",
              "observeproperty" => "available",

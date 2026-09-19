@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "WoTEx Tracker service",
-    "version": "1.23.0",
-    "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries, persisted rule status and administrator-managed heartbeat, battery, motion and geofence rule definitions evaluated against committed Thing evidence, acknowledgeable rule alerts listed per Thing for defined rules, administrator unenrollment, pinned incident snapshots and an administrator credential inventory. No scanner, notification delivery or physical interaction is implied."
+    "version": "1.24.0",
+    "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries, snapshot-pinned gap-honest route replay from retained private evidence, persisted rule status and administrator-managed heartbeat, battery, motion and geofence rule definitions evaluated against committed Thing evidence, acknowledgeable rule alerts listed per Thing for defined rules, administrator unenrollment, pinned incident snapshots and an administrator credential inventory. No scanner, notification delivery or physical interaction is implied."
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "security": [
@@ -168,6 +168,9 @@
                         "analytics": {
                           "const": "structured_queries"
                         },
+                        "route_history": {
+                          "const": "snapshot_pinned_gap_honest_pages"
+                        },
                         "runtime": {
                           "type": "object",
                           "properties": {
@@ -199,6 +202,7 @@
                         "cellular",
                         "rules",
                         "analytics",
+                        "route_history",
                         "runtime",
                         "directory"
                       ],
@@ -403,6 +407,63 @@
             }
           },
           "description": "At most 1 MiB, UTF-8 JSON; duplicate keys and unknown fields are rejected."
+        }
+      }
+    },
+    "/api/v1/scopes/{scope}/routes/pages": {
+      "post": {
+        "operationId": "page_route",
+        "description": "Project one bounded retained-evidence page into gap-honest route segments at the first request's committed generation. The encrypted cursor binds the exact Thing, time window, clock and quality policy, gap limits, page size, principal, scope and generation for seven days. Every continuation rechecks current read authority. Public points preserve qualified coordinates, source, quality, stated accuracy and time basis while pseudonymizing private evidence identities. Missing or ambiguous position materialisations and rejected samples remain explicit and split segments. This read-only POST does not use an Idempotency-Key.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/RoutePage"
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoutePageRequest"
+              }
+            }
+          },
+          "description": "At most 1 MiB, UTF-8 JSON; duplicate keys and unknown fields are rejected. The time window is half-open: from_at is included and to_at is excluded."
         }
       }
     },
@@ -6976,6 +7037,598 @@
           "result",
           "page",
           "generation",
+          "cursor",
+          "identity"
+        ],
+        "additionalProperties": false
+      },
+      "RoutePageRequest": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "wtr.route-page-request.v1"
+          },
+          "thing_id": {
+            "type": "string",
+            "pattern": "^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+          },
+          "from_at": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "to_at": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "event_time": {
+            "enum": [
+              "trusted_fix",
+              "trusted_fix_or_receiver"
+            ]
+          },
+          "qualities": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "valid",
+                "suspect"
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 2,
+            "uniqueItems": true
+          },
+          "max_gap_ms": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2678400000
+          },
+          "max_gap_m": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 40100000
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "cursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4096,
+                "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "schema",
+          "thing_id",
+          "from_at",
+          "to_at",
+          "event_time",
+          "qualities",
+          "max_gap_ms",
+          "max_gap_m",
+          "page_size",
+          "cursor"
+        ],
+        "additionalProperties": false
+      },
+      "RouteWindow": {
+        "type": "object",
+        "properties": {
+          "from_at": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "to_at": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "from_at",
+          "to_at"
+        ],
+        "additionalProperties": false
+      },
+      "RouteHistoryWindow": {
+        "type": "object",
+        "properties": {
+          "after_generation": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,18})$"
+          },
+          "last_generation": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,18})$"
+          },
+          "record_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "after_generation",
+          "last_generation",
+          "record_count"
+        ],
+        "additionalProperties": false
+      },
+      "RoutePolicy": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "wtr.route-replay-policy.v1"
+          },
+          "algorithm": {
+            "const": "ordered-gap-honest-route-v1"
+          },
+          "id": {
+            "const": "route-history"
+          },
+          "revision": {
+            "type": "string",
+            "pattern": "^wtr-route-request-v1:sha256:[0-9a-f]{64}$"
+          },
+          "event_time": {
+            "enum": [
+              "trusted_fix",
+              "trusted_fix_or_receiver"
+            ]
+          },
+          "qualities": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "valid",
+                "suspect"
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 2,
+            "uniqueItems": true
+          },
+          "max_gap_ms": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2678400000
+          },
+          "max_gap_m": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 40100000
+          },
+          "max_samples": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "rejected_position_bridge": {
+            "const": "prohibited"
+          },
+          "excessive_gap_bridge": {
+            "const": "prohibited"
+          },
+          "identity": {
+            "type": "string",
+            "pattern": "^wtr-json-v1:sha256:[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "schema",
+          "algorithm",
+          "id",
+          "revision",
+          "event_time",
+          "qualities",
+          "max_gap_ms",
+          "max_gap_m",
+          "max_samples",
+          "rejected_position_bridge",
+          "excessive_gap_bridge",
+          "identity"
+        ],
+        "additionalProperties": false
+      },
+      "RoutePointPublic": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "wtr.route-point-public.v1"
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^wtr1_[A-Za-z0-9_-]+$"
+          },
+          "latitude": {
+            "$ref": "#/components/schemas/Scalar"
+          },
+          "longitude": {
+            "$ref": "#/components/schemas/Scalar"
+          },
+          "horizontal_accuracy_m": {
+            "$ref": "#/components/schemas/Scalar"
+          },
+          "accuracy_kind": {
+            "enum": [
+              "bound",
+              "estimate",
+              "unknown"
+            ]
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          },
+          "quality": {
+            "enum": [
+              "valid",
+              "suspect",
+              "invalid"
+            ]
+          },
+          "event_at": {
+            "$ref": "#/components/schemas/Scalar"
+          },
+          "event_time_basis": {
+            "enum": [
+              "fix",
+              "receiver"
+            ]
+          },
+          "received_at": {
+            "$ref": "#/components/schemas/Scalar"
+          }
+        },
+        "required": [
+          "schema",
+          "id",
+          "latitude",
+          "longitude",
+          "horizontal_accuracy_m",
+          "accuracy_kind",
+          "source",
+          "quality",
+          "event_at",
+          "event_time_basis",
+          "received_at"
+        ],
+        "additionalProperties": false
+      },
+      "RouteSegmentPublic": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "wtr.route-segment-public.v1"
+          },
+          "point_count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoutePointPublic"
+            },
+            "minItems": 1,
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "schema",
+          "point_count",
+          "points"
+        ],
+        "additionalProperties": false
+      },
+      "RouteBreakPublic": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "wtr.route-break-public.v1"
+          },
+          "after_point_id": {
+            "type": "string",
+            "pattern": "^wtr1_[A-Za-z0-9_-]+$"
+          },
+          "before_point_id": {
+            "type": "string",
+            "pattern": "^wtr1_[A-Za-z0-9_-]+$"
+          },
+          "after_event_at": {
+            "$ref": "#/components/schemas/Scalar"
+          },
+          "before_event_at": {
+            "$ref": "#/components/schemas/Scalar"
+          },
+          "gap_ms": {
+            "$ref": "#/components/schemas/Scalar"
+          },
+          "center_distance_m": {
+            "$ref": "#/components/schemas/Scalar"
+          },
+          "reason": {
+            "enum": [
+              "rejected_samples",
+              "time_gap",
+              "distance_gap",
+              "time_and_distance_gap",
+              "unqualified_materialisations"
+            ]
+          },
+          "excluded_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^wtr1_[A-Za-z0-9_-]+$"
+            },
+            "maxItems": 100
+          },
+          "rejected_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^wtr1_[A-Za-z0-9_-]+$"
+            },
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "schema",
+          "after_point_id",
+          "before_point_id",
+          "after_event_at",
+          "before_event_at",
+          "gap_ms",
+          "center_distance_m",
+          "reason",
+          "excluded_ids",
+          "rejected_ids"
+        ],
+        "additionalProperties": false
+      },
+      "RouteRejectionPublic": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "wtr.route-rejection-public.v1"
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^wtr1_[A-Za-z0-9_-]+$"
+          },
+          "received_at": {
+            "$ref": "#/components/schemas/Scalar"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          }
+        },
+        "required": [
+          "schema",
+          "id",
+          "received_at",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "RouteExclusionPublic": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "wtr.route-exclusion.v1"
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^wtr1_[A-Za-z0-9_-]+$"
+          },
+          "received_at": {
+            "$ref": "#/components/schemas/Scalar"
+          },
+          "reason": {
+            "enum": [
+              "missing_position",
+              "ambiguous_positions"
+            ]
+          }
+        },
+        "required": [
+          "schema",
+          "id",
+          "received_at",
+          "reason"
+        ],
+        "additionalProperties": false
+      },
+      "RouteReplayPublic": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "wtr.route-replay-public.v1"
+          },
+          "algorithm": {
+            "const": "snapshot-pinned-gap-honest-route-v1"
+          },
+          "status": {
+            "enum": [
+              "empty",
+              "partial",
+              "complete"
+            ]
+          },
+          "reason": {
+            "enum": [
+              "no_qualified_positions",
+              "gaps_or_rejections",
+              "all_positions_qualified"
+            ]
+          },
+          "record_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "sample_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "point_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "segment_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "break_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "rejected_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "excluded_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "segments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RouteSegmentPublic"
+            },
+            "maxItems": 100
+          },
+          "breaks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RouteBreakPublic"
+            },
+            "maxItems": 100
+          },
+          "rejected": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RouteRejectionPublic"
+            },
+            "maxItems": 100
+          },
+          "excluded": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RouteExclusionPublic"
+            },
+            "maxItems": 100
+          },
+          "policy": {
+            "$ref": "#/components/schemas/RoutePolicy"
+          },
+          "window": {
+            "$ref": "#/components/schemas/RouteWindow"
+          }
+        },
+        "required": [
+          "schema",
+          "algorithm",
+          "status",
+          "reason",
+          "record_count",
+          "sample_count",
+          "point_count",
+          "segment_count",
+          "break_count",
+          "rejected_count",
+          "excluded_count",
+          "segments",
+          "breaks",
+          "rejected",
+          "excluded",
+          "policy",
+          "window"
+        ],
+        "additionalProperties": false
+      },
+      "RoutePage": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "wtr.route-page.v1"
+          },
+          "algorithm": {
+            "const": "snapshot-pinned-gap-honest-route-v1"
+          },
+          "thing_id": {
+            "type": "string",
+            "pattern": "^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+          },
+          "generation": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,18})$"
+          },
+          "history": {
+            "$ref": "#/components/schemas/RouteHistoryWindow"
+          },
+          "window": {
+            "$ref": "#/components/schemas/RouteWindow"
+          },
+          "continuity": {
+            "const": "page_local_only"
+          },
+          "route": {
+            "$ref": "#/components/schemas/RouteReplayPublic"
+          },
+          "cursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4096,
+                "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "identity": {
+            "type": "string",
+            "pattern": "^wtr-route-page-v1:sha256:[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "schema",
+          "algorithm",
+          "thing_id",
+          "generation",
+          "history",
+          "window",
+          "continuity",
+          "route",
           "cursor",
           "identity"
         ],

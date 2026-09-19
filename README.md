@@ -87,6 +87,10 @@ atomically. Bounded trip-distance reconstruction includes only adjacent segments
 proved moving and reports every exclusion. Bounded route replay orders exact
 position samples and starts a new segment after rejected evidence or an excessive
 time/distance gap; it never invents a path across missing history.
+The service exposes that replay as snapshot-pinned retained-route pages under
+current read authority. It reconstructs complete samples only inside the private
+boundary, pseudonymizes public point/rejection identities and turns missing or
+ambiguous position materialisations into explicit segment breaks.
 Administrators can persist complete motion and geofence definitions for enrolled
 Things; later materialisations evaluate them atomically when the evidence bundle
 contains exactly one position, without silently selecting among sources.

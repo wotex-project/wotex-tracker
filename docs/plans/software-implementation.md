@@ -223,7 +223,10 @@ a trip. Bounded trip-distance reconstruction sums only adjacent segments proved
 moving and retains explicit exclusions. Bounded route replay now orders exact
 position samples under an explicit clock/quality policy and creates visible
 segment breaks after rejected positions or excessive time/distance gaps, without
-inferring a missing path. The service atomically persists pending
+inferring a missing path. The service reconstructs those samples from private
+retained evidence and exposes snapshot-pinned public pages whose pseudonymized
+missing/ambiguous exclusions split segments; continuity is explicitly local to
+each page. The service atomically persists pending
 dwell, active-trip state and stable trip event intent with restart recovery. See
 the [motion guide](../guides/motion.md).
 
@@ -336,6 +339,8 @@ Overview, asset-detail and retained state-history surfaces now present every
 redacted position claim with its source, uncertainty, quality and qualified
 times. Empty position collections and unavailable claims remain explicit; no
 screen chooses a canonical source, infers a route or claims live connectivity.
+The service boundary for a later history screen is implemented as authorized,
+snapshot-pinned route pages with explicit gaps and page-local continuity.
 The asset page can also read declared scalar Properties from the committed
 service snapshot through current `read` authority. Overview cards fetch each
 asset's retained state separately and disclose unprovisioned, unavailable and
