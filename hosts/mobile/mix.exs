@@ -27,6 +27,12 @@ defmodule WotexTrackerMobile.MixProject do
     [
       ui(),
       {:mob, "== 0.9.1"},
+      {:bandit, "== 1.12.5"},
+      {:mint, "== 1.10.1"},
+      {:phoenix, "== 1.8.14"},
+      {:phoenix_live_view, "== 1.2.11"},
+      {:phoenix_pubsub, "== 2.3.0"},
+      {:plug, "== 1.20.3"},
       {:exqlite, "== 0.40.0"},
       {:jason, "== 1.4.5"},
       {:excoveralls, "~> 0.18", only: :test},

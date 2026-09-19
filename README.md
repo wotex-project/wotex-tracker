@@ -77,7 +77,12 @@ cache for bounded overview, history, dashboard and map projections. Cache reads
 identify offline source, synchronization age and completeness; exact server,
 account, scope, credential and installation changes, credential expiry and
 sign-out purge retained data. Credentials, raw evidence, pending mutations and
-physical Actions are not cache entries. The local LiveView shell and all native,
+physical Actions are not cache entries. A loopback-only Phoenix endpoint now
+serves the shared UI inside one Mob WebView, requires an ephemeral app-session
+capability, retains that binding across browser-session renewal and rejects
+foreign WebSocket origins. Remote requests use the selected HTTPS authority
+after the mobile OS resolver seam, and external HTTPS navigation leaves the
+bridge-bearing WebView. Secure storage, native lifecycle/BLE/push/share bridges,
 signed-device and distribution gates remain open.
 
 The WTR.05 pure foundation admits position evidence, freshness, deterministic

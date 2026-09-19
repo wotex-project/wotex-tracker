@@ -29,6 +29,7 @@ defmodule Wotex.Tracker.UI.Layout do
         </script>
       </head>
       <body>
+        <div id="mob-bridge" phx-hook="MobHook" style="display:none"></div>
         <a class="skip" href="#main">Skip to content</a>
         <header class="topbar">
           <a class="brand" href="/">WoTEx <span>Tracker</span></a>

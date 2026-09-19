@@ -3408,3 +3408,41 @@ cohort independently from the 1.18 host profiles.
 This is offline-cache software evidence only. Local LiveView/Mob composition,
 platform secure storage, lifecycle/reconnect behavior, native bridges, Xcode,
 signing and every physical-iPhone acceptance gate remain unpassed.
+
+### Capability-bound local mobile WebView shell — 2026-09-20
+
+The mobile host now starts the shared LiveView router behind a bounded Bandit
+listener fixed to numeric IPv4 loopback and presents it in one Mob WebView. A
+canonical random 32-byte capability is used only for the initial bootstrap URL.
+The endpoint stores its SHA-256 digest in an encrypted and signed HTTP-only,
+SameSite-strict cookie, requires the binding for every later HTTP request and
+LiveView mount, and retains only that binding through sign-in, sign-out and
+session renewal. Static assets are behind the same gate. The capability is
+absent from rendered content, socket assigns, logs and inspected runtime state.
+
+The WebView admits only the exact local-origin prefix. The endpoint enforces the
+same exact WebSocket origin and disables long-poll, HTTP/2, debug errors and code
+reloading. Canonical external HTTPS navigation is opened by the OS rather than
+inside the bridge-bearing view. No development distribution listener or cookie
+is started. Remote requests invoke the Mob DNS seam before the shared bounded
+Mint transport while preserving the selected HTTPS scheme, host, port and
+request. Resolver and transport crashes fail as unavailable; ordinary host tests
+use the BEAM resolver when the device NIF is absent.
+
+End-to-end tests exercise unauthorized HTTP/static requests, wrong and oversized
+bootstrap capabilities, encrypted-cookie attributes, sign-in and sign-out
+renewal, shared UI rendering, bearer-token non-disclosure, exact remote request
+paths, static bridge assets and foreign WebSocket-origin rejection. Pure tests
+cover canonical local targets, malformed capabilities, external-navigation
+admission, resolver outcomes, native-start containment and host configuration.
+The complete mobile-host gate passed 28 tests at 95.6% production line coverage;
+the complete shared-UI gate passed 154 tests at 95.1%. Compiler,
+unused-dependency, formatter, dependency audit, strict Credo, ExDoc, Dialyzer,
+archive inspection, licenses and the 491-file stack-language policy passed for
+their applicable profiles.
+
+This is software loopback-shell evidence, not physical mobile qualification.
+Platform secure credential storage, cache/view synchronization, lifecycle and
+reconnect behavior, notification routing, BLE central provisioning, OS sharing,
+Xcode generation/build, signing, installation, distribution and every
+physical-iPhone gate remain unpassed.

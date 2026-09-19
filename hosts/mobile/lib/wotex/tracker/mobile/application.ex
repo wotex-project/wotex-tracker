@@ -7,9 +7,16 @@ defmodule Wotex.Tracker.Mobile.Application do
   """
 
   use Application
+  alias Wotex.Tracker.Mobile.Host
 
   @impl true
   def start(_type, _args) do
-    Supervisor.start_link([], strategy: :one_for_one, name: Wotex.Tracker.Mobile.Supervisor)
+    case Application.get_env(:wotex_tracker_mobile, :host) do
+      nil ->
+        Supervisor.start_link([], strategy: :one_for_one, name: Wotex.Tracker.Mobile.Supervisor)
+
+      options ->
+        Host.start_link(options)
+    end
   end
 end

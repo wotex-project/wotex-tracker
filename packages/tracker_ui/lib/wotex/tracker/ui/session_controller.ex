@@ -3,7 +3,7 @@ defmodule Wotex.Tracker.UI.SessionController do
 
   use Phoenix.Controller, formats: [:html]
   import Plug.Conn
-  alias Wotex.Tracker.UI.Sessions
+  alias Wotex.Tracker.UI.{SessionGuard, Sessions}
 
   def new(conn, _) do
     flash = conn.assigns[:flash] || %{}
@@ -14,9 +14,11 @@ defmodule Wotex.Tracker.UI.SessionController do
   end
 
   def create(conn, params) do
-    sessions = Phoenix.Controller.endpoint_module(conn).config(:tracker_ui)[:sessions]
+    tracker_ui = Phoenix.Controller.endpoint_module(conn).config(:tracker_ui)
+    sessions = tracker_ui[:sessions]
+    retained = SessionGuard.retain(tracker_ui[:session_guard], get_session(conn))
     Sessions.logout(sessions, get_session(conn, :browser_session))
-    conn = conn |> clear_session() |> configure_session(renew: true)
+    conn = conn |> clear_session() |> configure_session(renew: true) |> retain_session(retained)
 
     case Sessions.login(sessions, params["token"], params["scope"]) do
       {:ok, %{"id" => id}} ->
@@ -32,8 +34,19 @@ defmodule Wotex.Tracker.UI.SessionController do
   end
 
   def delete(conn, _) do
-    sessions = Phoenix.Controller.endpoint_module(conn).config(:tracker_ui)[:sessions]
+    tracker_ui = Phoenix.Controller.endpoint_module(conn).config(:tracker_ui)
+    sessions = tracker_ui[:sessions]
+    retained = SessionGuard.retain(tracker_ui[:session_guard], get_session(conn))
     Sessions.logout(sessions, get_session(conn, :browser_session))
-    conn |> clear_session() |> configure_session(drop: true) |> redirect(to: "/sign-in")
+
+    conn
+    |> clear_session()
+    |> configure_session(if(retained == %{}, do: [drop: true], else: [renew: true]))
+    |> retain_session(retained)
+    |> redirect(to: "/sign-in")
+  end
+
+  defp retain_session(conn, retained) do
+    Enum.reduce(retained, conn, fn {key, value}, current -> put_session(current, key, value) end)
   end
 end

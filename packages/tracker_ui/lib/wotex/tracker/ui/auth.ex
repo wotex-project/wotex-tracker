@@ -10,14 +10,15 @@ defmodule Wotex.Tracker.UI.Auth do
 
   import Phoenix.Component
   import Phoenix.LiveView
-  alias Wotex.Tracker.UI.Sessions
+  alias Wotex.Tracker.UI.{SessionGuard, Sessions}
 
   @doc false
   def on_mount(:default, _, session, socket) do
-    sessions = socket.endpoint.config(:tracker_ui)[:sessions]
+    tracker_ui = socket.endpoint.config(:tracker_ui)
+    sessions = tracker_ui[:sessions]
     socket = assign(socket, sessions: sessions, session_id: session["browser_session"])
 
-    case authorize(socket) do
+    case guarded_authorize(tracker_ui[:session_guard], session, socket) do
       {:ok, socket} ->
         if connected?(socket), do: Process.send_after(self(), :check_authority, 5000)
 
@@ -52,6 +53,14 @@ defmodule Wotex.Tracker.UI.Auth do
   @doc "Calls the configured service using the server-held browser credential."
   def request(socket, action, arguments \\ %{}),
     do: Sessions.request(socket.assigns.sessions, socket.assigns.session_id, action, arguments)
+
+  defp guarded_authorize(nil, _session, socket), do: authorize(socket)
+
+  defp guarded_authorize(guard, session, socket) do
+    if SessionGuard.admit(guard, session) == :ok,
+      do: authorize(socket),
+      else: {:error, redirect(socket, to: "/sign-in")}
+  end
 
   defp authorize(socket) do
     case request(socket, :authorize) do

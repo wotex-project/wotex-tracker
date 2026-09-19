@@ -454,8 +454,15 @@ now pins Mob 0.9.1 to Elixir 1.19.5 / OTP 27 without raising the root floor. Its
 SQLite cache retains only size-, age- and account-bounded overview, history,
 dashboard and map projections, labels age/completeness, securely purges on
 authority changes, expiry and sign-out, and exposes no offline mutation or
-physical-Action queue. Local LiveView composition, secure storage and every
-native/device gate remain subsequent work.
+physical-Action queue. The executable shell now composes the shared router behind
+a bounded loopback-only Bandit endpoint and one Mob WebView. A fresh native
+capability bootstraps an encrypted/signed HTTP-only session, remains required
+through LiveView admission and session renewal, and never enters page assigns.
+The exact local origin bounds navigation and WebSocket origin checks; canonical
+external HTTPS links leave the bridge-bearing WebView. Mobile remote requests
+invoke the Mob OS-resolver seam while preserving the configured HTTPS authority.
+Secure storage, cache/view synchronization and every physical native/device gate
+remain subsequent work.
 
 Acceptance: real iPhone secure storage, authorized BLE central provisioning,
 notification registration and cold/warm/background tap routing, suspend/resume,
