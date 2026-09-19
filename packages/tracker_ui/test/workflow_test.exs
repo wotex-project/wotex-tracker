@@ -4971,10 +4971,252 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     refute has_element?(missing, "#route-query")
   end
 
+  test "trip history uses the authorized service and exports the exact empty page", c do
+    thing = provisioned(c)
+
+    {:ok, asset, _} =
+      live(c.conn, Presenter.path(:asset, thing) <> "?operation=" <> Identifier.uuid())
+
+    assert has_element?(
+             asset,
+             ~s(a[href="#{Presenter.path(:asset, thing)}/trips"]),
+             "Explore trips and stops"
+           )
+
+    path = Presenter.path(:asset, thing) <> "/trips"
+    {:ok, trips, html} = live(c.conn, path)
+    assert html =~ "Workshop sensor trips"
+    assert has_element?(trips, "#trip-page-size")
+    assert has_element?(trips, "h2", "Trip event timeline")
+    assert has_element?(trips, ".empty", "No trip events on this page")
+    assert render(trips) =~ "never invents a missing stop"
+
+    trips |> element("button", "Export this event page (JSON)") |> render_click()
+    assert_push_event(trips, "download-trip-page", %{"content" => json})
+    export = Jason.decode!(json)
+    assert export["schema"] == "wtr.trip-event-page-export.v1"
+    assert export["thing_id"] == thing
+    assert export["items"] == []
+    assert export["has_more"] == false
+    refute Map.has_key?(export, "cursor")
+    refute json =~ "wtrc1."
+
+    Agent.update(c.faults, &Map.put(&1, :thing_trips, :unavailable))
+    trips |> element("button", "Export this event page (JSON)") |> render_click()
+    refute_push_event(trips, "download-trip-page", %{"content" => _})
+    assert has_element?(trips, "h2", "Trip event timeline")
+    assert has_element?(trips, "[role=alert]")
+
+    trips |> element("button", "Export this event page (JSON)") |> render_click()
+    assert_push_event(trips, "download-trip-page", %{"content" => _})
+
+    trips
+    |> form("#trip-page-size", trip: %{limit: "50"})
+    |> render_submit()
+
+    assert has_element?(trips, ~s(#trip-limit option[selected][value="50"]))
+    render_submit(trips, "set-limit", %{})
+    assert has_element?(trips, "[role=alert]", "Check the required fields")
+    render_click(trips, "unknown-event", %{})
+
+    Agent.update(c.faults, &Map.put(&1, :get, :unavailable))
+    trips |> element("button", "Refresh trips") |> render_click()
+    refute has_element?(trips, "#trip-page-size")
+
+    Agent.update(c.faults, &Map.put(&1, :get, {:reply, {:ok, %{}}}))
+    trips |> element("button", "Refresh trips") |> render_click()
+    assert has_element?(trips, "[role=alert]")
+  end
+
+  test "trip pages pair only visible endpoints and retain the current page on retry", c do
+    thing = provisioned(c)
+    first = trip_page(thing, c.now, "cursor-one", "10")
+    second = trip_page(thing, c.now + 10_000, nil, "10", :single)
+    Agent.update(c.faults, &Map.put(&1, :thing_trips, {:trip_page, first}))
+
+    {:ok, view, html} = live(c.conn, Presenter.path(:asset, thing) <> "/trips")
+    assert html =~ "Trip stopped"
+    assert html =~ "Trip started"
+    assert html =~ "Trip interrupted"
+    assert html =~ "exact onset-to-ending interval 4000 ms"
+    assert html =~ "Its stop event is also visible on this page"
+    assert html =~ "Its start event is not visible on this page"
+    assert html =~ "Historical replay; no present-time action"
+    refute html =~ "private-position-evidence"
+    assert has_element?(view, "button", "Next event page")
+    refute has_element?(view, "button", "Previous event page")
+
+    Agent.update(c.faults, &Map.put(&1, :thing_trips, :unavailable))
+    view |> element("button", "Next event page") |> render_click()
+    assert render(view) =~ "Trip stopped"
+    assert has_element?(view, "[role=alert]")
+    refute has_element?(view, "button", "Previous event page")
+
+    Agent.update(c.faults, &Map.put(&1, :thing_trips, {:reply, {:ok, second}}))
+    view |> element("button", "Next event page") |> render_click()
+    assert render(view) =~ "trip-page-two"
+    assert has_element?(view, "button", "Previous event page")
+    refute has_element?(view, "button", "Next event page")
+
+    Agent.update(c.faults, &Map.put(&1, :thing_trips, :unavailable))
+    view |> element("button", "Previous event page") |> render_click()
+    assert render(view) =~ "trip-page-two"
+    assert has_element?(view, "button", "Previous event page")
+
+    changed_generation = %{first | "generation" => "11"}
+    Agent.update(c.faults, &Map.put(&1, :thing_trips, {:reply, {:ok, changed_generation}}))
+    view |> element("button", "Previous event page") |> render_click()
+    assert render(view) =~ "trip-page-two"
+    assert has_element?(view, "[role=alert]", "service changed")
+
+    Agent.update(c.faults, &Map.put(&1, :thing_trips, {:reply, {:ok, first}}))
+    view |> element("button", "Previous event page") |> render_click()
+    assert render(view) =~ "trip-page-one"
+    refute has_element?(view, "button", "Previous event page")
+
+    for response <- [
+          {:ok, %{}},
+          {:ok, put_in(first, ["items", Access.at(0), "value", "event", "kind"], "battery.low")},
+          {:ok,
+           put_in(
+             first,
+             ["items", Access.at(0), "value", "event", "from_position_evidence_id"],
+             "private-position-evidence"
+           )},
+          {:ok, "unexpected"}
+        ] do
+      Agent.update(c.faults, &Map.put(&1, :thing_trips, {:reply, response}))
+      view |> element("button", "Next event page") |> render_click()
+      assert render(view) =~ "trip-page-one"
+      assert has_element?(view, "[role=alert]")
+      refute has_element?(view, "button", "Previous event page")
+    end
+
+    Agent.update(c.faults, &Map.put(&1, :thing_trips, {:reply, {:ok, %{}}}))
+    view |> element("button", "Export this event page (JSON)") |> render_click()
+    refute_push_event(view, "download-trip-page", %{"content" => _})
+    refute has_element?(view, ".trip-timeline")
+    assert has_element?(view, "[role=alert]", "service changed")
+
+    Agent.update(c.faults, &Map.put(&1, :thing_trips, {:trip_page, first}))
+    view |> element("button", "Refresh trips") |> render_click()
+    assert has_element?(view, ".trip-timeline")
+
+    view |> element("button", "Export this event page (JSON)") |> render_click()
+    assert_push_event(view, "download-trip-page", %{"content" => page_json})
+    page_export = Jason.decode!(page_json)
+    assert page_export["page_count"] == 3
+    assert page_export["has_more"] == true
+    refute Map.has_key?(page_export, "cursor")
+
+    Agent.update(c.faults, &Map.put(&1, :thing_trips, {:deny, "forbidden"}))
+    view |> element("button", "Export this event page (JSON)") |> render_click()
+    refute has_element?(view, "#trip-page-size")
+    refute has_element?(view, ".trip-timeline")
+    assert has_element?(view, "[role=alert]", "does not permit")
+  end
+
+  test "trip history distinguishes an unprovisioned asset from a missing one", c do
+    {thing, _} = enrolled(c)
+    {:ok, unprovisioned, _} = live(c.conn, Presenter.path(:asset, thing) <> "/trips")
+    assert has_element?(unprovisioned, ".notice", "Provision this asset's Thing")
+    refute has_element?(unprovisioned, "#trip-page-size")
+    render_click(unprovisioned, "export-page", %{})
+    assert has_element?(unprovisioned, "[role=alert]", "Check the required fields")
+
+    {:ok, missing, _} =
+      live(c.conn, Presenter.path(:asset, "urn:uuid:" <> Identifier.uuid()) <> "/trips")
+
+    assert has_element?(missing, "[role=alert]", "requested record is not available")
+    refute has_element?(missing, "#trip-page-size")
+  end
+
   defp provisioned(c) do
     {thing, _} = enrolled(c)
     materialize(c, thing, "2")
     thing
+  end
+
+  defp trip_page(thing, now, cursor, generation, mode \\ :full) do
+    items =
+      if mode == :single do
+        [trip_row(thing, "trip-page-two", "trip.started", "trip-two", now, now + 1_000)]
+      else
+        [
+          trip_row(
+            thing,
+            "trip-page-one-stop",
+            "trip.stopped",
+            "trip-one",
+            now + 5_000,
+            now + 6_000
+          ),
+          trip_row(
+            thing,
+            "trip-page-one-start",
+            "trip.started",
+            "trip-one",
+            now + 1_000,
+            now + 2_000
+          ),
+          trip_row(
+            thing,
+            "trip-page-one-interrupted",
+            "trip.interrupted",
+            "trip-orphan",
+            now + 7_000,
+            now + 8_000
+          )
+        ]
+      end
+
+    page = %{
+      "items" => items,
+      "generation" => generation,
+      "cursor" => cursor,
+      "stream_cursor" => "stream-#{generation}"
+    }
+
+    if mode == :full,
+      do: put_in(page, ["items", Access.at(2), "value", "mode"], "replay"),
+      else: page
+  end
+
+  defp trip_row(thing, id, kind, trip, effective_at, confirmed_at) do
+    reason =
+      case kind do
+        "trip.started" -> "movement_dwell_met"
+        "trip.stopped" -> "stop_dwell_met"
+        "trip.interrupted" -> "time_gap_exceeded"
+      end
+
+    %{
+      "id" => id,
+      "generation" => "10",
+      "value" => %{
+        "schema" => "wtr.alert.v1",
+        "id" => id,
+        "event_id" => id <> "-event",
+        "event" => %{
+          "schema" => "wtr.trip-event.v1",
+          "id" => id <> "-event",
+          "kind" => kind,
+          "reason" => reason,
+          "trip_id" => trip,
+          "rule_id" => "movement",
+          "rule_revision" => "7",
+          "effective_at" => effective_at,
+          "confirmed_at" => confirmed_at
+        },
+        "rule" => %{"kind" => "motion", "id" => "movement"},
+        "thing_id" => thing,
+        "mode" => "live",
+        "physical_action_dispatch" => "separate_authorization_required",
+        "created_at" => confirmed_at,
+        "generation" => "10",
+        "acknowledgement" => nil
+      }
+    }
   end
 
   defp materialize(c, thing, generation) do

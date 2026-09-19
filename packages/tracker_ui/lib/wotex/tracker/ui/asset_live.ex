@@ -251,6 +251,9 @@ defmodule Wotex.Tracker.UI.AssetLive do
       <a :if={@state} class="button secondary" href={Presenter.path(:asset, @id) <> "/route"}>
         Explore route history
       </a>
+      <a :if={@state} class="button secondary" href={Presenter.path(:asset, @id) <> "/trips"}>
+        Explore trips and stops
+      </a>
       <a :if={@thing} href={Presenter.path(:asset, @id) <> "/protection"}>
         Protection rules
       </a>

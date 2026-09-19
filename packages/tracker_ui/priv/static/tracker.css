@@ -146,6 +146,10 @@ td ul { margin: 0; padding-left: 1rem; }
 .route-chart .chart-point { stroke-width: 3; }
 .route-gaps { padding-left: 1.2rem; }
 .route-gaps li + li { margin-top: .5rem; }
+.trip-timeline { list-style: none; padding: 0; margin: 1.5rem 0; }
+.trip-timeline li { border-left: 4px solid var(--green); padding: .2rem 0 1.4rem 1rem; }
+.trip-timeline li + li { margin-top: .25rem; }
+.trip-timeline h3 { font-size: 1.05rem; text-transform: none; }
 .chart-series.series-1, .chart-legend .series-1 { --series-color: #146351; }
 .chart-series.series-2, .chart-legend .series-2 { --series-color: #2355a2; }
 .chart-series.series-3, .chart-legend .series-3 { --series-color: #a34e16; }

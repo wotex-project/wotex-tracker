@@ -2911,3 +2911,36 @@ archive inspection, licenses and the 432-file stack-language policy all passed.
 Focused coverage proves event-kind and Thing filtering, immutable continuation
 snapshots, endpoint/caller/Thing/page-size cursor binding, closed query admission,
 unknown Things and authorization failure.
+
+### Shared trip and stop timeline — 2026-09-19
+
+The shared LiveView package now links every provisioned asset to an authorized
+trip-history screen. It pages the dedicated service boundary at 25, 50 or 100
+events and presents exact starts, stops and interruptions newest first with UTC
+effective, confirmation and recording times, reason, rule revision, evaluation
+mode and the retained trip identifier. Each event links to its complete public
+alert record.
+
+Endpoint pairing is explicitly page-local. When a start and stop or interruption
+are both visible, the screen reports their exact effective-time interval. A lone
+start or ending remains visibly partial; navigation never carries an endpoint
+across pages and the UI claims neither a distance nor a reconstructed route.
+Malformed pages and any event containing a private observation, evidence,
+sample, bundle, fact or decision identity fail closed.
+
+Previous and next navigation retain the current page on temporary failure and
+preserve a bounded newer-page path. The displayed event page is exported only
+after rerunning its exact cursor-bound request under current authority and
+matching the snapshot, records and continuation state. The bounded
+`wtr.trip-event-page-export.v1` document contains public events but no service
+page or stream cursor. Changed content clears the stale page and terminal denial
+clears trip data.
+
+The complete shared-UI gate passed 133 tests at 95.0% production line coverage;
+the trip export reached 100% and the trip screen 95.2%. Compiler,
+unused-dependency, formatter, dependency audit, strict Credo, ExDoc, Dialyzer,
+48-member package archive inspection, licenses and the 434-file stack-language
+policy all passed. The real local-service workflow covers an empty authorized
+timeline and export; synthetic public pages cover endpoint pairing, replay
+labelling, retry-safe forward/back navigation, changed generations, malformed
+and private-field-bearing pages, export conflicts and terminal denial.

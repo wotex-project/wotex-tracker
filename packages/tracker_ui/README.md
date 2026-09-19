@@ -15,6 +15,12 @@ page-local segments in a coordinate plot and pairs them with exact points,
 rejections, exclusions and gap details. The screens do not choose a canonical
 source, road-match a route or claim current connectivity. Unsupported positioning
 and Actions are identified honestly.
+An asset trip screen pages exact retained `trip.started`, `trip.stopped` and
+`trip.interrupted` alerts newest first. It displays effective, confirmation and
+recording times in UTC, pairs endpoints only when both are visible on the same
+snapshot page, and never invents a missing stop, distance or cross-page trip.
+Previous/next navigation is retry-safe. Export reauthorizes and reproduces the
+displayed page, then emits bounded public JSON without either service cursor.
 The asset page reads declared scalar Properties from the authorized committed
 service snapshot, with no physical-device freshness claim.
 Asset cards now read each latest committed state separately. They show retained
@@ -116,7 +122,7 @@ test helpers. Root and service-only consumers do not depend on this package.
 The first cohort exercises real authorized services, duplicate prevention,
 lost-reply recovery, revocation, read-only denial, upload bounds, bounded
 lists/history, CSRF protection and credential custody. Device discovery and
-capture, basemaps, trip history, remaining rule workflows, interactions, remaining privacy controls,
+capture, basemaps, final trip distance summaries, remaining rule workflows, interactions, remaining privacy controls,
 remote adapters and cross-surface accessibility remain subsequent work. A
 responsive browser view does not qualify a mobile or Pi application.
 

@@ -9,7 +9,10 @@ defmodule Wotex.Tracker.UI.TestClient do
       Agent.get_and_update(faults, fn current ->
         value = Map.get(current, action)
 
-        persistent = match?({:page, _}, value) or match?({:route_page, _}, value)
+        persistent =
+          match?({:page, _}, value) or match?({:route_page, _}, value) or
+            match?({:trip_page, _}, value)
+
         next = if persistent, do: current, else: Map.delete(current, action)
         {value, next}
       end)
@@ -26,6 +29,13 @@ defmodule Wotex.Tracker.UI.TestClient do
   end
 
   defp respond({:route_page, page}, provider, token, scope, :route_history, _, now) do
+    case Local.request(provider, token, scope, :authorize, %{}, now) do
+      {:ok, _} -> {:ok, page}
+      error -> error
+    end
+  end
+
+  defp respond({:trip_page, page}, provider, token, scope, :thing_trips, _, now) do
     case Local.request(provider, token, scope, :authorize, %{}, now) do
       {:ok, _} -> {:ok, page}
       error -> error

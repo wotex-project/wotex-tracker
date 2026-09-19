@@ -196,6 +196,7 @@ defmodule Wotex.Tracker.UI.Presenter do
           "transport.recomputed" => "Transport rule recomputed",
           "trip.started" => "Trip started",
           "trip.stopped" => "Trip stopped",
+          "trip.interrupted" => "Trip interrupted",
           "geofence.entered" => "Geofence entered",
           "geofence.exited" => "Geofence exited"
         },

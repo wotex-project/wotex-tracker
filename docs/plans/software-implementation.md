@@ -231,7 +231,9 @@ dwell, active-trip state and stable trip event intent with restart recovery. See
 the [motion guide](../guides/motion.md).
 Thing-bound trip start, stop and interruption alerts are also available through
 a dedicated newest-first, snapshot-pinned page, separate from unrelated rule
-alerts. A shared trip-history presentation remains product work.
+alerts. The shared browser presents that exact event timeline, pairs endpoints
+only within one displayed page and reauthorizes bounded cursor-free exports; it
+does not imply a final trip-distance summary.
 
 Receiver-observation heartbeat state is implemented as a pure caller-ticked rule
 with exact overdue equality, newer/historical ordering, recovery, revision

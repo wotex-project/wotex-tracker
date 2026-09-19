@@ -99,6 +99,9 @@ defmodule Wotex.Tracker.UI.Local do
   defp dispatch(service, token, scope, :thing_alerts, args, now),
     do: Service.thing_alerts(service, token, scope, args["thing"], args["params"] || %{}, now)
 
+  defp dispatch(service, token, scope, :thing_trips, args, now),
+    do: Service.thing_trips(service, token, scope, args["thing"], args["params"] || %{}, now)
+
   defp dispatch(service, token, scope, :read_property, args, now) do
     {:ok, context} =
       Context.new(
