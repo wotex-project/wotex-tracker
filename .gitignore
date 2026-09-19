@@ -17,3 +17,8 @@
 *.db
 *.db-wal
 *.db-shm
+
+# Machine-local agent plans and task trackers.
+/.codex/
+/.agents/
+/docs/tasks/local/
