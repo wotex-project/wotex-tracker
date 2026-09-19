@@ -81,8 +81,10 @@ each referenced sample in a closed identity-keyed registry. Its generic rule
 transaction restores pending dwell and active-trip state across restart, compares
 the expected prior identity, and commits changed state, immutable history and any
 stable trip event intent at one generation. Exact retries deduplicate; replay
-intents retain prohibited physical dispatch. Position ingestion, trip-summary
-materialization and notification delivery remain caller-owned.
+intents retain prohibited physical dispatch. The service exposes Thing-bound
+start, stop and interruption intents through a dedicated snapshot-pinned page;
+this is an exact event timeline, not an inferred trip summary. Final distance
+summary materialization and notification delivery remain caller-owned.
 
 ## Bounded trip distance
 
@@ -99,5 +101,7 @@ joins the endpoints around an excluded segment, so a time gap or rejected fix
 cannot silently add route distance.
 
 The summary and policy carry content identities and an explicit sample limit.
-This is deterministic bounded reconstruction over supplied evidence. Long-lived
-storage, final closed-trip records and atomic event persistence remain host work.
+This is deterministic bounded reconstruction over supplied evidence. The
+service's retained lifecycle event page does not retain this supplied sample set
+or imply a final distance summary; final closed-trip summary records remain host
+work.

@@ -319,7 +319,7 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
-## HTTP and stream contract 1.24.0
+## HTTP and stream contract 1.25.0
 
 The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
 2020-12. The independently maintained Elixir audit checks document shape,
@@ -340,7 +340,7 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | `/health/live` | GET public liveness |
 | `/api/v1/openapi.json` | GET public machine contract |
 | `/api/v1/scopes/{scope}/health/ready` | GET authenticated writable-store check reporting store schema `7` |
-| `/api/v1/scopes/{scope}/capabilities` | GET explicit available/unsupported/unconfigured status; rules report `heartbeat_battery_motion_geofence_definitions` |
+| `/api/v1/scopes/{scope}/capabilities` | GET explicit available/unsupported/unconfigured status; rules report `heartbeat_battery_motion_geofence_definitions`, route and trip history advertise their paging contracts |
 | `…/analytics/query` | POST one read-only structured measurement query against a committed snapshot |
 | `…/analytics/pages` | POST one snapshot-pinned bucket page with an encrypted continuation |
 | `…/routes/pages` | POST one snapshot-pinned, gap-honest retained route page with an encrypted continuation |
@@ -357,6 +357,7 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | `…/credentials` | GET the administrator audit of this scope's configured credentials, grants, expiry and revocation |
 | `…/things/{id}/policies` | GET the at most eight live rule definitions bound to one Thing |
 | `…/things/{id}/alerts` | GET newest-first alerts of the rules defined for one Thing |
+| `…/things/{id}/trips` | GET snapshot-pinned newest-first trip lifecycle events for one Thing |
 | `…/things/{id}/rules` | GET the committed status of every rule defined for one Thing at one snapshot |
 | `…/things/{id}/properties/{property}` | GET authorized Runtime Property scalar |
 | `…/things/{id}/properties/{property}/observe` | GET committed Property values as resumable SSE |
@@ -800,6 +801,15 @@ List, get and history require `read`. `thing_alerts` and
 `GET …/things/{id}/alerts` page the alerts bound to one Thing newest first under
 `read`, with `limit` from 1 to 100 and a cursor bound to that Thing and page
 size; an unknown Thing has none.
+
+`Service.thing_trips/6` and `GET …/things/{id}/trips` apply the same current
+`read` authorization and public alert projection but select only
+`trip.started`, `trip.stopped` and `trip.interrupted` in the snapshot query.
+The encrypted cursor binds the endpoint, principal, scope, service instance,
+Thing, generation and page size for seven days. Later commits are excluded from
+continuations, generic alert cursors cannot cross the boundary, and battery,
+geofence or other alerts never consume the trip page limit. An unknown Thing
+returns an empty page.
 
 `acknowledge_alert` requires `admin`, a UUIDv4 operation ID and exactly
 `alert_id` and `expected_generation`, with the ordinary receipt and replay

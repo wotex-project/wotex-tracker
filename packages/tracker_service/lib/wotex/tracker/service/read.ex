@@ -433,6 +433,13 @@ defmodule Wotex.Tracker.Service.Read do
   defp valid_query?(%{kind: "alerts", thing: thing} = query) when map_size(query) == 6,
     do: Codec.id?(thing) and valid_query?(Map.delete(query, :thing))
 
+  # Trip pages use a closed event-kind set so unrelated alerts never consume the page bound.
+  defp valid_query?(%{kind: "alerts", thing: thing, event_kinds: event_kinds} = query)
+       when map_size(query) == 7,
+       do:
+         Codec.id?(thing) and event_kinds == ~w(trip.started trip.stopped trip.interrupted) and
+           valid_query?(Map.drop(query, [:thing, :event_kinds]))
+
   defp valid_query?(_), do: false
 
   # Rule history is written only by the rule transaction, never by a generic update.
@@ -477,6 +484,20 @@ defmodule Wotex.Tracker.Service.Read do
       db,
       "SELECT id,document,generation FROM observations WHERE scope=? AND generation<=? AND id>? ORDER BY id LIMIT ?",
       [query.scope, generation, query.after, query.limit]
+    )
+  end
+
+  defp page(db, %{thing: thing, event_kinds: event_kinds} = query, generation) do
+    SQL.rows!(
+      db,
+      """
+      SELECT r.id,r.document,r.generation FROM records r
+      WHERE r.scope=? AND r.kind='alerts' AND r.id>? AND r.generation<=?
+      AND r.generation=(SELECT max(v.generation) FROM records v WHERE v.scope=r.scope AND v.kind=r.kind AND v.id=r.id AND v.generation<=?)
+      AND json_extract(r.document,'$.public.thing_id')=?
+      AND json_extract(r.document,'$.public.event.kind') IN (?,?,?) ORDER BY r.id LIMIT ?
+      """,
+      [query.scope, query.after, generation, generation, thing] ++ event_kinds ++ [query.limit]
     )
   end
 

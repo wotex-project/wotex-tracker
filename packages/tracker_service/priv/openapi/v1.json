@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "WoTEx Tracker service",
-    "version": "1.24.0",
-    "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries, snapshot-pinned gap-honest route replay from retained private evidence, persisted rule status and administrator-managed heartbeat, battery, motion and geofence rule definitions evaluated against committed Thing evidence, acknowledgeable rule alerts listed per Thing for defined rules, administrator unenrollment, pinned incident snapshots and an administrator credential inventory. No scanner, notification delivery or physical interaction is implied."
+    "version": "1.25.0",
+    "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries, snapshot-pinned gap-honest route replay from retained private evidence, snapshot-pinned trip lifecycle event pages, persisted rule status and administrator-managed heartbeat, battery, motion and geofence rule definitions evaluated against committed Thing evidence, acknowledgeable rule alerts listed per Thing for defined rules, administrator unenrollment, pinned incident snapshots and an administrator credential inventory. No scanner, notification delivery or physical interaction is implied."
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "security": [
@@ -171,6 +171,9 @@
                         "route_history": {
                           "const": "snapshot_pinned_gap_honest_pages"
                         },
+                        "trip_history": {
+                          "const": "snapshot_pinned_event_pages"
+                        },
                         "runtime": {
                           "type": "object",
                           "properties": {
@@ -203,6 +206,7 @@
                         "rules",
                         "analytics",
                         "route_history",
+                        "trip_history",
                         "runtime",
                         "directory"
                       ],
@@ -4206,6 +4210,61 @@
           }
         },
         "description": "Pages, newest first, the alerts of rules defined through the service for one Thing at a cursor-bound committed snapshot. Requires read authority. The cursor binds the Thing and page size. Alerts of host-managed and event-only rules have no Thing and are omitted; an unknown Thing has none."
+      }
+    },
+    "/api/v1/scopes/{scope}/things/{id}/trips": {
+      "get": {
+        "operationId": "list_thing_trips",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/ID"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/TripEventPage"
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Pages, newest first, trip.started, trip.stopped and trip.interrupted alerts for one Thing at a cursor-bound committed snapshot. Requires read authority. The cursor binds the principal, scope, service instance, Thing, snapshot and page size. Unrelated alerts cannot consume a page; an unknown Thing has none."
       }
     },
     "/api/v1/scopes/{scope}/things/{id}/policies": {
@@ -9436,6 +9495,72 @@
         "required": [
           "id",
           "expected_generation"
+        ],
+        "additionalProperties": false
+      },
+      "TripEventPage": {
+        "description": "One snapshot-pinned, newest-first page of retained trip lifecycle alerts for a Thing.",
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256,
+                  "x-max-utf8-bytes": 256
+                },
+                "generation": {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]{0,18})$",
+                  "description": "Canonical decimal integer below 9223372036854775807."
+                },
+                "value": {
+                  "$ref": "#/components/schemas/Alert"
+                }
+              },
+              "required": [
+                "id",
+                "generation",
+                "value"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 100
+          },
+          "generation": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,18})$",
+            "description": "Canonical decimal integer below 9223372036854775807."
+          },
+          "cursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4096,
+                "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "stream_cursor": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+          }
+        },
+        "required": [
+          "items",
+          "generation",
+          "cursor",
+          "stream_cursor"
         ],
         "additionalProperties": false
       },

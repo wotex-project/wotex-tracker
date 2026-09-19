@@ -229,6 +229,9 @@ missing/ambiguous exclusions split segments; continuity is explicitly local to
 each page. The service atomically persists pending
 dwell, active-trip state and stable trip event intent with restart recovery. See
 the [motion guide](../guides/motion.md).
+Thing-bound trip start, stop and interruption alerts are also available through
+a dedicated newest-first, snapshot-pinned page, separate from unrelated rule
+alerts. A shared trip-history presentation remains product work.
 
 Receiver-observation heartbeat state is implemented as a pure caller-ticked rule
 with exact overdue equality, newer/historical ordering, recovery, revision

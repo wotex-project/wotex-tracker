@@ -318,6 +318,16 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
     {conn, result}
   end
 
+  defp scoped(%{method: "GET"} = conn, ["things", thing, "trips"], params, context) do
+    {service, token, scope, now} = context
+
+    result =
+      with {:ok, params} <- list_params(params),
+           do: Service.thing_trips(service, token, scope, thing, params, now)
+
+    {conn, result}
+  end
+
   defp scoped(%{method: "GET"} = conn, ["things", thing, "properties", name], params, context)
        when map_size(params) == 0 do
     {service, token, scope, now} = context
@@ -424,6 +434,7 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
            "rules" => "heartbeat_battery_motion_geofence_definitions",
            "analytics" => "structured_queries",
            "route_history" => "snapshot_pinned_gap_honest_pages",
+           "trip_history" => "snapshot_pinned_event_pages",
            "runtime" => %{
              "readproperty" => "available",
              "observeproperty" => "available",

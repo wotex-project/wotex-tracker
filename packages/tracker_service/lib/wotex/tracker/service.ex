@@ -399,6 +399,30 @@ defmodule Wotex.Tracker.Service do
     Result.normalize(result)
   end
 
+  @doc """
+  Pages, newest first, the retained trip lifecycle events for one Thing.
+
+  Requires `read`. Only `trip.started`, `trip.stopped` and `trip.interrupted`
+  alerts are included. The cursor binds the caller, Thing, snapshot and page
+  size; unrelated alerts cannot consume a page.
+  """
+  @spec thing_trips(t(), String.t(), String.t(), String.t(), map(), integer()) ::
+          {:ok, map()} | {:error, map()}
+  def thing_trips(service, token, scope, thing, params, now) do
+    result =
+      with {:ok, access} <- authorize(service, token, scope, "read", now),
+           {:ok, query} <- thing_trip_query(service, access, thing, params, now),
+           {:ok, page} <- Store.authorized_snapshot(service.store, access, "read", query, now),
+           {:ok, items} <- Projection.public_items("alerts", page["items"]) do
+        document = page_document(service, access, "alerts", page, items, query.limit, now)
+
+        {:ok,
+         %{document | "cursor" => thing_trip_next(service, access, thing, page, query.limit, now)}}
+      end
+
+    Result.normalize(result)
+  end
+
   @doc "Acknowledges one live rule alert once without changing rule state or dispatching an Action."
   @spec acknowledge_alert(t(), String.t(), String.t(), String.t(), map(), integer()) ::
           {:ok, map()} | {:error, map()}
@@ -901,6 +925,68 @@ defmodule Wotex.Tracker.Service do
         binding(service, access, "page"),
         %{
           "kind" => "thing_alerts",
+          "thing" => thing,
+          "generation" => page["generation"],
+          "after" => page["next"],
+          "limit" => limit
+        },
+        now
+      )
+
+    next
+  end
+
+  defp thing_trip_query(service, access, thing, %{"cursor" => cursor} = params, now)
+       when map_size(params) <= 2 do
+    with true <- Codec.id?(thing) and Enum.all?(Map.keys(params), &(&1 in ["limit", "cursor"])),
+         {:ok, data} <-
+           Cursor.open(
+             Credentials.derive_key(service.credentials, :cursor),
+             binding(service, access, "page"),
+             cursor,
+             now
+           ),
+         true <-
+           data["kind"] == "thing_trips" and data["thing"] == thing and
+             Map.get(params, "limit", data["limit"]) == data["limit"] do
+      {:ok,
+       %{
+         scope: access.scope,
+         kind: "alerts",
+         generation: data["generation"],
+         after: data["after"],
+         limit: data["limit"],
+         thing: thing,
+         event_kinds: ~w(trip.started trip.stopped trip.interrupted)
+       }}
+    else
+      false -> {:error, :invalid_cursor}
+      error -> error
+    end
+  end
+
+  defp thing_trip_query(service, access, thing, params, now) do
+    with true <- Codec.id?(thing),
+         {:ok, query} <- page_query(service, access, "alerts", params, now) do
+      {:ok,
+       query
+       |> Map.put(:thing, thing)
+       |> Map.put(:event_kinds, ~w(trip.started trip.stopped trip.interrupted))}
+    else
+      false -> {:error, :invalid_query}
+      error -> error
+    end
+  end
+
+  defp thing_trip_next(_service, _access, _thing, %{"next" => nil}, _limit, _now), do: nil
+
+  defp thing_trip_next(service, access, thing, page, limit, now) do
+    {:ok, next} =
+      Cursor.issue(
+        Credentials.derive_key(service.credentials, :cursor),
+        binding(service, access, "page"),
+        %{
+          "kind" => "thing_trips",
           "thing" => thing,
           "generation" => page["generation"],
           "after" => page["next"],

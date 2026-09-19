@@ -19,7 +19,10 @@ as JSON after reauthorizing and matching its committed snapshot. This is a
 page export. It can also traverse and export a complete retained state history
 when it fits 1,000 rows and 1 MB, reauthorizing every page and rejecting a
 changed snapshot or exceeded budget without a partial file. Larger history,
-retained-data deletion and trip/stop presentation remain open. The browser now
+retained-data deletion and shared trip/stop presentation remain open. The
+service now supplies dedicated, snapshot-pinned pages of each Thing's retained
+trip start, stop and interruption events without letting unrelated alerts
+consume the page bound. The browser now
 uses the service's bounded snapshot-pinned route pages, displays exact points and
 explicit missing, ambiguous and rejected-position gaps, and plots only separate
 page-local segments. It supplies no basemap or road matching and never connects

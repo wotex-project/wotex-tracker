@@ -149,6 +149,10 @@ replay alerts are informational. Acknowledgement changes no rule state and
 dispatches nothing. An alert names the Thing whose service definition produced
 it, and `Service.thing_alerts/6` and `GET …/things/{id}/alerts` page one
 Thing's alerts newest first; host-managed rule alerts have no Thing.
+`Service.thing_trips/6` and `GET …/things/{id}/trips` expose only retained
+`trip.started`, `trip.stopped` and `trip.interrupted` alerts for that Thing. The
+cursor independently binds the caller, Thing, committed snapshot and page size,
+and unrelated alerts cannot consume a trip-history page.
 
 `Service.analytics/5` and `POST …/analytics/query` accept the closed
 `wtr.query-spec.v1` document. The service rechecks `read` authority inside a
@@ -259,7 +263,7 @@ and key paths. Explicit `:proxy` mode requires an HTTPS public origin and a
 protected proxy-to-listener network; forwarded headers never supply authority or
 Forms. No remote exposure is inferred.
 
-OpenAPI **3.1.0**, contract revision **1.24.0**, is packaged at
+OpenAPI **3.1.0**, contract revision **1.25.0**, is packaged at
 `priv/openapi/v1.json` and served at `/api/v1/openapi.json`. Liveness is
 `/health/live`; authenticated resources are under `/api/v1/scopes/{scope}`.
 Use `Authorization: Bearer …`, and a UUIDv4 `Idempotency-Key` for POST mutations.

@@ -708,6 +708,8 @@ defmodule Wotex.Tracker.HTTPConsumer do
     %{"type" => "number", "value" => 2.977} = status["battery"]["measurement"]["value"]
     thing_alerts = prefix <> "/things/" <> encode_segment(thing) <> "/alerts"
     %{"items" => [], "cursor" => nil} = data(context, "list_thing_alerts", thing_alerts)
+    thing_trips = prefix <> "/things/" <> encode_segment(thing) <> "/trips"
+    %{"items" => [], "cursor" => nil} = data(context, "list_thing_trips", thing_trips)
 
     low =
       policy
@@ -728,6 +730,9 @@ defmodule Wotex.Tracker.HTTPConsumer do
 
     request(context, "list_thing_alerts", thing_alerts <> "?limit=0", status: 400)
     request(context, "list_thing_alerts", thing_alerts, who: nil, status: 401)
+    %{"items" => [], "cursor" => nil} = data(context, "list_thing_trips", thing_trips)
+    request(context, "list_thing_trips", thing_trips <> "?limit=0", status: 400)
+    request(context, "list_thing_trips", thing_trips, who: nil, status: 401)
 
     %{"generation" => "14", "data" => %{"action" => "deleted"}} =
       data(context, "delete_policy", prefix <> "/policy_deletions",

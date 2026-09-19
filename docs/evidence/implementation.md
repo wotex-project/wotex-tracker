@@ -2887,3 +2887,27 @@ The complete shared-UI gate passed 130 tests at 95.0% production line coverage;
 the route export module reached 100%. Compiler, unused-dependency, formatter,
 dependency audit, strict Credo, ExDoc, Dialyzer, 46-member package archive
 inspection, licenses and the 431-file stack-language policy all passed.
+
+### Snapshot-pinned trip lifecycle pages — 2026-09-19
+
+The service now exposes `Service.thing_trips/6` and read-only
+`GET …/things/{id}/trips` pages over the already committed public motion alerts.
+The storage query selects only `trip.started`, `trip.stopped` and
+`trip.interrupted` for the requested Thing, so battery, geofence and other
+alerts cannot consume the bounded page. Results remain exact event records; the
+service does not infer missing endpoints or claim a completed distance summary.
+
+The encrypted continuation is distinct from a generic alert cursor and binds
+the current principal, scope, service instance, Thing, immutable generation and
+page size. Later commits stay outside a traversal and current `read` authority is
+checked for every page. An unknown Thing produces an empty page. OpenAPI contract
+1.25.0 publishes the endpoint and a closed `TripEventPage`, advertises the
+capability explicitly and is exercised by the independent HTTP consumer.
+
+The complete service gate passed 2 properties and 220 tests at 95.1% production
+line coverage. Compiler, unused-dependency, formatter, dependency audit, strict
+Credo, ExDoc, Dialyzer, boundary checks, OpenAPI validation, 83-member package
+archive inspection, licenses and the 432-file stack-language policy all passed.
+Focused coverage proves event-kind and Thing filtering, immutable continuation
+snapshots, endpoint/caller/Thing/page-size cursor binding, closed query admission,
+unknown Things and authorization failure.

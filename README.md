@@ -92,6 +92,9 @@ The service exposes that replay as snapshot-pinned retained-route pages under
 current read authority. It reconstructs complete samples only inside the private
 boundary, pseudonymizes public point/rejection identities and turns missing or
 ambiguous position materialisations into explicit segment breaks.
+It also pages each Thing's retained trip start, stop and interruption alerts at
+an independently snapshot-pinned boundary, so unrelated alerts cannot consume a
+trip-history page.
 Administrators can persist complete motion and geofence definitions for enrolled
 Things; later materialisations evaluate them atomically when the evidence bundle
 contains exactly one position, without silently selecting among sources.
