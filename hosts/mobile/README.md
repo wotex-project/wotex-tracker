@@ -33,6 +33,13 @@ allowing resolution to rewrite the authority or request. On ordinary development
 hosts, where the Mob NIF is intentionally absent, the transport falls back to
 the BEAM resolver so the same closed request path can be tested.
 
+The host-local `wotex_mobile_secure_store` Mob plugin supplies only a credential
+envelope slot and an installation-ID slot. Its iOS NIF uses generic-password
+Keychain items with `AfterFirstUnlockThisDeviceOnly` accessibility and explicitly
+disables synchronization. The BEAM wrapper bounds values to 4 KiB, contains
+native failures and has no ordinary-file or preferences fallback. The plugin is
+explicitly acknowledged as app-owned native code in the committed Mob config.
+
 Run the software gate with the host-pinned toolchain:
 
 ```sh
@@ -40,7 +47,8 @@ WOTEX_PATH_DEPS=1 MIX_ENV=test mise exec -- mix deps.get
 WOTEX_PATH_DEPS=1 MIX_ENV=test mise exec -- mix check --no-retry
 ```
 
-No Xcode project, signed installation, secure-storage bridge, notification
-plugin, lifecycle bridge, BLE central bridge, sharing bridge or physical-iPhone
-evidence exists in this slice. Offline cache synchronization is not yet wired to
-the shared views. Those gates remain explicitly open.
+No Xcode project, signed installation, physical secure-storage evidence,
+notification plugin, lifecycle bridge, BLE central bridge, sharing bridge or
+physical-iPhone evidence exists in this slice. Credential/cache lifecycle and
+offline cache synchronization are not yet wired to the shared views. Those gates
+remain explicitly open.

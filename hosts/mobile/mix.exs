@@ -26,6 +26,7 @@ defmodule WotexTrackerMobile.MixProject do
   defp deps do
     [
       ui(),
+      {:wotex_mobile_secure_store, path: "plugins/wotex_mobile_secure_store"},
       {:mob, "== 0.9.1"},
       {:bandit, "== 1.12.5"},
       {:mint, "== 1.10.1"},

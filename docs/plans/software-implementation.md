@@ -461,8 +461,10 @@ through LiveView admission and session renewal, and never enters page assigns.
 The exact local origin bounds navigation and WebSocket origin checks; canonical
 external HTTPS links leave the bridge-bearing WebView. Mobile remote requests
 invoke the Mob OS-resolver seam while preserving the configured HTTPS authority.
-Secure storage, cache/view synchronization and every physical native/device gate
-remain subsequent work.
+An app-owned iOS Mob plugin now provides two closed device-only Keychain slots,
+explicitly disables synchronization and has no file fallback. Credential/cache
+lifecycle wiring, cache/view synchronization and every physical native/device
+gate remain subsequent work.
 
 Acceptance: real iPhone secure storage, authorized BLE central provisioning,
 notification registration and cold/warm/background tap routing, suspend/resume,

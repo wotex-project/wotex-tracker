@@ -3446,3 +3446,35 @@ Platform secure credential storage, cache/view synchronization, lifecycle and
 reconnect behavior, notification routing, BLE central provisioning, OS sharing,
 Xcode generation/build, signing, installation, distribution and every
 physical-iPhone gate remain unpassed.
+
+### Device-only iOS secure-storage primitive — 2026-09-20
+
+The mobile host now carries an app-owned, iOS-only Mob plugin for exactly two
+secure-storage slots: an opaque credential envelope and a random installation
+identifier. Its statically linked Objective-C NIF stores generic-password
+Keychain items under a fixed service name with
+`kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly` and
+`kSecAttrSynchronizable` set to false. Items therefore stay on the device and
+are not silently restored from backup or synchronized through iCloud Keychain.
+There is no preferences, browser-storage or ordinary-file fallback.
+
+The BEAM wrapper admits only the two closed keys, bounds values to 4 KiB and
+contains absent-NIF, malformed-result, exception, throw and exit failures as
+`unavailable`. Native calls run as dirty I/O NIF jobs; error results expose no
+secret or raw OS status. The committed Mob configuration activates the plugin
+and explicitly acknowledges its repository-owned unsigned source so the native
+code cannot enter a build as an unlisted dependency.
+
+Host tests cover both slots, replacement, deletion, bounds, widened keys,
+malformed adapters, every contained failure class, absent native linkage and
+the packaged manifest/source invariants. The complete mobile-host gate passed
+32 tests at 95.6% production line coverage; all compiler, unused-dependency,
+formatter, dependency-audit, strict Credo, ExDoc, Dialyzer, license and 498-file
+stack-language checks passed. Apple clang also accepted the Objective-C NIF with
+ARC and warnings-as-errors against the installed macOS SDK and OTP 27 NIF
+headers.
+
+This proves a checked native primitive, not physical Keychain behavior. The
+credential envelope is not yet integrated with sign-in, cache binding, server
+switching or logout, and no signed iPhone backup/restore, protected-data or
+unavailable-Keychain test has run. Those gates remain open.

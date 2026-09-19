@@ -82,8 +82,10 @@ serves the shared UI inside one Mob WebView, requires an ephemeral app-session
 capability, retains that binding across browser-session renewal and rejects
 foreign WebSocket origins. Remote requests use the selected HTTPS authority
 after the mobile OS resolver seam, and external HTTPS navigation leaves the
-bridge-bearing WebView. Secure storage, native lifecycle/BLE/push/share bridges,
-signed-device and distribution gates remain open.
+bridge-bearing WebView. An iOS Mob plugin now supplies two closed,
+device-only Keychain slots without a file fallback; credential/cache lifecycle
+wiring, physical secure-storage evidence, native lifecycle/BLE/push/share
+bridges, signed-device and distribution gates remain open.
 
 The WTR.05 pure foundation admits position evidence, freshness, deterministic
 selection, event ordering with modular sequence evidence, and bounded geofence
