@@ -7,12 +7,13 @@ defmodule Wotex.Tracker.Mobile.Host do
   """
 
   use Supervisor
-  alias Wotex.Tracker.Mobile.{Cache, Config, Endpoint, Runtime, SessionGate}
+  alias Wotex.Tracker.Mobile.{Cache, Config, CredentialManager, Endpoint, Runtime, SessionGate}
   alias Wotex.Tracker.UI.{Remote, Sessions}
 
   @pubsub Wotex.Tracker.Mobile.PubSub
   @sessions Wotex.Tracker.Mobile.Sessions
   @cache Wotex.Tracker.Mobile.CacheServer
+  @credentials Wotex.Tracker.Mobile.CredentialManager
 
   @doc "Starts one explicit local mobile composition."
   @spec start_link(keyword() | Config.t()) :: Supervisor.on_start()
@@ -66,7 +67,10 @@ defmodule Wotex.Tracker.Mobile.Host do
         prompt: nil,
         operational_history: false
       ],
-      mobile: [capability_digest: config.capability_digest],
+      mobile: [
+        capability_digest: config.capability_digest,
+        session_provider: {CredentialManager, @credentials}
+      ],
       debug_errors: false,
       code_reloader: false,
       http: listener
@@ -76,7 +80,18 @@ defmodule Wotex.Tracker.Mobile.Host do
       [
         {Cache, directory: config.directory, name: @cache},
         {Phoenix.PubSub, name: @pubsub},
-        {Sessions, name: @sessions, client: {Remote, config.remote}},
+        {Sessions,
+         name: @sessions,
+         client: {Remote, config.remote},
+         capacity: 1,
+         custodian: {CredentialManager, @credentials}},
+        {CredentialManager,
+         name: @credentials,
+         sessions: @sessions,
+         cache: @cache,
+         origin: config.remote_origin,
+         secure_store: config.secure_store,
+         clock: config.clock},
         {Runtime, config.web_session},
         {Endpoint, endpoint}
       ],

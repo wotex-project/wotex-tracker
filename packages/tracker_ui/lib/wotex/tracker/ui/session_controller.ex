@@ -17,18 +17,25 @@ defmodule Wotex.Tracker.UI.SessionController do
     tracker_ui = Phoenix.Controller.endpoint_module(conn).config(:tracker_ui)
     sessions = tracker_ui[:sessions]
     retained = SessionGuard.retain(tracker_ui[:session_guard], get_session(conn))
-    Sessions.logout(sessions, get_session(conn, :browser_session))
-    conn = conn |> clear_session() |> configure_session(renew: true) |> retain_session(retained)
 
-    case Sessions.login(sessions, params["token"], params["scope"]) do
-      {:ok, %{"id" => id}} ->
-        conn |> put_session(:browser_session, id) |> redirect(to: "/")
+    case Sessions.logout(sessions, get_session(conn, :browser_session)) do
+      :ok ->
+        conn =
+          conn |> clear_session() |> configure_session(renew: true) |> retain_session(retained)
+
+        case Sessions.login(sessions, params["token"], params["scope"]) do
+          {:ok, %{"id" => id}} ->
+            conn |> put_session(:browser_session, id) |> redirect(to: "/")
+
+          {:error, _} ->
+            sign_in_failed(conn)
+        end
 
       {:error, _} ->
         conn
-        |> put_status(:unauthorized)
+        |> put_status(:service_unavailable)
         |> render(:new,
-          message: "Sign-in failed. Check your scope and credential, or contact the operator."
+          message: "Your existing session could not be ended. Retry when storage is available."
         )
     end
   end
@@ -37,13 +44,28 @@ defmodule Wotex.Tracker.UI.SessionController do
     tracker_ui = Phoenix.Controller.endpoint_module(conn).config(:tracker_ui)
     sessions = tracker_ui[:sessions]
     retained = SessionGuard.retain(tracker_ui[:session_guard], get_session(conn))
-    Sessions.logout(sessions, get_session(conn, :browser_session))
 
+    case Sessions.logout(sessions, get_session(conn, :browser_session)) do
+      :ok ->
+        conn
+        |> clear_session()
+        |> configure_session(if(retained == %{}, do: [drop: true], else: [renew: true]))
+        |> retain_session(retained)
+        |> redirect(to: "/sign-in")
+
+      {:error, _} ->
+        conn
+        |> put_flash(:error, "Sign-out could not complete. Your session remains active.")
+        |> redirect(to: "/")
+    end
+  end
+
+  defp sign_in_failed(conn) do
     conn
-    |> clear_session()
-    |> configure_session(if(retained == %{}, do: [drop: true], else: [renew: true]))
-    |> retain_session(retained)
-    |> redirect(to: "/sign-in")
+    |> put_status(:unauthorized)
+    |> render(:new,
+      message: "Sign-in failed. Check your scope and credential, or contact the operator."
+    )
   end
 
   defp retain_session(conn, retained) do

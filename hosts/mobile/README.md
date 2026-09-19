@@ -40,6 +40,17 @@ disables synchronization. The BEAM wrapper bounds values to 4 KiB, contains
 native failures and has no ordinary-file or preferences fallback. The plugin is
 explicitly acknowledged as app-owned native code in the committed Mob config.
 
+Successful mobile sign-in now commits the exact bounded credential envelope to
+that secure slot before the volatile browser session is issued. The envelope's
+authenticated origin, principal, scope, credential ID, expiry and installation
+ID bind the offline cache. A cold host start reauthorizes the stored credential,
+creates a new volatile browser session and places only its opaque identifier in
+the loopback cookie. Offline startup keeps an already bound cache but grants no
+new browser authority; bootstrap retries reauthorization when connectivity
+returns. Revoked, expired, malformed or foreign-origin credentials are removed
+with their cache. Sign-out clears both and remains retryable if either boundary
+is unavailable.
+
 Run the software gate with the host-pinned toolchain:
 
 ```sh
@@ -49,6 +60,6 @@ WOTEX_PATH_DEPS=1 MIX_ENV=test mise exec -- mix check --no-retry
 
 No Xcode project, signed installation, physical secure-storage evidence,
 notification plugin, lifecycle bridge, BLE central bridge, sharing bridge or
-physical-iPhone evidence exists in this slice. Credential/cache lifecycle and
-offline cache synchronization are not yet wired to the shared views. Those gates
-remain explicitly open.
+physical-iPhone evidence exists in this slice. The credential/cache lifecycle is
+wired, but shared views do not yet synchronize or read the offline projections.
+Those gates remain explicitly open.

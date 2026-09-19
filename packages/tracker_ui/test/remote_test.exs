@@ -145,7 +145,7 @@ defmodule Wotex.Tracker.UI.RemoteTest do
       %{access() | "permissions" => "read"}
     ]
 
-    for access <- malformed_access, action <- [:authorize, :access] do
+    for access <- malformed_access, action <- [:authorize, :session_context, :access] do
       {:ok, remote} = remote(fn _ -> json(access) end)
 
       assert {:error, %{"code" => "storage_unavailable"}} =
@@ -296,6 +296,25 @@ defmodule Wotex.Tracker.UI.RemoteTest do
               "can_read_raw" => true,
               "can_manage_queries" => true
             }} = Remote.request(remote, @token, "workshop", :authorize, %{}, 0)
+
+    assert_receive {:remote_request, _, %{path: "/api/v1/scopes/workshop/access"}}
+
+    assert {:ok,
+            %{
+              "identity" => %{
+                "scope" => "workshop",
+                "can_enroll" => true,
+                "can_ingest" => true,
+                "can_read_raw" => true,
+                "can_manage_queries" => true
+              },
+              "access" => %{
+                "credential_id" => "admin",
+                "principal" => "owner",
+                "scope" => "workshop",
+                "expires_at" => 9_999
+              }
+            }} = Remote.request(remote, @token, "workshop", :session_context, %{}, 0)
 
     assert_receive {:remote_request, _, %{path: "/api/v1/scopes/workshop/access"}}
 

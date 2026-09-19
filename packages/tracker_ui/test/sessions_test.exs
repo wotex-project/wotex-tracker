@@ -4,7 +4,33 @@ defmodule Wotex.Tracker.UI.SessionsTest do
   import Wotex.Tracker.Service.Fixtures
   alias Wotex.Tracker.Service
   alias Wotex.Tracker.Service.Identifier
-  alias Wotex.Tracker.UI.{Local, Presenter, Sessions}
+  alias Wotex.Tracker.UI.{Local, Presenter, SessionCustodian, Sessions}
+
+  defmodule Custodian do
+    @behaviour Wotex.Tracker.UI.SessionCustodian
+
+    @impl true
+    def retain(agent, credential), do: invoke(agent, :retained, credential)
+
+    @impl true
+    def release(agent, credential), do: invoke(agent, :released, credential)
+
+    defp invoke(agent, event, credential) do
+      case Agent.get(agent, & &1.mode) do
+        :ok ->
+          Agent.update(agent, &Map.update!(&1, event, fn values -> [credential | values] end))
+
+        :error ->
+          {:error, :unavailable}
+
+        :raise ->
+          raise "private custodian failure"
+
+        :throw ->
+          throw(:private_custodian_failure)
+      end
+    end
+  end
 
   test "bounded sessions expire on monotonic time and do not cross instances" do
     c = service()
@@ -102,6 +128,66 @@ defmodule Wotex.Tracker.UI.SessionsTest do
              Sessions.end_session(sessions, "missing", current)
   end
 
+  test "optional host custody is atomic with login, restore and logout" do
+    c = service()
+    custodian = start_supervised!({Agent, fn -> custody() end})
+
+    sessions =
+      start_supervised!(
+        {Sessions,
+         client: {Local, fn -> {:ok, c.service} end},
+         clock: fn -> c.now end,
+         capacity: 1,
+         custodian: {Custodian, custodian}}
+      )
+
+    assert {:ok, %{"id" => first}} = Sessions.login(sessions, c.admin, c.scope)
+    assert [retained] = Agent.get(custodian, & &1.retained)
+    assert retained.session_id == first
+    assert retained.token == c.admin
+    assert retained.scope == c.scope
+    assert retained.access["credential_id"] == "admin"
+    assert retained.access["principal"] == "owner"
+
+    assert :ok = Sessions.logout(sessions, first)
+    assert [released] = Agent.get(custodian, & &1.released)
+    assert released.session_id == first
+
+    Agent.update(custodian, &%{&1 | mode: :error})
+
+    assert {:error, %{"code" => "storage_unavailable"}} =
+             Sessions.login(sessions, c.admin, c.scope)
+
+    Agent.update(custodian, &%{&1 | mode: :ok})
+
+    assert {:ok, %{"id" => restored, "access" => access}} =
+             Sessions.restore(sessions, c.admin, c.scope)
+
+    assert access["credential_id"] == "admin"
+    assert length(Agent.get(custodian, & &1.retained)) == 1
+    assert :ok = Sessions.logout(sessions, restored)
+    assert length(Agent.get(custodian, & &1.released)) == 2
+
+    assert {:ok, %{"id" => retry}} = Sessions.login(sessions, c.admin, c.scope)
+    Agent.update(custodian, &%{&1 | mode: :error})
+
+    assert {:error, %{"code" => "storage_unavailable"}} = Sessions.logout(sessions, retry)
+    assert {:ok, _} = Sessions.request(sessions, retry, :authorize)
+
+    Agent.update(custodian, &%{&1 | mode: :ok})
+    assert :ok = Sessions.discard(sessions, retry)
+    assert {:error, %{"code" => "unauthorized"}} = Sessions.request(sessions, retry, :authorize)
+    assert :ok = Sessions.discard(sessions, nil)
+    assert :error = SessionCustodian.retain(:invalid, %{})
+
+    for mode <- [:raise, :throw] do
+      Agent.update(custodian, &%{&1 | mode: mode})
+
+      assert {:error, %{"code" => "storage_unavailable"}} =
+               Sessions.login(sessions, c.admin, c.scope)
+    end
+  end
+
   test "display helpers preserve unavailable, false, zero and wide integers" do
     assert Presenter.scalar(%{"value" => nil}) == "Unavailable"
     assert Presenter.scalar(%{"value" => false}) == "false"
@@ -141,6 +227,7 @@ defmodule Wotex.Tracker.UI.SessionsTest do
           [client: {Local, provider}, capacity: 4097],
           [client: {Local, provider}, ttl: 0],
           [client: {Local, provider}, ttl: 3_600_001],
+          [client: {Local, provider}, custodian: {String, nil}],
           [client: {Local, provider}, ttl: 1, ttl: 2],
           [client: {Local, provider}, unexpected: true]
         ] do
@@ -153,9 +240,16 @@ defmodule Wotex.Tracker.UI.SessionsTest do
       )
 
     assert {:error, %{"code" => "unauthorized"}} = Sessions.login(sessions, nil, c.scope)
+    assert {:error, %{"code" => "unauthorized"}} = Sessions.restore(sessions, nil, c.scope)
+
+    assert {:error, %{"code" => "unauthorized"}} =
+             Sessions.restore(sessions, "invalid-token", c.scope)
 
     assert {:error, %{"code" => "unauthorized"}} =
              Sessions.login(sessions, String.duplicate("x", 257), c.scope)
+
+    assert {:error, %{"code" => "unauthorized"}} =
+             Sessions.restore(sessions, String.duplicate("x", 257), c.scope)
 
     send(sessions, :expire)
     {:ok, %{"id" => id}} = Sessions.login(sessions, c.admin, c.scope)
@@ -174,6 +268,12 @@ defmodule Wotex.Tracker.UI.SessionsTest do
     assert {:error, %{"code" => "storage_unavailable"}} =
              Sessions.login(sessions, c.admin, c.scope)
 
+    assert {:error, %{"code" => "storage_unavailable"}} =
+             Sessions.restore(sessions, c.admin, c.scope)
+
     assert :ok = Sessions.logout(sessions, id)
+    assert :ok = Sessions.discard(sessions, id)
   end
+
+  defp custody, do: %{mode: :ok, retained: [], released: []}
 end

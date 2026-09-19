@@ -115,6 +115,9 @@ defmodule Wotex.Tracker.UI.Remote do
   defp route(:authorize, arguments) when map_size(arguments) == 0,
     do: {:ok, access_request()}
 
+  defp route(:session_context, arguments) when map_size(arguments) == 0,
+    do: {:ok, access_request()}
+
   defp route(:access, arguments) when map_size(arguments) == 0,
     do: {:ok, access_request()}
 
@@ -319,6 +322,31 @@ defmodule Wotex.Tracker.UI.Remote do
          "can_ingest" => "ingest" in permissions,
          "can_read_raw" => "raw" in permissions,
          "can_manage_queries" => "admin" in permissions
+       }}
+    else
+      unavailable()
+    end
+  end
+
+  defp project(:session_context, {:ok, access}, scope) do
+    if access?(access, scope) do
+      permissions = access["permissions"]
+
+      {:ok,
+       %{
+         "identity" => %{
+           "scope" => scope,
+           "can_enroll" => "enroll" in permissions,
+           "can_ingest" => "ingest" in permissions,
+           "can_read_raw" => "raw" in permissions,
+           "can_manage_queries" => "admin" in permissions
+         },
+         "access" => %{
+           "credential_id" => access["credential_id"],
+           "principal" => access["principal"],
+           "scope" => access["scope"],
+           "expires_at" => access["expires_at"]
+         }
        }}
     else
       unavailable()

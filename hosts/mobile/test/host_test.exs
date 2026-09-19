@@ -38,6 +38,36 @@ defmodule Wotex.Tracker.Mobile.HostTest do
     end
   end
 
+  defmodule SecureStore do
+    def fetch(key, agent) do
+      Agent.get(agent, fn state ->
+        case {failed?(state, :fetch), Map.fetch(state, key)} do
+          {true, _} -> {:error, :unavailable}
+          {false, {:ok, value}} -> {:ok, value}
+          {false, :error} -> {:error, :not_found}
+        end
+      end)
+    end
+
+    def put(key, value, agent) do
+      Agent.get_and_update(agent, fn state ->
+        if failed?(state, :put),
+          do: {{:error, :unavailable}, state},
+          else: {:ok, Map.put(state, key, value)}
+      end)
+    end
+
+    def delete(key, agent) do
+      Agent.get_and_update(agent, fn state ->
+        if failed?(state, :delete),
+          do: {{:error, :unavailable}, state},
+          else: {:ok, Map.delete(state, key)}
+      end)
+    end
+
+    defp failed?(state, operation), do: state[:failure] in [:all, operation]
+  end
+
   setup do
     {:ok, _} = Application.ensure_all_started(:inets)
     {:ok, _} = Application.ensure_all_started(:phoenix_pubsub)
@@ -48,6 +78,10 @@ defmodule Wotex.Tracker.Mobile.HostTest do
     on_exit(fn -> File.rm_rf!(directory) end)
 
     agent = start_supervised!({Agent, fn -> %{requests: []} end})
+
+    secure_store =
+      start_supervised!(Supervisor.child_spec({Agent, fn -> %{} end}, id: :secure_store))
+
     capability = Config.generate_capability()
     port = port()
 
@@ -57,7 +91,8 @@ defmodule Wotex.Tracker.Mobile.HostTest do
       port: port,
       secret_key_base: Base.encode64(:crypto.strong_rand_bytes(64)),
       capability: capability,
-      remote_transport: {ServiceTransport, agent}
+      remote_transport: {ServiceTransport, agent},
+      secure_store: {SecureStore, secure_store}
     ]
 
     {:ok, config} = Config.new(options)
@@ -67,6 +102,7 @@ defmodule Wotex.Tracker.Mobile.HostTest do
       capability: capability,
       config: config,
       options: options,
+      secure_store: secure_store,
       origin: config.origin,
       port: port
     }
@@ -125,6 +161,11 @@ defmodule Wotex.Tracker.Mobile.HostTest do
     refute login_body =~ token
     browser_cookie = cookie(login_headers)
 
+    assert {:ok, envelope} = Agent.get(c.secure_store, &Map.fetch(&1, :credential))
+
+    assert %{"schema" => "wtr.mobile-credential.v1", "token" => ^token} =
+             Jason.decode!(envelope)
+
     {200, asset_headers, assets} =
       request(:get, c.origin <> "/", [{~c"cookie", browser_cookie}], nil)
 
@@ -160,6 +201,7 @@ defmodule Wotex.Tracker.Mobile.HostTest do
              request(:get, c.origin <> "/sign-in", [{~c"cookie", signed_out_cookie}], nil)
 
     assert signed_out =~ "Sign in"
+    assert :error = Agent.get(c.secure_store, &Map.fetch(&1, :credential))
   end
 
   test "rejects foreign WebSocket origins and validates retained session digests", c do
@@ -188,6 +230,78 @@ defmodule Wotex.Tracker.Mobile.HostTest do
     assert %{} = SessionGate.retained_session(digest, %{})
   end
 
+  test "restores a secured credential and browser session after a cold host restart", c do
+    start_supervised!({Host, c.config})
+    {cookie, csrf} = bootstrap_sign_in(c)
+    token = "restart-token"
+
+    assert {302, _, _} = sign_in(c, cookie, csrf, token)
+    assert :ok = stop_supervised(Host)
+    start_supervised!({Host, c.config})
+
+    {302, headers, _} =
+      request(:get, c.origin <> "/_mobile/bootstrap/" <> c.capability, [], nil)
+
+    restored_cookie = cookie(headers)
+    assert {200, _, body} = request(:get, c.origin <> "/", [{~c"cookie", restored_cookie}], nil)
+    assert body =~ "Your assets"
+    refute body =~ token
+  end
+
+  test "failed secure storage keeps login atomic and logout retryable", c do
+    start_supervised!({Host, c.config})
+    {initial_cookie, csrf} = bootstrap_sign_in(c)
+    Agent.update(c.secure_store, &Map.put(&1, :failure, :put))
+
+    assert {401, _, failed} = sign_in(c, initial_cookie, csrf, "unstored-token")
+    assert failed =~ "Sign-in failed"
+    assert :error = Agent.get(c.secure_store, &Map.fetch(&1, :credential))
+
+    Agent.update(c.secure_store, &Map.delete(&1, :failure))
+    {cookie, csrf} = bootstrap_sign_in(c)
+    assert {302, headers, _} = sign_in(c, cookie, csrf, "retained-token")
+    browser_cookie = cookie(headers)
+
+    {200, asset_headers, assets} =
+      request(:get, c.origin <> "/", [{~c"cookie", browser_cookie}], nil)
+
+    browser_cookie = cookie(asset_headers)
+    [_, logout_csrf] = Regex.run(~r/name="_csrf_token"[^>]*value="([^"]+)"/, assets)
+
+    Agent.update(c.secure_store, &Map.put(&1, :failure, :delete))
+
+    {302, failed_headers, _} =
+      request(
+        :post,
+        c.origin <> "/session/logout",
+        [{~c"cookie", browser_cookie}],
+        URI.encode_query(%{"_csrf_token" => logout_csrf})
+      )
+
+    assert header(failed_headers, ~c"location") == "/"
+    retry_cookie = cookie(failed_headers)
+    assert {:ok, _} = Agent.get(c.secure_store, &Map.fetch(&1, :credential))
+
+    assert {200, retry_headers, retry_page} =
+             request(:get, c.origin <> "/", [{~c"cookie", retry_cookie}], nil)
+
+    assert retry_page =~ "Your assets"
+
+    Agent.update(c.secure_store, &Map.delete(&1, :failure))
+    [_, retry_csrf] = Regex.run(~r/name="_csrf_token"[^>]*value="([^"]+)"/, retry_page)
+    retry_cookie = cookie(retry_headers)
+
+    assert {302, _, _} =
+             request(
+               :post,
+               c.origin <> "/session/logout",
+               [{~c"cookie", retry_cookie}],
+               URI.encode_query(%{"_csrf_token" => retry_csrf})
+             )
+
+    assert :error = Agent.get(c.secure_store, &Map.fetch(&1, :credential))
+  end
+
   defp port do
     {:ok, socket} = :gen_tcp.listen(0, [:binary, ip: {127, 0, 0, 1}])
     {:ok, {_, port}} = :inet.sockname(socket)
@@ -207,6 +321,28 @@ defmodule Wotex.Tracker.Mobile.HostTest do
 
   defp header(headers, name) do
     headers |> List.keyfind(name, 0) |> elem(1) |> to_string()
+  end
+
+  defp bootstrap_sign_in(c) do
+    {302, headers, _} =
+      request(:get, c.origin <> "/_mobile/bootstrap/" <> c.capability, [], nil)
+
+    bootstrap_cookie = cookie(headers)
+
+    {200, sign_in_headers, body} =
+      request(:get, c.origin <> "/sign-in", [{~c"cookie", bootstrap_cookie}], nil)
+
+    [_, csrf] = Regex.run(~r/name="_csrf_token"[^>]*value="([^"]+)"/, body)
+    {cookie(sign_in_headers), csrf}
+  end
+
+  defp sign_in(c, cookie, csrf, token) do
+    request(
+      :post,
+      c.origin <> "/session",
+      [{~c"cookie", cookie}],
+      URI.encode_query(%{"_csrf_token" => csrf, "scope" => "bikes", "token" => token})
+    )
   end
 
   defp request(method, url, headers, body) do

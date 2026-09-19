@@ -18,12 +18,16 @@ defmodule Wotex.Tracker.Mobile.SessionGate do
 
   @impl Plug
   def call(conn, _options) do
-    digest = Phoenix.Controller.endpoint_module(conn).config(:mobile)[:capability_digest]
+    mobile = Phoenix.Controller.endpoint_module(conn).config(:mobile)
+    digest = mobile[:capability_digest]
     conn = fetch_session(conn)
 
     case {conn.method, conn.path_info} do
-      {"GET", ["_mobile", "bootstrap", capability]} -> bootstrap(conn, digest, capability)
-      _ -> admit(conn, digest)
+      {"GET", ["_mobile", "bootstrap", capability]} ->
+        bootstrap(conn, digest, capability, mobile[:session_provider])
+
+      _ ->
+        admit(conn, digest)
     end
   end
 
@@ -37,7 +41,7 @@ defmodule Wotex.Tracker.Mobile.SessionGate do
     if valid_session?(digest, session), do: %{@session_key => digest}, else: %{}
   end
 
-  defp bootstrap(conn, digest, capability) do
+  defp bootstrap(conn, digest, capability, provider) do
     candidate =
       if byte_size(capability) in 1..@maximum_capability_bytes,
         do: :crypto.hash(:sha256, capability),
@@ -47,6 +51,7 @@ defmodule Wotex.Tracker.Mobile.SessionGate do
       conn
       |> configure_session(renew: true)
       |> put_session(@session_key, digest)
+      |> put_browser_session(provider)
       |> put_resp_header("cache-control", "no-store")
       |> Phoenix.Controller.redirect(to: "/sign-in")
       |> halt()
@@ -73,4 +78,30 @@ defmodule Wotex.Tracker.Mobile.SessionGate do
        do: Plug.Crypto.secure_compare(left, right)
 
   defp secure_equal?(_, _), do: false
+
+  defp put_browser_session(conn, {module, context}) when is_atom(module) do
+    case module.browser_session(context) do
+      {:ok, id} when is_binary(id) ->
+        if canonical_session_id?(id), do: put_session(conn, "browser_session", id), else: conn
+
+      _ ->
+        conn
+    end
+  rescue
+    _ -> conn
+  catch
+    _, _ -> conn
+  end
+
+  defp put_browser_session(conn, _), do: conn
+
+  defp canonical_session_id?(id) do
+    case Base.url_decode64(id, padding: false) do
+      {:ok, decoded} ->
+        byte_size(decoded) == 32 and Base.url_encode64(decoded, padding: false) == id
+
+      :error ->
+        false
+    end
+  end
 end

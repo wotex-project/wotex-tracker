@@ -10,7 +10,7 @@ defmodule Wotex.Tracker.UI.Sessions do
   """
 
   use GenServer
-  alias Wotex.Tracker.UI.Client
+  alias Wotex.Tracker.UI.{Client, SessionCustodian}
 
   @doc "Starts a session store with an explicit client; optional name belongs to the host."
   @spec start_link(keyword()) :: GenServer.on_start()
@@ -31,8 +31,9 @@ defmodule Wotex.Tracker.UI.Sessions do
   def login(server, token, scope) when is_binary(token) and is_binary(scope) do
     with true <- byte_size(token) <= 256 and byte_size(scope) <= 128,
          {client, clock} <- GenServer.call(server, :client),
-         {:ok, _} <- call(client, token, scope, :authorize, %{}, clock.()) do
-      GenServer.call(server, {:issue, token, scope})
+         {:ok, context} <- call(client, token, scope, :session_context, %{}, clock.()),
+         {:ok, access} <- session_context(context, scope) do
+      GenServer.call(server, {:issue, token, scope, access, true})
     else
       false -> unauthorized()
       error -> error
@@ -42,6 +43,34 @@ defmodule Wotex.Tracker.UI.Sessions do
   end
 
   def login(_, _, _), do: unauthorized()
+
+  @doc false
+  @spec restore(GenServer.server(), String.t(), String.t()) :: Client.result()
+  def restore(server, token, scope) when is_binary(token) and is_binary(scope) do
+    with true <- byte_size(token) <= 256 and byte_size(scope) <= 128,
+         {client, clock} <- GenServer.call(server, :client),
+         {:ok, context} <- call(client, token, scope, :session_context, %{}, clock.()),
+         {:ok, access} <- session_context(context, scope) do
+      GenServer.call(server, {:issue, token, scope, access, false})
+    else
+      false -> unauthorized()
+      error -> error
+    end
+  catch
+    :exit, _ -> unavailable()
+  end
+
+  def restore(_, _, _), do: unauthorized()
+
+  @doc false
+  @spec discard(GenServer.server(), String.t()) :: :ok
+  def discard(server, id) when is_binary(id) do
+    GenServer.call(server, {:discard, id})
+  catch
+    :exit, _ -> :ok
+  end
+
+  def discard(_, _), do: :ok
 
   @doc "Executes an authorized service request without exposing credentials to the view."
   @spec request(GenServer.server(), String.t(), atom(), map()) :: Client.result()
@@ -89,7 +118,7 @@ defmodule Wotex.Tracker.UI.Sessions do
   end
 
   @doc "Destroys this browser session without revoking the underlying service credential."
-  @spec logout(GenServer.server(), String.t()) :: :ok
+  @spec logout(GenServer.server(), String.t()) :: :ok | {:error, map()}
   def logout(server, id) do
     GenServer.call(server, {:logout, id})
   catch
@@ -108,11 +137,14 @@ defmodule Wotex.Tracker.UI.Sessions do
     monotonic = Keyword.get(options, :monotonic, fn -> System.monotonic_time(:millisecond) end)
     capacity = Keyword.get(options, :capacity, 128)
     ttl = Keyword.get(options, :ttl, 3_600_000)
+    custodian = Keyword.get(options, :custodian)
 
     if client?(client) and is_function(clock, 0) and
          is_function(monotonic, 0) and capacity in 1..4096 and ttl in 1..3_600_000 and
+         custodian?(custodian) and
          length(options) == map_size(Map.new(options)) and
-         Keyword.keys(options) -- [:client, :clock, :monotonic, :capacity, :ttl] == [] do
+         Keyword.keys(options) -- [:client, :clock, :monotonic, :capacity, :ttl, :custodian] ==
+           [] do
       {:ok,
        %{
          client: client,
@@ -120,6 +152,7 @@ defmodule Wotex.Tracker.UI.Sessions do
          monotonic: monotonic,
          capacity: capacity,
          ttl: ttl,
+         custodian: custodian,
          entries: %{}
        }}
     else
@@ -132,24 +165,23 @@ defmodule Wotex.Tracker.UI.Sessions do
 
   defp client?(_), do: false
 
+  defp custodian?(nil), do: true
+
+  defp custodian?({module, _}) when is_atom(module),
+    do:
+      Code.ensure_loaded?(module) and function_exported?(module, :retain, 2) and
+        function_exported?(module, :release, 2)
+
+  defp custodian?(_), do: false
+
   @impl true
   def handle_call(:client, _, state), do: {:reply, {state.client, state.clock}, state}
 
-  def handle_call({:issue, token, scope}, _, state) do
+  def handle_call({:issue, token, scope, access, persist?}, _, state) do
     state = prune(state)
 
     if map_size(state.entries) < state.capacity do
-      id = Base.url_encode64(:crypto.strong_rand_bytes(32), padding: false)
-
-      entry = %{
-        token: token,
-        scope: scope,
-        expires: state.monotonic.() + state.ttl,
-        handle: Base.url_encode64(:crypto.strong_rand_bytes(12), padding: false),
-        started_at: state.clock.()
-      }
-
-      {:reply, {:ok, %{"id" => id}}, put_in(state.entries[id], entry)}
+      issue(state, token, scope, access, persist?)
     else
       {:reply, {:error, %{"code" => "capacity"}}, state}
     end
@@ -215,8 +247,21 @@ defmodule Wotex.Tracker.UI.Sessions do
     end
   end
 
-  def handle_call({:logout, id}, _, state),
-    do: {:reply, :ok, %{state | entries: Map.delete(state.entries, id)}}
+  def handle_call({:logout, id}, _, state) do
+    case state.entries[id] do
+      nil ->
+        {:reply, :ok, state}
+
+      entry ->
+        if SessionCustodian.release(state.custodian, credential(entry, id)) == :ok,
+          do: {:reply, :ok, %{state | entries: Map.delete(state.entries, id)}},
+          else: {:reply, unavailable(), state}
+    end
+  end
+
+  def handle_call({:discard, id}, _, state) do
+    {:reply, :ok, %{state | entries: Map.delete(state.entries, id)}}
+  end
 
   @impl true
   def handle_info(:expire, state) do
@@ -237,11 +282,52 @@ defmodule Wotex.Tracker.UI.Sessions do
     %{state | entries: Map.reject(state.entries, fn {_, entry} -> now >= entry.expires end)}
   end
 
+  defp issue(state, token, scope, access, persist?) do
+    id = Base.url_encode64(:crypto.strong_rand_bytes(32), padding: false)
+
+    entry = %{
+      token: token,
+      scope: scope,
+      expires: state.monotonic.() + state.ttl,
+      handle: Base.url_encode64(:crypto.strong_rand_bytes(12), padding: false),
+      started_at: state.clock.(),
+      access: access
+    }
+
+    if not persist? or SessionCustodian.retain(state.custodian, credential(entry, id)) == :ok do
+      result = if persist?, do: %{"id" => id}, else: %{"id" => id, "access" => access}
+      {:reply, {:ok, result}, put_in(state.entries[id], entry)}
+    else
+      {:reply, unavailable(), state}
+    end
+  end
+
   # Tokens are compared in constant time; scope must match exactly.
   defp same_credential?(entry, current),
     do:
       entry.scope == current.scope and byte_size(entry.token) == byte_size(current.token) and
         :crypto.hash_equals(entry.token, current.token)
+
+  defp credential(entry, id) do
+    %{token: entry.token, scope: entry.scope, access: entry.access, session_id: id}
+  end
+
+  defp session_context(%{"identity" => identity, "access" => access}, scope)
+       when is_map(identity) and is_map(access) do
+    with true <- identity["scope"] == scope,
+         true <- access["scope"] == scope,
+         credential when is_binary(credential) <- access["credential_id"],
+         principal when is_binary(principal) <- access["principal"],
+         expires when is_integer(expires) <- access["expires_at"],
+         true <- byte_size(credential) in 1..256 and byte_size(principal) in 1..256,
+         true <- expires in 0..9_007_199_254_740_991 do
+      {:ok, access}
+    else
+      _ -> unavailable()
+    end
+  end
+
+  defp session_context(_, _), do: unavailable()
 
   defp call({module, context}, token, scope, action, arguments, now),
     do: module.request(context, token, scope, action, arguments, now)

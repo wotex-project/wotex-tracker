@@ -54,6 +54,8 @@ defmodule Wotex.Tracker.Mobile.ConfigTest do
       Keyword.put(valid, :secret_key_base, String.duplicate("s", 63)),
       Keyword.put(valid, :capability, "not-canonical"),
       Keyword.put(valid, :timeout_ms, 99),
+      Keyword.put(valid, :secure_store, {String, nil}),
+      Keyword.put(valid, :clock, :invalid),
       valid ++ [extra: true],
       valid ++ [port: 4_322]
     ]
@@ -77,5 +79,8 @@ defmodule Wotex.Tracker.Mobile.ConfigTest do
 
     assert {Wotex.Tracker.Mobile.RemoteTransport, %{resolver: {Wotex.Tracker.Mobile.DNS, nil}}} =
              config.remote.transport
+
+    assert {Wotex.Mobile.SecureStore, :wotex_secure_store_nif} = config.secure_store
+    assert is_function(config.clock, 0)
   end
 end

@@ -3478,3 +3478,43 @@ This proves a checked native primitive, not physical Keychain behavior. The
 credential envelope is not yet integrated with sign-in, cache binding, server
 switching or logout, and no signed iPhone backup/restore, protected-data or
 unavailable-Keychain test has run. Those gates remain open.
+
+### Account-bound mobile credential lifecycle — 2026-09-20
+
+The mobile host now owns one fail-closed lifecycle across shared UI sessions,
+device-only credential storage and the projection cache. Shared session login
+obtains one exact access projection and asks an optional host custodian to retain
+the bounded token, scope, access and opaque session identifier before making the
+session visible. A custody failure leaves no browser session. Mobile composition
+limits the store to one session and persists an exact seven-field credential
+envelope containing only its schema, canonical service origin, bearer token,
+scope, credential ID, principal and expiry. Process status and inspected state
+are redacted.
+
+The lifecycle creates a canonical random installation ID in secure storage and
+binds the cache to that ID plus the authenticated origin/account projection.
+Cold start validates the closed envelope, binds the cache, reauthorizes through
+the versioned remote access endpoint and creates a fresh volatile session. An
+offline start retains an existing binding without granting browser authority and
+retries reauthorization at a later native bootstrap. Unauthorized, expired,
+malformed, widened and foreign-origin envelopes are removed and the cache is
+purged. Sign-out deletes the secure credential and cache binding before retiring
+the browser session; a storage failure preserves the existing session so the
+user can retry instead of receiving a false sign-out. Dead-cache and hostile
+secure-store callbacks are contained, and a failed restoration discards its
+newly issued volatile session.
+
+Tests exercise HTTP sign-in/sign-out custody, cold host restart, offline recovery,
+revocation, expiry, origin switching, malformed envelopes and installation IDs,
+secure-store read/write/delete failure, exceptions and throws, dead-cache
+rollback, status redaction and exact cache binding. The complete mobile-host gate
+passed 41 tests at 95.6% production line coverage, and the complete shared-UI
+gate passed 155 tests at 95.1%. Compiler, unused-dependency, formatter,
+dependency-audit, strict Credo, ExDoc, Dialyzer, archive inspection, license and
+stack-language checks passed for their applicable profiles.
+
+This remains software evidence using a deterministic secure-store test seam. It
+does not establish physical Keychain behavior, protected-data availability,
+signed backup/restore behavior or remote erasure of an offline device. Shared
+views still do not populate or present the offline cache, and notification,
+native lifecycle, BLE, sharing, signing and physical-iPhone gates remain open.

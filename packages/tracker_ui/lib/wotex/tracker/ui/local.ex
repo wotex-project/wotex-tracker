@@ -39,6 +39,13 @@ defmodule Wotex.Tracker.UI.Local do
     end
   end
 
+  defp dispatch(service, token, scope, :session_context, _, now) do
+    case Service.access(service, token, scope, now) do
+      {:ok, access} -> {:ok, session_context(access, scope)}
+      {:error, %{"code" => _} = error} -> {:error, error}
+    end
+  end
+
   defp dispatch(service, token, scope, :access, _, now) do
     case Service.access(service, token, scope, now) do
       {:ok, access} ->
@@ -186,4 +193,24 @@ defmodule Wotex.Tracker.UI.Local do
     do: Service.submit(service, token, scope, args["operation"], args["request"], now)
 
   defp dispatch(_, _, _, _, _, _), do: {:error, %{"code" => "unsupported"}}
+
+  defp session_context(access, scope) do
+    permissions = access["permissions"]
+
+    %{
+      "identity" => %{
+        "scope" => scope,
+        "can_enroll" => "enroll" in permissions,
+        "can_ingest" => "ingest" in permissions,
+        "can_read_raw" => "raw" in permissions,
+        "can_manage_queries" => "admin" in permissions
+      },
+      "access" => %{
+        "credential_id" => access["credential_id"],
+        "principal" => access["principal"],
+        "scope" => access["scope"],
+        "expires_at" => access["expires_at"]
+      }
+    }
+  end
 end

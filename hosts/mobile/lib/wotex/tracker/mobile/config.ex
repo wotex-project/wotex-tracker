@@ -9,7 +9,7 @@ defmodule Wotex.Tracker.Mobile.Config do
   alias Wotex.Tracker.Mobile.{DNS, RemoteTransport, WebSession}
   alias Wotex.Tracker.UI.{Remote, RemoteMintTransport}
 
-  @keys ~w(directory remote_origin port secret_key_base capability remote_transport timeout_ms)a
+  @keys ~w(directory remote_origin port secret_key_base capability remote_transport timeout_ms secure_store clock)a
   @derive {Inspect, only: [:origin, :directory, :remote_origin, :port]}
   @enforce_keys [
     :directory,
@@ -19,7 +19,9 @@ defmodule Wotex.Tracker.Mobile.Config do
     :secret_key_base,
     :capability_digest,
     :remote,
-    :web_session
+    :web_session,
+    :secure_store,
+    :clock
   ]
   defstruct @enforce_keys
 
@@ -31,7 +33,9 @@ defmodule Wotex.Tracker.Mobile.Config do
           secret_key_base: String.t(),
           capability_digest: binary(),
           remote: Remote.t(),
-          web_session: WebSession.t()
+          web_session: WebSession.t(),
+          secure_store: {module(), term()},
+          clock: (-> integer())
         }
 
   @doc "Generates a canonical ephemeral native app-session capability."
@@ -56,6 +60,10 @@ defmodule Wotex.Tracker.Mobile.Config do
          {:ok, web_session} <- WebSession.new(origin, capability),
          transport <- Keyword.get(options, :remote_transport, default_transport()),
          timeout <- Keyword.get(options, :timeout_ms, 5_000),
+         secure_store <- Keyword.get(options, :secure_store, default_secure_store()),
+         true <- secure_store?(secure_store),
+         clock <- Keyword.get(options, :clock, fn -> System.system_time(:millisecond) end),
+         true <- is_function(clock, 0),
          {:ok, remote} <-
            Remote.new(origin: remote_origin, transport: transport, timeout_ms: timeout) do
       {:ok,
@@ -67,7 +75,9 @@ defmodule Wotex.Tracker.Mobile.Config do
          secret_key_base: secret,
          capability_digest: :crypto.hash(:sha256, capability),
          remote: remote,
-         web_session: web_session
+         web_session: web_session,
+         secure_store: secure_store,
+         clock: clock
        }}
     else
       _ -> {:error, :invalid_configuration}
@@ -83,4 +93,13 @@ defmodule Wotex.Tracker.Mobile.Config do
        transport: {RemoteMintTransport, {Mint.HTTP, &:public_key.cacerts_get/0}}
      }}
   end
+
+  defp default_secure_store, do: {Wotex.Mobile.SecureStore, :wotex_secure_store_nif}
+
+  defp secure_store?({module, _}) when is_atom(module) do
+    Code.ensure_loaded?(module) and function_exported?(module, :fetch, 2) and
+      function_exported?(module, :put, 3) and function_exported?(module, :delete, 2)
+  end
+
+  defp secure_store?(_), do: false
 end
