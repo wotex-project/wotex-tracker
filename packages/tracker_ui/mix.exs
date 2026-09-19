@@ -31,7 +31,7 @@ defmodule WotexTrackerUI.MixProject do
       {:phoenix_live_view, "== 1.2.11"},
       {:phoenix_html, "== 4.3.0"},
       {:jason, "== 1.4.5"},
-      {:mint, "== 1.10.0"},
+      {:mint, "== 1.10.1"},
       {:lazy_html, "~> 0.1", only: :test},
       {:stream_data, "~> 1.3", only: :test},
       {:excoveralls, "~> 0.18", only: :test},

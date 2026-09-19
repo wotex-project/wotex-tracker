@@ -409,7 +409,7 @@ execution. Finite-read tests use private caller-owned ETS; subscription tests us
 a caller-owned credential vault because Runtime resolves credentials in its
 opening worker. Neither transport plans nor long-lived readers retain tokens.
 
-The client uses Mint 1.10.0 with a five-second maximum deadline, one socket per
+The client uses Mint 1.10.1 with a five-second maximum deadline, one socket per
 call, at most 1 MiB of response data, 32 headers and 8 KiB of header/status-line
 data, or the binding's smaller limits. It does not resolve DNS, use a proxy,
 follow redirects or retry. Socket ownership follows the caller and every return

@@ -30,7 +30,7 @@ defmodule WotexTrackerService.MixProject do
       http_binding(),
       {:bandit, "== 1.12.5"},
       {:plug, "== 1.20.3"},
-      {:mint, "== 1.10.0"},
+      {:mint, "== 1.10.1"},
       {:exqlite, "== 0.40.0"},
       {:telemetry, "== 1.4.2"},
       {:stream_data, "~> 1.3", only: :test},

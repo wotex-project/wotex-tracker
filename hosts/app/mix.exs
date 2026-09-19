@@ -59,10 +59,10 @@ defmodule WotexTrackerHost.MixProject do
     if ui?() do
       case {System.get_env("WOTEX_PATH_DEPS"), Mix.env()} do
         {nil, _} ->
-          [{:wotex_tracker_ui, "~> 0.1.0"}, {:mint, "== 1.10.0"}]
+          [{:wotex_tracker_ui, "~> 0.1.0"}, {:mint, "== 1.10.1"}]
 
         {"1", env} when env in [:dev, :test, :docs] ->
-          [{:wotex_tracker_ui, path: "../../packages/tracker_ui", env: env}, {:mint, "== 1.10.0"}]
+          [{:wotex_tracker_ui, path: "../../packages/tracker_ui", env: env}, {:mint, "== 1.10.1"}]
 
         _ ->
           raise "WOTEX_PATH_DEPS accepts only 1 in dev/test/docs; production requires artifacts"

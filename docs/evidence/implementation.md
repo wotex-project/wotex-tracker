@@ -3355,3 +3355,21 @@ line coverage, and the complete shared-UI gate passed 152 tests at 95.2%.
 Compiler, unused-dependency, formatter, dependency audit, strict Credo, ExDoc,
 Dialyzer, boundary checks, OpenAPI validation, 96-member service and 54-member UI
 archive inspection, licenses and the 461-file stack-language policy all passed.
+
+### Mint HTTP parser security update — 2026-09-20
+
+Every committed service, shared-UI, application-host and Nerves dependency
+profile now resolves Mint 1.10.1, closing the response-smuggling issue reported
+as CVE-2026-82672. The exact version is pinned at the package and composed
+application seam; headless, UI-enabled and QEMU lock files were regenerated
+rather than leaving an older transitive parser in a deployment profile.
+
+The complete service gate passed 2 properties and 285 tests at 95.1% production
+line coverage, and the complete shared-UI gate passed 152 tests at 95.2%.
+Compiler, unused-dependency, formatter, dependency audit, strict Credo, ExDoc,
+Dialyzer, boundary checks, OpenAPI validation, 96-member service and 54-member UI
+archive inspection, licenses and the 473-file stack-language policy all passed.
+Dependency audits additionally passed for the headless and UI-enabled ordinary
+application and Nerves host profiles. The QEMU dependency audit passed on its
+qualified OTP 29.0.4 / Elixir 1.20.4 host toolchain, matching the target's OTP
+major version.

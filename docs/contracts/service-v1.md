@@ -727,7 +727,7 @@ The supplied `HTTP.LoopbackClient` is an explicit local reader for Runtime
 `ConsumedThing` through the upstream HTTP binding. It admits only the configured
 numeric loopback HTTP origin, exact scope and Property GET path. The credential
 is a separate immediate callback argument; the immutable plan/configuration do
-not contain it. Mint **1.10.0** owns framing; the caller owns the socket, with no
+not contain it. Mint **1.10.1** owns framing; the caller owns the socket, with no
 connection process, DNS, proxy, pooling, redirect following or retry. Reads have
 a maximum five-second deadline; header/status-line bytes are capped at 8 KiB,
 header count at 32, body at 1 MiB, each reduced by smaller binding limits.
@@ -779,7 +779,7 @@ reader or opaque handle. Closing one handle leaves other readers alive. Owner
 loss, finite lifetime (at most 300 seconds), transport/parse failure or an owner
 queue of 32 messages closes the reader. There is no reconnect, retry or pool.
 
-Mint 1.10.0 admits HTTP framing. The streaming parser admits BOM, UTF-8, CR/LF/CRLF,
+Mint 1.10.1 admits HTTP framing. The streaming parser admits BOM, UTF-8, CR/LF/CRLF,
 comments, multiline data and event IDs across arbitrary byte splits under fixed
 frame/line/batch bounds. Pending EOF data is discarded. Retry hints are preserved
 as metadata without scheduling retries. Duplicate content-type/encoding fields,
