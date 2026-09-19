@@ -92,7 +92,9 @@ The Protection page links to a newest-first alert list. Each alert page shows
 the recorded status change, rule, the asset of a defined rule or that the host
 manages the rule, evaluation mode and dispatch restriction, and
 lets an administrator acknowledge a live alert once through a prepared operation
-reference. Replay alerts are marked as needing no review.
+reference. Suspicious-movement alerts additionally show the reviewed historical
+movement, arming and owner-presence conditions without private fact or evidence
+identities. Replay alerts are marked as needing no review.
 The Activity page pages the changes committed with the browser's credential in
 the last seven days, newest first, describes each from its receipt data and
 links the asset, observation, dashboard or alert it changed.

@@ -4386,6 +4386,39 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     end
   end
 
+  test "a suspicious alert explains reviewed trigger conditions without private identities", c do
+    alert = suspicious_alert("explicit_owner_absence", c.now)
+    Agent.update(c.faults, &Map.put(&1, :get, {:get_page, {:ok, %{"value" => alert}}}))
+    {:ok, view, _} = live(c.conn, Presenter.alert_path("suspicious-alert"))
+
+    assert has_element?(view, "h1", "Suspicious movement")
+    assert has_element?(view, "dt", "Movement at evaluation")
+    assert render(view) =~ "Confirmed moving"
+    assert has_element?(view, "dt", "Arming at evaluation")
+    assert has_element?(view, "dd", ~r/^\s*Armed\s*$/)
+    assert has_element?(view, "dt", "Owner presence at evaluation")
+    assert has_element?(view, "dd", "Explicitly absent")
+    assert render(view) =~ "owner-presence state may differ"
+
+    for private <- ~w(
+      motion_state_identity armed_fact_identity owner_presence_fact_identity
+      movement_position_evidence_id armed_evidence_id owner_presence_evidence_id
+    ) do
+      refute render(view) =~ private
+    end
+
+    unknown = suspicious_alert("unknown_treated_as_absent", c.now)
+    Agent.update(c.faults, &Map.put(&1, :get, {:get_page, {:ok, %{"value" => unknown}}}))
+    view |> element("button", "Refresh") |> render_click()
+    assert render(view) =~ "Unknown, treated as absent by this rule revision"
+
+    malformed = suspicious_alert("changed", c.now)
+    Agent.update(c.faults, &Map.put(&1, :get, {:get_page, {:ok, %{"value" => malformed}}}))
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, "dt", "Owner presence at evaluation")
+    assert has_element?(view, "dd", "Unavailable")
+  end
+
   test "an administrator acknowledges the newest alert once without private references", c do
     RuleFixtures.commit_all(c.store, c.scope)
     {:ok, protection, _} = live(c.conn, "/protection")
@@ -6476,6 +6509,29 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     {:ok, document} = PolicyFact.to_map(fact)
     document
   end
+
+  defp suspicious_alert(interpretation, now),
+    do: %{
+      "schema" => "wtr.alert.v1",
+      "id" => "suspicious-alert",
+      "event_id" => "suspicious-event",
+      "event" => %{
+        "schema" => "wtr.suspicious-movement-event.v1",
+        "id" => "suspicious-event",
+        "kind" => "suspicious_movement",
+        "rule_id" => "suspicious-rule",
+        "rule_revision" => "7",
+        "active_trip_id" => "active-trip",
+        "owner_unknown_interpretation" => interpretation
+      },
+      "rule" => %{"kind" => "suspicious_movement", "id" => "suspicious-rule"},
+      "thing_id" => "urn:uuid:123e4567-e89b-42d3-a456-426614174000",
+      "mode" => "live",
+      "physical_action_dispatch" => "separate_authorization_required",
+      "created_at" => now,
+      "generation" => "7",
+      "acknowledgement" => nil
+    }
 
   defp dashboard_query(thing, now) do
     {:ok, spec} =

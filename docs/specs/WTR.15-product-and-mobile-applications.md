@@ -86,7 +86,10 @@ any reader and offers no new rule once the asset has eight. It also pages the
 alerts of those definitions newest first.
 Recorded rule events appear as newest-first alerts, and an administrator can
 acknowledge a live alert once without changing the rule or dispatching an
-Action. Administrators can create and exactly edit movement/trip and circle or
+Action. Suspicious-movement alert details explain the reviewed trigger conditions:
+confirmed movement and armed state plus explicit owner absence or the rule's
+unknown-as-absent interpretation. They label those conditions historical and
+keep private fact/evidence identities out of the page. Administrators can create and exactly edit movement/trip and circle or
 polygon geofence rules. The service can now commit and read a private-fact-backed
 armed or disarmed state without claiming device contact. An asset with a motion
 definition links to a dedicated shared arming screen. Administrators prepare an

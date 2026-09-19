@@ -126,6 +126,15 @@ defmodule Wotex.Tracker.UI.AlertLive do
           </dd>
           <dt :if={@alert["event"]["reason"]}>Reason</dt>
           <dd :if={@alert["event"]["reason"]}>{@alert["event"]["reason"]}</dd>
+          <dt :if={suspicious?(@alert)}>Movement at evaluation</dt>
+          <dd :if={suspicious?(@alert)}>
+            Confirmed moving · active trip
+            <span class="identifier">{@alert["event"]["active_trip_id"]}</span>
+          </dd>
+          <dt :if={suspicious?(@alert)}>Arming at evaluation</dt>
+          <dd :if={suspicious?(@alert)}>Armed</dd>
+          <dt :if={suspicious?(@alert)}>Owner presence at evaluation</dt>
+          <dd :if={suspicious?(@alert)}>{owner_condition(@alert["event"])}</dd>
           <dt>Recorded</dt>
           <dd>{Presenter.timestamp(%{"value" => @alert["created_at"]})}</dd>
           <dt>Evaluation</dt>
@@ -144,6 +153,10 @@ defmodule Wotex.Tracker.UI.AlertLive do
         <p>
           This alert is derived from retained evidence. Evidence identifiers stay private; inspect
           the asset's source evidence with the raw-evidence permission.
+        </p>
+        <p :if={suspicious?(@alert)}>
+          These are the reviewed trigger conditions recorded with the event. Current motion,
+          arming and owner-presence state may differ.
         </p>
         <p class="identifier">Event {@alert["event_id"]}</p>
       </section>
@@ -176,6 +189,17 @@ defmodule Wotex.Tracker.UI.AlertLive do
     do: "None requested; any Action would need separate authorization"
 
   defp dispatch(_), do: "None can be dispatched from this record"
+
+  defp suspicious?(%{"event" => %{"kind" => "suspicious_movement"}}), do: true
+  defp suspicious?(_), do: false
+
+  defp owner_condition(%{"owner_unknown_interpretation" => "explicit_owner_absence"}),
+    do: "Explicitly absent"
+
+  defp owner_condition(%{"owner_unknown_interpretation" => "unknown_treated_as_absent"}),
+    do: "Unknown, treated as absent by this rule revision"
+
+  defp owner_condition(_), do: "Unavailable"
 
   defp load(socket) do
     case Auth.request(socket, :get, %{"resource" => "alerts", "id" => socket.assigns.id}) do

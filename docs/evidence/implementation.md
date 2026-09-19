@@ -3219,3 +3219,23 @@ The complete shared-UI gate passed 140 tests at 95.0% production line coverage;
 the protection-input screen reached 97.4%. Compiler, unused-dependency,
 formatter, dependency audit, strict Credo, ExDoc, Dialyzer, 51-member archive
 inspection, licenses and the 445-file stack-language policy all passed.
+
+### Reviewed suspicious-alert trigger conditions — 2026-09-19
+
+The shared alert detail now explains a suspicious-movement event in terms of its
+reviewed historical conditions: confirmed movement and active trip, armed state,
+and either explicit owner absence or the rule revision's explicit treatment of
+unknown presence as absence. The page warns that current facts may differ and
+continues to present notification and physical-Action delivery as separate from
+the canonical alert.
+
+The presentation consumes only fields already retained in the public event and
+does not request or render motion-state, policy-fact, observation, bundle or
+evidence identities. Workflow tests cover both admitted owner interpretations,
+a malformed interpretation fallback, active-trip context and the absence of all
+private reference names.
+
+The complete shared-UI gate passed 141 tests at 95.0% production line coverage;
+the alert detail reached 96.1%. Compiler, unused-dependency, formatter,
+dependency audit, strict Credo, ExDoc, Dialyzer, 51-member archive inspection,
+licenses and the 445-file stack-language policy all passed.
