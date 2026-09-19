@@ -2,13 +2,39 @@ defmodule Wotex.Tracker.Mobile.ShellTest do
   @moduledoc false
 
   use ExUnit.Case, async: false
-  alias Wotex.Tracker.Mobile.{Config, ExternalURL, MobApp, MobScreen, WebSession}
+  alias Wotex.Tracker.Mobile.{Config, ExternalURL, Lifecycle, MobApp, MobScreen, WebSession}
 
   defmodule Device do
     def open_url(url) do
       send(self(), {:opened_external_url, url})
       :ok
     end
+  end
+
+  defmodule DeviceEvents do
+    def subscribe(categories) do
+      send(self(), {:subscribed, categories})
+      :ok
+    end
+  end
+
+  defmodule FailingDeviceEvents do
+    def subscribe(_), do: raise("private native subscription failure")
+  end
+
+  defmodule WebView do
+    def eval_js(socket, script) do
+      send(self(), {:evaluated, script})
+      Mob.Socket.assign(socket, :reloaded, true)
+    end
+  end
+
+  defmodule InvalidWebView do
+    def eval_js(_, _), do: :invalid
+  end
+
+  defmodule FailingWebView do
+    def eval_js(_, _), do: throw(:private_native_webview_failure)
   end
 
   test "builds one capability-bound local WebView with an exact origin allow-list" do
@@ -24,6 +50,7 @@ defmodule Wotex.Tracker.Mobile.ShellTest do
 
     socket = Mob.Socket.new(MobScreen)
     assert {:ok, mounted} = MobScreen.mount(%{session: session}, %{}, socket)
+    assert %Lifecycle{} = mounted.assigns.lifecycle
 
     assert %{
              type: :web_view,
@@ -38,8 +65,64 @@ defmodule Wotex.Tracker.Mobile.ShellTest do
     assert {:error, :invalid_session} = MobScreen.mount(%{}, %{}, socket)
     assert {:noreply, ^mounted} = MobScreen.handle_info(:untrusted_message, mounted)
 
+    assert {:noreply, background} =
+             MobScreen.handle_info({:mob_device, :did_enter_background}, mounted)
+
+    assert background.assigns.lifecycle.app == :background
+
+    assert {:noreply, active} =
+             MobScreen.handle_info({:mob_device, :did_become_active}, background)
+
+    assert active.assigns.lifecycle.app == :active
+
     assert {:noreply, ^mounted} =
              MobScreen.handle_info({:webview, :blocked, "javascript:alert(1)"}, mounted)
+  end
+
+  test "reloads once after resume and once when connectivity returns" do
+    state = Lifecycle.new()
+
+    assert {%Lifecycle{app: :background} = state, :none} =
+             Lifecycle.transition(state, {:mob_device, :did_enter_background})
+
+    assert {%Lifecycle{app: :active} = state, :reload} =
+             Lifecycle.transition(state, {:mob_device, :did_become_active})
+
+    assert {^state, :none} = Lifecycle.transition(state, {:mob_device, :did_become_active})
+
+    assert {%Lifecycle{network: :offline} = state, :none} =
+             Lifecycle.transition(
+               state,
+               {:mob_device, :connectivity_changed, %{online: false}}
+             )
+
+    assert {%Lifecycle{network: :online} = state, :reload} =
+             Lifecycle.transition(
+               state,
+               {:mob_device, :connectivity_changed, %{online: true}}
+             )
+
+    assert {^state, :none} =
+             Lifecycle.transition(
+               state,
+               {:mob_device, :connectivity_changed, %{online: true}}
+             )
+
+    assert {^state, :none} = Lifecycle.transition(state, {:mob_device, :will_enter_foreground})
+    assert {^state, :none} = Lifecycle.transition(state, {:mob_device, :invalid, %{}})
+  end
+
+  test "uses only the fixed reload effect and contains native failures" do
+    assert :ok = Lifecycle.subscribe(DeviceEvents)
+    assert_received {:subscribed, [:app, :network]}
+
+    assert {:error, :native_runtime_unavailable} = Lifecycle.subscribe(FailingDeviceEvents)
+
+    socket = Mob.Socket.new(MobScreen)
+    assert %{assigns: %{reloaded: true}} = Lifecycle.reload(socket, WebView)
+    assert_received {:evaluated, "window.location.reload()"}
+    assert Lifecycle.reload(socket, InvalidWebView) == socket
+    assert Lifecycle.reload(socket, FailingWebView) == socket
   end
 
   test "rejects widened local targets and malformed capabilities" do

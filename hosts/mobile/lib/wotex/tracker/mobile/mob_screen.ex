@@ -7,11 +7,17 @@ defmodule Wotex.Tracker.Mobile.MobScreen do
   """
 
   use Mob.Screen
-  alias Wotex.Tracker.Mobile.{ExternalURL, WebSession}
+  alias Wotex.Tracker.Mobile.{ExternalURL, Lifecycle, WebSession}
 
   @impl true
   def mount(%{session: %WebSession{} = session}, _stored, socket) do
-    {:ok, Mob.Socket.assign(socket, :web_session, session)}
+    _ = Lifecycle.subscribe()
+
+    {:ok,
+     Mob.Socket.assign(socket,
+       web_session: session,
+       lifecycle: Lifecycle.new()
+     )}
   end
 
   def mount(_, _, _), do: {:error, :invalid_session}
@@ -28,6 +34,9 @@ defmodule Wotex.Tracker.Mobile.MobScreen do
     {:noreply, socket}
   end
 
+  def handle_info({:mob_device, _, _} = event, socket), do: lifecycle(event, socket)
+  def handle_info({:mob_device, _} = event, socket), do: lifecycle(event, socket)
+
   def handle_info(_, socket), do: {:noreply, socket}
 
   @doc false
@@ -39,5 +48,12 @@ defmodule Wotex.Tracker.Mobile.MobScreen do
     end
 
     :ok
+  end
+
+  defp lifecycle(event, %{assigns: %{lifecycle: lifecycle}} = socket) do
+    {lifecycle, effect} = Lifecycle.transition(lifecycle, event)
+    socket = Mob.Socket.assign(socket, :lifecycle, lifecycle)
+    socket = if effect == :reload, do: Lifecycle.reload(socket), else: socket
+    {:noreply, socket}
   end
 end

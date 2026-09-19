@@ -3553,3 +3553,26 @@ profiles.
 This is local software evidence. No physical iPhone, protected-data transition,
 network handoff, background/foreground lifecycle, push notification, BLE,
 sharing, Xcode, signing or distribution gate was exercised.
+
+### Bounded mobile lifecycle recovery — 2026-09-20
+
+The root Mob screen now subscribes only to application and network lifecycle
+events. A completed background-to-active transition reloads the current local
+WebView once; duplicate active callbacks do nothing. Losing a network path is
+recorded without an effect, and regaining it while active likewise performs one
+reload. Recovery therefore re-enters the existing loopback session gate and
+shared client, where online policy is re-evaluated and expired snapshots are
+resampled. It introduces no mutation queue, retry loop, arbitrary native method
+or page-controlled JavaScript—the sole effect is a fixed internal reload.
+
+The transition reducer is independent of native state, and subscription,
+malformed callbacks, invalid native results, exceptions and throws are
+contained. Tests cover background/foreground ordering, duplicate callbacks,
+offline/online recovery, fixed-effect invocation and integration with the real
+root screen. The complete mobile-host gate passed 49 tests at 95.2% production
+line coverage. Compiler, unused-dependency, formatter, dependency audit, strict
+Credo, ExDoc, Dialyzer, licenses and the 504-file stack-language policy passed.
+
+This does not claim that a suspended BEAM keeps running. Physical suspend,
+process eviction, reboot, Wi-Fi/cellular handoff, reconnection latency, memory
+pressure and energy acceptance remain unexecuted on an iPhone.

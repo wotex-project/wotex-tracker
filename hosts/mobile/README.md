@@ -60,6 +60,13 @@ completeness and access-expiry metadata. Shared browse, asset, trip, route and
 dashboard views render that state explicitly. Mutations, raw evidence, access
 management and operation recovery are never cached or queued.
 
+The root native screen subscribes only to Mob's application and network
+lifecycle categories. A real background-to-active transition or recovery of an
+online path reloads the local WebView once, causing normal session validation,
+remote reauthorization and view resnapshot. Duplicate callbacks do nothing;
+native subscription and reload failures stay contained. This is reconnect
+orchestration, not a background-execution or background-location claim.
+
 Run the software gate with the host-pinned toolchain:
 
 ```sh
@@ -68,6 +75,6 @@ WOTEX_PATH_DEPS=1 MIX_ENV=test mise exec -- mix check --no-retry
 ```
 
 No Xcode project, signed installation, physical secure-storage evidence,
-notification plugin, lifecycle bridge, BLE central bridge, sharing bridge or
-physical-iPhone evidence exists in this slice. Those gates remain explicitly
-open.
+notification plugin, BLE central bridge, sharing bridge or physical-iPhone
+evidence exists in this slice. Physical suspend/resume and network-handoff
+evidence also remain explicitly open.
