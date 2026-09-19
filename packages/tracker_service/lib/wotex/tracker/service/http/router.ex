@@ -31,7 +31,9 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
     "policy_deletions" => {:delete_policy, "admin"},
     "alert_acknowledgements" => {:acknowledge_alert, "admin"},
     "arming" => {:set_arming, "admin"},
-    "owner_presence" => {:admit_owner_presence, "admin"}
+    "owner_presence" => {:admit_owner_presence, "admin"},
+    "notification_endpoints" => {:register_notification_endpoint, "admin"},
+    "notification_endpoint_deletions" => {:unregister_notification_endpoint, "admin"}
   }
 
   @impl true
@@ -430,6 +432,21 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
     {conn, Service.credentials(service, token, scope, now)}
   end
 
+  defp scoped(%{method: "GET"} = conn, ["notification_endpoints"], params, context)
+       when map_size(params) == 0 do
+    {service, token, scope, now} = context
+    {conn, Service.notification_endpoints(service, token, scope, now)}
+  end
+
+  defp scoped(
+         %{method: "GET"} = conn,
+         ["notification_endpoints", id],
+         params,
+         {service, token, scope, now}
+       )
+       when map_size(params) == 0,
+       do: {conn, Service.notification_endpoint(service, token, scope, id, now)}
+
   defp scoped(%{method: "GET"} = conn, ["capabilities"], params, context)
        when map_size(params) == 0 do
     {service, token, scope, now} = context
@@ -449,6 +466,7 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
            "trip_summaries" => "bounded_gap_honest_reconstruction",
            "arming" => "explicit_administrative_fact",
            "owner_presence" => "closed_evidence_fact_admission",
+           "notifications" => "encrypted_principal_bound_apns_registration",
            "runtime" => %{
              "readproperty" => "available",
              "observeproperty" => "available",

@@ -122,9 +122,9 @@ defmodule Wotex.Tracker.Service.Credentials do
   def reauthorize(_, _, _, _), do: {:error, :unauthorized}
 
   @doc "Derives a purpose-specific private host key without exposing the master in inspection."
-  @spec derive_key(t(), :cursor | :pseudonym) :: binary()
+  @spec derive_key(t(), :cursor | :pseudonym | :notification) :: binary()
   def derive_key(%__MODULE__{secret_key: key, instance_id: instance}, purpose)
-      when purpose in [:cursor, :pseudonym],
+      when purpose in [:cursor, :pseudonym, :notification],
       do:
         :crypto.mac(
           :hmac,

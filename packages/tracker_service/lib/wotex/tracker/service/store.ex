@@ -146,6 +146,14 @@ defmodule Wotex.Tracker.Service.Store do
   def authorized_policies(store, access, permission, thing, generation, now),
     do: StoreCall.run(store, {:authorized_policies, access, permission, thing, generation, now})
 
+  @doc false
+  def authorized_notification_endpoints(store, access, generation, limit, now),
+    do:
+      StoreCall.run(
+        store,
+        {:authorized_notification_endpoints, access, generation, limit, now}
+      )
+
   @doc "Reauthorizes and pages the caller's unexpired operation receipts newest first in one snapshot."
   @spec authorized_operations(t(), Access.t(), map(), integer()) ::
           {:ok, map()} | {:error, atom()}
@@ -513,6 +521,29 @@ defmodule Wotex.Tracker.Service.Store do
           Authority.now(state.options, now)
         )
       end)
+
+  defp dispatch(
+         {:authorized_notification_endpoints, access, generation, limit, now},
+         state
+       ),
+       do:
+         Read.notification_endpoints(
+           state.db,
+           access_scope(access),
+           access.principal,
+           generation,
+           limit,
+           fn ->
+             Authority.check!(
+               state.db,
+               state.options.credentials,
+               access,
+               access_scope(access),
+               "admin",
+               Authority.now(state.options, now)
+             )
+           end
+         )
 
   defp dispatch({:authorized_operations, access, query, now}, state) do
     now = Authority.now(state.options, now)

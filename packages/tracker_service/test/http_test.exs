@@ -61,6 +61,19 @@ defmodule Wotex.Tracker.HTTPTest do
     assert_capacity_released(capacity)
   end
 
+  test "an independent HTTP process registers, rotates and removes a private push endpoint" do
+    context = service()
+    server = start_supervised!({Server, options(context)})
+
+    output = run_consumer(context, server, %{"mode" => "notification_endpoints"})
+
+    assert output =~
+             "HTTP_CONSUMER_PASS openapi=true notification_endpoints=true private_token=false"
+
+    assert {:ok, capacity} = Server.child(server, :capacity)
+    assert_capacity_released(capacity)
+  end
+
   test "instances use distinct listeners and stores; invalid exposure and configuration fail closed" do
     first = service()
     second = service()

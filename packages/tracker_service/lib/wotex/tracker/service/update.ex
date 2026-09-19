@@ -15,7 +15,7 @@ defmodule Wotex.Tracker.Service.Update do
   alias Wotex.Tracker.Observation
   alias Wotex.Tracker.Service.{Access, Authority, Codec, RuleEvent, RuleTransition}
 
-  @kinds ~w(enrollments things state policies saved_queries evidence resolutions access alerts arming owner_presence)
+  @kinds ~w(enrollments things state policies saved_queries evidence resolutions access alerts arming owner_presence notification_endpoints)
   @keys ~w(principal scope operation_id expected_generation request now observation records events publication)a
   @enforce_keys @keys
   @optional [:authority, :response, :rules, :rule_events]
@@ -89,7 +89,7 @@ defmodule Wotex.Tracker.Service.Update do
 
   defp event?(%{"type" => type, "data" => data} = event) when map_size(event) == 2,
     do:
-      type in ~w(observation.admitted enrollment.changed thing.changed policy.changed query.changed tracker.event access.revoked alert.acknowledged arming.changed owner_presence.changed) and
+      type in ~w(observation.admitted enrollment.changed thing.changed policy.changed query.changed tracker.event access.revoked alert.acknowledged arming.changed owner_presence.changed notification_endpoint.changed) and
         is_map(data) and match?({:ok, _}, Codec.encode(event, 16_384))
 
   defp event?(_), do: false

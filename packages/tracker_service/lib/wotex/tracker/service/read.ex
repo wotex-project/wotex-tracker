@@ -127,6 +127,53 @@ defmodule Wotex.Tracker.Service.Read do
     end
   end
 
+  # Push endpoints are private to the registering principal within a scope.
+  # The extra row detects corruption or a bypass of the admitted per-owner cap.
+  def notification_endpoints(db, scope, principal, generation, limit, authorize) do
+    with true <- Codec.id?(scope) and Codec.id?(principal),
+         true <- is_integer(limit) and limit in 1..9,
+         {:ok, requested} <- requested_generation(db, %{generation: generation}) do
+      SQL.execute!(db, "BEGIN")
+
+      try do
+        authorize.()
+        current = Transaction.generation(db, scope)
+        version = requested || current
+        if version > current, do: throw({:storage, :invalid_cursor})
+
+        rows =
+          SQL.rows!(
+            db,
+            """
+            SELECT r.id,r.document,r.generation FROM records r
+            WHERE r.scope=? AND r.kind='notification_endpoints' AND r.generation<=?
+            AND r.generation=(SELECT max(v.generation) FROM records v WHERE v.scope=r.scope AND v.kind=r.kind AND v.id=r.id AND v.generation<=?)
+            AND r.document!='null' AND json_extract(r.document,'$.owner')=?
+            ORDER BY r.id LIMIT ?
+            """,
+            [scope, version, version, principal, limit]
+          )
+
+        {:ok,
+         %{
+           "generation" => Integer.to_string(version),
+           "items" =>
+             Enum.map(rows, fn [id, document, record_generation] ->
+               %{
+                 "id" => id,
+                 "generation" => Integer.to_string(record_generation),
+                 "value" => Codec.decode!(document)
+               }
+             end)
+         }}
+      after
+        SQL.rollback(db)
+      end
+    else
+      _ -> {:error, :invalid_query}
+    end
+  end
+
   # Revocation is permanent, so each named credential has at most one access record.
   def revocations(db, scope, ids, authorize) do
     with true <- Codec.id?(scope) and is_list(ids) and length(ids) <= 32,

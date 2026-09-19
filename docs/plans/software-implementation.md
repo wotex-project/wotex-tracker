@@ -262,8 +262,9 @@ explicit kind/unit scope, freshness, future skew, suspect-quality policy and
 separate low/clear thresholds. It never derives percentage from voltage. See the
 [battery guide](../guides/battery.md). The service atomically persists its
 canonical state, history and stable event intent with restart recovery. Bounded
-freshness/future-skew scheduling is implemented; notification delivery remains
-subsequent work.
+freshness/future-skew scheduling is implemented. Principal-isolated APNs endpoint
+registration with encrypted token custody and rotation is implemented;
+notification intent creation and delivery remain subsequent work.
 
 Suspicious movement is implemented as a pure three-valued conjunction over
 confirmed motion and content-bound armed/owner-presence facts. Unknown presence
@@ -280,8 +281,9 @@ binds the exact referenced motion policy for the same Thing, with closed fact-ag
 future-skew and unknown-presence treatment. The event-only definition creates no
 synthetic rule state. Definition saves, motion materialisations, arming changes
 and owner-presence admissions now reevaluate exact live bindings and stage a true
-result's intent and alert inside the triggering transaction. Notification
-delivery remains subsequent work.
+result's intent and alert inside the triggering transaction. Principal-isolated
+APNs endpoint registration, encrypted token custody, rotation and removal are
+implemented; notification intent creation and delivery remain subsequent work.
 
 Transport degradation is implemented as pure state over content-validated
 transport decisions and a deployment-declared healthy candidate set. Fallback
@@ -307,7 +309,8 @@ alert once. The shared browser can inspect and conditionally change the retained
 arming fact for an asset with a motion definition. Closed owner-presence evidence
 can be admitted through the service but is not inferred or editable in the shared
 browser. Suspicious-movement orchestration is implemented at definition, motion,
-arming and presence mutation boundaries; notification delivery remains open.
+arming and presence mutation boundaries. Notification endpoint registration is
+implemented; atomic delivery intents, dispatch and provider outcomes remain open.
 
 Implement explicit time/freshness, quality selection, motion/trips/stops,
 geofence membership/transitions, heartbeat, suspicious movement, low-battery,

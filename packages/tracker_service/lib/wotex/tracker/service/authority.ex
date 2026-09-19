@@ -92,10 +92,17 @@ defmodule Wotex.Tracker.Service.Authority do
     record_permissions =
       Enum.map(update.records, fn record ->
         case record.kind do
-          kind when kind in ~w(access policies saved_queries alerts) -> "admin"
-          kind when kind in ~w(enrollments things) -> "enroll"
-          kind when kind in ~w(state evidence) -> derivative_permission(update, record.id)
-          _ -> "ingest"
+          kind when kind in ~w(access policies saved_queries alerts notification_endpoints) ->
+            "admin"
+
+          kind when kind in ~w(enrollments things) ->
+            "enroll"
+
+          kind when kind in ~w(state evidence) ->
+            derivative_permission(update, record.id)
+
+          _ ->
+            "ingest"
         end
       end)
 

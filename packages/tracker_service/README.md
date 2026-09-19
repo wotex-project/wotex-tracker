@@ -174,6 +174,17 @@ fact; a true result commits its stable intent and alert atomically. It sends no
 notification and dispatches no physical Action. Unenrollment removes
 the current projection while retaining its versions.
 
+`Service.register_notification_endpoint/6`, `Service.notification_endpoints/4`
+and the matching `notification_endpoints` HTTP resource manage at most eight
+APNs registrations for the current administrator principal. Tokens are accepted
+as bounded printable routing material, encrypted with an instance-derived key
+and authenticated against the exact scope, principal, endpoint ID, app ID and
+sandbox/production environment before entering durable storage. Public reads,
+receipts and activity events expose no token or internal record identifier.
+Rotation preserves the endpoint's original binding and creation time;
+unregistration writes a tombstone. Registration does not enqueue, send or claim
+delivery of a notification.
+
 Each recorded rule event also becomes a newest-first `wtr.alert.v1` record with
 the reviewed event. `Service.acknowledge_alert/6` and `POST
 …/alert_acknowledgements` let an administrator acknowledge a live alert once;

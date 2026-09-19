@@ -27,6 +27,7 @@ defmodule Wotex.Tracker.Service do
     Import,
     Interaction,
     Materialize,
+    NotificationEndpoint,
     OwnerPresence,
     Projection,
     Result,
@@ -341,6 +342,61 @@ defmodule Wotex.Tracker.Service do
         :admit,
         "owner_presence"
       )
+
+  @doc "Registers or rotates one principal-bound encrypted mobile notification endpoint."
+  @spec register_notification_endpoint(t(), String.t(), String.t(), String.t(), map(), integer()) ::
+          {:ok, map()} | {:error, map()}
+  def register_notification_endpoint(service, token, scope, operation, request, now),
+    do:
+      admin_mutation(
+        service,
+        {token, scope, operation, request, now},
+        NotificationEndpoint,
+        :register,
+        "notification_endpoint"
+      )
+
+  @doc "Unregisters one principal-bound mobile notification endpoint."
+  @spec unregister_notification_endpoint(
+          t(),
+          String.t(),
+          String.t(),
+          String.t(),
+          map(),
+          integer()
+        ) :: {:ok, map()} | {:error, map()}
+  def unregister_notification_endpoint(service, token, scope, operation, request, now),
+    do:
+      admin_mutation(
+        service,
+        {token, scope, operation, request, now},
+        NotificationEndpoint,
+        :unregister,
+        "notification_endpoint"
+      )
+
+  @doc "Lists the current administrator principal's notification endpoints without tokens."
+  @spec notification_endpoints(t(), String.t(), String.t(), integer()) ::
+          {:ok, map()} | {:error, map()}
+  def notification_endpoints(service, token, scope, now) do
+    result =
+      with {:ok, access} <- authorize(service, token, scope, "admin", now),
+           do: NotificationEndpoint.list(service, access, nil, now)
+
+    Result.normalize(result)
+  end
+
+  @doc "Gets one current principal-owned notification endpoint without its token."
+  @spec notification_endpoint(t(), String.t(), String.t(), String.t(), integer()) ::
+          {:ok, map()} | {:error, map()}
+  def notification_endpoint(service, token, scope, id, now) do
+    result =
+      with {:ok, access} <- authorize(service, token, scope, "admin", now),
+           true <- Codec.id?(id),
+           do: NotificationEndpoint.fetch(service, access, id, now)
+
+    Result.normalize(if(result == false, do: {:error, :invalid_request}, else: result))
+  end
 
   @doc """
   Removes one enrolled asset from current views through an idempotent administrative mutation.
@@ -771,6 +827,8 @@ defmodule Wotex.Tracker.Service do
   defp admit_admin(module, :acknowledge, request), do: module.admit_acknowledge(request)
   defp admit_admin(module, :set, request), do: module.admit_set(request)
   defp admit_admin(module, :admit, request), do: module.admit(request)
+  defp admit_admin(module, :register, request), do: module.admit_register(request)
+  defp admit_admin(module, :unregister, request), do: module.admit_unregister(request)
 
   defp prepare_admin(module, :save, service, access, operation, request, now),
     do: module.prepare_save(service, access, operation, request, now)
@@ -786,6 +844,12 @@ defmodule Wotex.Tracker.Service do
 
   defp prepare_admin(module, :admit, service, access, operation, request, now),
     do: module.prepare(service, access, operation, request, now)
+
+  defp prepare_admin(module, :register, service, access, operation, request, now),
+    do: module.prepare_register(service, access, operation, request, now)
+
+  defp prepare_admin(module, :unregister, service, access, operation, request, now),
+    do: module.prepare_unregister(service, access, operation, request, now)
 
   defp storage_kind("observations"), do: "resolutions"
   defp storage_kind(resource), do: resource

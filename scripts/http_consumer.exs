@@ -204,6 +204,82 @@ defmodule Wotex.Tracker.HTTPConsumer do
     IO.puts("HTTP_CONSUMER_PASS openapi=true suspicious_orchestration=true private_ids=false")
   end
 
+  defp run(context, %{"mode" => "notification_endpoints"}) do
+    prefix = "/api/v1/scopes/" <> encode_segment(context.scope)
+    endpoints = prefix <> "/notification_endpoints"
+    endpoint = endpoints <> "/phone"
+    token = "private-apns-token-one"
+
+    request(context, "list_notification_endpoints", endpoints, who: :reader, status: 403)
+
+    %{"generation" => "1", "data" => %{"endpoint_id" => "phone"}} =
+      data(context, "register_notification_endpoint", endpoints,
+        body: %{
+          "id" => "phone",
+          "provider" => "apns",
+          "app_id" => "org.wotex.tracker",
+          "environment" => "sandbox",
+          "token" => token,
+          "expected_generation" => "0"
+        }
+      )
+
+    {list_response, list_bytes} = request(context, "list_notification_endpoints", endpoints)
+
+    %{
+      "generation" => "1",
+      "items" => [
+        %{
+          "id" => "phone",
+          "value" => %{
+            "id" => "phone",
+            "provider" => "apns",
+            "environment" => "sandbox",
+            "revision" => "notification-endpoint-1"
+          }
+        }
+      ]
+    } = list_response["data"]
+
+    false = String.contains?(list_bytes, token)
+    false = String.contains?(list_bytes, "wtrn1.")
+
+    {item_response, item_bytes} =
+      request(context, "get_notification_endpoint", endpoint)
+
+    %{"id" => "phone", "value" => %{"app_id" => "org.wotex.tracker"}} =
+      item_response["data"]
+
+    false = String.contains?(item_bytes, token)
+
+    %{"generation" => "2", "data" => %{"action" => "registered"}} =
+      data(context, "register_notification_endpoint", endpoints,
+        body: %{
+          "id" => "phone",
+          "provider" => "apns",
+          "app_id" => "org.wotex.tracker",
+          "environment" => "sandbox",
+          "token" => "private-apns-token-two",
+          "expected_generation" => "1"
+        }
+      )
+
+    %{"generation" => "3", "data" => %{"action" => "unregistered"}} =
+      data(
+        context,
+        "unregister_notification_endpoint",
+        prefix <> "/notification_endpoint_deletions",
+        body: %{"id" => "phone", "expected_generation" => "2"}
+      )
+
+    %{"generation" => "3", "items" => []} =
+      data(context, "list_notification_endpoints", endpoints)
+
+    request(context, "get_notification_endpoint", endpoint, status: 404)
+
+    IO.puts("HTTP_CONSUMER_PASS openapi=true notification_endpoints=true private_token=false")
+  end
+
   defp run(context, descriptor) do
     workflow(context, descriptor)
 

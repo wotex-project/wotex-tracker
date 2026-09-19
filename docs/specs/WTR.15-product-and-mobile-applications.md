@@ -102,8 +102,10 @@ or an explicit unknown when no fact exists. It does not infer absence from radio
 silence and offers no control that could manufacture owner-presence evidence.
 Administrators can create, review, exactly edit and delete an event-only
 suspicious-movement definition bound to a live motion definition. Definition,
-motion, arming and owner-presence mutations reevaluate exact bindings atomically;
-notification delivery remains open.
+motion, arming and owner-presence mutations reevaluate exact bindings atomically.
+The service now provides principal-isolated APNs endpoint registration with
+encrypted token custody, rotation and removal; native registration, atomic alert
+delivery intents, provider dispatch and notification tap routing remain open.
 These are required product deliverables and optional installations for consumers
 of the library. An incomplete backend or UI framework cannot waive a product gate.
 
