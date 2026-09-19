@@ -3,7 +3,7 @@ package: wotex_tracker
 status: target-contracts
 implementation_status: in-progress
 executed_evidence: [docs/evidence/implementation.md]
-updated: 2026-09-15
+updated: 2026-09-19
 
 principles:
   - headless-first

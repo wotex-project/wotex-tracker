@@ -2541,3 +2541,30 @@ A LiveView test commits eleven changes of those kinds, finds the newest ten with
 their links, keeps the first page through an unavailable older page, reaches the
 import on the second page, returns to newer changes, refuses a newer page from a
 changed snapshot, and reports malformed and forbidden replies.
+
+## WoTEx monorepo development seam — 2026-09-19
+
+Coordinated development now resolves `wotex`, `wotex_runtime` and
+`wotex_binding_http` from their package directories below the sibling `wotex`
+monorepo. The workspace root is no longer misidentified as the `wotex` package.
+Root, service, shared-UI and app-host dependency graphs compiled from those paths;
+the Nerves headless, kiosk and QEMU profiles resolved the same graph. Every local
+profile lock records the extra development-only packages selected by the upstream
+monorepo's path-dependency contract. Published dependency metadata is unchanged.
+
+The floor-runtime root gate passed with 1 doctest, 19 properties and 158 tests,
+95.4% production line coverage, strict Credo, Dialyzer, documentation/contracts,
+archive, dependency audit, licenses and stack-language checks. The immutable
+source-cohort qualifier now clones the monorepo once at an exact detached revision,
+checks only the required package paths for concurrent changes and builds each
+package from that snapshot. Nerves source receipts likewise scope dirty-state
+checks to the recorded package rather than unrelated monorepo work.
+Six core source-archive consumers passed on both required runtime lanes in fresh,
+locked and minimum modes with no new Tracker processes or optional hosts loaded.
+
+At monorepo revision `a5920baaa4dfe350a4a564aff20eac23c4defd74`, the core and
+Runtime verification reached and passed Runtime's complete package/archive gate.
+The HTTP binding then passed 95 tests and 97.5% line coverage but its own complete
+gate stopped on two unmatched-return Dialyzer findings in
+`test/support/fake_client.ex`. No new source-cohort receipt is promoted until that
+upstream gate is clean and the complete qualifier is rerun.

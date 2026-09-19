@@ -52,8 +52,10 @@ defmodule WotexTrackerService.MixProject do
     end
   end
 
-  defp runtime, do: sibling(:wotex_runtime, "../../../wotex-runtime")
-  defp http_binding, do: sibling(:wotex_binding_http, "../../../wotex-binding-http")
+  defp runtime, do: sibling(:wotex_runtime, "../../../wotex/packages/wotex-runtime")
+
+  defp http_binding,
+    do: sibling(:wotex_binding_http, "../../../wotex/packages/wotex-binding-http")
 
   defp sibling(name, path) do
     case {System.get_env("WOTEX_PATH_DEPS"), Mix.env()} do
@@ -61,8 +63,7 @@ defmodule WotexTrackerService.MixProject do
         {name, "~> 0.1.0"}
 
       {"1", env} when env in [:dev, :test, :docs] ->
-        dependency_env = if name == :wotex_runtime, do: :prod, else: env
-        {name, [path: Path.expand(path, __DIR__), env: dependency_env]}
+        {name, [path: Path.expand(path, __DIR__), env: :dev]}
 
       _ ->
         raise "WOTEX_PATH_DEPS accepts only 1 in dev/test/docs; production requires artifacts"

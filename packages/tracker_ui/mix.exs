@@ -60,7 +60,7 @@ defmodule WotexTrackerUI.MixProject do
         {:wotex_runtime, "~> 0.1.0"}
 
       {"1", env} when env in [:dev, :test, :docs] ->
-        {:wotex_runtime, path: "../../../wotex-runtime", env: :prod}
+        {:wotex_runtime, path: "../../../wotex/packages/wotex-runtime", env: :dev}
 
       _ ->
         raise "WOTEX_PATH_DEPS accepts only 1 in dev/test/docs; production requires artifacts"

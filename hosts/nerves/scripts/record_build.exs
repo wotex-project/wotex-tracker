@@ -136,9 +136,9 @@ defmodule Wotex.Tracker.Nerves.BuildRecord do
         end),
       "sources" => %{
         "wotex_tracker" => source(root),
-        "wotex" => source(Path.expand("../wotex", root)),
-        "wotex_runtime" => source(Path.expand("../wotex-runtime", root)),
-        "wotex_binding_http" => source(Path.expand("../wotex-binding-http", root))
+        "wotex" => source(Path.expand("../wotex/packages/wotex", root)),
+        "wotex_runtime" => source(Path.expand("../wotex/packages/wotex-runtime", root)),
+        "wotex_binding_http" => source(Path.expand("../wotex/packages/wotex-binding-http", root))
       },
       "physical_boot" => "not_executed",
       "hardware_acceptance" => "not_executed"
@@ -159,7 +159,13 @@ defmodule Wotex.Tracker.Nerves.BuildRecord do
 
   defp source(path) do
     {head, 0} = System.cmd("git", ["rev-parse", "HEAD"], cd: path)
-    {changed, 0} = System.cmd("git", ["diff", "--name-only", "HEAD"], cd: path)
+    {root, 0} = System.cmd("git", ["rev-parse", "--show-toplevel"], cd: path)
+    relative = Path.relative_to(path, String.trim(root))
+
+    arguments =
+      ["diff", "--name-only", "HEAD", "--"] ++ if(relative == ".", do: [], else: [relative])
+
+    {changed, 0} = System.cmd("git", arguments, cd: path)
 
     source_changes =
       changed

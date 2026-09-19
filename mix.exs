@@ -41,7 +41,7 @@ defmodule WotexTracker.MixProject do
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:ex_check, "~> 0.16", only: [:dev, :test], runtime: false},
-      {:ex_doc, "~> 0.38", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.38", only: [:dev, :test, :docs], runtime: false},
       {:doctest_formatter, "~> 0.4", only: [:dev, :test], runtime: false},
       {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false},
       {:yamerl, "~> 0.10", only: [:dev, :test], runtime: false}
@@ -50,9 +50,14 @@ defmodule WotexTracker.MixProject do
 
   defp wotex do
     case {System.get_env("WOTEX_PATH_DEPS"), Mix.env()} do
-      {nil, _} -> {:wotex, "~> 0.1.0"}
-      {"1", env} when env in [:dev, :test, :docs] -> {:wotex, path: "../wotex"}
-      _ -> raise "WOTEX_PATH_DEPS accepts only 1 in dev/test/docs; production requires artifacts"
+      {nil, _} ->
+        {:wotex, "~> 0.1.0"}
+
+      {"1", env} when env in [:dev, :test, :docs] ->
+        {:wotex, path: "../wotex/packages/wotex", env: :dev, override: true}
+
+      _ ->
+        raise "WOTEX_PATH_DEPS accepts only 1 in dev/test/docs; production requires artifacts"
     end
   end
 end

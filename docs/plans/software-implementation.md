@@ -32,6 +32,9 @@ protocol package is needed for the pure path. WTR.10 records existing ecosystem
 owners and required host solution boundaries. The [source cohort](../provenance/primary-sources.md)
 and [dated research](../provenance/ecosystem-research.md) record inspected sources;
 neither installs dependencies nor proves compatibility or hardware acceptance.
+Coordinated source development resolves WoTEx packages from the sibling monorepo's
+`packages/` directory; the monorepo root is tooling and is never a package
+dependency.
 
 Phase numbers identify milestones, not a requirement to wait for unrelated
 hardware or optional integrations. This table controls implementation ordering:

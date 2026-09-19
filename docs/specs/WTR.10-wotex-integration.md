@@ -106,7 +106,12 @@ Repository creation is a graduation decision, not a prerequisite for the PoC.
 
 The pure milestone requires only `wotex` as a WoTEx dependency. Runtime and bindings enter when an executable interaction lane needs them; Directory, Continuum, Nx and Refpath remain optional host/adapter integrations. Prefer isolated host Mix projects for concrete clients, web servers, stores and native backends. Do not reference absent optional structs at core compile time or infer an adapter from installed modules.
 
-Coordinated development uses the existing `WOTEX_PATH_DEPS=1` convention only in dev/test/docs with explicit declared paths. Reject other values and production use. Ordinary package requirements use compatible available releases; immutable local archives may prove a source cohort separately. A sibling directory, `0.1.0` package metadata or path build is not proof of a published compatible release.
+Coordinated development uses the existing `WOTEX_PATH_DEPS=1` convention only in
+dev/test/docs with explicit declared paths below the sibling WoTEx monorepo's
+`packages/` directory. Reject other values and production use. Ordinary package
+requirements use compatible available releases; immutable local archives may
+prove a source cohort separately. A sibling directory, `0.1.0` package metadata
+or path build is not proof of a published compatible release.
 
 ## Product dependencies and services
 

@@ -44,7 +44,7 @@ defmodule Wotex.Tracker.SourceQualifier do
   alias Wotex.Tracker.{Command, ReleaseQualifier, StaticServer}
 
   @root Path.expand("..", __DIR__)
-  @core Path.expand("../wotex", @root)
+  @wotex_workspace Path.expand("../wotex", @root)
   @lanes [{"1.18.4-otp-27", "27.3.4.15"}, {"1.20.4-otp-29", "29.0.4"}]
   @base_packages ~w(jason-1.4.5 ex_json_schema-0.11.5 decimal-3.1.1 jason-1.4.0 ex_json_schema-0.11.0 decimal-2.0.0)
   @service_packages ~w(exqlite-0.40.0 db_connection-2.10.2 telemetry-1.4.2 elixir_make-0.10.0 cc_precompiler-0.1.11 bandit-1.12.5 plug-1.20.3 thousand_island-1.5.0 hpax-1.0.4 mime-2.0.7 plug_crypto-2.2.0 websock-0.5.3 mint-1.10.0)
@@ -77,9 +77,11 @@ defmodule Wotex.Tracker.SourceQualifier do
     registry = Path.join(workspace, "registry")
     tarballs = Path.join(registry, "tarballs")
     File.mkdir_p!(tarballs)
-    source = Path.join(workspace, "wotex")
-    revision = snapshot(@core, source)
-    IO.puts("Checking clean upstream source snapshot #{revision}")
+    ensure_clean_source!(service?)
+    source_root = Path.join(workspace, "wotex")
+    revision = snapshot(@wotex_workspace, source_root)
+    source = Path.join(source_root, "packages/wotex")
+    IO.puts("Checking immutable upstream source snapshot #{revision}")
     core_environment = Map.put(environment, "MIX_ENV", "test")
     core_lock = File.read!(Path.join(source, "mix.lock"))
 
@@ -105,7 +107,7 @@ defmodule Wotex.Tracker.SourceQualifier do
 
     {revisions, packages} =
       if service?,
-        do: service_archives(workspace, tarballs, environment, core_environment, revision),
+        do: service_archives(source_root, tarballs, environment, core_environment, revision),
         else: {%{"wotex" => revision}, @base_packages}
 
     Command.run!(
@@ -146,7 +148,7 @@ defmodule Wotex.Tracker.SourceQualifier do
     end
   end
 
-  defp service_archives(workspace, tarballs, environment, core_environment, revision) do
+  defp service_archives(source_root, tarballs, environment, core_environment, revision) do
     revisions = %{"wotex" => revision}
 
     revisions =
@@ -154,9 +156,8 @@ defmodule Wotex.Tracker.SourceQualifier do
         [{"wotex-runtime", "wotex_runtime"}, {"wotex-binding-http", "wotex_binding_http"}],
         revisions,
         fn {repository, package}, result ->
-          sibling = Path.expand("../#{repository}", @root)
-          target = Path.join(workspace, repository)
-          head = snapshot(sibling, target)
+          target = Path.join([source_root, "packages", repository])
+          head = revision
           lock = File.read!(Path.join(target, "mix.lock"))
           snapshot_environment = Map.put(core_environment, "WOTEX_PATH_DEPS", "1")
 
@@ -387,14 +388,36 @@ defmodule Wotex.Tracker.SourceQualifier do
   end
 
   defp snapshot(repository, destination) do
-    File.mkdir!(destination)
     revision = Command.plain!("git", ["-C", repository, "rev-parse", "HEAD"]) |> String.trim()
-    archive = Path.join(Path.dirname(destination), Path.basename(destination) <> ".tar")
-    bytes = Command.plain!("git", ["-C", repository, "archive", revision])
-    File.write!(archive, bytes)
-    Command.plain!("tar", ["-xf", archive, "-C", destination])
-    File.rm!(archive)
+
+    Command.plain!(
+      "git",
+      ["clone", "--quiet", "--local", "--no-hardlinks", "--no-checkout", repository, destination]
+    )
+
+    Command.plain!("git", ["-C", destination, "checkout", "--quiet", "--detach", revision])
     revision
+  end
+
+  defp ensure_clean_source!(service?) do
+    paths =
+      ["packages/wotex", "docs/packages/wotex"] ++
+        if service? do
+          [
+            "packages/wotex-runtime",
+            "docs/packages/wotex-runtime",
+            "packages/wotex-binding-http",
+            "docs/packages/wotex-binding-http"
+          ]
+        else
+          []
+        end
+
+    changed =
+      Command.plain!("git", ["-C", @wotex_workspace, "status", "--porcelain", "--" | paths])
+
+    if String.trim(changed) != "",
+      do: raise("required WoTEx monorepo packages have uncommitted changes:\n#{changed}")
   end
 
   defp clean_environment do
