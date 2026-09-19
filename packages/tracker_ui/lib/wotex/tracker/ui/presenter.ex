@@ -105,6 +105,7 @@ defmodule Wotex.Tracker.UI.Presenter do
           "geofence" => "Geofence",
           "heartbeat" => "Reporting heartbeat",
           "motion" => "Motion and trips",
+          "suspicious_movement" => "Suspicious movement",
           "transport_degradation" => "Transport health"
         },
         kind,
@@ -143,6 +144,24 @@ defmodule Wotex.Tracker.UI.Presenter do
   def rule_parameters("geofence", %{"shape" => shape, "max_transition_gap_ms" => gap}) do
     fence_shape(shape) <>
       " · transition gap " <> duration(%{"type" => "integer", "value" => gap})
+  end
+
+  def rule_parameters(
+        "suspicious_movement",
+        %{
+          "motion_rule_id" => motion,
+          "maximum_fact_age_ms" => age,
+          "owner_unknown_as_absent" => unknown_as_absent
+        }
+      )
+      when is_binary(motion) and is_integer(age) and is_boolean(unknown_as_absent) do
+    owner_policy =
+      if unknown_as_absent,
+        do: "unknown owner treated as absent",
+        else: "unknown owner does not alert"
+
+    "Motion #{motion} · maximum fact age " <>
+      duration(%{"type" => "integer", "value" => age}) <> " · " <> owner_policy
   end
 
   def rule_parameters(_, _), do: "Parameters unavailable"
@@ -211,7 +230,8 @@ defmodule Wotex.Tracker.UI.Presenter do
           "trip.stopped" => "Trip stopped",
           "trip.interrupted" => "Trip interrupted",
           "geofence.entered" => "Geofence entered",
-          "geofence.exited" => "Geofence exited"
+          "geofence.exited" => "Geofence exited",
+          "suspicious_movement" => "Suspicious movement"
         },
         kind,
         kind

@@ -96,6 +96,27 @@ defmodule Wotex.Tracker.UI.RuleFormTest do
 
     assert length(vertices) == 3
 
+    assert {:ok,
+            %{
+              "motion_rule_id" => "trips",
+              "maximum_fact_age_ms" => 300_000,
+              "future_skew_ms" => 5_000,
+              "owner_unknown_as_absent" => false
+            }} =
+             RuleForm.parameters("suspicious_movement", %{
+               "motion_rule_id" => "trips",
+               "maximum_fact_age_seconds" => "300",
+               "future_skew_seconds" => "5"
+             })
+
+    assert {:ok, %{"owner_unknown_as_absent" => true}} =
+             RuleForm.parameters("suspicious_movement", %{
+               "motion_rule_id" => "trips",
+               "maximum_fact_age_seconds" => "300",
+               "future_skew_seconds" => "5",
+               "owner_unknown_as_absent" => "true"
+             })
+
     for input <- [
           {"heartbeat", %{"maximum_silence_seconds" => "-1", "future_skew_seconds" => "0"}},
           {"battery", %{"low_threshold" => "0", "clear_threshold" => "2.8"}},
@@ -122,6 +143,19 @@ defmodule Wotex.Tracker.UI.RuleFormTest do
           {"geofence",
            geofence_input(%{"shape_kind" => "polygon", "vertices" => "0,0\n1,1\nx,2"})},
           {"geofence", geofence_input(%{"boundary" => "edge"})},
+          {"suspicious_movement",
+           %{
+             "motion_rule_id" => "Invalid ID",
+             "maximum_fact_age_seconds" => "300",
+             "future_skew_seconds" => "0"
+           }},
+          {"suspicious_movement",
+           %{
+             "motion_rule_id" => "trips",
+             "maximum_fact_age_seconds" => "300",
+             "future_skew_seconds" => "0",
+             "owner_unknown_as_absent" => "false"
+           }},
           {"heartbeat", nil}
         ] do
       assert :error == RuleForm.parameters(elem(input, 0), elem(input, 1))
@@ -145,6 +179,19 @@ defmodule Wotex.Tracker.UI.RuleFormTest do
 
     assert RuleForm.editable?("geofence", geofence_parameters())
     refute RuleForm.editable?("geofence", put_in(geofence_parameters(), ["shape", "extra"], 1))
+
+    suspicious = suspicious_parameters()
+    assert RuleForm.editable?("suspicious_movement", suspicious)
+
+    refute RuleForm.editable?(
+             "suspicious_movement",
+             Map.put(suspicious, "maximum_fact_age_ms", 1_500)
+           )
+
+    refute RuleForm.editable?(
+             "suspicious_movement",
+             Map.put(suspicious, "private", "nested-policy")
+           )
 
     assert RuleForm.battery?(%{
              "properties" => %{"batteryVoltage" => %{"type" => "number", "unit" => "V"}}
@@ -209,6 +256,33 @@ defmodule Wotex.Tracker.UI.RuleFormTest do
              "shape" => %{},
              "max_transition_gap_ms" => 0
            }) == "Fence geometry unavailable · transition gap 0 ms"
+  end
+
+  test "event-only fields bind a reviewed motion definition without private policy input" do
+    html =
+      render_component(&RuleForm.fields/1,
+        kinds: ["suspicious_movement"],
+        parameters: suspicious_parameters(),
+        motion_rules: [
+          %{"id" => "trips", "kind" => "motion", "revision" => "7"},
+          %{"id" => "commute", "kind" => "motion", "revision" => "8"}
+        ]
+      )
+
+    assert html =~ "event-only rule"
+    assert html =~ ~s(id="rule-motion-binding")
+    assert html =~ ~s(value="trips" selected)
+    assert html =~ ~s(id="rule-fact-age")
+    assert html =~ ~s(value="300")
+    assert html =~ "Treat unknown owner presence as absent"
+    refute html =~ "armed_predicate"
+    refute html =~ "owner_presence_predicate"
+
+    assert Presenter.rule_kind("suspicious_movement") == "Suspicious movement"
+    assert Presenter.alert_kind("suspicious_movement") == "Suspicious movement"
+
+    assert Presenter.rule_parameters("suspicious_movement", suspicious_parameters()) ==
+             "Motion trips · maximum fact age 300000 ms · unknown owner does not alert"
   end
 
   defp motion_input(changes) do
@@ -283,5 +357,13 @@ defmodule Wotex.Tracker.UI.RuleFormTest do
       "late_window_ms" => 10_000,
       "sequence" => "none",
       "max_transition_gap_ms" => 300_000
+    }
+
+  defp suspicious_parameters,
+    do: %{
+      "motion_rule_id" => "trips",
+      "maximum_fact_age_ms" => 300_000,
+      "future_skew_ms" => 5_000,
+      "owner_unknown_as_absent" => false
     }
 end

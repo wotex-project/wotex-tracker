@@ -19,6 +19,7 @@ defmodule Wotex.Tracker.UI.RuleForm do
   @uncertainties ~w(require_bound coordinate_only)
   @motion_fields ~w(event_time future_skew_ms late_window_ms sequence moving_speed_m_s stationary_speed_m_s moving_distance_m stationary_distance_m max_plausible_speed_m_s max_gap_ms uncertainty minimum_movement_ms minimum_stop_ms)
   @geofence_fields ~w(shape boundary uncertainty event_time future_skew_ms late_window_ms sequence max_transition_gap_ms)
+  @suspicious_fields ~w(motion_rule_id maximum_fact_age_ms future_skew_ms owner_unknown_as_absent)
 
   @doc "Converts submitted fields for one kind into closed service parameters."
   @spec parameters(term(), term()) :: {:ok, map()} | :error
@@ -93,6 +94,23 @@ defmodule Wotex.Tracker.UI.RuleForm do
     end
   end
 
+  def parameters("suspicious_movement", %{} = input) do
+    with true <- rule_id?(input["motion_rule_id"]),
+         {:ok, age} <- milliseconds(input["maximum_fact_age_seconds"]),
+         {:ok, skew} <- milliseconds(input["future_skew_seconds"]),
+         true <- input["owner_unknown_as_absent"] in [nil, "true"] do
+      {:ok,
+       %{
+         "motion_rule_id" => input["motion_rule_id"],
+         "maximum_fact_age_ms" => age,
+         "future_skew_ms" => skew,
+         "owner_unknown_as_absent" => input["owner_unknown_as_absent"] == "true"
+       }}
+    else
+      _ -> :error
+    end
+  end
+
   def parameters(_, _), do: :error
 
   @doc "Reports whether stored parameters round-trip through these fields without change."
@@ -122,6 +140,12 @@ defmodule Wotex.Tracker.UI.RuleForm do
       whole_seconds?([parameters["max_transition_gap_ms"]])
   end
 
+  def editable?("suspicious_movement", %{} = parameters) do
+    exact?(parameters, @suspicious_fields) and rule_id?(parameters["motion_rule_id"]) and
+      whole_seconds?([parameters["maximum_fact_age_ms"], parameters["future_skew_ms"]]) and
+      is_boolean(parameters["owner_unknown_as_absent"])
+  end
+
   def editable?(_, _), do: false
 
   @doc "Reports whether a Thing Description can back a battery-voltage rule."
@@ -133,6 +157,7 @@ defmodule Wotex.Tracker.UI.RuleForm do
 
   attr(:kinds, :list, required: true)
   attr(:parameters, :map, default: %{})
+  attr(:motion_rules, :list, default: [])
 
   @doc "Renders the fields for the selected rule kinds, prefilled from stored parameters."
   def fields(assigns) do
@@ -306,6 +331,48 @@ defmodule Wotex.Tracker.UI.RuleForm do
         max={@maximum}
         value={seconds(@parameters["max_transition_gap_ms"], 300)}
       />
+    </fieldset>
+    <fieldset :if={kind_enabled?(@kinds, "suspicious_movement")}>
+      <legend>Suspicious movement</legend>
+      <p>
+        This event-only rule records an alert when the bound motion rule confirms movement while
+        the asset is armed and the owner is absent. It has no current status.
+      </p>
+      <label for="rule-motion-binding">Motion definition</label>
+      <select id="rule-motion-binding" name="rule[motion_rule_id]" required>
+        <option :if={@motion_rules == []} value="">No motion definition available</option>
+        <option
+          :for={motion <- @motion_rules}
+          value={motion["id"]}
+          selected={@parameters["motion_rule_id"] == motion["id"]}
+        >
+          {motion["id"]} · revision {motion["revision"]}
+        </option>
+      </select>
+      <p class="muted">
+        The exact motion policy is captured when this definition is saved. Editing or deleting the
+        motion definition disables this binding until you update it.
+      </p>
+      <label for="rule-fact-age">Maximum arming and owner-fact age (seconds)</label>
+      <input
+        id="rule-fact-age"
+        name="rule[maximum_fact_age_seconds]"
+        type="number"
+        min="0"
+        max={@maximum}
+        value={seconds(@parameters["maximum_fact_age_ms"], 300)}
+      />
+      <label class="checkbox">
+        <input
+          type="checkbox"
+          name="rule[owner_unknown_as_absent]"
+          value="true"
+          checked={@parameters["owner_unknown_as_absent"] == true}
+        /> Treat unknown owner presence as absent
+      </label>
+      <p class="muted">
+        Leave this off unless missing owner-presence evidence should explicitly trigger alerts.
+      </p>
     </fieldset>
     <fieldset :if={position_fields?(@kinds)}>
       <legend>Position ordering and uncertainty</legend>
@@ -513,6 +580,9 @@ defmodule Wotex.Tracker.UI.RuleForm do
 
   defp exact?(value, fields),
     do: Enum.sort(Map.keys(value)) == Enum.sort(fields)
+
+  defp rule_id?(value),
+    do: is_binary(value) and Regex.match?(~r/\A[a-z0-9][a-z0-9-]{0,62}\z/, value)
 
   defp value(nil, default), do: default
   defp value(value, _default), do: value

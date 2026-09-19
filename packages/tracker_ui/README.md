@@ -63,7 +63,10 @@ pages show no position evidence and do not directly change rule status.
 A provisioned asset's protection page lists its live rule definitions with
 their revision and stored settings, linking each to its rule status. An
 administrator can add a heartbeat, low-battery-voltage, motion/trip or geofence
-rule there until the asset has eight definitions. Motion and geofence forms keep
+rule there until the asset has eight definitions. Once a motion definition
+exists, the administrator can also bind an event-only suspicious-movement rule
+to its exact revision, choose fact-age and unknown-owner handling, and review,
+edit or delete that definition without inventing a current status. Motion and geofence forms keep
 event-time, lateness, sequence, uncertainty and gap choices explicit; geofences
 accept closed circle or polygon geometry. Position rules state that a bundle must
 contain exactly one position because this UI does not invent source selection.
@@ -82,7 +85,9 @@ with a stable operation reference, current-generation check and explicit
 confirmation. Lost replies are recovered from the receipt and reported as
 committed only after an identity-matched state read. The page repeatedly states
 that this service fact does not contact the tracker, perform a physical Action,
-evaluate suspicious movement or confirm notification delivery.
+or confirm notification delivery. Committing the fact can cause the service to
+reevaluate a live suspicious-movement binding atomically; the browser neither
+performs that evaluation nor dispatches its resulting alert.
 The Protection page links to a newest-first alert list. Each alert page shows
 the recorded status change, rule, the asset of a defined rule or that the host
 manages the rule, evaluation mode and dispatch restriction, and
@@ -148,8 +153,8 @@ test helpers. Root and service-only consumers do not depend on this package.
 The first cohort exercises real authorized services, duplicate prevention,
 lost-reply recovery, revocation, read-only denial, upload bounds, bounded
 lists/history, CSRF protection and credential custody. Device discovery and
-capture, basemaps, suspicious-movement orchestration, interactions, remaining privacy
-controls, remote adapters and cross-surface accessibility remain subsequent work. A
+capture, basemaps, owner-presence capture, notification delivery, interactions,
+remaining privacy controls, remote adapters and cross-surface accessibility remain subsequent work. A
 responsive browser view does not qualify a mobile or Pi application.
 
 The route-history screen defaults to a one-day UTC window ending after the

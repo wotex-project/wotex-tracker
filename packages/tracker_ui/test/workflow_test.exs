@@ -3174,6 +3174,134 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert fence["parameters"]["event_time"] == "trusted_fix_or_receiver"
   end
 
+  test "an administrator manages an event-only suspicious movement definition", c do
+    thing = provisioned(c)
+    asset_path = Presenter.path(:asset, thing) <> "/protection"
+    {:ok, motion_view, _} = live(c.conn, asset_path)
+    motion_view |> element("button", "Prepare rule") |> render_click()
+    motion_operation = motion_view |> assert_patch() |> operation_from()
+    refute has_element?(motion_view, ~s(input[value="suspicious_movement"]))
+
+    motion_view
+    |> form("#rule-definition",
+      rule: %{
+        kind: "motion",
+        event_time: "trusted_fix",
+        future_skew_seconds: "0",
+        late_window_seconds: "10",
+        sequence: "none",
+        uncertainty: "require_bound",
+        moving_speed_m_s: "1",
+        stationary_speed_m_s: "0.1",
+        moving_distance_m: "5",
+        stationary_distance_m: "1",
+        max_plausible_speed_m_s: "100",
+        max_gap_seconds: "300",
+        minimum_movement_seconds: "30",
+        minimum_stop_seconds: "60"
+      }
+    )
+    |> render_submit()
+
+    motion_id = "rule-" <> motion_operation
+    {:ok, suspicious_view, _} = live(c.conn, asset_path)
+    suspicious_view |> element("button", "Prepare rule") |> render_click()
+    suspicious_operation = suspicious_view |> assert_patch() |> operation_from()
+
+    assert has_element?(
+             suspicious_view,
+             ~s(#rule-motion-binding option[value="#{motion_id}"])
+           )
+
+    suspicious_view
+    |> form("#rule-definition",
+      rule: %{
+        kind: "suspicious_movement",
+        motion_rule_id: motion_id,
+        maximum_fact_age_seconds: "300",
+        future_skew_seconds: "5"
+      }
+    )
+    |> render_submit()
+
+    suspicious_id = "rule-" <> suspicious_operation
+    detail_path = Presenter.rule_path("suspicious_movement:" <> suspicious_id)
+    assert has_element?(suspicious_view, "[role=status]", "Rule saved")
+    assert has_element?(suspicious_view, ~s(a[href="#{detail_path}"]), "event-only definition")
+    assert has_element?(suspicious_view, "td", "Event-only · alerts only")
+    assert render(suspicious_view) =~ "Motion #{motion_id} · maximum fact age 300000 ms"
+
+    assert {:error, %{"code" => "not_found"}} =
+             Service.get(
+               c.service,
+               c.reader,
+               c.scope,
+               "rules",
+               "suspicious_movement:" <> suspicious_id,
+               c.now
+             )
+
+    assert {:ok, %{"value" => definition}} =
+             Service.get(c.service, c.reader, c.scope, "policies", suspicious_id, c.now)
+
+    assert definition["parameters"] == %{
+             "motion_rule_id" => motion_id,
+             "maximum_fact_age_ms" => 300_000,
+             "future_skew_ms" => 5_000,
+             "owner_unknown_as_absent" => false
+           }
+
+    refute Map.has_key?(definition, "policy")
+
+    {:ok, detail, _} = live(c.conn, detail_path)
+    assert has_element?(detail, "h1", suspicious_id)
+    assert render(detail) =~ "has no current rule status or evaluation history"
+    refute has_element?(detail, ".reading")
+    refute has_element?(detail, "#rule-history-title")
+    assert has_element?(detail, "button", "Prepare edit")
+
+    detail |> element("button", "Prepare edit") |> render_click()
+    assert_patch(detail)
+    assert has_element?(detail, ~s(#rule-motion-binding option[value="#{motion_id}"][selected]))
+
+    detail
+    |> form("#edit-rule", rule: %{maximum_fact_age_seconds: "600"})
+    |> render_submit()
+
+    assert has_element?(detail, "[role=status]", "Rule definition updated")
+
+    assert {:ok, %{"value" => revised}} =
+             Service.get(c.service, c.reader, c.scope, "policies", suspicious_id, c.now)
+
+    assert revised["parameters"]["maximum_fact_age_ms"] == 600_000
+    refute Map.has_key?(revised, "policy")
+
+    assert {:ok, _} =
+             Service.delete_policy(
+               c.service,
+               c.admin,
+               c.scope,
+               Identifier.uuid(),
+               %{"id" => motion_id, "expected_generation" => revised["revision"]},
+               c.now
+             )
+
+    {:ok, unbound, _} = live(c.conn, detail_path)
+    assert render(unbound) =~ "Add a motion definition for this asset before rebinding"
+    refute has_element?(unbound, "button", "Prepare edit")
+    assert has_element?(unbound, "button", "Prepare delete")
+
+    {:ok, delete, _} = live(c.conn, detail_path)
+    delete |> element("button", "Prepare delete") |> render_click()
+    delete_path = assert_patch(delete)
+    delete |> element("button", "Delete rule definition") |> render_click()
+    assert has_element?(delete, "[role=status]", "Rule definition deleted")
+
+    {:ok, resumed, _} = live(c.conn, delete_path)
+    assert has_element?(resumed, "[role=status]", "Rule definition deleted")
+    refute has_element?(resumed, "#rule-definition-title")
+  end
+
   test "an administrator explicitly arms and disarms an asset with operation recovery", c do
     thing = provisioned(c)
     path = Presenter.arming_path(thing)

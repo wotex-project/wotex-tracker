@@ -28,6 +28,7 @@ defmodule Wotex.Tracker.UI.RuleLive do
          id: nil,
          rule: nil,
          definition: nil,
+         motion_rules: nil,
          history: nil,
          history_params: nil,
          history_back: [],
@@ -155,10 +156,10 @@ defmodule Wotex.Tracker.UI.RuleLive do
   def render(assigns) do
     ~H"""
     <main id="main" class="workspace">
-      <a href="/protection">← All tracking rules</a>
-      <p class="eyebrow">{if @rule, do: Presenter.rule_kind(@rule["kind"]), else: "Tracking rule"}</p>
+      <a href={back_path(@definition)}>← {back_label(@definition)}</a>
+      <p class="eyebrow">{rule_kind(@rule, @definition)}</p>
       <div class="heading">
-        <h1>{if @rule, do: @rule["rule"]["id"], else: "Rule status unavailable"}</h1>
+        <h1>{rule_title(@rule, @definition)}</h1>
         <button class="secondary" phx-click="refresh">Refresh</button>
       </div>
       <.notice error={@error} />
@@ -173,14 +174,24 @@ defmodule Wotex.Tracker.UI.RuleLive do
         <p class="identifier">Rule identity {@rule["rule"]["identity"]}</p>
         <p class="identifier">State identity {@rule["state_identity"]}</p>
       </section>
-      <section :if={@rule} class="panel" aria-labelledby="rule-definition-title">
+      <section :if={@rule || @definition} class="panel" aria-labelledby="rule-definition-title">
         <h2 id="rule-definition-title">Definition</h2>
         <div :if={@definition}>
           <p>
             Defined for <a href={Presenter.path(:asset, @definition["thing_id"])}>this asset</a>
-            · revision {@definition["revision"]}. Saving a change evaluates it immediately.
+            · revision {@definition["revision"]}.
           </p>
-          <p :if={@definition["policy_identity"] != @rule["rule"]["identity"]} role="status">
+          <p :if={@definition["kind"] != "suspicious_movement"}>
+            Saving a change evaluates the rule immediately.
+          </p>
+          <p :if={@definition["kind"] == "suspicious_movement"} role="status">
+            This definition is event-only. It records reviewed alerts when all bound facts are true
+            and has no current rule status or evaluation history.
+          </p>
+          <p
+            :if={@rule && @definition["policy_identity"] != @rule["rule"]["identity"]}
+            role="status"
+          >
             The displayed status was evaluated with a different revision of this definition.
           </p>
         </div>
@@ -192,7 +203,7 @@ defmodule Wotex.Tracker.UI.RuleLive do
         <.notice error={@manage_error} />
         <div :if={@definition && @identity["can_manage_queries"] && is_nil(@manage_operation)}>
           <button
-            :if={RuleForm.editable?(@definition["kind"], @definition["parameters"])}
+            :if={editable_in_browser?(assigns)}
             phx-click="prepare-manage"
             phx-value-intent="edit"
           >Prepare edit</button>
@@ -202,10 +213,9 @@ defmodule Wotex.Tracker.UI.RuleLive do
         </div>
         <p :if={
           @definition && @identity["can_manage_queries"] &&
-            !RuleForm.editable?(@definition["kind"], @definition["parameters"])
+            !editable_in_browser?(assigns)
         }>
-          These parameters cannot be represented exactly by this form; edit them through the
-          service API.
+          {edit_unavailable(@definition, @motion_rules)}
         </p>
         <.form
           :if={manageable?(assigns, "edit")}
@@ -216,12 +226,16 @@ defmodule Wotex.Tracker.UI.RuleLive do
           <RuleForm.fields
             kinds={[@definition["kind"]]}
             parameters={@definition["parameters"]}
+            motion_rules={@motion_rules || []}
           />
           <button type="submit" phx-disable-with="Saving…">Save rule changes</button>
         </.form>
         <div :if={manageable?(assigns, "delete")}>
           <p>
-            Deleting stops scheduled evaluation. The rule's retained status and history remain.
+            {if @definition["kind"] == "suspicious_movement",
+              do: "Deleting stops future event evaluation; recorded alerts remain.",
+              else:
+                "Deleting stops scheduled evaluation. The rule's retained status and history remain."}
           </p>
           <button phx-click="delete" phx-disable-with="Deleting…">Delete rule definition</button>
         </div>
@@ -276,7 +290,10 @@ defmodule Wotex.Tracker.UI.RuleLive do
         |> definition()
         |> history(%{})
 
-      {:error, %{"code" => code} = error} when code in ~w(forbidden unauthorized not_found) ->
+      {:error, %{"code" => "not_found"}} ->
+        event_definition(socket)
+
+      {:error, %{"code" => code} = error} when code in ~w(forbidden unauthorized) ->
         clear(socket, error)
 
       {:error, error} ->
@@ -298,6 +315,56 @@ defmodule Wotex.Tracker.UI.RuleLive do
 
       {:error, error} ->
         assign(socket, error: error)
+    end
+  end
+
+  defp event_definition(socket) do
+    case String.split(socket.assigns.id, ":", parts: 2) do
+      ["suspicious_movement", id] ->
+        case Auth.request(socket, :get, %{"resource" => "policies", "id" => id}) do
+          {:ok, %{"value" => %{"kind" => "suspicious_movement"} = definition}} ->
+            socket
+            |> assign(
+              rule: nil,
+              definition: definition,
+              history: nil,
+              history_params: nil,
+              history_back: [],
+              error: nil
+            )
+            |> motion_definitions()
+
+          {:error, %{"code" => code} = error}
+          when code in ~w(forbidden unauthorized not_found) ->
+            clear(socket, error)
+
+          {:error, error} ->
+            assign(socket, error: error)
+
+          _ ->
+            clear(socket, %{"code" => "not_found"})
+        end
+
+      _ ->
+        clear(socket, %{"code" => "not_found"})
+    end
+  end
+
+  defp motion_definitions(socket) do
+    case Auth.request(socket, :thing_policies, %{"thing" => socket.assigns.definition["thing_id"]}) do
+      {:ok, %{"items" => items}} when is_list(items) ->
+        motions =
+          items
+          |> Enum.map(& &1["value"])
+          |> Enum.filter(&match?(%{"kind" => "motion"}, &1))
+
+        assign(socket, motion_rules: motions)
+
+      {:error, error} ->
+        assign(socket, motion_rules: nil, error: error)
+
+      _ ->
+        assign(socket, motion_rules: nil, error: %{"code" => "storage_unavailable"})
     end
   end
 
@@ -323,6 +390,7 @@ defmodule Wotex.Tracker.UI.RuleLive do
       assign(socket,
         rule: nil,
         definition: nil,
+        motion_rules: nil,
         history: nil,
         history_params: nil,
         history_back: [],
@@ -336,12 +404,20 @@ defmodule Wotex.Tracker.UI.RuleLive do
     end
   end
 
+  defp editable_in_browser?(assigns) do
+    definition = assigns.definition
+
+    is_map(definition) and RuleForm.editable?(definition["kind"], definition["parameters"]) and
+      (definition["kind"] != "suspicious_movement" or
+         match?([_ | _], assigns.motion_rules))
+  end
+
   defp can_prepare?(assigns, intent) do
     definition = assigns.definition
 
     assigns.identity["can_manage_queries"] == true and is_map(definition) and
       is_nil(assigns.manage_operation) and
-      (intent == "delete" or RuleForm.editable?(definition["kind"], definition["parameters"]))
+      (intent == "delete" or editable_in_browser?(assigns))
   end
 
   defp manageable?(assigns, intent),
@@ -434,20 +510,41 @@ defmodule Wotex.Tracker.UI.RuleLive do
 
   # Reload both projections; the receipt counts only when they reflect the action.
   defp verify(socket, receipt, expected) do
-    reloaded = load(socket)
+    if expected == "deleted" and event_only_id?(socket.assigns.id) do
+      verify_event_delete(socket, receipt)
+    else
+      reloaded = load(socket)
 
-    cond do
-      reloaded.assigns.error ->
-        assign(reloaded,
-          manage_outcome: %{"outcome" => "unknown"},
-          manage_error: reloaded.assigns.error
-        )
+      cond do
+        reloaded.assigns.error ->
+          assign(reloaded,
+            manage_outcome: %{"outcome" => "unknown"},
+            manage_error: reloaded.assigns.error
+          )
 
-      expected == "saved" == is_map(reloaded.assigns.definition) ->
-        assign(reloaded, manage_outcome: receipt, manage_error: nil)
+        expected == "saved" == is_map(reloaded.assigns.definition) ->
+          assign(reloaded, manage_outcome: receipt, manage_error: nil)
 
-      true ->
-        unrelated_manage(reloaded)
+        true ->
+          unrelated_manage(reloaded)
+      end
+    end
+  end
+
+  defp verify_event_delete(socket, receipt) do
+    ["suspicious_movement", id] = String.split(socket.assigns.id, ":", parts: 2)
+
+    case Auth.request(socket, :get, %{"resource" => "policies", "id" => id}) do
+      {:error, %{"code" => "not_found"}} ->
+        socket
+        |> clear(nil)
+        |> assign(manage_outcome: receipt, manage_error: nil)
+
+      {:error, error} ->
+        assign(socket, manage_outcome: %{"outcome" => "unknown"}, manage_error: error)
+
+      _ ->
+        unrelated_manage(socket)
     end
   end
 
@@ -461,4 +558,31 @@ defmodule Wotex.Tracker.UI.RuleLive do
   defp manage_status("edit", %{"outcome" => "committed"}), do: "Rule definition updated"
   defp manage_status("delete", %{"outcome" => "committed"}), do: "Rule definition deleted"
   defp manage_status(_, _), do: "Operation outcome unknown"
+
+  defp event_only_id?("suspicious_movement:" <> id), do: id != ""
+  defp event_only_id?(_), do: false
+
+  defp rule_kind(%{"kind" => kind}, _), do: Presenter.rule_kind(kind)
+  defp rule_kind(_, %{"kind" => kind}), do: Presenter.rule_kind(kind)
+  defp rule_kind(_, _), do: "Tracking rule"
+
+  defp rule_title(%{"rule" => %{"id" => id}}, _), do: id
+  defp rule_title(_, %{"id" => id}), do: id
+  defp rule_title(_, _), do: "Rule status unavailable"
+
+  defp back_path(%{"thing_id" => thing}), do: Presenter.path(:asset, thing) <> "/protection"
+  defp back_path(_), do: "/protection"
+
+  defp back_label(%{"thing_id" => _}), do: "Asset protection"
+  defp back_label(_), do: "All tracking rules"
+
+  defp edit_unavailable(%{"kind" => "suspicious_movement"}, nil),
+    do: "Motion definitions are unavailable, so this binding cannot be edited safely."
+
+  defp edit_unavailable(%{"kind" => "suspicious_movement"}, []),
+    do: "Add a motion definition for this asset before rebinding this event-only rule."
+
+  defp edit_unavailable(_, _),
+    do:
+      "These parameters cannot be represented exactly by this form; edit them through the service API."
 end

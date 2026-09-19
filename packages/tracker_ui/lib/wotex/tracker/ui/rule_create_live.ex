@@ -184,7 +184,8 @@ defmodule Wotex.Tracker.UI.RuleCreateLive do
       <p>
         The service evaluates a rule from this asset's committed evidence when it is saved and
         whenever the asset is provisioned again. Alerts are recorded, not sent, and no physical
-        Action is requested.
+        Action is requested. Suspicious movement is event-only: it records alerts without
+        manufacturing a current status.
       </p>
       <.notice error={@error} />
       <p :if={@asset && is_nil(@thing)}>
@@ -318,17 +319,24 @@ defmodule Wotex.Tracker.UI.RuleCreateLive do
               <input type="radio" name="rule[kind]" value="geofence" />
               Geofence membership and entry or exit transitions
             </label>
+            <label :if={motion?(@definitions)}>
+              <input type="radio" name="rule[kind]" value="suspicious_movement" />
+              Suspicious movement while armed and the owner is absent (event-only)
+            </label>
           </fieldset>
           <p>
             Position rules evaluate only evidence bundles with exactly one position. Multiple
             sources remain unchanged until an explicit selection policy is configured through the
             service API.
           </p>
-          <RuleForm.fields kinds={
-            if RuleForm.battery?(@thing),
-              do: ~w(heartbeat battery motion geofence),
-              else: ~w(heartbeat motion geofence)
-          } />
+          <RuleForm.fields
+            kinds={
+              if RuleForm.battery?(@thing),
+                do: rule_kinds(@definitions, ~w(heartbeat battery motion geofence)),
+                else: rule_kinds(@definitions, ~w(heartbeat motion geofence))
+            }
+            motion_rules={motion_definitions(@definitions)}
+          />
           <button type="submit" phx-disable-with="Saving…">Save rule</button>
         </.form>
       </section>
@@ -337,7 +345,9 @@ defmodule Wotex.Tracker.UI.RuleCreateLive do
           {if @outcome["outcome"] == "committed", do: "Rule saved", else: "Rule outcome unknown"}
         </p>
         <a :if={@saved} href={Presenter.rule_path(@saved["kind"] <> ":" <> @saved["id"])}>
-          Open rule status
+          {if @saved["kind"] == "suspicious_movement",
+            do: "Review event-only definition",
+            else: "Open rule status"}
         </a>
         <p :if={@outcome && @outcome["outcome"] != "committed"}>
           Keep this page's address and check the operation outcome before trying again.
@@ -424,6 +434,7 @@ defmodule Wotex.Tracker.UI.RuleCreateLive do
     end
   end
 
+  defp status_label(_, %{"kind" => "suspicious_movement"}), do: "Event-only · alerts only"
   defp status_label(nil, _), do: "Unavailable"
 
   defp status_label(statuses, definition) do
@@ -437,6 +448,15 @@ defmodule Wotex.Tracker.UI.RuleCreateLive do
     do: Enum.any?(definitions, &match?(%{"kind" => "motion"}, &1))
 
   defp motion?(_), do: false
+
+  defp motion_definitions(definitions) when is_list(definitions),
+    do: Enum.filter(definitions, &match?(%{"kind" => "motion"}, &1))
+
+  defp motion_definitions(_), do: []
+
+  defp rule_kinds(definitions, kinds) do
+    if motion?(definitions), do: kinds ++ ["suspicious_movement"], else: kinds
+  end
 
   defp activate(socket, nil),
     do: assign(socket, operation: nil, outcome: nil, saved: nil)
@@ -525,7 +545,8 @@ defmodule Wotex.Tracker.UI.RuleCreateLive do
 
     with true <-
            kind in ~w(heartbeat motion geofence) or
-             (kind == "battery" and RuleForm.battery?(socket.assigns.thing)),
+             (kind == "battery" and RuleForm.battery?(socket.assigns.thing)) or
+             (kind == "suspicious_movement" and motion_binding?(socket, input)),
          {:ok, parameters} <- RuleForm.parameters(kind, input) do
       {:ok,
        %{
@@ -539,6 +560,13 @@ defmodule Wotex.Tracker.UI.RuleCreateLive do
       _ -> :error
     end
   end
+
+  defp motion_binding?(socket, input),
+    do:
+      Enum.any?(
+        motion_definitions(socket.assigns.definitions),
+        &(&1["id"] == input["motion_rule_id"])
+      )
 
   defp rule_id(operation), do: "rule-" <> operation
 end

@@ -3171,3 +3171,28 @@ atomic behavior. The complete service gate passed 2 properties and 246 tests at
 dependency audit, strict Credo, ExDoc, Dialyzer, boundary checks, OpenAPI
 validation, 88-member archive inspection, licenses and the 445-file
 stack-language policy all passed.
+
+### Shared event-only suspicious-movement management — 2026-09-19
+
+The asset protection workflow now offers suspicious movement only after the
+asset has a live motion definition. Creation binds a selected motion-definition
+ID and admits whole-second fact-age and future-skew limits plus the explicit
+unknown-owner-as-absent choice. The screen explains that the service captures
+the exact motion policy, that changing or deleting it suppresses the binding,
+and that the definition produces reviewed alerts rather than current state.
+
+Definition lists label the rule `Event-only · alerts only` instead of reporting
+it as unevaluated or unavailable. Its dedicated route falls back from the absent
+status projection to the authorized public definition, exposes no current-state
+or history controls, and supports recoverable generation-checked edits and
+deletion. A missing motion definition disables editing while leaving deletion
+available. Alert presentation names the event without exposing the privately
+embedded motion policy or predicate names.
+
+Focused component and LiveView tests cover closed parameter conversion,
+round-trip admission, motion-option gating, create/read/edit/delete recovery,
+absence of a synthetic rule row, public-policy redaction and stale binding
+presentation. The complete shared-UI gate passed 139 tests at 95.0% production
+line coverage. Compiler, unused-dependency, formatter, dependency audit, strict
+Credo, ExDoc, Dialyzer, 51-member archive inspection, licenses and the 445-file
+stack-language policy all passed.
