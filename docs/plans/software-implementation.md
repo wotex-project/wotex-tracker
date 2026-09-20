@@ -406,10 +406,11 @@ bounded supplied certificate chain and matching unencrypted key, copies private
 create-only material to fixed runtime paths and emits no contents. Certificate
 issuance/trust/renewal, on-device credential creation and the exact physical
 media installation path remain required acceptance work.
-Loopback startup remains available without NTP; direct TLS startup requires a
-positive synchronization result from the current NervesTime runtime before any
-store or listener starts. Hardware RTC and drift qualification remain physical
-deployment work.
+Loopback startup without provider-token delivery remains available without NTP;
+direct TLS startup and APNs provider-token delivery require a positive
+synchronization result from the current NervesTime runtime before any store or
+listener starts. Hardware RTC and drift qualification remain physical deployment
+work.
 
 The appliance source can explicitly include the direct-cellular listener. An
 enabled image loads only the fixed private `/root/tracker/cellular.json`, requires
@@ -425,9 +426,11 @@ closed build choice requires the fixed private `/root/tracker/apns.json`, admits
 the same `wtr.apns-host.v1` provider/dispatcher document as the standalone host
 and supervises that dispatcher under the service. The appliance reports both
 cellular ingress and notification delivery as configured only from their actual
-composition. APNs-enabled headless and kiosk source profiles compile on the
-pinned target runtime; no firmware artifact, provider exchange or physical push
-acceptance follows from that source check.
+composition. Because APNs JWTs are time-bound, the selected composition requires
+current runtime clock synchronization even when the service itself is loopback.
+APNs-enabled headless and kiosk source profiles compile on the pinned target
+runtime; no firmware artifact, provider exchange or physical push acceptance
+follows from that source check.
 
 The offline command can also create the kiosk's closed, loopback-only browser
 document with an independently generated session secret when the operator gives

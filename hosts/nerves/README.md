@@ -70,7 +70,9 @@ Authenticated capabilities report `cellular` and `notification_delivery` as
 `configured` only for their actually supervised appliance compositions. These
 values do not establish socket reachability, provider acceptance, OS delivery,
 notification presentation or a user tap. APNs still requires provisioned Apple
-credentials, an entitled signed application and physical-device evidence.
+credentials, an entitled signed application and physical-device evidence. It
+also requires the current boot to report synchronized time before the store or
+dispatcher starts, because the provider adapter creates time-bound JWTs.
 
 Only loopback and direct TLS exposure are admitted. The image has no reverse
 proxy, so proxy mode is rejected. A TLS certificate and private key must each
@@ -80,14 +82,15 @@ the offline command below can validate and copy supplied material into the
 appliance tree. The local host test exercises this configuration policy and the
 service/store supervision.
 
-Direct TLS exposure additionally requires `NervesTime.synchronized?/0` to be
-true in the current boot before the store or listener starts. A last-known time
-file or merely plausible wall clock is not synchronization. Failure, exception
-or malformed clock status stops with `clock_unsynchronized` and leaves the
-prepared store untouched. Loopback service deliberately does not wait for NTP,
-so provisioned local tracking and the attached panel can start offline using the
-explicit last-known clock estimate. That estimate is not a remote-exposure or
-hardware-RTC claim.
+Direct TLS exposure and configured notification delivery additionally require
+`NervesTime.synchronized?/0` to be true in the current boot before the store or
+listener starts. A last-known time file or merely plausible wall clock is not
+synchronization. Failure, exception or malformed clock status stops with
+`clock_unsynchronized` and leaves the prepared store untouched. A loopback
+service without notification delivery deliberately does not wait for NTP, so
+provisioned local tracking and the attached panel can start offline using the
+explicit last-known clock estimate. That estimate is not a remote-exposure,
+provider-token or hardware-RTC claim.
 
 ### Offline first provisioning
 

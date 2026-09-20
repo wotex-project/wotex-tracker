@@ -5119,12 +5119,20 @@ call the real loopback HTTP capability resource, and prove both processes stop
 with the appliance tree. The cellular test independently verifies its configured
 capability over that HTTP boundary.
 
-The complete headless host suite passed 46 tests; the UI-enabled host composition
-passed 49 tests. Both profiles passed strict Credo and Dialyzer with forced local-
+Because the APNs provider adapter signs time-bound JWTs, the appliance now
+requires a positive current-boot synchronization result for that composition
+even when its service listener is loopback. False, nil, raised, exited and
+malformed clock results fail as `clock_unsynchronized` before SQLite is created.
+Loopback operation without notification delivery retains its offline startup
+behavior, while direct TLS keeps the same synchronization requirement.
+
+The complete headless host suite passed 48 tests; the UI-enabled host composition
+passed 51 tests. Both profiles passed strict Credo and Dialyzer with forced local-
 dependency PLT checks. APNs-enabled Pi 5 headless and kiosk source profiles
 compiled with warnings as errors on Elixir 1.20.4/Erlang/OTP 29.0.4. The
-implementation commit is
-`6a2d2f484725695c5dc6eb8bf2abcbf4eee74ad3`.
+composition and clock-policy commits are
+`6a2d2f484725695c5dc6eb8bf2abcbf4eee74ad3` and
+`4cc57ab89eab14dcd8c4264903e8f8b4e23955b5`.
 
 This is source-level appliance composition evidence. No firmware artifact was
 built or booted, and no physical Pi, provider exchange, signed mobile

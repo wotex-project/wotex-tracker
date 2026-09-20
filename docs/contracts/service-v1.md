@@ -585,7 +585,10 @@ parent, absolute-path, no-symlink and 64 KiB rules as the main host configuratio
 apply. Missing disabled configuration starts no dispatcher; a selected but
 missing, malformed, unsafe or open document fails startup. The authenticated
 capability status is `notification_delivery: configured` only for the admitted
-supervised composition, and `unconfigured` otherwise.
+supervised composition, and `unconfigured` otherwise. The Nerves appliance also
+requires its current runtime to report synchronized time before opening storage
+when this provider-token composition is selected; a last-known clock estimate is
+not sufficient for the time-bound APNs JWT.
 
 `APNsAdapter` is the concrete opt-in token-authenticated provider boundary. Its
 constructor admits one Apple team ID, key ID, unencrypted P-256 private-key value,
