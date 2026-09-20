@@ -84,7 +84,7 @@ defmodule Wotex.Tracker.Service.HTTP.FileConfig do
            Enum.all?(@fields, &Map.has_key?(document, &1)) and
              Enum.all?(
                Map.keys(document),
-               &(&1 in (@fields ++ ["tls", "storage_limits", "privacy_policy"]))
+               &(&1 in (@fields ++ ["tls", "storage_limits", "privacy_policy", "contract"]))
              ),
          "wtr.host.v1" <- document["schema"],
          {:ok, secret} <- key(document["secret_key"]),
@@ -98,6 +98,7 @@ defmodule Wotex.Tracker.Service.HTTP.FileConfig do
          {:ok, ip, port} <- listen(document["listen"]),
          {:ok, exposure} <- exposure(document["exposure"]),
          {:ok, tls} <- tls(document["tls"]),
+         {:ok, contract} <- contract(document["contract"]),
          {:ok, storage_limits} <- storage_limits(Map.get(document, "storage_limits", %{})),
          {:ok, privacy_policy} <- privacy_policy(Map.get(document, "privacy_policy", %{})) do
       origin =
@@ -112,6 +113,7 @@ defmodule Wotex.Tracker.Service.HTTP.FileConfig do
          exposure: exposure,
          public_origin: origin,
          tls: tls,
+         contract: contract,
          store_options: storage_limits ++ privacy_policy
        ]}
     else
@@ -129,6 +131,14 @@ defmodule Wotex.Tracker.Service.HTTP.FileConfig do
   end
 
   defp key(_), do: {:error, :invalid_configuration}
+
+  defp contract(nil), do: {:ok, :ruuvi_raw_v2}
+  defp contract("ruuvi.rawv2"), do: {:ok, :ruuvi_raw_v2}
+
+  defp contract("teltonika.tat140.codec8e"),
+    do: {:ok, :teltonika_tat140_codec8e}
+
+  defp contract(_), do: {:error, :invalid_configuration}
 
   defp entries(values) when is_list(values) and length(values) in 1..32 do
     Enum.reduce_while(values, {:ok, []}, fn value, {:ok, entries} ->

@@ -44,6 +44,7 @@ defmodule Wotex.Tracker.Service.HTTP.FileConfigTest do
     assert options[:directory] == c.document["data_directory"]
     assert options[:ip] == {127, 0, 0, 1}
     assert options[:public_origin] == :listener
+    assert options[:contract] == :ruuvi_raw_v2
     refute inspect(options) =~ c.token
     refute inspect(options) =~ c.document["secret_key"]
 
@@ -67,6 +68,10 @@ defmodule Wotex.Tracker.Service.HTTP.FileConfigTest do
 
     assert {:ok, private} = FileConfig.load(c.path)
     assert private[:store_options] == [domain_inactivity_retention_ms: 86_400_000]
+
+    write(c.path, Map.put(c.document, "contract", "teltonika.tat140.codec8e"))
+    assert {:ok, cellular} = FileConfig.load(c.path)
+    assert cellular[:contract] == :teltonika_tat140_codec8e
 
     for change <- [
           %{"listen" => %{"ip" => "::1", "port" => 4000}},
@@ -140,6 +145,7 @@ defmodule Wotex.Tracker.Service.HTTP.FileConfigTest do
           %{"privacy_policy" => %{"domain_inactivity_retention_ms" => 59_999}},
           %{"privacy_policy" => %{"domain_inactivity_retention_ms" => 31_536_000_001}},
           %{"privacy_policy" => %{"extra" => 86_400_000}},
+          %{"contract" => "teltonika.unknown"},
           %{"unknown" => 1}
         ] do
       write(c.path, Map.merge(c.document, change))

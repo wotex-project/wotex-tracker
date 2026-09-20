@@ -574,5 +574,23 @@ defmodule Wotex.Tracker.ServiceTest do
              })
 
     assert service.base_url == "https://example.test"
+
+    assert {:ok, cellular} =
+             Service.new(%{
+               store: context.store,
+               credentials: context.credentials,
+               base_url: "https://example.test/",
+               contract: :teltonika_tat140_codec8e
+             })
+
+    assert cellular.base_url == "https://example.test"
+
+    assert {:error, :invalid_configuration} =
+             Service.new(%{
+               store: context.store,
+               credentials: context.credentials,
+               base_url: "https://example.test/",
+               contract: :unknown
+             })
   end
 end

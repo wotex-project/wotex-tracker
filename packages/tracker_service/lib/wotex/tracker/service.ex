@@ -10,6 +10,7 @@ defmodule Wotex.Tracker.Service do
 
   alias Wotex.Tracker.{Catalogue, Model, Observation, QuerySpec}
   alias Wotex.Tracker.Decoders.RuuviRawV2
+  alias Wotex.Tracker.Protocols.Teltonika.{TAT140, TAT140Import}
 
   alias Wotex.Tracker.Service.{
     Alert,
@@ -61,25 +62,20 @@ defmodule Wotex.Tracker.Service do
   @doc "Builds a service using either the packaged RAWv2 contract or an exact trusted profile configuration."
   @spec new(map()) :: {:ok, t()} | {:error, atom()}
   def new(%{store: %Store{} = store, credentials: credentials, base_url: base} = input)
-      when map_size(input) == 3 do
-    with {:ok, profile} <- RuuviRawV2.profile(),
-         {:ok, catalogue} <- Catalogue.new([profile]),
-         {:ok, bytes} <-
-           File.read(
-             Application.app_dir(
-               :wotex_tracker,
-               "priv/thing_models/environmental-sensor-1.0.0.tm.json"
-             )
-           ),
-         {:ok, document} <- Wotex.JSON.decode(bytes),
-         {:ok, model} <- Model.new(document, profile.model) do
-      configure(store, credentials, base, catalogue, model, [
-        {RuuviRawV2.revision(), &RuuviRawV2.decode/1}
-      ])
-    else
-      _ -> {:error, :invalid_configuration}
-    end
-  end
+      when map_size(input) == 3,
+      do: packaged(store, credentials, base, :ruuvi_raw_v2)
+
+  def new(
+        %{
+          store: %Store{} = store,
+          credentials: credentials,
+          base_url: base,
+          contract: contract
+        } = input
+      )
+      when map_size(input) == 4 and
+             contract in [:ruuvi_raw_v2, :teltonika_tat140_codec8e],
+      do: packaged(store, credentials, base, contract)
 
   def new(
         %{
@@ -95,6 +91,46 @@ defmodule Wotex.Tracker.Service do
       do: configure(store, credentials, base, catalogue, model, decoders)
 
   def new(_), do: {:error, :invalid_configuration}
+
+  defp packaged(store, credentials, base, :ruuvi_raw_v2) do
+    packaged(
+      store,
+      credentials,
+      base,
+      RuuviRawV2.profile(),
+      "environmental-sensor-1.0.0.tm.json",
+      [{RuuviRawV2.revision(), &RuuviRawV2.decode/1}]
+    )
+  end
+
+  defp packaged(store, credentials, base, :teltonika_tat140_codec8e) do
+    packaged(
+      store,
+      credentials,
+      base,
+      TAT140.profile(),
+      "cellular-asset-tracker-1.0.0.tm.json",
+      [{TAT140.revision(), {:records, &TAT140Import.run/2}}]
+    )
+  end
+
+  defp packaged(store, credentials, base, profile_result, model_file, decoders) do
+    with {:ok, profile} <- profile_result,
+         {:ok, catalogue} <- Catalogue.new([profile]),
+         {:ok, bytes} <-
+           File.read(
+             Application.app_dir(
+               :wotex_tracker,
+               "priv/thing_models/" <> model_file
+             )
+           ),
+         {:ok, document} <- Wotex.JSON.decode(bytes),
+         {:ok, model} <- Model.new(document, profile.model) do
+      configure(store, credentials, base, catalogue, model, decoders)
+    else
+      _ -> {:error, :invalid_configuration}
+    end
+  end
 
   defp configure(store, credentials, base, catalogue, model, configured) do
     with {:ok, credentials} <- Credentials.validate(credentials),

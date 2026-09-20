@@ -4,7 +4,7 @@ defmodule Wotex.Tracker.Service.HTTP.Config do
   alias Wotex.Tracker.Service.{Codec, Credentials}
 
   @required ~w(directory credentials ip port public_origin exposure)a
-  @optional ~w(tls clock request_timeout stream_lifetime poll_interval store_options operational_history rule_scheduler notification_dispatcher)a
+  @optional ~w(tls clock request_timeout stream_lifetime poll_interval store_options operational_history rule_scheduler notification_dispatcher contract)a
 
   def new(options) when is_list(options) do
     if Keyword.keyword?(options) and length(options) == map_size(Map.new(options)),
@@ -26,7 +26,8 @@ defmodule Wotex.Tracker.Service.HTTP.Config do
           store_options: [],
           operational_history: [],
           rule_scheduler: [],
-          notification_dispatcher: nil
+          notification_dispatcher: nil,
+          contract: :ruuvi_raw_v2
         },
         input
       )
@@ -38,9 +39,12 @@ defmodule Wotex.Tracker.Service.HTTP.Config do
   end
 
   defp valid?(value) do
-    identity?(value) and options?(value) and
+    identity?(value) and contract?(value.contract) and options?(value) and
       budgets?(value) and exposure?(value)
   end
+
+  defp contract?(contract),
+    do: contract in [:ruuvi_raw_v2, :teltonika_tat140_codec8e]
 
   defp identity?(value),
     do:

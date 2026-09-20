@@ -65,7 +65,8 @@ defmodule Wotex.Tracker.Service.HTTP.Server do
       Service.new(%{
         store: Store.handle(store),
         credentials: config.credentials,
-        base_url: origin
+        base_url: origin,
+        contract: config.contract
       })
     end
   end
