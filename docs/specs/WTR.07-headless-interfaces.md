@@ -2,7 +2,16 @@
 
 ## Status
 
-Accepted target contract. No implementation claim.
+Implemented for the pure facade and the explicit headless service: authenticated
+HTTP/JSON, OpenAPI, resumable SSE, durable SQLite state, bounded history and
+analytics, Runtime Property reads/observation, packaged CLI, bundled Darwin and
+Linux ARM64 releases, a local OCI image and an independent Rust consumer have
+executable evidence. The optional cellular listener now reports its configured
+host composition without claiming physical readiness. Live BLE scanning,
+physical Action adapters, hardware qualification, public artifact distribution
+and the complete WTR.15 application remain open. See the
+[service contract](../contracts/service-v1.md) and
+[executed evidence](../evidence/implementation.md).
 
 ## Decision
 

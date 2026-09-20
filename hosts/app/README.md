@@ -76,6 +76,10 @@ malformed or unauthorized cellular document fails the whole host startup; an
 absent environment variable leaves the listener inert. Device admission resolves
 the current supervised HTTP service on every packet, so a service restart cannot
 leave the listener writing through a stale store handle.
+The authenticated `capabilities` resource reports cellular as `configured` only
+for this composed listener host; otherwise it reports `unconfigured`. That value
+describes admitted supervision, not socket liveness, carrier reachability,
+authentication, encryption or hardware qualification.
 
 ## Command-line workflow
 

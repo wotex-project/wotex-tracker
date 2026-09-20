@@ -457,7 +457,7 @@ and key paths. Explicit `:proxy` mode requires an HTTPS public origin and a
 protected proxy-to-listener network; forwarded headers never supply authority or
 Forms. No remote exposure is inferred.
 
-OpenAPI **3.1.0**, contract revision **1.36.0**, is packaged at
+OpenAPI **3.1.0**, contract revision **1.37.0**, is packaged at
 `priv/openapi/v1.json` and served at `/api/v1/openapi.json`. Liveness is
 `/health/live`; authenticated resources are under `/api/v1/scopes/{scope}`.
 Use `Authorization: Bearer …`, and a UUIDv4 `Idempotency-Key` for POST mutations.
@@ -470,6 +470,12 @@ TD Property reads return the native JSON scalar with `X-Wotex-Generation`.
 Unknown
 mutation outcomes use HTTP 202; query the same operation ID. Raw exports use
 their own media types and preserve bytes/native types.
+
+The authenticated capabilities response reports cellular ingress as
+`unconfigured` by default and `configured` only when the composing host has
+admitted and supervised the optional listener. `configured` is not a liveness,
+carrier, network-security, device-authentication or hardware-qualification
+claim. Passive BLE scanning remains `unsupported`.
 
 SSE is `/events/stream` below the scope. Supply exactly one initial `cursor`
 query parameter or resumed `Last-Event-ID` header. Transport IDs are encrypted

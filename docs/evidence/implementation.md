@@ -4976,3 +4976,23 @@ The cleanup commit is `023b26d1fd6df3698b1673e1c89aaae72cb2d894`.
 
 This clears source-level static-analysis debt; it does not replace a firmware
 artifact build, virtual boot or either physical Pi acceptance profile.
+
+### Host-aware cellular capability status — 2026-09-20
+
+The OpenAPI 1.37.0 capabilities response no longer reports the implemented
+cellular ingress as universally unsupported. A service-only host returns the
+explicit `unconfigured` state. The shared standalone/Nerves host supervisor
+passes `configured` only after it has admitted an optional cellular listener
+configuration and includes that listener in its supervision tree. The status is
+bounded host composition metadata; it does not claim live socket health, carrier
+reachability, device authentication, encryption or hardware qualification.
+
+Service tests cover both admitted status values and reject unknown configuration.
+The standalone host integration starts both listeners, completes the real TCP
+IMEI/frame exchange, reads the committed two-record state and then verifies the
+authenticated HTTP capability response says `configured`. Both service runtime
+lanes passed 339 tests and two generated properties at 95.0% / 95.1% coverage;
+both host lanes passed 20 tests at 98.0% / 98.1%. Their complete compiler,
+formatter, audit, strict Credo, ExDoc, Dialyzer, OpenAPI, archive, native CLI,
+language-policy and licence gates passed. The implementation commit is
+`5837441c5ac99c1f68d6a42dd7c438badef7a5b1`.

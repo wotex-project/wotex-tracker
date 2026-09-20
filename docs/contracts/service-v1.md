@@ -376,7 +376,7 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
-## HTTP and stream contract 1.36.0
+## HTTP and stream contract 1.37.0
 
 The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
 2020-12. The independently maintained Elixir audit checks document shape,
@@ -401,7 +401,7 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | `/api/v1/scopes/{scope}/access_audit` | GET an administrator-only, snapshot-bound page of successful authorization decisions with explicit retention/capacity disclosure |
 | `/api/v1/scopes/{scope}/privacy` | GET administrator-only exact retained primary-store counts, preservation rules, last deletion marker and limits of the deletion claim |
 | `/api/v1/scopes/{scope}/domain_data_deletions` | POST generation-checked, explicitly confirmed deletion of all retained domain data in this scope while preserving revocations and the access audit |
-| `/api/v1/scopes/{scope}/capabilities` | GET explicit available/unsupported/unconfigured status; rules report `heartbeat_battery_motion_geofence_suspicious_movement_definitions`, route and trip history advertise their paging contracts, trip summaries advertise bounded gap-honest reconstruction, arming reports an explicit administrative fact, and owner presence reports closed evidence-fact admission |
+| `/api/v1/scopes/{scope}/capabilities` | GET explicit available/unsupported/unconfigured/configured status; cellular is `unconfigured` for a service-only host and `configured` only when the composing host supervises its admitted listener. This is configuration state, not physical readiness. Rules report `heartbeat_battery_motion_geofence_suspicious_movement_definitions`, route and trip history advertise their paging contracts, trip summaries advertise bounded gap-honest reconstruction, arming reports an explicit administrative fact, and owner presence reports closed evidence-fact admission |
 | `…/analytics/query` | POST one read-only structured measurement query against a committed snapshot |
 | `…/analytics/pages` | POST one snapshot-pinned bucket page with an encrypted continuation |
 | `…/routes/pages` | POST one snapshot-pinned, gap-honest retained route page with an encrypted continuation |
