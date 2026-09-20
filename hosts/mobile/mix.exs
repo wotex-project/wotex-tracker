@@ -7,6 +7,7 @@ defmodule WotexTrackerMobile.MixProject do
       version: "0.1.0",
       elixir: "== 1.20.1",
       start_permanent: Mix.env() == :prod,
+      elixirc_paths: elixirc_paths(Mix.env()),
       deps: deps(),
       test_coverage: [tool: ExCoveralls],
       dialyzer: [plt_add_apps: [:mix, :ex_unit]],
@@ -22,6 +23,9 @@ defmodule WotexTrackerMobile.MixProject do
   end
 
   def cli, do: [preferred_envs: [check: :test, coveralls: :test]]
+
+  defp elixirc_paths(environment),
+    do: if(environment in [:dev, :test], do: ["lib", "dev"], else: ["lib"])
 
   defp deps do
     [

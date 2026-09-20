@@ -134,6 +134,40 @@ device nor implements a tracker protocol, identity decision, persistence or WoT
 mapping; those require a separately qualified profile and the upstream
 `wotex_ble` boundary.
 
+## Local native simulator
+
+Development and test builds include a finite native-capability composition that
+is absent from production compilation. It starts the real loopback endpoint,
+cache, credential owner, notification registrar and `MobScreen` callbacks. A
+repository-owned peer supplies the two secure-storage slots, app/network events,
+notification permission and token callbacks, external navigation, sharing,
+WebView effects and one deterministic BLE central peripheral. A second peer
+implements the versioned remote-client seam with one empty `workshop` account.
+Neither peer replaces or weakens a production adapter.
+
+Start it from `hosts/mobile/` with the pinned toolchain:
+
+```elixir
+directory = Path.join(System.tmp_dir!(), "wotex-mobile-simulator")
+File.mkdir_p!(directory)
+File.chmod!(directory, 0o700)
+
+alias Wotex.Tracker.Mobile.Development.Simulator
+{:ok, _} = Simulator.start_link(directory: directory)
+Simulator.connection()
+# Open bootstrap_url, then sign in with scope workshop and token development-token.
+Simulator.exercise()
+Simulator.status()
+```
+
+Run those expressions in `WOTEX_PATH_DEPS=1 MIX_ENV=dev mise exec -- iex -S
+mix`. `exercise/0` routes lifecycle recovery, a notification tap, an authorized
+JSON share and scan/connect/discover/read/write/disconnect BLE commands through
+the real root-screen clauses. Status contains counters, digests and slot names,
+not stored credentials, provider tokens or shared JSON. This is simulator-class
+software evidence; it makes no iOS permission, Keychain, radio, APNs delivery,
+share-sheet or suspension claim.
+
 Run the software gate with the host-pinned toolchain:
 
 ```sh

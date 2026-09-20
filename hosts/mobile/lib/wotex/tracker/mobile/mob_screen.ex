@@ -8,21 +8,34 @@ defmodule Wotex.Tracker.Mobile.MobScreen do
 
   use Mob.Screen
   alias Wotex.Mobile.BLECentral
-  alias Wotex.Tracker.Mobile.{ExternalURL, Lifecycle, Notifications, Sharing, WebSession}
+
+  alias Wotex.Tracker.Mobile.{
+    ExternalURL,
+    Lifecycle,
+    NativeAdapters,
+    Notifications,
+    Sharing,
+    WebSession
+  }
 
   @impl true
-  def mount(%{session: %WebSession{} = session}, _stored, socket) do
-    {:ok, ready(socket, session)}
+  def mount(%{session: %WebSession{} = session} = params, _stored, socket) do
+    with {:ok, native} <- native_adapters(params) do
+      {:ok, ready(socket, session, native)}
+    end
   end
 
-  def mount(%{setup: configure}, _stored, socket) when is_function(configure, 1) do
-    {:ok,
-     Mob.Socket.assign(socket,
-       mode: :setup,
-       remote_origin: "",
-       setup_error: nil,
-       configure: configure
-     )}
+  def mount(%{setup: configure} = params, _stored, socket) when is_function(configure, 1) do
+    with {:ok, native} <- native_adapters(params) do
+      {:ok,
+       Mob.Socket.assign(socket,
+         mode: :setup,
+         remote_origin: "",
+         setup_error: nil,
+         configure: configure,
+         native_adapters: native
+       )}
+    end
   end
 
   def mount(_, _, _), do: {:error, :invalid_session}
@@ -90,14 +103,17 @@ defmodule Wotex.Tracker.Mobile.MobScreen do
 
   def handle_info({:tap, :connect}, %{assigns: %{mode: :setup}} = socket) do
     case configure(socket.assigns.configure, socket.assigns.remote_origin) do
-      {:ok, %WebSession{} = session} -> {:noreply, ready(socket, session)}
-      _ -> {:noreply, Mob.Socket.assign(socket, :setup_error, :invalid)}
+      {:ok, %WebSession{} = session} ->
+        {:noreply, ready(socket, session, socket.assigns.native_adapters)}
+
+      _ ->
+        {:noreply, Mob.Socket.assign(socket, :setup_error, :invalid)}
     end
   end
 
   @impl true
   def handle_info({:webview, :blocked, url}, socket) do
-    _ = open_external_url(url)
+    _ = open_external_url(url, adapters(socket).device)
     {:noreply, socket}
   end
 
@@ -105,19 +121,19 @@ defmodule Wotex.Tracker.Mobile.MobScreen do
         {:webview, :message, %{"schema" => "wtr.mobile-ble-central-command.v1"} = command},
         socket
       ),
-      do: {:noreply, BLECentral.execute(socket, command)}
+      do: {:noreply, BLECentral.execute(socket, command, adapters(socket).ble)}
 
   def handle_info({:webview, :message, payload}, socket),
-    do: {:noreply, Sharing.share(socket, payload)}
+    do: {:noreply, Sharing.share(socket, payload, adapters(socket).share)}
 
   def handle_info({:ble_central, _, _, _} = event, socket),
-    do: {:noreply, BLECentral.deliver(socket, event)}
+    do: {:noreply, BLECentral.deliver(socket, event, adapters(socket).webview)}
 
   def handle_info({:mob_device, _, _} = event, socket), do: lifecycle(event, socket)
   def handle_info({:mob_device, _} = event, socket), do: lifecycle(event, socket)
 
   def handle_info({:permission, :notifications, :granted}, socket),
-    do: {:noreply, Notifications.register_push(socket)}
+    do: {:noreply, Notifications.register_push(socket, adapters(socket).notifications)}
 
   def handle_info({:permission, :notifications, :denied}, socket) do
     _ = Notifications.unregister_endpoint()
@@ -130,7 +146,7 @@ defmodule Wotex.Tracker.Mobile.MobScreen do
   end
 
   def handle_info({:notification, payload}, socket),
-    do: {:noreply, Notifications.route(socket, payload)}
+    do: {:noreply, Notifications.route(socket, payload, adapters(socket).webview)}
 
   def handle_info(_, socket), do: {:noreply, socket}
 
@@ -152,7 +168,7 @@ defmodule Wotex.Tracker.Mobile.MobScreen do
     socket =
       if effect == :reload do
         _ = Notifications.retry_registration()
-        Lifecycle.reload(socket)
+        Lifecycle.reload(socket, adapters(socket).webview)
       else
         socket
       end
@@ -160,18 +176,26 @@ defmodule Wotex.Tracker.Mobile.MobScreen do
     {:noreply, socket}
   end
 
-  defp ready(socket, session) do
-    _ = Lifecycle.subscribe()
+  defp ready(socket, session, native) do
+    _ = Lifecycle.subscribe(native.device)
 
     socket =
       Mob.Socket.assign(socket,
         mode: :web,
         web_session: session,
-        lifecycle: Lifecycle.new()
+        lifecycle: Lifecycle.new(),
+        native_adapters: native
       )
 
-    if is_map(session.notification), do: Notifications.request_permission(socket), else: socket
+    if is_map(session.notification),
+      do: Notifications.request_permission(socket, native.permissions),
+      else: socket
   end
+
+  defp native_adapters(%{native: %NativeAdapters{} = native}), do: {:ok, native}
+  defp native_adapters(params) when is_map(params), do: {:ok, NativeAdapters.production()}
+
+  defp adapters(%{assigns: %{native_adapters: %NativeAdapters{} = native}}), do: native
 
   defp configure(function, origin) do
     function.(origin)
