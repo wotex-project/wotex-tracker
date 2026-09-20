@@ -160,7 +160,9 @@ metres and the exact presentation choices remain in the export.
 Evidence-backed heartbeat state and overdue/recovery events are also
 implemented; see the [heartbeat guide](docs/guides/heartbeat.md).
 Its SQLite host integration persists changed heartbeat state and event intent
-atomically; deadline scheduling remains explicit host work.
+atomically. The explicitly supervised rule scheduler reconstructs persisted
+heartbeat deadlines on startup and commits due live evaluations without
+dispatching a physical Action.
 Evidence-backed low-battery state uses explicit measurement kind, unit, freshness,
 quality and hysteresis; its SQLite host integration atomically persists changed
 state and stable event intent. See the [battery guide](docs/guides/battery.md).

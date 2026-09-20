@@ -84,10 +84,14 @@ stable trip event intent at one generation. Exact retries deduplicate; replay
 intents retain prohibited physical dispatch. The service exposes Thing-bound
 start, stop and interruption intents through a dedicated snapshot-pinned page;
 this is an exact event timeline, not an inferred trip summary. Final distance
-summary materialization and notification delivery remain caller-owned. Callers
-may apply a from-inclusive/to-exclusive effective-time window; the service binds
-those exact bounds into page continuations rather than filtering a generic alert
-page after reading it.
+summary materialisation is a separate authorized operation over at most 100
+retained position materialisations. Every newly recorded live trip event also
+becomes a durable alert and atomically stages the same minimal per-endpoint
+notification reference as other live rule events; provider acceptance and
+physical delivery remain separate gates. Callers may apply a
+from-inclusive/to-exclusive effective-time window; the service binds those exact
+bounds into page continuations rather than filtering a generic alert page after
+reading it.
 
 ## Bounded trip distance
 
@@ -106,5 +110,6 @@ cannot silently add route distance.
 The summary and policy carry content identities and an explicit sample limit.
 This is deterministic bounded reconstruction over supplied evidence. The
 service's retained lifecycle event page does not retain this supplied sample set
-or imply a final distance summary; final closed-trip summary records remain host
-work.
+or imply a final distance summary. The separate service operation reconstructs
+an immutable completed-trip projection on demand from authorized retained
+evidence; it does not invent a mutable summary record.
