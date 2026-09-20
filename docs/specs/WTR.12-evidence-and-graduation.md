@@ -2,7 +2,14 @@
 
 ## Status
 
-Accepted target contract. No implementation claim.
+Implemented for the repository's software evidence classes: unit/property tests,
+source-derived and synthetic fixtures, independent protocol peers, real local
+socket/HTTP/SSE integration, Runtime/HTTP-binding interoperability, clean archive
+consumers and bounded release/image lifecycle probes are recorded without class
+promotion. The required real Ruuvi, cellular tracker, Pi 5, iPhone and integrated
+field/product gates remain unpassed, so no hardware-qualified or complete-product
+claim is made. See the [implementation evidence](../evidence/implementation.md)
+and [fixture provenance](../provenance/ruuvi-raw-v2-fixtures.md).
 
 ## Evidence classes
 
