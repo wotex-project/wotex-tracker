@@ -101,6 +101,8 @@ defmodule Wotex.Tracker.Nerves.QemuBootRecord do
     false = String.contains?(reboot, "Formatting application partition")
     true = String.contains?(first, "initialized storage marker")
     true = String.contains?(reboot, "initialized storage marker")
+    true = String.contains?(first, "Firmware valid and all applications started successfully")
+    true = String.contains?(reboot, "Firmware valid and all applications started successfully")
 
     true =
       String.contains?(
@@ -144,10 +146,12 @@ defmodule Wotex.Tracker.Nerves.QemuBootRecord do
         "first_boot_private_store_and_loopback_http" => true,
         "first_boot_native_resource_sample" => true,
         "first_boot_initialized_storage_marker" => true,
+        "first_boot_startup_guard_completed" => true,
         "reboot_kept_existing_partition" => true,
         "reboot_private_store_and_loopback_http" => true,
         "reboot_native_resource_sample" => true,
         "reboot_initialized_storage_marker" => true,
+        "reboot_startup_guard_completed" => true,
         "no_ui_or_ssh_applications" => true,
         "no_active_iex_or_distribution" => true,
         "no_credentials_in_runtime_config" => true,
