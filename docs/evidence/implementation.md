@@ -4735,7 +4735,36 @@ Credo, ExDoc, Dialyzer, stack-language, documentation-contract, archive and
 licence checks all passed. The implementation commit is
 `ebf36f053b34edce110aa74be24ab5fb8a82a375`.
 
-This proves only documentation-derived semantic mapping. The service does not
-yet attach the configured marker or commit mapped record semantics. A cellular
-Thing Model, deployment integration, real hardware/firmware, direct endpoint,
-SIM/operator and command evidence remain unpassed.
+This proves only documentation-derived semantic mapping. A cellular Thing Model,
+deployment integration, real hardware/firmware, direct endpoint, SIM/operator
+and command evidence remain unpassed.
+
+### Configured cellular profile lineage — 2026-09-20
+
+Each keyed cellular device entry may now include one bounded profile ID. The
+serialized ingress copies it into the byte-preserving observation provenance;
+a generic Teltonika entry without a profile stores explicit null. The configured
+value neither selects executable code at the socket boundary nor upgrades the
+IMEI routing digest into authentication. Catalogue resolution remains the
+separate pure boundary.
+
+The TAT140-configured path commits the marker, exports it only through the
+existing privileged raw-observation path, re-admits the exact observation and
+passes it to the record-aware TAT140 mapper. Tests also cover invalid profile
+and extra configuration fields, the generic null-profile path, corrupted keyed
+state, raised/thrown clocks and store loss between receipt lookup and snapshot.
+That last case closes as unknown rather than guessing an ACK. The existing
+notification-dispatcher cleanup was hardened for a concurrent supervised
+shutdown and passed 20 repeated targeted runs.
+
+Both service runtime lanes passed their complete configured gates with 331 tests
+and two generated properties. Elixir 1.18.4 on Erlang/OTP 27.3.4.15 reached
+95.0% production line coverage; Elixir 1.20.4 on Erlang/OTP 29.0.4 reached
+95.1%. Compiler, dependency, formatter, vulnerability audit, strict Credo,
+ExDoc, Dialyzer, boundary checks, stack-language, OpenAPI, archive and licence
+checks passed. The implementation commit is
+`cb5f7067fa1dc05797b2eb3b9528a9024699d9d6`.
+
+This establishes durable configured-profile lineage only. The service still
+does not persist the mapped per-record measurements and positions, and no
+cellular Thing Model or hardware qualification follows.

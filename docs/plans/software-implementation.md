@@ -207,9 +207,10 @@ concatenation and retransmission over real sockets. Wire tests also cover
 truncation, malformed and oversized frames, capacity, timeout and connection
 loss before and after commit. A documentation-qualified TAT140 profile now keeps
 every AVL record and unknown IO field while mapping only movement, battery
-voltage and valid GNSS positions. Service-side profile selection and semantic
-persistence, the cellular Thing Model, deployment configuration and all
-real-device evidence remain subsequent work.
+voltage and valid GNSS positions. The durable cellular observation now carries
+an optional configured profile ID. Service-side semantic persistence, the
+cellular Thing Model, deployment configuration and all real-device evidence
+remain subsequent work.
 
 Acceptance: independent fixtures and software-peer tests for every split boundary,
 coalescing/truncation, counts, unknown fields, ACK outcomes, reconnect, duplicates

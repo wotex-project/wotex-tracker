@@ -67,14 +67,16 @@ before the service is built; observations never select executable code.
 
 `Wotex.Tracker.Service.Cellular.Ingress` is a separately started trusted-host
 bridge for decoded Teltonika packets. Its finite configuration maps keyed IMEI
-digests to private service credentials, scopes and operator device labels; raw
-IMEIs are transient and are not retained in state or observations. The bridge
-revalidates every frame, serializes admission, commits one byte-preserving
-cellular observation per packet and derives a deterministic UUID operation ID
-for reconnect reconciliation. Accepted and duplicate commits return full-record
-ACK dispositions, known non-commits return zero-ACK dispositions and unknown
-outcomes require connection close. The bridge owns no socket and supplies no
-device-specific profile or authentication claim.
+digests to private service credentials, scopes, operator device labels and an
+optional bounded profile ID; raw IMEIs are transient and are not retained in
+state or observations. The profile ID is copied into observation provenance,
+or stored as explicit null when absent. It is configured routing evidence, not
+device authentication. The bridge revalidates every frame, serializes admission,
+commits one byte-preserving cellular observation per packet and derives a
+deterministic UUID operation ID for reconnect reconciliation. Accepted and
+duplicate commits return full-record ACK dispositions, known non-commits return
+zero-ACK dispositions and unknown outcomes require connection close. The bridge
+owns no socket and does not persist profile-specific semantic output yet.
 
 `Wotex.Tracker.Service.Cellular.Server` composes that bridge with a separately
 started clear-TCP listener for the documented tracker protocol. The caller must

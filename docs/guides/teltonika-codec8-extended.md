@@ -51,7 +51,9 @@ observation. Operation and observation identities are deterministically derived
 from the keyed device identity and exact frame. On reconnect it checks the
 durable receipt before submitting, so a commit whose response was lost becomes
 a duplicate full ACK rather than a second observation. Raw IMEI digits never
-enter the observation or process state.
+enter the observation or process state. A device entry may also carry a bounded
+profile ID. The bridge stores that ID in provenance, or explicit null when it is
+absent; the value is routing evidence and never an authentication claim.
 
 `Wotex.Tracker.Service.Cellular.Server` composes the bridge with an explicitly
 started Thousand Island TCP listener. It uses one acceptor, a caller-selected
