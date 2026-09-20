@@ -4471,3 +4471,58 @@ This proves bounded offline custody and a real direct-TLS service handshake. It
 does not issue certificates, establish CA or hostname trust, renew credentials,
 provide authenticated on-device setup, prove remote-network reachability, or
 exercise physical Pi 5 hardware; those remain separate acceptance boundaries.
+
+### Authenticated attached-display setup — 2026-09-20
+
+New kiosk provisioning writes the closed `wtr.browser.v2` document. In addition
+to the private loopback listener, matching origin and independent session secret,
+it binds one explicit scope to the fixed private `operator.token`. Loading the
+document requires that token to be a singly linked exact 0600 regular file with
+one canonical 256-bit bearer plus newline, and proves at logical time zero that
+its digest matches a configured credential granting read access in the selected
+scope. The token path and session binding are excluded from inspection.
+
+At display launch the host reads the credential only while authenticating it
+into the shared bounded server-held session store. Cog receives a fresh random
+60-second nonce rather than the bearer or opaque session identifier. Only a
+loopback GET can exchange that nonce; the attempt consumes it, reauthorizes the
+session through the service, renews the encrypted HTTP-only SameSite cookie and
+redirects to `/setup`. Replay returns 404. Expiry, durable revocation or changed
+grants still deny the shared UI because every request continues through the
+existing service authorization path. A failed launch falls back to manual
+sign-in, and sign-out does not revoke the underlying operator credential.
+
+The UI-enabled host test started the real service, session store and Bandit
+endpoint, confirmed the sign-in page disclosed no bearer, rejected a non-loopback
+exchange, followed the real 303 and cookie into the authenticated Setup screen,
+confirmed neither bearer nor nonce was rendered, rejected nonce replay and then
+restarted presentation while retaining the same live store. Configuration tests
+also reject the wrong scope, wrong token, public token file, symlinked token and
+extra fields while retaining read-only support for the manual-sign-in version-one
+document. Kiosk verification passed 43 tests and headless verification passed 40
+with warnings-as-errors and formatter checks. Both Pi target compositions
+compiled with warnings as errors. The repository gate passed 164 tests and 19
+generated properties at 95.4% production line coverage with all configured
+checks.
+
+All three target profiles rebuilt from Tracker commit
+`5b5c45597ceac2c80c70d24b157e4c8861694388`. The headless Pi 5 firmware SHA-256
+is `8c94461b86f34ef1b66a7c5ad7638bc691d399583284e8ecc6ea5e78966e989d`;
+the kiosk SHA-256 is
+`3bd5e47225366955791e3270d2b165822d40b6f27dfe5174fb4675610e3c5d9b`;
+and the QEMU firmware SHA-256 is
+`711061d8a17f809c695829cc08745ff111797da5ee11dcc54f15b8b2476c613f`.
+The kiosk receipt requires both device-session BEAM modules and the compiled Cog
+launcher import of `DeviceSession.launch_url/1`; the headless inventory still
+excludes Phoenix, LiveView, Myelin and the UI package. Fresh QEMU first-boot and
+same-disk reboot log digests are respectively
+`9256d954ddfe7dadb661f9adedaae34629a509c293aa5bf69cea76acce131fa9`
+and `2ce49504cb1e5d3129968fecfa1ba05e7c70d308edc83bc426b33bd0b53602b4`;
+both boots passed the common headless health gates. The receipts identify only
+the concurrent uncommitted WTR.15 documentation path, which was not staged.
+
+This proves authenticated attached-display setup in the host composition and
+that its target code is packaged. It does not create credentials on the device,
+boot Cog, exercise GPU/DRM, touch or keyboard input, demonstrate offline setup
+on a physical display, or qualify browser-crash and revocation behavior on a Pi
+5; those remain physical acceptance gates.

@@ -1,7 +1,7 @@
 {
   "boot_log_sha256": {
-    "first": "338bcf6d9d4bb5cf2b69f68a6bc5e9c63474d79f509672e0a0ce073b0f3fd0fd",
-    "reboot": "5b4c75b21e65b26a2cc1e77b9bf93014db186b6e575c6d0674f0b08409a12e3d"
+    "first": "9256d954ddfe7dadb661f9adedaae34629a509c293aa5bf69cea76acce131fa9",
+    "reboot": "2ce49504cb1e5d3129968fecfa1ba05e7c70d308edc83bc426b33bd0b53602b4"
   },
   "checks": {
     "core_health_before_firmware_validation": true,
@@ -23,18 +23,18 @@
     "sqlite_nif_aarch64": true
   },
   "firmware": {
-    "bytes": 31206466,
+    "bytes": 31206578,
     "metadata": {
       "meta-architecture": "arm",
       "meta-author": "The Nerves Team",
-      "meta-creation-date": "2026-09-20T04:44:10Z",
-      "meta-nickname": "yard-beach",
+      "meta-creation-date": "2026-09-20T05:00:24Z",
+      "meta-nickname": "super-dinner",
       "meta-platform": "qemu_aarch64",
       "meta-product": "wotex_tracker_nerves",
-      "meta-uuid": "fb166108-75cd-5879-2207-69817300e9b3",
+      "meta-uuid": "d94920a6-98a6-57a3-9375-31c0bbb8f19a",
       "meta-version": "0.1.0"
     },
-    "sha256": "88578ce07f0e48c1785be17ac647301df36aa2f220fb6d15c4554fe4916cb010",
+    "sha256": "711061d8a17f809c695829cc08745ff111797da5ee11dcc54f15b8b2476c613f",
     "sqlite_nif": "ELF 64-bit LSB shared object, ARM aarch64, version 1 (SYSV), dynamically linked, BuildID[sha1]=a3dc0ce06a84ffe46914bb4a81e11c04c5f811c6, not stripped",
     "target_elixir": "1.20.4",
     "target_erts": "17.0.6"
@@ -108,7 +108,7 @@
       "tracked_paths": []
     },
     "wotex_tracker": {
-      "commit": "67169702192a4836650e4e0b1bf1ead2dc402812",
+      "commit": "5b5c45597ceac2c80c70d24b157e4c8861694388",
       "tracked_changes": true,
       "tracked_paths": [
         "docs/specs/WTR.15-product-and-mobile-applications.md"

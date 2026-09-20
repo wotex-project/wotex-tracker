@@ -11,18 +11,18 @@
     "sqlite_nif_aarch64": true
   },
   "firmware": {
-    "bytes": 60292913,
+    "bytes": 60292980,
     "metadata": {
       "meta-architecture": "aarch64",
       "meta-author": "The Nerves Team",
-      "meta-creation-date": "2026-09-20T04:44:15Z",
-      "meta-nickname": "run-tag",
+      "meta-creation-date": "2026-09-20T05:00:31Z",
+      "meta-nickname": "add-crucial",
       "meta-platform": "rpi5",
       "meta-product": "wotex_tracker_nerves",
-      "meta-uuid": "c8dc566c-2bfb-5752-7435-4e707992e8b3",
+      "meta-uuid": "053b67ca-97a9-5d2b-4de0-bf537a583896",
       "meta-version": "0.1.0"
     },
-    "sha256": "2b24899ebc36e45d872c60048d71fd486753e98c9893d495e1c5e9a9d3c853fc",
+    "sha256": "8c94461b86f34ef1b66a7c5ad7638bc691d399583284e8ecc6ea5e78966e989d",
     "sqlite_nif": "ELF 64-bit LSB shared object, ARM aarch64, version 1 (SYSV), dynamically linked, BuildID[sha1]=a3dc0ce06a84ffe46914bb4a81e11c04c5f811c6, not stripped",
     "target_elixir": "1.20.4",
     "target_erts": "17.0.6"
@@ -102,7 +102,7 @@
       "tracked_changes": false
     },
     "wotex_tracker": {
-      "commit": "67169702192a4836650e4e0b1bf1ead2dc402812",
+      "commit": "5b5c45597ceac2c80c70d24b157e4c8861694388",
       "tracked_changes": true
     }
   }

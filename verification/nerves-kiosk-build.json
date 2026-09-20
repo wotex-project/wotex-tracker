@@ -1,5 +1,6 @@
 {
   "checks": {
+    "authenticated_local_display_session": true,
     "core_health_before_firmware_validation": true,
     "firmware_startup_guard_with_finite_heart_timeout": true,
     "myelin_web_extension_aarch64": true,
@@ -12,19 +13,19 @@
     "sqlite_nif_aarch64": true
   },
   "firmware": {
-    "bytes": 145974714,
+    "bytes": 145979222,
     "metadata": {
       "meta-architecture": "aarch64",
       "meta-author": "The Nerves Team",
-      "meta-creation-date": "2026-09-20T04:44:22Z",
-      "meta-nickname": "absent-annual",
+      "meta-creation-date": "2026-09-20T05:00:40Z",
+      "meta-nickname": "trade-zoo",
       "meta-platform": "rpi5",
       "meta-product": "wotex_tracker_nerves",
-      "meta-uuid": "030d3a74-8a51-5e94-6430-96541a0ce420",
+      "meta-uuid": "e8ffc3c6-0a11-5c47-c5b2-ea56033b0356",
       "meta-version": "0.1.0"
     },
     "myelin_web_extension": "ELF 64-bit LSB shared object, ARM aarch64, version 1 (SYSV), dynamically linked, BuildID[sha1]=18e52db95084d0f4aa91bc027116b55545819727, with debug_info, not stripped",
-    "sha256": "6523b9c45729066a60fdc0f1f4cab08e4b0a0dc471f25bdb34518360a0ef0cc9",
+    "sha256": "3bd5e47225366955791e3270d2b165822d40b6f27dfe5174fb4675610e3c5d9b",
     "sqlite_nif": "ELF 64-bit LSB shared object, ARM aarch64, version 1 (SYSV), dynamically linked, BuildID[sha1]=a3dc0ce06a84ffe46914bb4a81e11c04c5f811c6, not stripped",
     "target_elixir": "1.20.4",
     "target_erts": "17.0.6"
@@ -116,7 +117,7 @@
       "tracked_changes": false
     },
     "wotex_tracker": {
-      "commit": "67169702192a4836650e4e0b1bf1ead2dc402812",
+      "commit": "5b5c45597ceac2c80c70d24b157e4c8861694388",
       "tracked_changes": true
     }
   }
