@@ -362,7 +362,7 @@ of becoming an empty store. Provisioning never replaces an occupied path or
 emits the bearer. An explicit all-or-nothing direct-TLS mode now validates a
 bounded supplied certificate chain and matching unencrypted key, copies private
 create-only material to fixed runtime paths and emits no contents. Certificate
-issuance/trust/renewal, authenticated on-device setup and the exact physical
+issuance/trust/renewal, on-device credential creation and the exact physical
 media installation path remain required acceptance work.
 Loopback startup remains available without NTP; direct TLS startup requires a
 positive synchronization result from the current NervesTime runtime before any
@@ -371,8 +371,14 @@ deployment work.
 
 The offline command can also create the kiosk's closed, loopback-only browser
 document with an independently generated session secret when the operator gives
-a distinct browser port. This does not add UI dependencies to the headless image
-or constitute TLS, on-device setup or display acceptance.
+a distinct browser port. Its version-two document binds one configured scope to
+the exact private operator token. The kiosk authenticates that token only into
+the server-held session store, launches Cog with a 60-second single-use nonce,
+accepts the exchange only from loopback and redirects the encrypted HTTP-only
+session directly to Setup. The bearer never enters the launch URL, cookie,
+rendered page or LiveView assigns, and service reauthorization still governs
+expiry and revocation. This does not add UI dependencies to the headless image
+or constitute on-device credential creation or physical display acceptance.
 
 A separate read-only offline recovery command validates that a restored private
 tree retains the initialized instance/path marker, contains no interrupted

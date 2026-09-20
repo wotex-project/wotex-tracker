@@ -89,9 +89,11 @@ WOTEX_PATH_DEPS=1 MIX_TARGET=host MIX_ENV=test mise exec -- \
 
 `--browser-port` creates an exclusive 0600 `browser.json` with loopback-only
 HTTP, a matching public origin and an independent random session-signing secret.
-The service and browser ports must differ. Output contains the browser file path,
-never its secret. The headless artifact still has no browser or UI dependency;
-the extra document is used only by the explicitly selected kiosk profile.
+Its closed device-session entry binds the attached display to the supplied
+service scope and exact private `operator.token`. The service and browser ports
+must differ. Output contains the browser file path, never its secret or token.
+The headless artifact still has no browser or UI dependency; the extra document
+is used only by the explicitly selected kiosk profile.
 
 For an explicitly network-exposed direct-TLS service, supply all four TLS
 arguments together:
@@ -221,7 +223,7 @@ does not recover history. Durable product acceptance still needs the physical
 recovery matrix and a proven backup/restore path. The startup clock gate covers
 direct TLS exposure only; long-duration drift, NTP-server selection and an
 optional hardware RTC still need deployment and physical acceptance. Local
-authenticated bootstrap setup and hardware gates remain open.
+credential creation and all physical hardware gates remain open.
 
 The build record in `../../verification/nerves-headless-build.json` contains
 the local firmware digest and resolved target components when generated. The
@@ -257,19 +259,31 @@ offline provisioning flag above. The closed document is:
 
 ```json
 {
-  "schema": "wtr.browser.v1",
+  "schema": "wtr.browser.v2",
   "listen": {"ip": "127.0.0.1", "port": 4000},
   "exposure": "loopback",
   "public_origin": "http://127.0.0.1:4000",
-  "secret_key_base": "replace-with-at-least-64-unpredictable-characters"
+  "secret_key_base": "replace-with-at-least-64-unpredictable-characters",
+  "device_session": {"scope": "workshop"}
 }
 ```
 
-The signing secret must be independently generated and kept private. The
-browser signs in with a provisioned service token. The present image has no
-on-device credential/bootstrap setup, so a device without these files cannot
-reach an authenticated panel. The host test verifies the loopback page and
-that a controlled presentation restart retains the store. GPU, touch, keyboard,
+The signing secret must be independently generated and kept private. Version two
+also requires the fixed private `operator.token` to match a credential granting
+read access in the named scope. At display launch the host authenticates that
+credential into the bounded server-held session store, passes Cog only a random
+60-second nonce, and accepts that nonce once from loopback. The exchange renews
+the encrypted HTTP-only cookie and redirects directly to `/setup`; neither the
+bearer nor opaque session identifier enters the URL or rendered page. Exchange
+reauthorizes through the service, so expiry and revocation still deny the panel.
+Manual sign-in remains available after sign-out or a failed bootstrap, and a
+device without the private provisioned files still cannot reach an authenticated
+panel.
+
+The host test executes the HTTP exchange, authenticated setup render, replay
+denial and controlled presentation restart while retaining the store. This is
+software evidence for authenticated attached-display setup, not on-device
+credential creation or physical display evidence. GPU, touch, keyboard,
 orientation, offline workflow and physical fault isolation remain hardware
 acceptance work, not conclusions from the cross-build.
 

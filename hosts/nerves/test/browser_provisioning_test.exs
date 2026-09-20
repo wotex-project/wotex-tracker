@@ -12,29 +12,37 @@ defmodule Wotex.Tracker.Nerves.BrowserProvisioningTest do
   end
 
   test "creates one private loopback document without returning its secret", c do
-    assert {:ok, path} = BrowserProvisioning.provision(c.root, 4000)
+    assert {:ok, path} = BrowserProvisioning.provision(c.root, 4000, "workshop")
     assert path == c.path
     assert File.stat!(path).mode |> Bitwise.band(0o777) == 0o600
     assert {:ok, document} = path |> File.read!() |> Codec.decode()
-    assert document["schema"] == "wtr.browser.v1"
+    assert document["schema"] == "wtr.browser.v2"
     assert document["listen"] == %{"ip" => "127.0.0.1", "port" => 4000}
     assert document["exposure"] == "loopback"
     assert document["public_origin"] == "http://127.0.0.1:4000"
+    assert document["device_session"] == %{"scope" => "workshop"}
     assert byte_size(document["secret_key_base"]) in 64..128
     refute path =~ document["secret_key_base"]
 
     original = File.read!(path)
-    assert {:error, :configuration_exists} = BrowserProvisioning.provision(c.root, 4001)
+
+    assert {:error, :configuration_exists} =
+             BrowserProvisioning.provision(c.root, 4001, "workshop")
+
     assert File.read!(path) == original
   end
 
   test "invalid and malformed writes leave no browser document", c do
     for port <- [nil, 0, 65_536] do
-      assert {:error, :invalid_configuration} = BrowserProvisioning.provision(c.root, port)
+      assert {:error, :invalid_configuration} =
+               BrowserProvisioning.provision(c.root, port, "workshop")
     end
 
+    assert {:error, :invalid_configuration} =
+             BrowserProvisioning.provision(c.root, 4000, "")
+
     assert {:error, :provisioning_failed} =
-             BrowserProvisioning.provision(c.root, 4000, fn path, _bytes ->
+             BrowserProvisioning.provision(c.root, 4000, "workshop", fn path, _bytes ->
                File.write!(path, "{}", [:exclusive])
                File.chmod!(path, 0o600)
              end)

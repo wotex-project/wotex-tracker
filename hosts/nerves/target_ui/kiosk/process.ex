@@ -11,6 +11,7 @@ defmodule Wotex.Tracker.Nerves.Kiosk.Process do
   def init(config) do
     Application.put_env(:myelin, :trusted_origins, [config.public_origin])
     Application.put_env(:myelin, :scripts, %{"keyboard" => %{enabled: true}})
+    launch_url = Wotex.Tracker.Nerves.Browser.DeviceSession.launch_url(config.public_origin)
 
     env =
       [
@@ -34,7 +35,7 @@ defmodule Wotex.Tracker.Nerves.Kiosk.Process do
         {MuonTrap.Daemon,
          [
            "cog",
-           ["--platform=drm", "--platform-params=renderer=gles", config.public_origin] ++
+           ["--platform=drm", "--platform-params=renderer=gles", launch_url] ++
              Myelin.browser_args(),
            [
              env: env,

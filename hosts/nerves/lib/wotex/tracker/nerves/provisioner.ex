@@ -64,7 +64,7 @@ defmodule Wotex.Tracker.Nerves.Provisioner do
              tls
            ),
          {:ok, marker} <- provision_storage(service, directory, runtime_root, instance),
-         {:ok, browser} <- provision_browser(service, marker, directory, browser_port) do
+         {:ok, browser} <- provision_browser(service, marker, directory, browser_port, scope) do
       paths = service.host
 
       result =
@@ -177,10 +177,10 @@ defmodule Wotex.Tracker.Nerves.Provisioner do
     end
   end
 
-  defp provision_browser(_service, _marker, _directory, nil), do: {:ok, nil}
+  defp provision_browser(_service, _marker, _directory, nil, _scope), do: {:ok, nil}
 
-  defp provision_browser(service, marker, directory, port) do
-    case BrowserProvisioning.provision(directory, port) do
+  defp provision_browser(service, marker, directory, port, scope) do
+    case BrowserProvisioning.provision(directory, port, scope) do
       {:ok, browser} ->
         {:ok, browser}
 

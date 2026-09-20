@@ -9,7 +9,7 @@ defmodule Wotex.Tracker.Nerves.Browser do
   """
 
   use Supervisor
-  alias Wotex.Tracker.Nerves.Browser.{Client, Endpoint}
+  alias Wotex.Tracker.Nerves.Browser.{Client, DeviceSession, Endpoint}
   alias Wotex.Tracker.UI.Sessions
 
   def start_link(options), do: Supervisor.start_link(__MODULE__, options)
@@ -58,10 +58,26 @@ defmodule Wotex.Tracker.Nerves.Browser do
         {Phoenix.PubSub, name: Wotex.Tracker.Nerves.Browser.PubSub},
         {Sessions,
          name: Wotex.Tracker.Nerves.Browser.Sessions,
-         client: {Client, {service_provider, server_provider}}},
-        {Endpoint, endpoint}
-      ],
+         client: {Client, {service_provider, server_provider}}}
+      ] ++
+        device_session(config) ++
+        [
+          {Endpoint, endpoint}
+        ],
       strategy: :rest_for_one
     )
+  end
+
+  defp device_session(%{device_session: nil}), do: []
+
+  defp device_session(config) do
+    [
+      {DeviceSession,
+       name: DeviceSession,
+       sessions: Wotex.Tracker.Nerves.Browser.Sessions,
+       token_file: config.device_session.token_file,
+       scope: config.device_session.scope,
+       public_origin: config.public_origin}
+    ]
   end
 end

@@ -2,33 +2,42 @@ defmodule Wotex.Tracker.Nerves.BrowserProvisioning do
   @moduledoc """
   Creates one private loopback configuration for the optional kiosk browser.
 
-  The operation is create-only, generates its own session-signing secret and
-  returns only the file path. It has no Phoenix or LiveView dependency, so the
-  source provisioner remains usable from the headless host profile.
+  The operation is create-only, generates its own session-signing secret, binds
+  the local-display session to one explicit service scope and returns only the
+  file path. It has no Phoenix or LiveView dependency, so the source provisioner
+  remains usable from the headless host profile.
   """
 
   alias Wotex.Tracker.Service.{Codec, StorePath}
   alias Wotex.Tracker.Service.HTTP.FileConfig
 
-  @fields ~w(schema listen exposure public_origin secret_key_base)
+  @fields ~w(schema listen exposure public_origin secret_key_base device_session)
 
-  @doc "Creates an exclusive 0600 loopback browser document under a private root."
-  @spec provision(term(), term()) ::
+  @doc "Creates an exclusive 0600 authenticated loopback browser document."
+  @spec provision(term(), term(), term()) ::
           {:ok, String.t()}
           | {:error, :invalid_configuration | :configuration_exists | :provisioning_failed}
-  def provision(root, port), do: provision(root, port, &exclusive_write/2)
+  def provision(root, port, scope), do: provision(root, port, scope, &exclusive_write/2)
 
   @doc false
-  @spec provision(term(), term(), (String.t(), binary() -> term())) ::
+  @spec provision(term(), term(), term(), (String.t(), binary() -> term())) ::
           {:ok, String.t()} | {:error, atom()}
-  def provision(root, port, writer)
+  def provision(root, port, scope, writer)
       when is_binary(root) and is_integer(port) and port in 1..65_535 and
              is_function(writer, 2) do
+    if Codec.id?(scope),
+      do: provision_valid(root, port, scope, writer),
+      else: {:error, :invalid_configuration}
+  end
+
+  def provision(_, _, _, _), do: {:error, :invalid_configuration}
+
+  defp provision_valid(root, port, scope, writer) do
     path = Path.join(root, "browser.json")
 
     with :ok <- StorePath.private_directory(root),
          true <- File.lstat(path) == {:error, :enoent},
-         document = document(port),
+         document = document(port, scope),
          :ok <- write(writer, path, Codec.encode!(document) <> "\n"),
          :ok <- validate_created(path, document) do
       {:ok, path}
@@ -38,15 +47,14 @@ defmodule Wotex.Tracker.Nerves.BrowserProvisioning do
     end
   end
 
-  def provision(_, _, _), do: {:error, :invalid_configuration}
-
-  defp document(port) do
+  defp document(port, scope) do
     %{
-      "schema" => "wtr.browser.v1",
+      "schema" => "wtr.browser.v2",
       "listen" => %{"ip" => "127.0.0.1", "port" => port},
       "exposure" => "loopback",
       "public_origin" => "http://127.0.0.1:#{port}",
-      "secret_key_base" => Base.encode64(:crypto.strong_rand_bytes(64))
+      "secret_key_base" => Base.encode64(:crypto.strong_rand_bytes(64)),
+      "device_session" => %{"scope" => scope}
     }
   end
 

@@ -120,8 +120,10 @@ defmodule Wotex.Tracker.Nerves.ProvisionerTest do
 
     assert result["browser_config_file"] == Path.join(c.root, "browser.json")
     browser = result["browser_config_file"] |> File.read!() |> Codec.decode!()
+    assert browser["schema"] == "wtr.browser.v2"
     assert browser["listen"] == %{"ip" => "127.0.0.1", "port" => 4000}
     assert browser["public_origin"] == "http://127.0.0.1:4000"
+    assert browser["device_session"] == %{"scope" => "workshop"}
     refute Codec.encode!(result) =~ browser["secret_key_base"]
 
     assert {:error, :invalid_arguments} =

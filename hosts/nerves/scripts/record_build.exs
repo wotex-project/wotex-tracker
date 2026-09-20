@@ -51,7 +51,27 @@ defmodule Wotex.Tracker.Nerves.BuildRecord do
           "lib/wotex_tracker_nerves-0.1.0/ebin/Elixir.Wotex.Tracker.Nerves.Kiosk.Process.beam"
         )
 
+      device_session_beam =
+        Path.join(
+          release_root,
+          "lib/wotex_tracker_nerves-0.1.0/ebin/Elixir.Wotex.Tracker.Nerves.Browser.DeviceSession.beam"
+        )
+
+      device_session_plug_beam =
+        Path.join(
+          release_root,
+          "lib/wotex_tracker_nerves-0.1.0/ebin/Elixir.Wotex.Tracker.Nerves.Browser.DeviceSessionPlug.beam"
+        )
+
       true = File.regular?(kiosk_beam)
+      true = File.regular?(device_session_beam)
+      true = File.regular?(device_session_plug_beam)
+
+      {:ok, {Wotex.Tracker.Nerves.Kiosk.Process, [imports: kiosk_imports]}} =
+        :beam_lib.chunks(String.to_charlist(kiosk_beam), [:imports])
+
+      true =
+        {Wotex.Tracker.Nerves.Browser.DeviceSession, :launch_url, 1} in kiosk_imports
     end
 
     {_, :none} = Map.fetch!(apps, "iex")
@@ -175,7 +195,14 @@ defmodule Wotex.Tracker.Nerves.BuildRecord do
           "sqlite_nif_aarch64" => true
         }
         |> then(fn checks ->
-          if ui?, do: Map.put(checks, "myelin_web_extension_aarch64", true), else: checks
+          if ui? do
+            Map.merge(checks, %{
+              "myelin_web_extension_aarch64" => true,
+              "authenticated_local_display_session" => true
+            })
+          else
+            checks
+          end
         end),
       "sources" => %{
         "wotex_tracker" => source(root),

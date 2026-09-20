@@ -34,6 +34,7 @@ defmodule Wotex.Tracker.Nerves.Browser.Endpoint do
 
   plug(Plug.Parsers, parsers: [:urlencoded], pass: [], length: 8192)
   plug(:browser_session)
+  plug(Wotex.Tracker.Nerves.Browser.DeviceSessionPlug)
   plug(Wotex.Tracker.UI.Router)
 
   defp browser_session(conn, _) do

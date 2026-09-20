@@ -15,15 +15,20 @@ data partition and its reboot before its serial probe can pass.
 An offline create-only host provisioner now prepares the exact private service
 tree for `/root/tracker` through the shared service configuration seam. It emits
 only private file paths and can target mounted media without embedding the mount
-path in runtime configuration. It is not an authenticated on-device setup UI or
-media installation. An explicit all-or-nothing direct-TLS mode validates a
+path in runtime configuration. It is not media installation. An explicit
+all-or-nothing direct-TLS mode validates a
 bounded operator-supplied PEM chain and matching unencrypted private key, copies
 them to fixed private create-only paths and writes the direct-TLS service
 configuration without returning contents. It does not issue, establish trust or
 renew certificates. The same command can optionally create a private loopback
-browser document on a distinct port without adding UI
-dependencies to the headless profile. It is not an on-device setup UI. Neither
-Pi image has booted on a Pi. A source-level storage marker now permits one
+browser document on a distinct port without adding UI dependencies to the
+headless profile. Its version-two document binds the attached display to the
+configured scope and private operator token. The kiosk authenticates the token
+server-side, gives Cog only a short-lived single-use nonce and exchanges it on
+loopback for an opaque HTTP-only session before redirecting to Setup. This is
+authenticated software setup, not on-device credential creation or physical
+display evidence. Neither Pi image has booted on a Pi. A source-level storage
+marker now permits one
 prepared initialization and
 makes later missing, unsafe, corrupt or unsupported stores an explicit
 `recovery_required` startup result. No physical storage-recovery or hardware
@@ -103,7 +108,7 @@ match, then installs verified 0600 copies at fixed runtime paths. Partial input,
 malformed or mismatched material and occupied destinations fail closed, with
 rollback limited to paths created by that attempt. This is configuration and
 material staging, not certificate issuance, CA/hostname validation, renewal,
-network reachability or authenticated on-device setup.
+network reachability or on-device credential creation.
 
 ## Local control panel and remote UI
 
@@ -120,6 +125,18 @@ configuration. Disabling/restarting presentation must not reset ingestion or
 rewrite identity. The local control panel MUST work on a physically connected
 display with touch input, without a second computer or an internet connection.
 An authorized browser on another device may use the same shared application.
+
+The source kiosk's closed `wtr.browser.v2` configuration binds one scope to the
+fixed private operator-token file. At display launch, the host authenticates
+that token into the bounded server-held session store and passes Cog only a
+random 60-second nonce. The loopback endpoint consumes the nonce once,
+reauthorizes through the service, renews the encrypted HTTP-only cookie and
+redirects to `/setup`. The bearer and opaque session identifier never enter the
+launch URL, rendered page or LiveView assigns. Sign-out returns to manual
+sign-in; credential expiry or revocation denies subsequent requests and launch
+renewal. This implements authenticated attached-display setup from offline
+provisioned authority. It does not create authority on the device or prove the
+physical display path.
 
 Cog displays the local endpoint full-screen. Keep its process lifetime and
 restart budget separate from the ingestion service. Qualify GPU/DRM, the exact

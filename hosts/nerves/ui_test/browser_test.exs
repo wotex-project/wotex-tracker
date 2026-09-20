@@ -2,6 +2,8 @@ defmodule Wotex.Tracker.Nerves.BrowserTest do
   use ExUnit.Case, async: false
   alias Wotex.Tracker.Nerves.Application, as: HostApplication
   alias Wotex.Tracker.Nerves.Browser.Client
+  alias Wotex.Tracker.Nerves.Browser.DeviceSession
+  alias Wotex.Tracker.Nerves.Browser.DeviceSessionPlug
   alias Wotex.Tracker.Nerves.Browser.Endpoint
   alias Wotex.Tracker.Nerves.BrowserProvisioning
   alias Wotex.Tracker.Nerves.BrowserConfig
@@ -41,15 +43,19 @@ defmodule Wotex.Tracker.Nerves.BrowserTest do
 
     service_path = Path.join(root, "config.json")
     write(service_path, service)
+    token_path = Path.join(root, "operator.token")
+    File.write!(token_path, token <> "\n")
+    File.chmod!(token_path, 0o600)
     {:ok, _marker} = StoragePolicy.provision(root, root, "pi-browser-test")
     port = free_port()
 
     browser = %{
-      "schema" => "wtr.browser.v1",
+      "schema" => "wtr.browser.v2",
       "listen" => %{"ip" => "127.0.0.1", "port" => port},
       "exposure" => "loopback",
       "public_origin" => "http://127.0.0.1:#{port}",
-      "secret_key_base" => Base.encode64(:crypto.strong_rand_bytes(64))
+      "secret_key_base" => Base.encode64(:crypto.strong_rand_bytes(64)),
+      "device_session" => %{"scope" => "workshop"}
     }
 
     browser_path = Path.join(root, "browser.json")
@@ -74,11 +80,12 @@ defmodule Wotex.Tracker.Nerves.BrowserTest do
       browser_path: browser_path,
       browser: browser,
       port: port,
-      token: token
+      token: token,
+      token_path: token_path
     }
   end
 
-  test "a local control panel uses the shared screen and restarts without losing the store", c do
+  test "the attached display exchanges a single-use nonce for an authorized setup session", c do
     Application.put_env(:wotex_tracker_nerves, :data_root, c.root)
     Application.put_env(:wotex_tracker_nerves, :config_path, c.service_path)
     Application.put_env(:wotex_tracker_nerves, :browser_config_path, c.browser_path)
@@ -98,6 +105,42 @@ defmodule Wotex.Tracker.Nerves.BrowserTest do
     assert body =~ "Sign in"
     refute body =~ c.token
 
+    launch = DeviceSession.launch_url(c.browser["public_origin"])
+    nonce = URI.parse(launch).query |> URI.decode_query() |> Map.fetch!("nonce")
+    refute launch =~ c.token
+
+    denied =
+      :get
+      |> Plug.Test.conn(launch)
+      |> Map.put(:remote_ip, {10, 0, 0, 2})
+      |> DeviceSessionPlug.call([])
+
+    assert denied.status == 404
+
+    assert {:ok, {{_, 303, _}, headers, "See Other\n"}} =
+             :httpc.request(:get, {String.to_charlist(launch), []}, [autoredirect: false],
+               body_format: :binary
+             )
+
+    assert header(headers, "location") == "/setup"
+    cookie = headers |> header("set-cookie") |> String.split(";", parts: 2) |> hd()
+
+    assert {:ok, {{_, 200, _}, _, setup}} =
+             :httpc.request(
+               :get,
+               {~c"http://127.0.0.1:#{port}/setup", [{~c"cookie", String.to_charlist(cookie)}]},
+               [],
+               body_format: :binary
+             )
+
+    assert setup =~ "Setup"
+    refute setup =~ "Sign in"
+    refute setup =~ c.token
+    refute setup =~ nonce
+
+    assert {:ok, {{_, 404, _}, _, "Not found\n"}} =
+             :httpc.request(:get, {String.to_charlist(launch), []}, [], body_format: :binary)
+
     [{Wotex.Tracker.Nerves.Browser, browser, _, _} | _] =
       Enum.filter(Supervisor.which_children(host), fn {id, _, _, _} ->
         id == Wotex.Tracker.Nerves.Browser
@@ -116,17 +159,24 @@ defmodule Wotex.Tracker.Nerves.BrowserTest do
 
   test "browser configuration is private, loopback-only and keeps secrets out of inspection", c do
     File.rm!(c.browser_path)
-    assert {:ok, browser_path} = BrowserProvisioning.provision(c.root, c.port)
+    assert {:ok, browser_path} = BrowserProvisioning.provision(c.root, c.port, "workshop")
     browser = browser_path |> File.read!() |> Codec.decode!()
     {:ok, options} = Wotex.Tracker.Service.HTTP.FileConfig.load(c.service_path)
     assert {:ok, config} = BrowserConfig.load(c.browser_path, c.root, options)
     assert config.port == c.port
+    assert config.device_session == %{scope: "workshop", token_file: c.token_path}
     refute inspect(config) =~ browser["secret_key_base"]
+    refute inspect(config) =~ c.token_path
+
+    legacy = browser |> Map.delete("device_session") |> Map.put("schema", "wtr.browser.v1")
+    write(c.browser_path, legacy)
+    assert {:ok, %{device_session: nil}} = BrowserConfig.load(c.browser_path, c.root, options)
 
     for changed <- [
           Map.put(browser, "secret_key_base", "short"),
           Map.put(browser, "exposure", "proxy"),
           Map.put(browser, "public_origin", "http://foreign.example"),
+          put_in(browser, ["device_session", "scope"], "other"),
           Map.put(browser, "extra", true)
         ] do
       write(c.browser_path, changed)
@@ -137,6 +187,22 @@ defmodule Wotex.Tracker.Nerves.BrowserTest do
 
     write(c.browser_path, browser)
     File.chmod!(c.browser_path, 0o644)
+    assert {:error, :invalid_configuration} = BrowserConfig.load(c.browser_path, c.root, options)
+
+    write(c.browser_path, browser)
+    File.write!(c.token_path, Credentials.generate_token() <> "\n")
+    File.chmod!(c.token_path, 0o600)
+    assert {:error, :invalid_configuration} = BrowserConfig.load(c.browser_path, c.root, options)
+
+    File.write!(c.token_path, c.token <> "\n")
+    File.chmod!(c.token_path, 0o644)
+    assert {:error, :invalid_configuration} = BrowserConfig.load(c.browser_path, c.root, options)
+
+    source = c.token_path <> ".source"
+    File.write!(source, c.token <> "\n")
+    File.chmod!(source, 0o600)
+    File.rm!(c.token_path)
+    File.ln_s!(source, c.token_path)
     assert {:error, :invalid_configuration} = BrowserConfig.load(c.browser_path, c.root, options)
   end
 
@@ -157,6 +223,13 @@ defmodule Wotex.Tracker.Nerves.BrowserTest do
   defp write(path, document) do
     File.write!(path, Codec.encode!(document))
     File.chmod!(path, 0o600)
+  end
+
+  defp header(headers, name) do
+    headers
+    |> Enum.find_value(fn {key, value} ->
+      if String.downcase(to_string(key)) == name, do: to_string(value)
+    end)
   end
 
   defp free_port do
