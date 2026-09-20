@@ -366,6 +366,9 @@ defmodule Wotex.Tracker.UI.AccessLive do
             <tr>
               <th scope="row">Manage queries</th><td>{status(@identity["can_manage_queries"])}</td>
             </tr>
+            <tr>
+              <th scope="row">Invoke Actions</th><td>{status(@identity["can_interact"])}</td>
+            </tr>
           </tbody>
         </table>
         <p>

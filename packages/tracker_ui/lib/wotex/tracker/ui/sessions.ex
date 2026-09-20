@@ -73,7 +73,8 @@ defmodule Wotex.Tracker.UI.Sessions do
       "can_enroll" => false,
       "can_ingest" => false,
       "can_read_raw" => false,
-      "can_manage_queries" => false
+      "can_manage_queries" => false,
+      "can_interact" => false
     }
 
     with true <- byte_size(token) <= 256 and byte_size(scope) <= 128,

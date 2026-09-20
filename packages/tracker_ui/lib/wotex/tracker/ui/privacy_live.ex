@@ -16,7 +16,17 @@ defmodule Wotex.Tracker.UI.PrivacyLive do
   alias Wotex.Tracker.UI.{Auth, Presenter}
 
   @confirmation "delete retained domain data"
-  @retained_keys ~w(observations record_versions events publications queued_deliveries rule_states rule_event_intents operation_receipts)
+  @retained_keys ~w(
+    observations
+    record_versions
+    events
+    publications
+    queued_deliveries
+    action_intents
+    rule_states
+    rule_event_intents
+    operation_receipts
+  )
   @preserved_keys ~w(credential_revocations successful_access_entries)
   @post_deletion %{
     "observations" => 0,
@@ -24,6 +34,7 @@ defmodule Wotex.Tracker.UI.PrivacyLive do
     "events" => 1,
     "publications" => 0,
     "queued_deliveries" => 0,
+    "action_intents" => 0,
     "rule_states" => 0,
     "rule_event_intents" => 0,
     "operation_receipts" => 1

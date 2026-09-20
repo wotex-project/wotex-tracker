@@ -145,6 +145,7 @@ defmodule Wotex.Tracker.Mobile.CredentialManager do
            "can_ingest" => false,
            "can_read_raw" => false,
            "can_manage_queries" => false,
+           "can_interact" => false,
            "_offline" => true
          }}
       else

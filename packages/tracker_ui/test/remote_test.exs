@@ -120,6 +120,14 @@ defmodule Wotex.Tracker.UI.RemoteTest do
           {:access_audit, %{"params" => "invalid"}},
           {:privacy, %{"extra" => true}},
           {:submit, %{"operation" => "", "request" => %{}}},
+          {:action_status, %{"operation" => ""}},
+          {:invoke_action,
+           %{
+             "thing" => "asset",
+             "name" => "refresh",
+             "operation" => "",
+             "request" => %{"expected_generation" => "4", "input" => 5}
+           }},
           {:analytics, %{"query" => String.duplicate("x", 1_048_577)}},
           {:analytics, %{"query" => self()}}
         ] do
@@ -223,6 +231,14 @@ defmodule Wotex.Tracker.UI.RemoteTest do
        "/things/asset/trips/trip-1", nil},
       {:read_property, %{"thing" => "asset", "name" => "temperature"}, "GET",
        "/things/asset/properties/temperature", nil},
+      {:action_status, %{"operation" => @operation}, "GET", "/actions/#{@operation}", nil},
+      {:invoke_action,
+       %{
+         "thing" => "asset",
+         "name" => "refresh",
+         "operation" => @operation,
+         "request" => %{"expected_generation" => "4", "input" => 5}
+       }, "POST", "/things/asset/actions/refresh", %{"expected_generation" => "4", "input" => 5}},
       {:raw_observation, %{"id" => "capture"}, "GET", "/observations/capture/raw", nil},
       {:raw_evidence, %{"id" => "capture"}, "GET", "/evidence/capture/raw", nil},
       {:history, %{"resource" => "state", "id" => "asset", "params" => %{"limit" => 50}}, "GET",
@@ -279,7 +295,7 @@ defmodule Wotex.Tracker.UI.RemoteTest do
         assert request.body == ""
       end
 
-      if action in Keyword.keys(mutation_cases),
+      if action in [:invoke_action | Keyword.keys(mutation_cases)],
         do: assert(header(request, "idempotency-key") == @operation),
         else: assert(is_nil(header(request, "idempotency-key")))
     end
@@ -303,7 +319,8 @@ defmodule Wotex.Tracker.UI.RemoteTest do
               "can_enroll" => true,
               "can_ingest" => true,
               "can_read_raw" => true,
-              "can_manage_queries" => true
+              "can_manage_queries" => true,
+              "can_interact" => true
             }} = Remote.request(remote, @token, "workshop", :authorize, %{}, 0)
 
     assert_receive {:remote_request, _, %{path: "/api/v1/scopes/workshop/access"}}
@@ -315,7 +332,8 @@ defmodule Wotex.Tracker.UI.RemoteTest do
                 "can_enroll" => true,
                 "can_ingest" => true,
                 "can_read_raw" => true,
-                "can_manage_queries" => true
+                "can_manage_queries" => true,
+                "can_interact" => true
               },
               "access" => %{
                 "credential_id" => "admin",
@@ -428,6 +446,21 @@ defmodule Wotex.Tracker.UI.RemoteTest do
 
     assert {:error, %{"code" => "unsupported"}} =
              Remote.request(crashing, @token, "workshop", :arbitrary, %{}, 0)
+
+    assert {:ok, %{"outcome" => "unknown", "operation_id" => @operation}} =
+             Remote.request(
+               crashing,
+               @token,
+               "workshop",
+               :invoke_action,
+               %{
+                 "thing" => "asset",
+                 "name" => "refresh",
+                 "operation" => @operation,
+                 "request" => %{"expected_generation" => "4", "input" => 5}
+               },
+               0
+             )
   end
 
   test "the production transport calls a loopback service without changing service semantics" do

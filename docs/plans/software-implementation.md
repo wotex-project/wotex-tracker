@@ -569,6 +569,15 @@ armed, disarmed, unknown, unavailable and unsupported arming state. Assets with
 a motion definition link to a shared arming screen whose administrator controls
 use a stable operation, generation check and explicit confirmation; committed
 state is reread before success and never described as a device change.
+Assets with validated Action declarations also link to one shared Interactions
+screen. It omits TD Forms and endpoints, admits only bounded primitive input
+schemas, captures the exact Thing generation and operation identity before the
+final confirmation, and sends at most one invocation mutation. Lost replies and
+reconnects recover only through the durable Action-status read. Queued and
+protocol-accepted outcomes remain distinct from device completion and physical
+effect. The same route is inherited by browser, Pi and mobile host
+compositions; offline mobile identity denies invocation and no Action enters the
+offline cache.
 Revocation, read-only denial, stale writes, lost replies and real HTTP session
 security are exercised. The UI-enabled bundles also pass an authenticated
 browser asset and restart probe. A shared Protection page and per-rule history

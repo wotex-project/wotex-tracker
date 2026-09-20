@@ -85,6 +85,10 @@ defmodule Wotex.Tracker.UI.Presenter do
   @spec arming_path(String.t()) :: String.t()
   def arming_path(thing) when is_binary(thing), do: path(:asset, thing) <> "/arming"
 
+  @doc "Builds the local path for one asset's declared Actions."
+  @spec interaction_path(String.t()) :: String.t()
+  def interaction_path(thing) when is_binary(thing), do: path(:asset, thing) <> "/interactions"
+
   @doc "Builds the local path for one saved dashboard definition."
   @spec dashboard_path(String.t()) :: String.t()
   def dashboard_path(id) when is_binary(id),

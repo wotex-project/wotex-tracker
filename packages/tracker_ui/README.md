@@ -47,6 +47,15 @@ fixed offset, distance conversion and rounding declaration with the exact
 canonical summary.
 The asset page reads declared scalar Properties from the authorized committed
 service snapshot, with no physical-device freshness claim.
+Its Interactions page projects validated Thing Action declarations without
+rendering their Forms, endpoints or credentials. Only bounded primitive input
+schemas are editable; unsupported constraints remain visible but cannot be
+submitted. An `interact` grant, the exact Thing generation, a stable operation
+reference and a second explicit confirmation are required before the page sends
+one invocation request. A timeout or disconnect never causes an automatic
+retry. Reconnect and manual checks use the separate durable Action-status read,
+and queued or protocol-accepted work is never described as device completion or
+a physical effect.
 Asset cards now read each latest committed state separately. They show retained
 measurement values, position source/uncertainty and provenance, distinguish
 unprovisioned from temporarily unavailable summaries, and make no
@@ -168,7 +177,8 @@ option. The adapter verifies TLS against the host trust store, admits bounded
 requests and responses, follows no redirects and retains no credential. A
 mutation is sent once with its stable idempotency key. Transport or malformed
 response ambiguity returns `unknown` with that operation ID so the caller can
-recover through the durable receipt instead of automatically repeating it.
+recover through the durable receipt or Action-status resource instead of
+automatically repeating it.
 
 Capture import, enrollment, association and provisioning acquire a stable operation reference
 in the page URL before exposing a submit control. Reconnect checks the durable
@@ -196,11 +206,11 @@ The first cohort exercises real authorized services, duplicate prevention,
 lost-reply recovery, revocation, read-only denial, upload bounds, bounded
 lists/history, CSRF protection and credential custody. Device discovery and
 capture, basemaps, owner-presence capture, physical notification delivery,
-interactions, qualified hardware anti-stalking mechanisms and physical cross-surface accessibility remain
-subsequent work. A
+qualified physical Action/device interaction, hardware anti-stalking mechanisms
+and physical cross-surface accessibility remain subsequent work. A
 responsive browser view does not qualify a mobile or Pi application.
 
-The test cohort applies one semantic document audit to 18 primary shared routes.
+The test cohort applies one semantic document audit to 19 primary shared routes.
 It requires an explicit document language, one main landmark and page heading,
 ordered headings, unique IDs, valid ARIA references, labelled controls, named
 actions and regions, table captions, and accessible graphics. Negative fixtures

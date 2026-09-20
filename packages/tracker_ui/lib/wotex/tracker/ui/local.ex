@@ -31,7 +31,8 @@ defmodule Wotex.Tracker.UI.Local do
            "can_enroll" => "enroll" in permissions,
            "can_ingest" => "ingest" in permissions,
            "can_read_raw" => "raw" in permissions,
-           "can_manage_queries" => "admin" in permissions
+           "can_manage_queries" => "admin" in permissions,
+           "can_interact" => "interact" in permissions
          }}
 
       {:error, %{"code" => _} = error} ->
@@ -135,6 +136,22 @@ defmodule Wotex.Tracker.UI.Local do
     Service.read_property(service, token, scope, args["thing"], args["name"], context, now)
   end
 
+  defp dispatch(service, token, scope, :invoke_action, args, now),
+    do:
+      Service.invoke_action(
+        service,
+        token,
+        scope,
+        args["operation"],
+        args["thing"],
+        args["name"],
+        args["request"],
+        now
+      )
+
+  defp dispatch(service, token, scope, :action_status, args, now),
+    do: Service.action_status(service, token, scope, args["operation"], now)
+
   defp dispatch(service, token, scope, :raw_observation, args, now),
     do: Service.raw_observation(service, token, scope, args["id"], now)
 
@@ -234,7 +251,8 @@ defmodule Wotex.Tracker.UI.Local do
         "can_enroll" => "enroll" in permissions,
         "can_ingest" => "ingest" in permissions,
         "can_read_raw" => "raw" in permissions,
-        "can_manage_queries" => "admin" in permissions
+        "can_manage_queries" => "admin" in permissions,
+        "can_interact" => "interact" in permissions
       },
       "access" => %{
         "credential_id" => access["credential_id"],

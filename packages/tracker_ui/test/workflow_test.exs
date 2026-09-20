@@ -43,6 +43,7 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
 
   setup do
     c = service()
+    c = %{c | service: %{c.service | action_delivery: :configured}}
     faults = start_supervised!({Agent, fn -> %{} end})
 
     prompt =
@@ -111,6 +112,289 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     refute has_element?(asset, "button", "Provision Thing")
     {:ok, state} = Service.get(c.service, c.admin, c.scope, "state", thing, c.now)
     assert state["value"]["measurements"] != []
+  end
+
+  test "declared Actions require one confirmation and recover a lost reply without replay", c do
+    {thing, thing_generation} = action_thing(c)
+    interaction_path = Presenter.interaction_path(thing)
+
+    {:ok, asset, _} =
+      live(c.conn, Presenter.path(:asset, thing) <> "?operation=" <> Identifier.uuid())
+
+    assert has_element?(asset, ~s(a[href="#{interaction_path}"]), "Interactions")
+
+    {:ok, view, html} = live(c.conn, interaction_path)
+    assert has_element?(view, "h1", "Actions for Workshop sensor")
+    assert has_element?(view, "h3", "Request report")
+    assert has_element?(view, "#prepare-action-0")
+    refute html =~ "device.invalid"
+
+    view
+    |> form("#prepare-action-0", interaction: %{action: "refresh", value: "0"})
+    |> render_submit()
+
+    assert has_element?(view, "[role=alert]", "Check the required fields")
+    assert has_element?(view, "#prepare-action-0")
+    refute has_element?(view, "#action-confirmation")
+
+    view
+    |> form("#prepare-action-0", interaction: %{action: "refresh", value: "5"})
+    |> render_submit()
+
+    prepared_path = assert_patch(view)
+    query = prepared_path |> URI.parse() |> Map.fetch!(:query) |> URI.decode_query()
+    operation = query["operation"]
+    assert query["action"] == "refresh"
+    assert has_element?(view, "#action-confirmation")
+    assert render(view) =~ "Review the exact input: <code>5</code>"
+
+    assert {:error, %{"code" => "not_found"}} =
+             Service.action_status(c.service, c.admin, c.scope, operation, c.now)
+
+    render_submit(view, "invoke", %{})
+    assert has_element?(view, "[role=alert]", "Check the required fields")
+    assert has_element?(view, "#action-confirmation")
+
+    Agent.update(c.faults, &Map.put(&1, :invoke_action, :lost_reply))
+
+    view
+    |> form("#action-confirmation", interaction: %{confirmed: "yes"})
+    |> render_submit()
+
+    assert has_element?(view, "[role=status]", "Invocation admission outcome unknown")
+    refute has_element?(view, "#action-confirmation")
+
+    assert {:ok,
+            %{
+              "operation_id" => ^operation,
+              "thing" => %{"id" => ^thing, "generation" => ^thing_generation},
+              "action" => "refresh",
+              "status" => "queued",
+              "physical_effect" => "not_dispatched"
+            }} = Service.action_status(c.service, c.admin, c.scope, operation, c.now)
+
+    view |> element("button", "Check Action outcome") |> render_click()
+    assert has_element?(view, "[role=status]", "Action queued for one dispatch attempt")
+    assert has_element?(view, "dl", "Physical effectNot dispatched")
+
+    {:ok, resumed, resumed_html} = live(c.conn, prepared_path)
+    assert has_element?(resumed, "[role=status]", "Action queued for one dispatch attempt")
+    refute has_element?(resumed, "#action-confirmation")
+    refute resumed_html =~ "device.invalid"
+    refute resumed_html =~ ~s(value="5")
+  end
+
+  test "Action declarations remain read-only without interaction authority", c do
+    {thing, _generation} = action_thing(c)
+    path = Presenter.interaction_path(thing)
+    {:ok, %{"id" => reader}} = Sessions.login(c.sessions, c.reader, c.scope)
+    conn = build_conn() |> init_test_session(%{"browser_session" => reader})
+
+    {:ok, view, html} = live(conn, path)
+    assert has_element?(view, "h3", "Request report")
+    assert html =~ "cannot invoke them"
+    refute has_element?(view, "#prepare-action-0")
+    refute html =~ "device.invalid"
+
+    render_submit(view, "prepare", %{
+      "interaction" => %{"action" => "refresh", "value" => "5"}
+    })
+
+    assert has_element?(view, "[role=alert]", "does not permit")
+
+    assert {:error, %{"code" => "forbidden"}} =
+             Service.action_status(c.service, c.reader, c.scope, Identifier.uuid(), c.now)
+  end
+
+  test "an asset without declared Actions reports the empty interaction state", c do
+    thing = provisioned(c)
+    {:ok, view, _html} = live(c.conn, Presenter.interaction_path(thing))
+    assert has_element?(view, "h2", "No declared Actions")
+    refute has_element?(view, "form")
+  end
+
+  test "Action forms render only supported bounded primitive inputs", c do
+    actions = %{
+      "confirm" => action_declaration("Confirm state", %{"type" => "boolean"}),
+      "note" =>
+        action_declaration("Attach note", %{
+          "type" => "string",
+          "minLength" => 1,
+          "maxLength" => 20
+        }),
+      "patterned" =>
+        action_declaration("Patterned input", %{"type" => "string", "pattern" => "x"}),
+      "ratio" => action_declaration("Set ratio", %{"type" => "number", "unit" => "1"}),
+      "restart" => action_declaration("Restart", nil),
+      "voltage" => action_declaration("Set voltage", %{"type" => "number", "unit" => "V"})
+    }
+
+    {thing, _generation} = action_thing(c, actions)
+    {:ok, view, html} = live(c.conn, Presenter.interaction_path(thing))
+
+    assert has_element?(view, "select#action-input-0")
+    assert has_element?(view, ~s(input#action-input-1[type="text"]))
+    refute has_element?(view, "#prepare-action-2")
+    assert has_element?(view, ~s(input#action-input-3[type="number"][step="any"]))
+    assert has_element?(view, "#prepare-action-4")
+    assert has_element?(view, "#prepare-action-5", "Prepare Set voltage")
+    assert html =~ "Input (V)"
+    refute html =~ "Input ()"
+
+    render_click(view, "not-an-interaction-event", %{})
+
+    view
+    |> form("#prepare-action-4", interaction: %{action: "restart"})
+    |> render_submit()
+
+    assert has_element?(view, "#action-confirmation")
+    assert render(view) =~ "Review the exact input: <code>No input</code>"
+  end
+
+  test "the interaction route fails closed for invalid references and read failures", c do
+    {thing, _generation} = action_thing(c)
+    path = Presenter.interaction_path(thing)
+
+    {:ok, invalid, _} = live(c.conn, path <> "?operation=bad&action=refresh")
+    assert has_element?(invalid, "[role=alert]", "Check the required fields")
+    refute has_element?(invalid, "#action-outcome-title")
+
+    {:ok, incomplete, _} = live(c.conn, path <> "?operation=#{Identifier.uuid()}")
+    assert has_element?(incomplete, "[role=alert]", "Check the required fields")
+    refute has_element?(incomplete, "#action-outcome-title")
+
+    {:ok, view, _} = live(c.conn, path)
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, "h3", "Request report")
+
+    Agent.update(c.faults, &Map.put(&1, :get, {:deny, "forbidden"}))
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, "h1", "Actions unavailable")
+    refute has_element?(view, "h3", "Request report")
+
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, "h3", "Request report")
+
+    Agent.update(c.faults, &Map.put(&1, :get, :unavailable))
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, "h3", "Request report")
+    assert has_element?(view, "[role=alert]")
+
+    Agent.update(c.faults, &Map.put(&1, :get, {:reply, {:ok, %{}}}))
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, "h1", "Actions unavailable")
+
+    {:ok, %{"value" => thing_document}} =
+      Service.get(c.service, c.admin, c.scope, "things", thing, c.now)
+
+    malformed_generation = {:ok, %{"value" => thing_document, "generation" => :invalid}}
+
+    Agent.update(
+      c.faults,
+      &Map.put(&1, :get, {:persistent, {:get_page, malformed_generation}})
+    )
+
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, "h1", "Actions unavailable")
+    Agent.update(c.faults, &Map.delete(&1, :get))
+
+    Agent.update(c.faults, &Map.put(&1, :get, {:persistent, {:reply, {:ok, %{}}}}))
+    operation = Identifier.uuid()
+    {:ok, unavailable, _} = live(c.conn, path <> "?operation=#{operation}&action=refresh")
+    assert has_element?(unavailable, "#action-outcome-title")
+    assert has_element?(unavailable, "[role=alert]")
+    Agent.update(c.faults, &Map.delete(&1, :get))
+  end
+
+  test "interaction invocation and status failures never open a replay path", c do
+    {thing, _generation} = action_thing(c)
+    path = Presenter.interaction_path(thing)
+
+    for {fault, expected} <- [
+          {{:reply, {:error, %{"code" => "conflict", "outcome" => "not_committed"}}},
+           "Invocation was not committed"},
+          {:unavailable, "Invocation admission outcome unknown"},
+          {{:reply, :malformed}, "Invocation admission outcome unknown"}
+        ] do
+      {:ok, view, _} = live(c.conn, path)
+
+      view
+      |> form("#prepare-action-0", interaction: %{action: "refresh", value: "5"})
+      |> render_submit()
+
+      _prepared_path = assert_patch(view)
+      Agent.update(c.faults, &Map.put(&1, :invoke_action, fault))
+
+      view
+      |> form("#action-confirmation", interaction: %{confirmed: "yes"})
+      |> render_submit()
+
+      assert has_element?(view, "[role=status]", expected)
+      refute has_element?(view, "#action-confirmation")
+    end
+
+    {:ok, committed, _} = live(c.conn, path)
+
+    committed
+    |> form("#prepare-action-0", interaction: %{action: "refresh", value: "5"})
+    |> render_submit()
+
+    _committed_path = assert_patch(committed)
+
+    committed
+    |> form("#action-confirmation", interaction: %{confirmed: "yes"})
+    |> render_submit()
+
+    assert has_element?(committed, "[role=status]", "Action queued for one dispatch attempt")
+
+    operation = Identifier.uuid()
+    status_path = path <> "?operation=#{operation}&action=refresh"
+
+    Agent.update(c.faults, &Map.put(&1, :action_status, {:persistent, :unavailable}))
+    {:ok, status_view, _} = live(c.conn, status_path)
+    assert has_element?(status_view, "[role=alert]")
+    Agent.update(c.faults, &Map.delete(&1, :action_status))
+
+    Agent.update(c.faults, &Map.put(&1, :action_status, {:reply, {:ok, %{}}}))
+    status_view |> element("button", "Check Action outcome") |> render_click()
+    assert has_element?(status_view, "[role=alert]", "different workflow")
+  end
+
+  test "closed Action statuses keep dispatch distinct from physical effect", c do
+    {thing, generation} = action_thing(c)
+    path = Presenter.interaction_path(thing)
+
+    cases = [
+      {"unknown", "dispatch_started", "Action dispatch outcome unknown"},
+      {"accepted", "protocol_accepted", "Action protocol accepted"},
+      {"denied", "authorization_or_revision_changed", "Action denied before dispatch"},
+      {"failed", "runtime_selection", "Action failed before transport"}
+    ]
+
+    for {status, classification, label} <- cases do
+      operation = Identifier.uuid()
+      document = public_action_status(operation, thing, generation, status, classification, c.now)
+
+      Agent.update(
+        c.faults,
+        &Map.put(&1, :action_status, {:persistent, {:reply, {:ok, document}}})
+      )
+
+      {:ok, view, _} = live(c.conn, path <> "?operation=#{operation}&action=refresh")
+      assert has_element?(view, "[role=status]", label)
+
+      if status in ~w(unknown accepted) do
+        assert has_element?(
+                 view,
+                 "dl",
+                 "Physical effectUnknown — device completion is not proven"
+               )
+      else
+        assert has_element?(view, "dl", "Physical effectNot dispatched")
+      end
+
+      Agent.update(c.faults, &Map.delete(&1, :action_status))
+    end
   end
 
   test "asset overview shows each provisioned asset's rule status", c do
@@ -504,6 +788,7 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert html =~ "workshop"
     assert html =~ "Export raw evidence"
     assert has_element?(view, "tbody tr:nth-child(4) td", "Allowed")
+    assert has_element?(view, "tbody tr:nth-child(6) td", "Allowed")
     refute html =~ c.admin
 
     Agent.update(c.faults, &Map.put(&1, :access, :unavailable))
@@ -521,6 +806,7 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     {:ok, reader_view, _} = live(conn, "/access")
     assert render(reader_view) =~ "viewer"
     assert has_element?(reader_view, "tbody tr:nth-child(4) td", "Not allowed")
+    assert has_element?(reader_view, "tbody tr:nth-child(6) td", "Not allowed")
     refute render(reader_view) =~ c.reader
   end
 
@@ -1034,7 +1320,7 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
   end
 
   test "primary shared screens pass the semantic accessibility baseline", c do
-    thing = provisioned(c)
+    {thing, _generation} = action_thing(c)
     {dashboard, _} = saved_dashboard(c, thing)
 
     paths = [
@@ -1046,6 +1332,7 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
       Presenter.path(:asset, thing) <> "/route",
       Presenter.path(:asset, thing) <> "/trips",
       Presenter.arming_path(thing),
+      Presenter.interaction_path(thing),
       Presenter.path(:asset, thing) <> "/protection?operation=#{Identifier.uuid()}",
       Presenter.path(:asset, thing) <> "/remove?operation=#{Identifier.uuid()}",
       Presenter.dashboard_path(dashboard),
@@ -6606,6 +6893,79 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     materialize(c, thing, "2")
     thing
   end
+
+  defp action_thing(c, actions \\ nil) do
+    thing = provisioned(c)
+    {:ok, access} = Service.authorize(c.service, c.admin, c.scope, "enroll", c.now)
+
+    {:ok, row} =
+      Store.fetch(c.store, %{scope: c.scope, kind: "things", id: thing, generation: nil})
+
+    actions =
+      actions ||
+        %{
+          "refresh" =>
+            action_declaration(
+              "Request report",
+              %{"type" => "integer", "minimum" => 1, "maximum" => 10},
+              "Requests one fresh device report"
+            )
+        }
+
+    td = Map.put(row["value"]["public"], "actions", actions)
+    assert {:ok, _} = Wotex.ThingDescription.from_map(td)
+    value = Map.put(row["value"], "public", td)
+    expected_generation = generation(c)
+
+    {:ok, update} =
+      Update.new(%{
+        principal: access.principal,
+        scope: c.scope,
+        authority: access,
+        operation_id: Identifier.uuid(),
+        expected_generation: expected_generation,
+        request: %{"operation" => "install_action_fixture", "thing_id" => thing},
+        now: c.now,
+        observation: nil,
+        records: [%{kind: "things", id: thing, value: value}],
+        events: [%{"type" => "thing.changed", "data" => %{"id" => thing}}],
+        publication: nil
+      })
+
+    assert {:ok, %{"generation" => thing_generation}} = Store.mutate(c.store, update)
+    {thing, thing_generation}
+  end
+
+  defp action_declaration(title, input, description \\ nil) do
+    declaration = %{
+      "title" => title,
+      "forms" => [
+        %{
+          "href" => "https://device.invalid/actions/refresh",
+          "op" => ["invokeaction"],
+          "contentType" => "application/json"
+        }
+      ]
+    }
+
+    declaration = if input, do: Map.put(declaration, "input", input), else: declaration
+    if description, do: Map.put(declaration, "description", description), else: declaration
+  end
+
+  defp public_action_status(operation, thing, generation, status, classification, now),
+    do: %{
+      "schema" => "wtr.action-status.v1",
+      "operation_id" => operation,
+      "thing" => %{"id" => thing, "generation" => generation},
+      "action" => "refresh",
+      "status" => status,
+      "admitted_at" => now,
+      "claimed_at" => now,
+      "settled_at" => if(status == "unknown", do: nil, else: now),
+      "outcome" => %{"classification" => classification, "completed_at" => now},
+      "physical_effect" =>
+        if(status in ~w(unknown accepted), do: "unknown", else: "not_dispatched")
+    }
 
   defp trip_page(thing, now, cursor, generation, mode \\ :full) do
     items =

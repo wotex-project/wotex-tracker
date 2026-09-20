@@ -152,6 +152,7 @@ defmodule Wotex.Tracker.Mobile.ClientTest do
               "can_ingest" => false,
               "can_read_raw" => false,
               "can_manage_queries" => false,
+              "can_interact" => false,
               "_offline" => true
             }} = request(c.client, :authorize, %{})
 
@@ -165,6 +166,17 @@ defmodule Wotex.Tracker.Mobile.ClientTest do
 
     assert {:ok, %{"outcome" => "unknown", "operation_id" => ^operation}} =
              request(c.client, :submit, %{"operation" => operation, "request" => %{}})
+
+    assert {:ok, %{"outcome" => "unknown", "operation_id" => ^operation}} =
+             request(c.client, :invoke_action, %{
+               "thing" => "bike",
+               "name" => "refresh",
+               "operation" => operation,
+               "request" => %{"expected_generation" => "4", "input" => 5}
+             })
+
+    assert {:error, %{"code" => "storage_unavailable"}} =
+             request(c.client, :action_status, %{"operation" => operation})
 
     assert {:error, %{"code" => "storage_unavailable"}} =
              request(c.client, :raw_observation, %{"id" => "capture"})

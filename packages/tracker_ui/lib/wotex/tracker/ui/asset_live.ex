@@ -259,6 +259,12 @@ defmodule Wotex.Tracker.UI.AssetLive do
         Protection rules
       </a>
       <a
+        :if={@thing && is_map(@thing["actions"]) && map_size(@thing["actions"]) > 0}
+        href={Presenter.interaction_path(@id)}
+      >
+        Interactions
+      </a>
+      <a
         :if={@enrollment && @identity["can_manage_queries"]}
         class="secondary"
         href={Presenter.path(:asset, @id) <> "/remove"}

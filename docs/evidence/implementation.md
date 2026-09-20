@@ -5572,3 +5572,49 @@ monorepo contain concurrent uncommitted work. No source or service-consumer
 receipt was changed, and this local-path result is not promoted as immutable
 production-archive evidence. That qualification remains pending until the
 adjacent package paths are clean and the complete qualifier is rerun.
+
+### Shared confirmed Action workflow — 2026-09-20
+
+The shared LiveView package now projects validated Thing Action declarations on
+an asset Interactions route without exposing TD Forms, endpoints, credentials or
+retained input. Bounded boolean, integer, number, string and input-free Actions
+receive ordinary labelled controls; constraints that the shared form cannot
+enforce exactly remain visible but cannot be submitted. Current `interact`
+authority, the exact Thing generation, a stable operation UUID in the address
+and a second explicit confirmation are all required before one mutation request
+is sent.
+
+The local client calls the service Action boundary directly and the remote
+client maps the same closed request to `POST …/things/{thing}/actions/{action}`
+with one idempotency key. Neither path retries. A lost reply closes the form and
+requires the separate `GET …/actions/{operation}` recovery read. Status
+admission checks the exact operation, Thing, generation, Action, lifecycle,
+timestamps, outcome classification and physical-effect declaration. Queued,
+unknown, protocol-accepted, denied and pre-transport failure remain distinct;
+none is presented as device completion. Read-only credentials can inspect
+declarations but cannot prepare or forge an invocation.
+
+The monorepo seam update also replaced the stale Thing `record_generation`
+expectation with the service's public `generation` field and extended the
+Privacy page's exact schema-9 projection with `action_intents`, including its
+post-deletion zero-state verification. The Access page exposes the interaction
+grant. Conservative restored and mobile-offline identities deny that grant, and
+the mobile client neither caches Action status nor queues an invocation. The
+semantic accessibility cohort now includes 19 primary shared routes.
+
+The complete shared-UI gate passed 184 tests on both Elixir 1.18.4/Erlang/OTP
+27.3.4.15 and Elixir 1.20.4/Erlang/OTP 29.0.4 at 95.2% production line
+coverage. The Action projector reached 96.2% and the interaction LiveView 99.2%.
+Compiler, unused-dependency, formatter, vulnerability audit, strict Credo,
+ExDoc, Dialyzer, stack-language, archive and licence checks passed in both
+lanes; the archive contained 61 members and all 57 package-owned source/assets.
+The pinned mobile host gate passed 64 tests at 95.6% on Elixir 1.19.5/Erlang/OTP
+27.3.4.15 with all configured checks. The optional standalone browser host gate
+passed 38 tests at 96.1%, including its CLI and locked native-consumer checks,
+and the Pi kiosk host composition passed all 51 host tests. The complete root
+gate also re-passed 201 tests, 19 generated properties and one doctest at 95.1%
+on the floor lane, including the documentation-contract and archive checks.
+
+The tests use a validated synthetic Action and stop at a durable queued intent.
+No dispatcher, packaged device Action, firmware image, physical adapter, device
+acknowledgement, completion or physical effect was exercised or claimed.

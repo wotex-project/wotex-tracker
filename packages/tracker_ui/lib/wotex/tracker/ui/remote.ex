@@ -176,6 +176,22 @@ defmodule Wotex.Tracker.UI.Remote do
        when map_size(arguments) == 2,
        do: {:ok, get(["things", thing, "properties", name])}
 
+  defp route(
+         :invoke_action,
+         %{
+           "thing" => thing,
+           "name" => name,
+           "operation" => operation,
+           "request" => request
+         } = arguments
+       )
+       when map_size(arguments) == 4,
+       do: mutation(["things", thing, "actions", name], operation, request)
+
+  defp route(:action_status, %{"operation" => operation} = arguments)
+       when map_size(arguments) == 1,
+       do: {:ok, get(["actions", operation])}
+
   defp route(:raw_observation, %{"id" => id} = arguments) when map_size(arguments) == 1,
     do: {:ok, raw(["observations", id, "raw"], "application/vnd.wotex.tracker.observation+json")}
 
@@ -333,7 +349,8 @@ defmodule Wotex.Tracker.UI.Remote do
          "can_enroll" => "enroll" in permissions,
          "can_ingest" => "ingest" in permissions,
          "can_read_raw" => "raw" in permissions,
-         "can_manage_queries" => "admin" in permissions
+         "can_manage_queries" => "admin" in permissions,
+         "can_interact" => "interact" in permissions
        }}
     else
       unavailable()
@@ -351,7 +368,8 @@ defmodule Wotex.Tracker.UI.Remote do
            "can_enroll" => "enroll" in permissions,
            "can_ingest" => "ingest" in permissions,
            "can_read_raw" => "raw" in permissions,
-           "can_manage_queries" => "admin" in permissions
+           "can_manage_queries" => "admin" in permissions,
+           "can_interact" => "interact" in permissions
          },
          "access" => %{
            "credential_id" => access["credential_id"],
@@ -525,7 +543,8 @@ defmodule Wotex.Tracker.UI.Remote do
   end
 
   defp failure(action, %{"operation" => operation})
-       when is_map_key(@mutations, action) and is_binary(operation),
+       when (action == :invoke_action or is_map_key(@mutations, action)) and
+              is_binary(operation),
        do: unknown(operation)
 
   defp failure(_, _), do: unavailable()
