@@ -8,7 +8,7 @@
     {:credo, command: "mix credo --strict"},
     {:boundary_credo,
      command: "mix credo --strict ../../scripts/openapi.exs ../../scripts/http_consumer.exs"},
-    {:dialyzer, command: "mix dialyzer"},
+    {:dialyzer, command: "mix dialyzer --force-check"},
     {:ex_doc, command: "mix docs --warnings-as-errors"},
     {:mix_audit, command: "mix deps.audit"},
     {:stack_language, command: "mix run --no-start ../../scripts/check_stack_language.exs"},
