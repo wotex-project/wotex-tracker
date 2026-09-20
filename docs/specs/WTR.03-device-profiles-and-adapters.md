@@ -27,11 +27,13 @@ unknown frame outcome; partial batch admission is not implied by the count ACK.
 The standalone host can select that fixed packaged contract and
 supervise a separately private, finite cellular listener whose device bearers
 are checked against configured scope authority. The optional service active-probe
-owner binds an immutable profile/probe revision to one host-allowlisted,
-read-only GATT target and delegates the byte read to an explicitly supplied
-`Wotex.BLE` session without owning or selecting the peer. Live passive discovery,
-probe-result resolution, operator-network qualification, LoRaWAN and physical
-lifecycle acceptance remain unfinished.
+owner reconciles every enabled host plan with its profile-owned probe contract,
+then binds that revision to one host-allowlisted, read-only GATT target and
+delegates the byte read to an explicitly supplied `Wotex.BLE` session without
+owning or selecting the peer. The pure resolver admits canonical results and
+recomputes only nominated passive candidates. Live passive discovery,
+operator-network qualification, LoRaWAN and physical lifecycle acceptance remain
+unfinished.
 
 ## Device profile
 

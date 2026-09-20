@@ -1,10 +1,11 @@
 # Declarative profiles and resolution
 
-`DeviceProfile.new/2` admits explicit atom-keyed fields: ID/version, confidence,
+`DeviceProfile.new/2` admits the `wtr.profile.v2` fields: ID/version, confidence,
 fingerprints, decoder and model revision pairs, mapping revision, native mapping
-object and source provenance. Every interpretation-relevant field contributes to
-its versioned content identity. Decoder references are inert strings; no wire
-value loads a module or executes code.
+object, source provenance and an optional bounded list of active-probe contracts.
+Every interpretation-relevant field contributes to its versioned content
+identity. Decoder references are inert strings; neither fingerprints nor probes
+load a module or execute supplied code.
 
 `Catalogue.new/2` accepts a bounded proper list of profiles and produces one
 immutable sorted snapshot. Duplicate ID/version pairs fail even when identical.
@@ -54,6 +55,38 @@ service/characteristic target, a 100–30,000 ms deadline and a 1–512 byte val
 limit. Duplicate plan identities fail configuration. The target and its private
 BlueZ object path are host configuration, not caller-selected routing.
 
+An enabled owner also requires the same immutable `Catalogue` used for
+resolution. Startup fails unless each plan selects an existing profile-owned
+probe revision, the read transport and normalized public GATT UUIDs agree, and
+the host deadline/value limits do not exceed the contract ceilings. A profile
+probe has this closed shape:
+
+```json
+{
+  "id": "device-information",
+  "revision": "1",
+  "transport": "ble_gatt",
+  "operation": "read",
+  "target": {"service_uuid": "180a", "characteristic_uuid": "2a29"},
+  "timeout_ms": 1000,
+  "max_value_bytes": 32,
+  "predicates": [
+    {"op": "length", "value": 3},
+    {"op": "bytes", "offset": 0, "encoding": "base64", "data": "AAH/"}
+  ],
+  "match_confidence": "strong",
+  "mismatch": "reject",
+  "failure": "unavailable"
+}
+```
+
+Predicates are a non-empty conjunction of exact length, byte or canonical-Base64
+byte-range checks, with at least one byte discriminator. Promotion may be
+`strong` or `exact` but cannot weaken passive confidence. A successful response
+mismatch is explicitly rejecting or uninformative. Transport/authorization
+failure is always declared unavailable in this revision and cannot reject a
+candidate.
+
 A caller submits only `wtr.active-probe-request.v1`: a stable request UUID, the
 complete admitted observation content identity and one configured profile/probe
 identity. The owner rechecks current `interact` authority before starting a
@@ -69,7 +102,12 @@ observation.
 opens, selects, pairs, retries or closes a peer. A successful
 `wtr.active-probe-result.v1` binds the original observation, profile/probe
 revision, public GATT identity, a digest covering the full private target and
-canonical Base64 bytes. It is private candidate evidence only: no automatic
-enrollment, strengthened resolution, capability, Thing or Action follows.
+canonical Base64 bytes. `Wotex.Tracker.resolve_with_probe/4` admits that exact
+result against the observation and catalogue. The target profile must already be
+a passive candidate; a match applies only its declared promotion, a rejecting
+mismatch removes only it, and an uninformative mismatch leaves it unchanged.
+The new resolution retains the probe evidence identity and effective confidence
+for decoder evidence. No enrollment, capability, Thing, Action or service-state
+mutation follows automatically.
 `wotex_ble` is optional, so absence leaves the probe owner unavailable and
 ordinary service operation intact. Loading either package starts no radio work.

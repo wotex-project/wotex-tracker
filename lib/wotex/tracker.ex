@@ -25,6 +25,11 @@ defmodule Wotex.Tracker do
   @spec resolve(term(), term(), term()) :: {:ok, Resolution.t()} | {:error, Error.t()}
   defdelegate resolve(observation, catalogue, options \\ []), to: Resolution
 
+  @doc "Re-resolves passive candidates using one admitted profile-owned probe result."
+  @spec resolve_with_probe(term(), term(), term(), term()) ::
+          {:ok, Resolution.t()} | {:error, Error.t()}
+  defdelegate resolve_with_probe(observation, catalogue, result, options \\ []), to: Resolution
+
   @doc "Imports an admitted observation, retaining unresolved evidence and using only an explicit decoder."
   @spec import_observation(term(), term(), term(), term()) :: {:ok, map()} | {:error, Error.t()}
   def import_observation(observation, catalogue, decoder, options \\ []) do

@@ -173,12 +173,15 @@ upstream work remains explicit and must pass its own acceptance.
 The read-only active-probe software boundary is now implemented independently of
 passive scanning. An explicitly started service owner admits a finite host
 allowlist of exact profile/probe revisions, GATT targets, deadlines and byte
-limits, rechecks current `interact` authority and isolates each adapter call in a
+limits only after reconciling them with the same immutable profile catalogue. It
+rechecks current `interact` authority and isolates each adapter call in a
 monitored worker. The optional concrete adapter performs one byte read on a
-host-owned `Wotex.BLE` session. Tests cover absence, permission denial,
-revocation, concurrency, deadlines, cancellation, caller and worker loss,
-malformed/oversized returns and target redaction. This neither selects a peer
-nor admits the result into profile resolution.
+host-owned `Wotex.BLE` session. Closed profile byte predicates admit its canonical
+private result and recompute only the nominated passive candidate. Tests cover
+absence, permission denial, revocation, catalogue/plan conflicts, concurrency,
+deadlines, cancellation, caller and worker loss, malformed/oversized returns,
+target redaction, promotion, rejection and uninformative mismatch. This does not
+select a peer, enroll a device or mutate canonical state.
 
 Qualify one OS/controller/backend lane at a time. Linux, macOS and Nerves/Pi 5
 are separate claims. Imported captures remain available regardless of live support.

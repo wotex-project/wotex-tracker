@@ -5,7 +5,11 @@ defmodule Wotex.Tracker.Service.ActiveProbeConfig do
   Configuration selects only a supported transport and finite resource limits.
   Peer handles, pairing material and operating-system transport state stay in
   the configured adapter context and are excluded from inspection and status.
+  Enabled plans are reconciled against the same immutable profile catalogue
+  before the owner starts.
   """
+
+  alias Wotex.Tracker.{Catalogue, ProbeContract}
 
   @derive {Inspect, only: [:max_concurrency]}
   @enforce_keys [:probes, :max_concurrency]
@@ -47,6 +51,17 @@ defmodule Wotex.Tracker.Service.ActiveProbeConfig do
   end
 
   def admit(_), do: {:error, :invalid_options}
+
+  @doc false
+  @spec bind(t(), Catalogue.t()) :: {:ok, t()} | {:error, :invalid_options}
+  def bind(%__MODULE__{} = config, catalogue) do
+    with {:ok, catalogue} <- Catalogue.validate(catalogue),
+         true <- Enum.all?(config.probes, &bound?(&1, catalogue)) do
+      {:ok, config}
+    else
+      _ -> {:error, :invalid_options}
+    end
+  end
 
   @doc false
   @spec plan(t(), map(), map()) :: {:ok, map()} | {:error, :invalid_request}
@@ -132,4 +147,54 @@ defmodule Wotex.Tracker.Service.ActiveProbeConfig do
 
   defp nullable_generation?(value),
     do: is_integer(value) and value in 0..@maximum_json_integer
+
+  defp bound?(plan, catalogue) do
+    with {:ok, profile} <- profile(catalogue, plan["profile"]),
+         {:ok, contract} <- contract(profile.probes, plan["probe"]) do
+      bound_plan?(plan, contract.document)
+    else
+      _ -> false
+    end
+  end
+
+  defp bound_plan?(plan, document) do
+    plan["transport"] == document["transport"] and
+      plan["operation"] == document["operation"] and
+      ProbeContract.equivalent_uuid?(
+        plan["target"]["service_uuid"],
+        document["target"]["service_uuid"]
+      ) and
+      ProbeContract.equivalent_uuid?(
+        plan["target"]["characteristic_uuid"],
+        document["target"]["characteristic_uuid"]
+      ) and
+      plan["timeout_ms"] <= document["timeout_ms"] and
+      plan["max_value_bytes"] <= document["max_value_bytes"]
+  end
+
+  defp profile(catalogue, %{"id" => id, "version" => version}) do
+    case Enum.find(catalogue.profiles, &(&1.id == id and &1.version == version)) do
+      nil -> :error
+      profile -> {:ok, profile}
+    end
+  end
+
+  defp contract(definitions, %{"id" => id, "revision" => revision}) do
+    Enum.reduce_while(definitions, :error, fn definition, missing ->
+      find_contract(definition, {id, revision}, missing)
+    end)
+  end
+
+  defp find_contract(definition, key, missing) do
+    case ProbeContract.new(definition) do
+      {:ok, contract} -> contract_result(contract, key, missing)
+      _ -> {:halt, :error}
+    end
+  end
+
+  defp contract_result(contract, key, missing) do
+    if ProbeContract.key(contract) == key,
+      do: {:halt, {:ok, contract}},
+      else: {:cont, missing}
+  end
 end

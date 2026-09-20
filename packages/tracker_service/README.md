@@ -53,15 +53,18 @@ synthetic adapter and make no Refpath interoperability claim.
 `Wotex.Tracker.Service.ActiveProbe` is a separate optional owner for read-only
 device probes. Its exact `wtr.active-probe-host.v1` document configures one to 32
 immutable profile/probe plans, each fixing the BLE GATT service/characteristic,
-optional concrete address identity, deadline and returned-byte limit. A caller
-can reference a plan but cannot supply or widen its target. Every request
+optional concrete address identity, deadline and returned-byte limit. The same
+immutable `Catalogue` is required at startup; every enabled plan must match its
+profile-owned probe revision, normalized public GATT target and budget ceilings.
+A caller can reference a plan but cannot supply or widen its target. Every request
 reauthorizes the current credential for `interact`; the adapter receives only
 the closed transport request, never the token, access proof, service or stored
 observation. Monitored workers enforce one to eight concurrent calls and are
 killed on explicit cancellation, deadline or caller loss. Results bind the
 original observation content identity and profile/probe revisions while omitting
-the private object path. They remain private candidate evidence and perform no
-enrollment, resolution update, Thing creation or Action.
+the private object path. `Wotex.Tracker.resolve_with_probe/4` can admit that
+private result against the observation and catalogue and compute a new resolution;
+the owner itself performs no enrollment, state mutation, Thing creation or Action.
 
 `Wotex.Tracker.Service.BLEProbeAdapter` is the optional concrete adapter for one
 byte-valued `Wotex.BLE.read/3` on a session selected and owned by the host. It

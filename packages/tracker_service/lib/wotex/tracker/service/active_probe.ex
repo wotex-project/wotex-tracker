@@ -313,9 +313,10 @@ defmodule Wotex.Tracker.Service.ActiveProbe do
   defp options(options) do
     with true <- Keyword.keyword?(options),
          true <- length(options) == length(Enum.uniq(Keyword.keys(options))),
-         true <- Enum.all?(Keyword.keys(options), &(&1 in [:adapter, :config])),
+         true <- Enum.all?(Keyword.keys(options), &(&1 in [:adapter, :catalogue, :config])),
          true <- Keyword.has_key?(options, :config),
          {:ok, config} <- enabled_config(ActiveProbeConfig.admit(options[:config])),
+         {:ok, config} <- bound_config(config, options[:catalogue]),
          {:ok, adapter, context} <- adapter(Keyword.get(options, :adapter)) do
       {:ok,
        %{
@@ -333,6 +334,8 @@ defmodule Wotex.Tracker.Service.ActiveProbe do
   defp enabled_config(:disabled), do: :disabled
   defp enabled_config({:ok, config}), do: {:ok, config}
   defp enabled_config(error), do: error
+
+  defp bound_config(config, catalogue), do: ActiveProbeConfig.bind(config, catalogue)
 
   defp adapter(nil), do: {:ok, nil, nil}
   defp adapter({module, context}) when is_atom(module), do: {:ok, module, context}

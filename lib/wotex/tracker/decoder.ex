@@ -250,7 +250,8 @@ defmodule Wotex.Tracker.Decoder do
       "claim" => claim,
       "parents" => parents,
       "observation" => resolution.observation_identity,
-      "catalogue" => resolution.catalogue_identity
+      "catalogue" => resolution.catalogue_identity,
+      "resolution" => resolution_evidence(resolution)
     }
 
     with {:ok, limits} <- Limits.new(options),
@@ -264,14 +265,29 @@ defmodule Wotex.Tracker.Decoder do
           evidence_ids: parents,
           profile: {profile.id, profile.version},
           decoder: profile.decoder,
-          confidence: profile.confidence,
-          reasons: ["declared_decoder_output"],
+          confidence: resolution.confidence,
+          reasons: resolution_reasons(resolution),
           association_id: nil
         },
         options
       )
     end
   end
+
+  defp resolution_reasons(%{probe_evidence: nil}), do: ["declared_decoder_output"]
+
+  defp resolution_reasons(%{probe_evidence: _}),
+    do: ["declared_decoder_output", "declared_active_probe_evidence"]
+
+  defp resolution_evidence(resolution) do
+    %{
+      "confidence" => Atom.to_string(resolution.confidence),
+      "probe_evidence" => probe_identity(resolution.probe_evidence)
+    }
+  end
+
+  defp probe_identity(nil), do: nil
+  defp probe_identity(evidence), do: evidence.identity
 
   defp capabilities(descriptors, bundle, options) do
     Enum.reduce_while(descriptors, {:ok, []}, fn descriptor, {:ok, acc} ->

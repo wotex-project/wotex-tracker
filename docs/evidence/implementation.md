@@ -5332,3 +5332,44 @@ implementation commit is `e0322eb`.
 This is a synthetic software boundary over the current upstream GATT API. No
 passive advertisement scanner, physical controller/device, real Ruuvi probe,
 pairing flow or probe-result-to-resolution admission was exercised or claimed.
+
+### Deterministic active-probe re-resolution — 2026-09-20
+
+The profile schema is now `wtr.profile.v2`. Its optional probe contracts are
+closed data: an immutable probe revision, read-only BLE GATT target, finite
+timeout/value ceilings, exact length/byte/byte-range predicates, a non-weakening
+match confidence, explicit mismatch behavior and failure classified as
+unavailable. Contract content participates in full profile and catalogue
+identity. Duplicate revisions, callbacks, weak-only predicates, noncanonical
+Base64 and promotions below passive confidence fail admission.
+
+`Wotex.Tracker.resolve_with_probe/4` admits an exact
+`wtr.active-probe-result.v1` against its original observation and catalogue. It
+checks the request UUID, observation content identity, profile/probe revisions,
+public GATT target, private-target digest shape, declared value ceiling and
+canonical Base64 bytes. The profile must already be a passive candidate. A match
+changes only that candidate to the declared strong/exact confidence; an
+informative mismatch removes only it; an uninformative mismatch preserves it.
+The resulting immutable resolution retains the private evidence identity and is
+fully recomputed by validation. Decoder evidence uses the effective resolution
+confidence and records that an active probe contributed.
+
+The service owner now requires the same immutable catalogue when enabled. Before
+starting, every host plan must resolve to a profile contract with matching
+transport, operation and normalized short/full Bluetooth UUIDs; host timeout and
+value budgets may be stricter but cannot exceed the profile ceilings. The
+service integration test passes its actual bounded result directly into the pure
+resolver and proves the promoted profile selection. No transport failure can
+reject a profile, and neither result admission nor re-resolution enrolls a peer,
+creates a Thing, executes an Action or mutates service state.
+
+The complete root gate passes 194 tests, 19 generated properties and one doctest
+(214 total cases) at 95.3% production line coverage on both Elixir
+1.18.4/Erlang/OTP 27.3.4.15 and Elixir 1.20.4/Erlang/OTP 29.0.4. The complete
+service gate passes 368 tests and two generated properties (370 total cases) at
+95.1% in both lanes. Compiler, unused-dependency, formatter, vulnerability audit,
+strict Credo, ExDoc, Dialyzer, boundary, stack-language, documentation, archive,
+OpenAPI and licence checks passed where configured. This remains synthetic
+software evidence: live passive scanning, a physical controller/device,
+authenticated peer identity and hardware capability qualification were not
+exercised or claimed.

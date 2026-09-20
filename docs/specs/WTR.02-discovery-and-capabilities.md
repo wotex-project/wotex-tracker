@@ -8,11 +8,12 @@ evidence-backed readable capabilities. Imported captures and the configured
 cellular ingress exercise that boundary. An optional service owner now executes
 only host-allowlisted, read-only BLE GATT probes through an explicit upstream
 session after current `interact` authorization, with finite concurrency,
-deadline and value bounds plus caller-loss cancellation. Live BLE scanning,
-probe-result admission into a new resolution and physical capability
-qualification remain open. See the
+deadline and value bounds plus caller-loss cancellation. Profile-owned closed
+probe contracts and `resolve_with_probe/4` now admit the exact private result and
+recompute only its passive candidate as strengthened, rejected or unchanged.
+Live BLE scanning and physical capability qualification remain open. See the
 [profile guide](../guides/profiles.md) and
-[executed evidence](../evidence/implementation.md#authorized-read-only-ble-active-probes--2026-09-20).
+[executed evidence](../evidence/implementation.md#deterministic-active-probe-re-resolution--2026-09-20).
 
 ## Pipeline
 

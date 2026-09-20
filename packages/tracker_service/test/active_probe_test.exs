@@ -5,7 +5,7 @@ defmodule Wotex.Tracker.Service.ActiveProbeTest do
 
   alias Wotex.BLE
   alias Wotex.BLE.Error, as: BLEError
-  alias Wotex.Tracker.Observation
+  alias Wotex.Tracker.{Catalogue, DeviceProfile, Observation, Resolution}
   alias Wotex.Tracker.Service
 
   alias Wotex.Tracker.Service.{
@@ -67,8 +67,18 @@ defmodule Wotex.Tracker.Service.ActiveProbeTest do
 
   setup do
     c = service()
-    {:ok, observation_identity} = Observation.identity(observation())
-    Map.put(c, :observation_identity, observation_identity)
+    observation = observation()
+    profile = profile()
+    {:ok, catalogue} = Catalogue.new([profile])
+    service = %{c.service | catalogue: catalogue}
+    {:ok, observation_identity} = Observation.identity(observation)
+
+    Map.merge(c, %{
+      service: service,
+      observation: observation,
+      profile: profile,
+      observation_identity: observation_identity
+    })
   end
 
   test "an authorized probe returns bounded private evidence without adapter authority", c do
@@ -93,7 +103,7 @@ defmodule Wotex.Tracker.Service.ActiveProbeTest do
              "schema" => "wtr.active-probe-result.v1",
              "request_id" => result["request_id"],
              "observation_identity" => c.observation_identity,
-             "profile" => %{"id" => "ruuvi.ruuvitag.rawv2", "version" => "1.0.0"},
+             "profile" => %{"id" => "synthetic.probe", "version" => "1.0.0"},
              "probe" => %{"id" => "device-information", "revision" => "1"},
              "transport" => "ble_gatt",
              "operation" => "read",
@@ -104,6 +114,13 @@ defmodule Wotex.Tracker.Service.ActiveProbeTest do
 
     assert byte_size(result["target_identity"]) == 64
     refute inspect(result) =~ target()["object_path"]
+
+    assert {:ok, resolution} =
+             Resolution.resolve_with_probe(c.observation, c.service.catalogue, result)
+
+    assert resolution.status == :resolved
+    assert resolution.selected === c.profile
+    assert resolution.confidence == :strong
 
     assert {:ok,
             %{
@@ -294,21 +311,25 @@ defmodule Wotex.Tracker.Service.ActiveProbeTest do
           config(%{"transport" => "ble_scan"}),
           config(%{"operation" => "write"}),
           config(%{"timeout_ms" => 99}),
+          config(%{"timeout_ms" => 1_001}),
           config(%{"timeout_ms" => 30_001}),
           config(%{"max_value_bytes" => 0}),
+          config(%{"max_value_bytes" => 33}),
           config(%{"max_value_bytes" => 513}),
           Map.put(config(), "max_concurrency", 0),
           Map.put(config(), "probes", []),
           Map.put(config(), "probes", List.duplicate(plan(), 2)),
           config(%{"profile" => %{"id" => "profile"}}),
+          config(%{"profile" => %{"id" => "other", "version" => "1"}}),
           config(%{
-            "profile" => %{"id" => "ruuvi.ruuvitag.rawv2", "version" => 1}
+            "profile" => %{"id" => "synthetic.probe", "version" => 1}
           }),
           config(%{"probe" => %{"id" => "probe"}}),
           config(%{"target" => nil}),
           config(%{"target" => target() |> Map.delete("generation") |> Map.put("extra", 9)}),
           config(%{"target" => Map.put(target(), "service_uuid", 0x180A)}),
           config(%{"target" => Map.put(target(), "service_uuid", "180F")}),
+          config(%{"target" => Map.put(target(), "service_uuid", "180f")}),
           config(%{"target" => Map.put(target(), "characteristic_uuid", "bad")}),
           config(%{"target" => Map.put(target(), "handle", 0)}),
           config(%{"target" => Map.put(target(), "object_path", "relative")}),
@@ -316,12 +337,26 @@ defmodule Wotex.Tracker.Service.ActiveProbeTest do
           config(%{"extra" => true}),
           Map.put(config(), "extra", true)
         ] do
-      assert {:error, :invalid_options} = ActiveProbe.start_link(config: config)
+      assert {:error, :invalid_options} =
+               ActiveProbe.start_link(config: config, catalogue: c.service.catalogue)
     end
 
     assert {:error, :invalid_options} = ActiveProbe.start_link([])
-    assert {:error, :invalid_options} = ActiveProbe.start_link(config: config(), unknown: true)
-    assert {:error, :invalid_options} = ActiveProbe.start_link(config: config(), adapter: :bad)
+    assert {:error, :invalid_options} = ActiveProbe.start_link(config: config())
+
+    assert {:error, :invalid_options} =
+             ActiveProbe.start_link(
+               config: config(),
+               catalogue: c.service.catalogue,
+               unknown: true
+             )
+
+    assert {:error, :invalid_options} =
+             ActiveProbe.start_link(
+               config: config(),
+               catalogue: c.service.catalogue,
+               adapter: :bad
+             )
 
     nullable_target = %{
       "service_uuid" => "0000180a-0000-1000-8000-00805f9b34fb",
@@ -415,10 +450,10 @@ defmodule Wotex.Tracker.Service.ActiveProbeTest do
     assert {:error, :unavailable} = BLEProbeAdapter.read(:forged, %{}, 1_000)
   end
 
-  defp start_probe(_c, adapter, probe_config \\ config()) do
+  defp start_probe(c, adapter, probe_config \\ config()) do
     start_supervised!(
       Supervisor.child_spec(
-        {ActiveProbe, config: probe_config, adapter: adapter},
+        {ActiveProbe, config: probe_config, catalogue: c.service.catalogue, adapter: adapter},
         id: {ActiveProbe, make_ref()},
         restart: :temporary
       )
@@ -436,7 +471,7 @@ defmodule Wotex.Tracker.Service.ActiveProbeTest do
 
   defp plan do
     %{
-      "profile" => %{"id" => "ruuvi.ruuvitag.rawv2", "version" => "1.0.0"},
+      "profile" => %{"id" => "synthetic.probe", "version" => "1.0.0"},
       "probe" => %{"id" => "device-information", "revision" => "1"},
       "transport" => "ble_gatt",
       "operation" => "read",
@@ -452,7 +487,7 @@ defmodule Wotex.Tracker.Service.ActiveProbeTest do
         "schema" => "wtr.active-probe-request.v1",
         "request_id" => Identifier.uuid(),
         "observation_identity" => c.observation_identity,
-        "profile" => %{"id" => "ruuvi.ruuvitag.rawv2", "version" => "1.0.0"},
+        "profile" => %{"id" => "synthetic.probe", "version" => "1.0.0"},
         "probe" => %{"id" => "device-information", "revision" => "1"}
       },
       changes
@@ -467,6 +502,49 @@ defmodule Wotex.Tracker.Service.ActiveProbeTest do
       "object_path" => "/org/bluez/hci0/dev_fixture/service0001/char0002",
       "generation" => 9
     }
+  end
+
+  defp profile do
+    {:ok, profile} =
+      DeviceProfile.new(%{
+        id: "synthetic.probe",
+        version: "1.0.0",
+        confidence: :candidate,
+        fingerprints: [%{"op" => "byte", "offset" => 0, "value" => 5}],
+        probes: [
+          %{
+            "id" => "device-information",
+            "revision" => "1",
+            "transport" => "ble_gatt",
+            "operation" => "read",
+            "target" => %{
+              "service_uuid" => "180a",
+              "characteristic_uuid" => "2a29"
+            },
+            "timeout_ms" => 1_000,
+            "max_value_bytes" => 32,
+            "predicates" => [
+              %{"op" => "length", "value" => 3},
+              %{
+                "op" => "bytes",
+                "offset" => 0,
+                "encoding" => "base64",
+                "data" => "AAH/"
+              }
+            ],
+            "match_confidence" => "strong",
+            "mismatch" => "reject",
+            "failure" => "unavailable"
+          }
+        ],
+        decoder: {"synthetic", "1"},
+        model: {"urn:wotex:tm:tracker:environmental-sensor", "1.0.0"},
+        mapping_revision: "1",
+        mapping: %{},
+        source_provenance: %{"kind" => "synthetic"}
+      })
+
+    profile
   end
 
   defp eventually_idle(owner, attempts \\ 100)

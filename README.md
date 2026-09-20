@@ -47,12 +47,14 @@ profile and decoder revisions. The built-in Ruuvi RAWv2 profile remains
 explicitly positionless.
 
 The optional service host also implements an authorized read-only BLE GATT probe
-boundary over the refactored `wotex_ble` package. Host configuration fixes a
-finite allowlist of profile/probe revisions, characteristic targets, deadlines
-and byte limits; an `interact` caller cannot choose a new target. Each read runs
+boundary over the refactored `wotex_ble` package. Every enabled host plan must
+match the same immutable profile catalogue's probe revision, characteristic and
+budget ceilings; an `interact` caller cannot choose a new target. Each read runs
 in a monitored worker and is cancelled on caller loss, explicit cancellation or
-deadline. The host supplies and owns the upstream session. This is candidate
-evidence plumbing, not passive scanning, peer identity or hardware qualification.
+deadline. The host supplies and owns the upstream session. The pure resolver can
+admit the resulting private evidence and recompute only the nominated passive
+candidate under closed byte predicates. This is not passive scanning, peer
+identity, enrollment or hardware qualification.
 
 The pure library also contains bounded Teltonika TCP IMEI negotiation, Codec 8
 Extended framing and record decoding. It validates the complete documented
