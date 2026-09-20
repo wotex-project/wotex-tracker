@@ -19,8 +19,11 @@ attempts there. Reconnect samples contain only duration and closed
 surface/kind/outcome labels; initial connections and page reloads are not
 reported as reconnects. The Nerves and standalone Linux service hosts contribute
 fixed procfs available-memory, BEAM-process RSS and one-minute-load samples
-without paths or device labels. Their closed surfaces distinguish `nerves` from
-`service`; other OS-native resource events remain with their owning adapters.
+without paths or device labels. The standalone Darwin host contributes the same
+closed measurement set from fixed, bounded macOS system tools. Closed surfaces
+distinguish `nerves` from `service`, and the source distinguishes Linux procfs
+from Darwin system tools; other OS-native resource events remain with their
+owning adapters.
 Host-only operational pages pin a collector epoch and sequence high-water mark;
 continuations reject restart, altered filters and expired samples.
 The optional browser host now exposes those pages at `/operations` to current

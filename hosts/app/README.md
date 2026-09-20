@@ -272,8 +272,15 @@ resource sampler. At startup and every 30 seconds it reads only the fixed
 65,536 bytes from each. Complete samples expose system available-memory bytes,
 the BEAM OS-process RSS bytes and one-minute load multiplied by 1,000 under the
 closed `service`/`linux_procfs` labels. Missing or malformed input emits no
-partial sample and cannot affect service state. Non-Linux artifacts do not start
-this adapter.
+partial sample and cannot affect service state.
+
+Darwin artifacts produce the same measurement set from only the fixed
+`/usr/bin/vm_stat`, `/bin/ps` and `/usr/sbin/sysctl` commands and report the
+closed `service`/`darwin_system_tools` labels. Available memory is the sum of
+free, inactive and speculative VM pages using the reported page size. Each
+platform sample has a two-second deadline, every command output is capped at
+65,536 bytes and any missing, blocked or malformed source drops the whole sample.
+Unsupported operating systems start no native sampler.
 
 After creating `_build/local` with the CLI above, create a loopback browser
 configuration without printing its secret or replacing an existing file:
@@ -409,7 +416,8 @@ SIGTERM shutdown, restart, exact receipt replay, retained revocation, process-ki
 recovery and SQLite's real page ceiling. Linux additionally runs as a non-root
 user on a read-only container root, checks an unwritable data destination and,
 for the browser artifact, requires the authenticated operational view to expose
-the exact `native.sample` measurement set with `service`/`linux_procfs` metadata.
+the exact `native.sample` measurement set with platform-specific
+`service`/`linux_procfs` or `service`/`darwin_system_tools` metadata.
 Each probe instance also creates a private APNs host document, requires the
 authenticated capability response to report `notification_delivery` as
 `configured`, and rejects release logs containing the provider key. The probe

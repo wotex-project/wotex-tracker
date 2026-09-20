@@ -675,8 +675,9 @@ closed LiveView render durations and marked reconnect outcomes in the same
 volatile collector without retaining socket parameters or page data. Initial
 connections and reloads are not classified as reconnects. The Nerves and
 standalone Linux service hosts also record fixed procfs available-memory,
-BEAM-process RSS and one-minute-load samples; native resource adapters for other
-operating systems remain. The unsaved
+BEAM-process RSS and one-minute-load samples. The Darwin host records the same
+closed measurements from fixed, bounded macOS system tools under its own source
+label; adapters for other operating systems remain. The unsaved
 per-asset analytics page can opt
 into a five-second committed-event check that reruns only after a change, keeps
 the selected duration while moving to the newest retained asset state, marks a

@@ -5186,3 +5186,44 @@ tests at 95.2% production line coverage. Every configured compiler, dependency,
 formatter, vulnerability audit, strict Credo, ExDoc, Dialyzer, boundary,
 stack-language, archive and licence check passed. The implementation commit is
 `26c530e`.
+
+### Darwin native resource sampling — 2026-09-20
+
+The standalone Darwin host now contributes the same closed native operational
+measurement set as the Linux host. Its adapter invokes only fixed absolute
+`vm_stat`, `ps` and `sysctl` paths with fixed arguments. It derives available
+memory from the reported page size and free, inactive and speculative pages,
+reads the current BEAM OS-process RSS and converts the one-minute load to an
+integer thousandth. Every output is capped at 65,536 bytes. Missing commands,
+nonzero exits, overflow, malformed output and incomplete data drop the complete
+sample rather than emitting a partial value.
+
+The common host sampler now binds each admitted source to its closed telemetry
+label and executes it in a task with a two-second production deadline. A raised,
+thrown or blocked adapter cannot stall the supervisor and produces no sample.
+The telemetry contract admits only `darwin_system_tools` and `linux_procfs`; it
+still rejects additional fields, labels and surfaces.
+
+The source qualifier now requires UI-enabled Darwin and Linux release probes to
+find the exact source appropriate to their platform on the authenticated
+operational page. A current Darwin ARM64 path-dependency development release was
+assembled with bundled ERTS and passed that browser probe with
+`service`/`darwin_system_tools`, together with HTTP/OpenAPI/SSE, APNs composition,
+history, CLI Property resume, exact replay, restart, retained revocation,
+SIGKILL recovery, SIGTERM shutdown and the real SQLite page ceiling. Its
+SIGTERM shutdown took 1.038 seconds.
+
+Both service lanes passed 341 tests and two generated properties with at least
+95.0% production line coverage. Both headless host lanes passed 26 tests at
+97.4%; both UI-enabled host lanes passed 37 tests at 96.1%. Both root lanes
+passed one doctest, 19 generated properties and 188 tests at 95.2%. Every
+configured compiler, dependency, formatter, vulnerability audit, strict Credo,
+ExDoc, Dialyzer, boundary, OpenAPI, archive, native-helper, stack-language and
+licence check passed where applicable. The loopback-test timing correction and
+implementation commits are `7ce4ebb93caa59ca1af9dd11a567fdba30ee3dc8` and
+`fcf6802675c9a103ab1d9ddbd670e623310bc5a7`.
+
+This local development-release run did not refresh the ordinary immutable
+artifact-cohort receipts or rerun the Linux read-only container. The adapter is
+operational telemetry only; it is not capacity qualification, durable history
+or physical-device evidence.
