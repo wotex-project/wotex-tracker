@@ -2,7 +2,14 @@
 
 ## Status
 
-Accepted target contract. No implementation claim.
+Implemented for the first pure software milestone: the packaged environmental
+sensor and cellular asset-tracker models, explicit evidence/capability mapping,
+deployment-owned Forms and security, upstream TM/TD validation, deterministic
+canonical output and the failure cases below are covered by executable tests.
+Synthetic Forms do not prove endpoint reachability, installed Runtime bindings,
+publication authorization or physical hardware. See the
+[materialisation guide](../guides/materialisation.md) and
+[executed evidence](../evidence/implementation.md#wtr04-materialisation-and-public-facade--2026-09-15).
 
 ## Principle
 
