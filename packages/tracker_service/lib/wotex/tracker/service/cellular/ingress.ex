@@ -50,6 +50,15 @@ defmodule Wotex.Tracker.Service.Cellular.Ingress do
 
   def start_link(_), do: {:error, :invalid_configuration}
 
+  @doc false
+  @spec validate_options(term()) :: :ok | {:error, :invalid_configuration}
+  def validate_options(options) do
+    case options(options) do
+      {:ok, _state, _server_options} -> :ok
+      {:error, :invalid_configuration} = error -> error
+    end
+  end
+
   @doc "Admits one syntactically valid IMEI against private keyed configuration."
   @spec login(GenServer.server(), term(), timeout()) ::
           {:ok, Session.t()} | {:error, :unauthorized | :busy | :invalid_request}

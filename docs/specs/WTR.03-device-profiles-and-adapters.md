@@ -12,9 +12,11 @@ The pure TCP session seam also bounds split/coalesced 15-digit IMEI negotiation,
 keyed private identity lookup and commit-dependent ACK-or-close decisions. It is
 paired with an explicitly started service bridge that revalidates frames,
 serializes configured keyed-device admission and reconciles deterministic
-operation receipts before returning an ACK disposition. It is not a TAT140
-profile or listener. Socket ownership, device-specific mapping, live discovery,
-cellular/LoRaWAN adapters and lifecycle acceptance remain unfinished.
+operation receipts before returning an ACK disposition. An explicitly started,
+finite TCP listener now enforces login/frame deadlines and is exercised by an
+independent Erlang peer across every fixture split. It is not a TAT140 profile.
+Device-specific mapping, deployment integration, live discovery, LoRaWAN and
+physical lifecycle acceptance remain unfinished.
 
 ## Device profile
 

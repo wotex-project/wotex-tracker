@@ -199,9 +199,14 @@ accepted, duplicate, rejected and unknown durable outcomes to full ACK, zero ACK
 or close-without-ACK. An explicitly started service bridge now maps keyed IMEI
 digests to private credentials, serializes packet admission, retains the exact
 frame in one atomic observation and reconciles deterministic operation receipts
-before deciding the disposition. Socket ownership and deadlines, the independent
-wire peer, the TAT140 profile and all real-device evidence remain subsequent
-work.
+before deciding the disposition. An explicitly started bounded listener now owns
+clear TCP sockets with finite connection and buffer budgets plus absolute login
+and incomplete-frame deadlines. An independent Erlang peer imports no production
+domain modules and exercises coalescing, every login and official-frame split,
+concatenation and retransmission over real sockets. Wire tests also cover
+truncation, malformed and oversized frames, capacity, timeout and connection
+loss before and after commit. The TAT140 profile, device-specific IO mapping,
+deployment configuration and all real-device evidence remain subsequent work.
 
 Acceptance: independent fixtures and software-peer tests for every split boundary,
 coalescing/truncation, counts, unknown fields, ACK outcomes, reconnect, duplicates

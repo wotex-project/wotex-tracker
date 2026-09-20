@@ -53,8 +53,21 @@ durable receipt before submitting, so a commit whose response was lost becomes
 a duplicate full ACK rather than a second observation. Raw IMEI digits never
 enter the observation or process state.
 
-These pure slices cover TCP login, data framing and ACK decisions only.
-The service bridge covers configured durable admission and retransmission
-reconciliation. Socket ownership, deadlines, connection loss, a software wire
-peer, command codecs, UDP, TAT140 IO semantics, a device profile and live
-hardware evidence remain separate acceptance work.
+`Wotex.Tracker.Service.Cellular.Server` composes the bridge with an explicitly
+started Thousand Island TCP listener. It uses one acceptor, a caller-selected
+limit of at most 32 connections, bounded socket buffers and absolute login and
+incomplete-frame deadlines. A malformed login or frame closes without an ACK;
+an unknown or capacity-rejected identity receives the documented zero login
+byte. The handler releases private admission sessions on peer close, timeout,
+transport failure and supervised shutdown.
+
+An Erlang escript that imports no Tracker modules exercises the live listener
+with coalesced login and data, every nontrivial split of the 17-byte login and
+official fixture frame, concatenated frames and retransmission. Additional wire
+tests cover truncation, invalid CRC, oversized declarations, login/frame timeout,
+capacity exhaustion and connection loss before and after commit.
+
+These slices now cover TCP login, data framing, bounded socket ownership,
+durable admission, ACK decisions and retransmission reconciliation. Command
+codecs, UDP, TAT140 IO semantics, a device profile, deployment configuration and
+live hardware evidence remain separate acceptance work.

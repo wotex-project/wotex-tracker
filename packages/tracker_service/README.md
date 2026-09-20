@@ -76,6 +76,18 @@ ACK dispositions, known non-commits return zero-ACK dispositions and unknown
 outcomes require connection close. The bridge owns no socket and supplies no
 device-specific profile or authentication claim.
 
+`Wotex.Tracker.Service.Cellular.Server` composes that bridge with a separately
+started clear-TCP listener for the documented tracker protocol. The caller must
+supply the service, 256-bit identity key, finite keyed-device list, exact bind
+address and port. Optional login, frame, send and shutdown deadlines are bounded;
+one acceptor admits at most 32 concurrent connections. Invalid configuration
+starts nothing, `port: 0` is discoverable through `listener_info/1`, and package
+loading remains inert. Malformed login or AVL input closes without an ACK;
+unknown configured identity sends the one-byte rejection; accepted, duplicate,
+rejected and unknown durable outcomes retain the bridge's full-count, zero-count
+or close behavior. This is operator-controlled ingress, not IMEI authentication
+or transport encryption.
+
 The facade supports imported observations, public inspection and paginated
 snapshots, encrypted event cursors, privileged byte-preserving raw exports,
 operator-confirmed enrollment and reassociation, materialisation, structured

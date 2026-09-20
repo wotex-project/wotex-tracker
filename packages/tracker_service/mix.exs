@@ -29,6 +29,7 @@ defmodule WotexTrackerService.MixProject do
       runtime(),
       http_binding(),
       {:bandit, "== 1.12.5"},
+      {:thousand_island, "== 1.5.0"},
       {:plug, "== 1.20.3"},
       {:mint, "== 1.10.1"},
       {:exqlite, "== 0.40.0"},
