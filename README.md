@@ -61,8 +61,10 @@ bounded TCP server owns explicit login/frame deadlines and a finite connection
 budget; an independent Erlang peer exercises the real wire across every login
 and fixture-frame split. A configured device may bind its profile marker into
 the durable observation for exact later resolution; generic devices retain an
-explicit null marker. The service does not yet persist the record-aware semantic
-result, and none of these slices is hardware qualification.
+explicit null marker. The record-aware decoder atomically persists every ordered
+semantic record and private claim. Its atomic batch receipt gives each record a
+stable operation identity and explicit disposition. None of these slices is
+hardware qualification.
 
 The service accepts an exact host-configured catalogue/model/decoder set as an
 alternative to its packaged Ruuvi defaults. Position-capable decoder output is

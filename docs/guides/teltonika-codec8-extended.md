@@ -41,7 +41,11 @@ to the complete four-byte record-count ACK, a known rejection to a zero ACK and
 an unknown commit outcome to connection close without an ACK. Decoding success
 alone is never permission to reply. The host must still admit the private login,
 serialize per-device commits and reconcile retransmission after an unknown
-outcome.
+outcome. The bridge receipt declares `batch: :atomic` and returns one entry for
+every zero-based record index. Each entry has a deterministic operation identity
+derived from the frame operation and index plus the exact accepted, duplicate,
+rejected or unknown disposition. Thus a full count ACK cannot hide mixed
+per-record outcomes: this adapter supports no partial batch admission.
 
 The service package's explicitly started `Cellular.Ingress` process owns the
 next trusted-host boundary. A finite configuration maps the keyed digest to one

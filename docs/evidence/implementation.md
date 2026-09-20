@@ -4933,3 +4933,28 @@ implementation commit is `33291c455619f2967357783ca6ed6565bdf461fe`.
 This closes current-snapshot ordering for record-aware rules. It does not infer
 travel through intermediate records, trigger multiple live state transitions
 inside one atomic frame or provide physical cellular evidence.
+
+### Atomic per-record cellular outcomes — 2026-09-20
+
+The serialized cellular bridge now returns an explicit atomic batch receipt for
+every decoded frame. Each zero-based AVL record index receives a stable operation
+identity derived from the deterministic frame operation and that index. Every
+entry carries the exact accepted, duplicate, rejected or unknown frame outcome;
+the adapter never represents a full count ACK as partial per-record success.
+
+The two-record semantic fixture proves distinct record identities and two
+accepted entries. Retransmission tests prove the same record identity changes to
+duplicate without another observation. Injected before-commit and after-commit
+failures prove explicit rejected and unknown entries before the protocol maps
+them to zero ACK or close-without-ACK. The aggregate record count remains the
+documented four-byte wire value.
+
+Both service runtime lanes passed 339 tests and two generated properties at
+95.1% coverage with all configured compiler, dependency, formatter, audit,
+strict Credo, documentation, Dialyzer, boundary, language, archive, OpenAPI and
+licence checks. The implementation commit is
+`c8fb8470cd3be6ac47ab0d11f644803b939dcf20`.
+
+This proves the software admission contract and deterministic reconciliation.
+It does not authenticate the clear-TCP device, prove physical delivery, or
+qualify tracker firmware, a SIM, carrier or production network.

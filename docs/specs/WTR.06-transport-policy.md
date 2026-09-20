@@ -2,7 +2,12 @@
 
 ## Status
 
-Accepted target contract. No implementation claim.
+Accepted target contract. Deterministic transport selection and degradation,
+bounded durable forwarding and explicit host scheduling are implemented for the
+software profiles that declare them. Direct cellular admission is an atomic
+frame batch: its receipt names every record index with a stable operation
+identity and the same accepted, duplicate, rejected or unknown durable outcome.
+Physical transport, carrier and device qualification remain separate.
 
 ## Principle
 

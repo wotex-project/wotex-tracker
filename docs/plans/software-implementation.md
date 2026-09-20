@@ -212,7 +212,9 @@ an optional configured profile ID. A record-aware import builds stable capabilit
 claims plus per-record transport, measurement and position evidence. An explicit
 service decoder entry atomically persists the raw frame, exact resolution,
 complete private bundle and ordered public record projections; retransmission
-still reconciles at the original packet boundary. The generic cellular Thing
+still reconciles at the original packet boundary. The bridge also returns an
+explicit atomic batch receipt whose stable per-record operation identities carry
+the accepted, duplicate, rejected or unknown frame outcome. The generic cellular Thing
 Model materialises position, motion and battery-voltage Properties from that
 bundle. The standalone host now admits a separate private cellular document,
 selects the fixed packaged TAT140 contract for both ingress and API operations,
