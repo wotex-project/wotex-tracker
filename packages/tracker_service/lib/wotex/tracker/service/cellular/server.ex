@@ -117,9 +117,12 @@ defmodule Wotex.Tracker.Service.Cellular.Server do
   end
 
   defp config?(config) do
-    match?(%Service{}, Keyword.get(config.ingress, :service)) and network?(config) and
+    service?(Keyword.get(config.ingress, :service)) and network?(config) and
       timeouts?(config) and session_limit?(config.maximum_sessions)
   end
+
+  defp service?(%Service{}), do: true
+  defp service?(provider), do: is_function(provider, 0)
 
   defp network?(config),
     do: ip?(config.ip) and is_integer(config.port) and config.port in 0..65_535

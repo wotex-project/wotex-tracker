@@ -151,7 +151,7 @@ defmodule Wotex.Tracker.Service.Cellular.Ingress do
   end
 
   defp state?(state) do
-    match?(%Service{}, state.service) and is_binary(state.identity_key) and
+    service?(state.service) and is_binary(state.identity_key) and
       byte_size(state.identity_key) == 32 and is_function(state.clock, 0) and
       is_integer(state.maximum_sessions) and state.maximum_sessions in 1..@maximum_sessions and
       is_integer(state.maximum_retries) and state.maximum_retries in 0..@maximum_retries and
@@ -195,6 +195,9 @@ defmodule Wotex.Tracker.Service.Cellular.Ingress do
 
   defp equal?(_, _), do: false
 
+  defp service?(%Service{}), do: true
+  defp service?(provider), do: is_function(provider, 0)
+
   defp packet(%{frame: frame} = claimed) when is_binary(frame) do
     case Codec8Extended.decode_frame(frame) do
       {:ok, decoded} when decoded === claimed -> {:ok, decoded}
@@ -208,11 +211,12 @@ defmodule Wotex.Tracker.Service.Cellular.Ingress do
     operation = operation_id(device.identity_digest, packet.frame)
 
     result =
-      with {:ok, now} <- current_time(state.clock),
+      with {:ok, service} <- service(state.service),
+           {:ok, now} <- current_time(state.clock),
            true <- Codec.time?(now),
            {:ok, access} <-
              Service.authorize(
-               state.service,
+               service,
                device.token,
                device.scope,
                "ingest",
@@ -220,14 +224,14 @@ defmodule Wotex.Tracker.Service.Cellular.Ingress do
                now
              ) do
         case Store.operation(
-               state.service.store,
+               service.store,
                device.scope,
                access.principal,
                operation,
                now
              ) do
           {:ok, _} -> :duplicate
-          {:error, :not_found} -> submit_new(state, device, packet, operation, now)
+          {:error, :not_found} -> submit_new(state, service, device, packet, operation, now)
           {:error, _} -> :unknown
         end
       else
@@ -245,17 +249,30 @@ defmodule Wotex.Tracker.Service.Cellular.Ingress do
     _, _ -> {:error, :invalid_clock}
   end
 
-  defp submit_new(state, device, packet, operation, now) do
+  defp service(%Service{} = service), do: {:ok, service}
+
+  defp service(provider) when is_function(provider, 0) do
+    case provider.() do
+      {:ok, %Service{} = service} -> {:ok, service}
+      _ -> {:error, :service_unavailable}
+    end
+  rescue
+    _ -> {:error, :service_unavailable}
+  catch
+    _, _ -> {:error, :service_unavailable}
+  end
+
+  defp submit_new(state, service, device, packet, operation, now) do
     with {:ok, observation} <- observation(device, packet, now),
          {:ok, document} <- Observation.to_map(observation) do
-      retry_submit(state, device, document, operation, now, state.maximum_retries)
+      retry_submit(state, service, device, document, operation, now, state.maximum_retries)
     else
       _ -> :rejected
     end
   end
 
-  defp retry_submit(state, device, document, operation, now, retries) do
-    case Store.snapshot(state.service.store, %{
+  defp retry_submit(state, service, device, document, operation, now, retries) do
+    case Store.snapshot(service.store, %{
            scope: device.scope,
            kind: "observations",
            generation: nil,
@@ -265,7 +282,7 @@ defmodule Wotex.Tracker.Service.Cellular.Ingress do
       {:ok, page} ->
         request = %{"observation" => document, "expected_generation" => page["generation"]}
 
-        case Service.submit(state.service, device.token, device.scope, operation, request, now) do
+        case Service.submit(service, device.token, device.scope, operation, request, now) do
           {:ok, %{"outcome" => "committed", "disposition" => "accepted"}} ->
             :accepted
 
@@ -276,7 +293,7 @@ defmodule Wotex.Tracker.Service.Cellular.Ingress do
             :unknown
 
           {:error, %{"code" => "conflict"}} when retries > 0 ->
-            retry_submit(state, device, document, operation, now, retries - 1)
+            retry_submit(state, service, device, document, operation, now, retries - 1)
 
           {:error, %{"outcome" => "not_committed"}} ->
             :rejected

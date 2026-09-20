@@ -162,6 +162,34 @@ defmodule Wotex.Tracker.Service.CellularIngressTest do
     assert {:error, :busy} = Ingress.login(ingress, @imei)
   end
 
+  test "a trusted provider resolves the current service for each admission", context do
+    options =
+      Keyword.put(ingress_options(context.context), :service, fn ->
+        {:ok, context.context.service}
+      end)
+
+    ingress = start_supervised!(Supervisor.child_spec({Ingress, options}, id: make_ref()))
+    assert {:ok, session} = Ingress.login(ingress, @imei)
+    assert {:ok, %{disposition: :accepted}} = Ingress.submit(ingress, session, context.packet)
+
+    for provider <- [
+          fn -> {:error, :unavailable} end,
+          fn -> {:ok, :forged} end,
+          fn -> raise "provider failure" end,
+          fn -> throw(:provider_failure) end
+        ] do
+      failed =
+        ingress_options(context.context)
+        |> Keyword.put(:service, provider)
+        |> then(&start_supervised!(Supervisor.child_spec({Ingress, &1}, id: make_ref())))
+
+      assert {:ok, failed_session} = Ingress.login(failed, @imei)
+
+      assert {:ok, %{disposition: :rejected}} =
+               Ingress.submit(failed, failed_session, context.packet)
+    end
+  end
+
   test "configuration rejects malformed limits, keys and device entries", context do
     valid = ingress_options(context.context)
     [device] = valid[:devices]

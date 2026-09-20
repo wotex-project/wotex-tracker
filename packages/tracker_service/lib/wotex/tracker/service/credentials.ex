@@ -61,6 +61,21 @@ defmodule Wotex.Tracker.Service.Credentials do
     if token?(token), do: {:ok, hash(token)}, else: {:error, :invalid_token}
   end
 
+  @doc false
+  @spec configured?(t(), term(), term(), term()) :: boolean()
+  def configured?(%__MODULE__{} = credentials, token, scope, permission) do
+    with true <- token?(token) and Codec.id?(scope) and permission in @permissions,
+         digest = hash(token),
+         entry when not is_nil(entry) <-
+           Enum.find(credentials.entries, &equal?(&1.token_sha256, digest)) do
+      permission in Map.get(entry.grants, scope, [])
+    else
+      _ -> false
+    end
+  end
+
+  def configured?(_, _, _, _), do: false
+
   @doc """
   Lists, in ID order, the configured credentials granting any permission in one scope.
 
