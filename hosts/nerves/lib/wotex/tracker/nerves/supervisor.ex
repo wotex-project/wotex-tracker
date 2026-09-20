@@ -11,6 +11,8 @@ defmodule Wotex.Tracker.Nerves.Supervisor do
 
   use Supervisor
   alias Wotex.Tracker.Nerves.NativeResourceSampler
+  alias Wotex.Tracker.Service.Cellular.HostConfig
+  alias Wotex.Tracker.Service.Cellular.Server, as: CellularServer
   alias Wotex.Tracker.Service.HTTP.{Config, Server}
   @kiosk_target Mix.target() == :rpi5
 
@@ -26,6 +28,7 @@ defmodule Wotex.Tracker.Nerves.Supervisor do
     end
 
     server_provider = fn -> Server.child(parent, Server) end
+    cellular = cellular_children(options[:cellular], provider)
 
     browser =
       if options[:browser] do
@@ -39,10 +42,16 @@ defmodule Wotex.Tracker.Nerves.Supervisor do
     kiosk = if @kiosk_target, do: kiosk_child(options[:browser]), else: []
 
     Supervisor.init(
-      [{Server, options[:service]}, {NativeResourceSampler, []}] ++ browser ++ kiosk,
+      [{Server, options[:service]}] ++
+        cellular ++ [{NativeResourceSampler, []}] ++ browser ++ kiosk,
       strategy: :one_for_one
     )
   end
+
+  defp cellular_children(nil, _provider), do: []
+
+  defp cellular_children(%HostConfig{} = config, provider),
+    do: [{CellularServer, HostConfig.server_options(config, provider)}]
 
   defp kiosk_child(nil), do: []
 

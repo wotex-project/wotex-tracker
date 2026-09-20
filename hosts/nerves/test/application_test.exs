@@ -6,7 +6,11 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
   alias Wotex.Tracker.Nerves.NativeResourceSampler
   alias Wotex.Tracker.Nerves.Provisioner
   alias Wotex.Tracker.Nerves.StoragePolicy
+  alias Wotex.Tracker.Protocols.Teltonika.{TAT140, TCPSession}
+  alias Wotex.Tracker.Service
+  alias Wotex.Tracker.Service.Cellular.Server, as: CellularServer
   alias Wotex.Tracker.Service.{Codec, Credentials}
+  alias Wotex.Tracker.Service.HTTP.Config, as: ServerConfig
   alias Wotex.Tracker.Service.HTTP.Server
 
   setup do
@@ -45,9 +49,11 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
     {:ok, marker} = StoragePolicy.provision(root, root, "pi-test")
 
     previous =
-      Map.new([:config_path, :data_root, :clock_synchronized], fn key ->
+      Map.new([:config_path, :data_root, :clock_synchronized, :cellular_config_path], fn key ->
         {key, Application.get_env(:wotex_tracker_nerves, key)}
       end)
+
+    Application.put_env(:wotex_tracker_nerves, :cellular_config_path, nil)
 
     on_exit(fn ->
       Enum.each(previous, fn {key, value} ->
@@ -99,6 +105,97 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
     Supervisor.stop(host)
     refute Process.alive?(server)
     refute Process.alive?(store)
+  end
+
+  test "the appliance supervises an explicitly configured cellular listener", c do
+    imei = "123456789012345"
+    identity_key = :binary.copy(<<13>>, 32)
+    {:ok, identity_digest} = TCPSession.identity_digest(imei, identity_key)
+    cellular_path = Path.join(c.root, "cellular.json")
+
+    cellular = %{
+      "schema" => "wtr.cellular-host.v1",
+      "transport" => "clear_tcp",
+      "listen" => %{"ip" => "127.0.0.1", "port" => 0},
+      "identity_key" => Base.encode64(identity_key),
+      "devices" => [
+        %{
+          "identity_digest" => identity_digest,
+          "token" => c.token,
+          "scope" => "workshop",
+          "id" => "asset-one",
+          "profile" => TAT140.configured_profile()
+        }
+      ]
+    }
+
+    write_private(cellular_path, Codec.encode!(cellular))
+
+    File.write!(
+      c.path,
+      Codec.encode!(Map.put(c.document, "contract", "teltonika.tat140.codec8e"))
+    )
+
+    File.chmod!(c.path, 0o600)
+
+    assert {:ok, options} = Config.load(c.path, c.root)
+    assert {:ok, configured} = Config.load_cellular(cellular_path, c.root, options)
+    refute inspect(configured) =~ c.token
+
+    Application.put_env(:wotex_tracker_nerves, :config_path, c.path)
+    Application.put_env(:wotex_tracker_nerves, :data_root, c.root)
+    Application.put_env(:wotex_tracker_nerves, :cellular_config_path, cellular_path)
+    assert {:ok, host} = HostApplication.start(:normal, [])
+    children = Supervisor.which_children(host)
+    assert {Server, api, :supervisor, _} = List.keyfind(children, Server, 0)
+
+    assert {CellularServer, listener, :supervisor, _} =
+             List.keyfind(children, CellularServer, 0)
+
+    assert {:ok, {{127, 0, 0, 1}, port}} = CellularServer.listener_info(listener)
+    {:ok, socket} = :gen_tcp.connect({127, 0, 0, 1}, port, [:binary, active: false], 1_000)
+    :ok = :gen_tcp.send(socket, <<byte_size(imei)::unsigned-big-16, imei::binary>>)
+    assert {:ok, <<1>>} = :gen_tcp.recv(socket, 1, 1_000)
+    :ok = :gen_tcp.send(socket, tat140_frame())
+    assert {:ok, <<0, 0, 0, 2>>} = :gen_tcp.recv(socket, 4, 1_000)
+    :ok = :gen_tcp.close(socket)
+
+    assert {:ok, server_config} = ServerConfig.new(options)
+    assert {:ok, service} = Server.context(api, server_config)
+
+    assert {:ok, %{"items" => [%{"id" => observation_id}]}} =
+             Service.list(
+               service,
+               c.token,
+               "workshop",
+               "observations",
+               %{"limit" => 10},
+               System.system_time(:millisecond)
+             )
+
+    assert {:ok, %{"value" => %{"records" => [_, _]}}} =
+             Service.get(
+               service,
+               c.token,
+               "workshop",
+               "state",
+               observation_id,
+               System.system_time(:millisecond)
+             )
+
+    assert :ok = Supervisor.stop(host)
+    refute Process.alive?(api)
+    refute Process.alive?(listener)
+  end
+
+  test "cellular appliance configuration is optional and root-bound", c do
+    assert {:ok, options} = Config.load(c.path, c.root)
+    assert {:ok, nil} = Config.load_cellular(nil, c.root, options)
+
+    outside = Path.expand("../cellular.json", c.root)
+    assert {:error, :invalid_configuration} = Config.load_cellular(outside, c.root, options)
+    assert {:error, :invalid_configuration} = Config.load_cellular(c.path, c.root, options)
+    assert {:error, :invalid_configuration} = Config.load_cellular("invalid", nil, :invalid)
   end
 
   test "firmware health fails closed for invalid runtime state", c do
@@ -291,6 +388,14 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
 
   defp write_private(path, bytes) do
     with :ok <- File.write(path, bytes, [:exclusive]), do: File.chmod(path, 0o600)
+  end
+
+  defp tat140_frame do
+    {:ok, fixture} =
+      Wotex.JSON.decode(File.read!("../../test/fixtures/teltonika/tat140.json"))
+
+    [vector] = fixture["vectors"]
+    Base.decode16!(vector["hex"])
   end
 
   defp free_port do

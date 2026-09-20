@@ -62,9 +62,11 @@ defmodule Wotex.Tracker.Nerves.BrowserTest do
     write(browser_path, browser)
 
     previous =
-      Map.new([:config_path, :data_root, :browser_config_path], fn key ->
+      Map.new([:config_path, :data_root, :browser_config_path, :cellular_config_path], fn key ->
         {key, Application.get_env(:wotex_tracker_nerves, key)}
       end)
+
+    Application.put_env(:wotex_tracker_nerves, :cellular_config_path, nil)
 
     on_exit(fn ->
       Enum.each(previous, fn {key, value} ->

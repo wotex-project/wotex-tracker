@@ -8,6 +8,7 @@ defmodule Wotex.Tracker.Nerves.Config do
   """
 
   import Bitwise
+  alias Wotex.Tracker.Service.Cellular.HostConfig
   alias Wotex.Tracker.Service.HTTP.FileConfig
   alias Wotex.Tracker.Service.StorePath
 
@@ -25,6 +26,26 @@ defmodule Wotex.Tracker.Nerves.Config do
       _ -> {:error, :invalid_configuration}
     end
   end
+
+  @doc "Loads an optional private cellular document from the fixed appliance root."
+  @spec load_cellular(term(), term(), keyword()) ::
+          {:ok, HostConfig.t() | nil} | {:error, :invalid_configuration}
+  def load_cellular(nil, _root, _service_options), do: {:ok, nil}
+
+  def load_cellular(path, root, service_options)
+      when is_binary(root) and is_list(service_options) do
+    with true <- private_root?(root),
+         true <- path == Path.join(root, "cellular.json"),
+         {:ok, document} <- FileConfig.read_document(path),
+         credentials when not is_nil(credentials) <- service_options[:credentials],
+         contract when not is_nil(contract) <- service_options[:contract] do
+      HostConfig.new(document, credentials, contract)
+    else
+      _ -> {:error, :invalid_configuration}
+    end
+  end
+
+  def load_cellular(_, _, _), do: {:error, :invalid_configuration}
 
   defp private_root?(root) when is_binary(root),
     do: StorePath.private_directory(root) == :ok

@@ -26,13 +26,14 @@ defmodule Wotex.Tracker.Nerves.Application do
          :ok <- ClockPolicy.admit(options, &synchronized_clock?/0),
          instance_id = Credentials.instance_id(options[:credentials]),
          :ok <- StoragePolicy.admit(data_root(), instance_id, options[:directory]),
+         {:ok, cellular} <- cellular_config(options),
          {:ok, browser} <- browser_config(options) do
-      start_host(options, browser, instance_id)
+      start_host(options, browser, cellular, instance_id)
     end
   end
 
-  defp start_host(options, browser, instance_id) do
-    case HostSupervisor.start_link(service: options, browser: browser) do
+  defp start_host(options, browser, cellular, instance_id) do
+    case HostSupervisor.start_link(service: options, browser: browser, cellular: cellular) do
       {:ok, host} -> finalize_host(host, instance_id, options[:directory])
       {:error, reason} -> recover_or_return(reason)
     end
@@ -100,5 +101,13 @@ defmodule Wotex.Tracker.Nerves.Application do
           {:error, :ui_not_in_artifact}
         end
     end
+  end
+
+  defp cellular_config(options) do
+    Config.load_cellular(
+      Application.get_env(:wotex_tracker_nerves, :cellular_config_path),
+      data_root(),
+      options
+    )
   end
 end

@@ -15,5 +15,10 @@ config :nerves_time, time_file: "/data/nerves_time"
 config :wotex_tracker_nerves,
   config_path: "/root/tracker/config.json",
   data_root: "/root/tracker",
+  cellular_config_path:
+    if(System.get_env("WOTEX_TRACKER_CELLULAR") == "1",
+      do: "/root/tracker/cellular.json",
+      else: nil
+    ),
   browser_config_path:
     if(System.get_env("WOTEX_TRACKER_UI") == "1", do: "/root/tracker/browser.json", else: nil)
