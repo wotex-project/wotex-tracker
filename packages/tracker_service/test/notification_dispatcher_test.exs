@@ -70,7 +70,15 @@ defmodule Wotex.Tracker.Service.NotificationDispatcherTest do
            }
          }},
         Store.forward_status(c.store, c.scope, c.queue_id)
-      )
+      ) and
+        match?(
+          {:ok,
+           %{
+             "running" => false,
+             "last_result" => %{"accepted" => 1, "claimed" => 1}
+           }},
+          NotificationDispatcher.snapshot(dispatcher)
+        )
     end)
 
     assert {:ok,
