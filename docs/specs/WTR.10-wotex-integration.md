@@ -2,7 +2,16 @@
 
 ## Status
 
-Accepted target contract. No implementation claim.
+Implemented for the selected software cohort: the root library consumes upstream
+`wotex` validation without alternate TD/TM types, while the service exercises
+upstream Runtime ExposedThing/ConsumedThing planning and the HTTP binding through
+real bounded local peers. Monorepo path dependencies are restricted to
+development/test/docs and clean archive consumers retain ordinary package
+requirements. Directory, MQTT, BLE scanning, Continuum, Nx, Conformance and
+private Refpath integrations remain optional/unconfigured, and local source
+cohorts do not prove published-release availability. See the
+[implementation evidence](../evidence/implementation.md#wtr07-runtime-property-reads-and-actual-http-peer--2026-09-15)
+and [source cohort](../provenance/primary-sources.md).
 
 ## Dependency direction
 
