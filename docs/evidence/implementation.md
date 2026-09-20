@@ -5041,3 +5041,24 @@ commit is `e44558630912c49ceb44ddcca4755e598127b228`.
 This is software evidence for bounded keyboard navigation. It does not qualify
 a physical touch or gesture surface, screen-reader behavior, a contextual or
 offline map source, or any particular browser, Pi display or iPhone.
+
+### Geographic route-map graticules — 2026-09-20
+
+The retained-position map now projects five bounded longitude and latitude
+graticules over each page-local route extent. Labels choose finite precision from
+the displayed span, identify north/south/east/west explicitly and normalize the
+unwrapped short-antimeridian frame back to ordinary longitude labels. Constant
+coordinates retain the existing bounded half-degree presentation extent. The
+graticule is presentational and hidden from assistive technology because the
+exact accessible coordinate table remains the authoritative alternative.
+
+Both shared-UI runtime lanes passed 173 tests at 95.0% coverage with every
+configured compiler, dependency, formatter, audit, strict Credo, documentation,
+Dialyzer, boundary, language, archive and licence check. Tests cover an
+antimeridian-crossing page, constant coordinates and the rendered ten-line grid.
+The implementation commit is
+`bd949b7dd7d834ecf2d042a4fc624fb573bc4bc7`.
+
+The grid supplies geographic coordinate context only. It does not fetch or
+cache contextual map data, qualify offline tiles, match a road, bridge a gap or
+prove physical pan/zoom acceptance.
