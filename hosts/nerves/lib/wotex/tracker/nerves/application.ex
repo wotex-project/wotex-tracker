@@ -59,11 +59,13 @@ defmodule Wotex.Tracker.Nerves.Application do
   defp data_root, do: Application.get_env(:wotex_tracker_nerves, :data_root)
 
   if Mix.target() == :qemu_aarch64 do
-    defp prepare_target, do: Wotex.Tracker.Nerves.QemuFixture.prepare()
+    alias Wotex.Tracker.Nerves.QemuFixture
+
+    defp prepare_target, do: QemuFixture.prepare()
 
     defp target_ready(host, instance_id, directory) do
       with :ok <- FirmwareHealth.check(host, data_root(), instance_id, directory),
-           do: Wotex.Tracker.Nerves.QemuFixture.verify()
+           do: QemuFixture.verify()
     end
   else
     defp prepare_target, do: :ok
@@ -92,7 +94,7 @@ defmodule Wotex.Tracker.Nerves.Application do
         module = Wotex.Tracker.Nerves.BrowserConfig
 
         if Code.ensure_loaded?(module) do
-          apply(module, :load, [
+          :erlang.apply(module, :load, [
             path,
             Application.get_env(:wotex_tracker_nerves, :data_root),
             options

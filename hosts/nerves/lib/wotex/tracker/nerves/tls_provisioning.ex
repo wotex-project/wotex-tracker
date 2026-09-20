@@ -54,7 +54,6 @@ defmodule Wotex.Tracker.Nerves.TLSProvisioning do
     else
       false -> {:error, :invalid_configuration}
       {:error, _} = error -> error
-      _ -> {:error, :invalid_configuration}
     end
   end
 

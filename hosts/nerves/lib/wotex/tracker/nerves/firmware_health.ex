@@ -9,8 +9,8 @@ defmodule Wotex.Tracker.Nerves.FirmwareHealth do
   """
 
   alias Wotex.Tracker.Nerves.StoragePolicy
-  alias Wotex.Tracker.Service.{Schema, Store}
   alias Wotex.Tracker.Service.HTTP.Server
+  alias Wotex.Tracker.Service.{Schema, Store}
 
   @error {:error, :firmware_health_failed}
 

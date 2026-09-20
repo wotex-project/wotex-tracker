@@ -39,7 +39,7 @@ defmodule Wotex.Tracker.Nerves.Supervisor do
         []
       end
 
-    kiosk = if @kiosk_target, do: kiosk_child(options[:browser]), else: []
+    kiosk = kiosk_children(options[:browser])
 
     Supervisor.init(
       [{Server, options[:service]}] ++
@@ -53,14 +53,18 @@ defmodule Wotex.Tracker.Nerves.Supervisor do
   defp cellular_children(%HostConfig{} = config, provider),
     do: [{CellularServer, HostConfig.server_options(config, provider)}]
 
-  defp kiosk_child(nil), do: []
+  if @kiosk_target do
+    defp kiosk_children(nil), do: []
 
-  defp kiosk_child(config) do
-    [
-      Supervisor.child_spec(
-        {Wotex.Tracker.Nerves.Kiosk, config},
-        restart: :temporary
-      )
-    ]
+    defp kiosk_children(config) do
+      [
+        Supervisor.child_spec(
+          {Wotex.Tracker.Nerves.Kiosk, config},
+          restart: :temporary
+        )
+      ]
+    end
+  else
+    defp kiosk_children(_config), do: []
   end
 end
