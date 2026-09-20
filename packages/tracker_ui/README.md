@@ -136,6 +136,14 @@ page states that the asset, its state and its rule definitions leave current
 views while history, evidence and alerts remain, then requires a prepared
 operation reference and confirmation. Success is reported only when the receipt
 names the asset and its enrollment is no longer readable.
+The Privacy page gives administrators exact retained primary-store and preserved
+security-record counts. It states that backups, offline exports and already
+remote publications are outside the deletion claim. Deletion captures a fresh
+scope generation under a stable operation reference and requires the literal
+confirmation phrase. A committed receipt counts as success only after the page
+rereads the matching deletion marker and the minimal retained rows. Lost replies
+remain recoverable without resubmission. Readers neither request nor render the
+counts or destructive form.
 
 The host supplies a `Wotex.Tracker.UI.Client` implementation and explicitly
 starts the session store. The local adapter resolves the current service for
@@ -178,7 +186,7 @@ The first cohort exercises real authorized services, duplicate prevention,
 lost-reply recovery, revocation, read-only denial, upload bounds, bounded
 lists/history, CSRF protection and credential custody. Device discovery and
 capture, basemaps, owner-presence capture, physical notification delivery,
-interactions, remaining privacy controls and cross-surface accessibility remain
+interactions, configurable automatic retention and cross-surface accessibility remain
 subsequent work. A
 responsive browser view does not qualify a mobile or Pi application.
 

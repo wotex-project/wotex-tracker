@@ -92,6 +92,9 @@ defmodule Wotex.Tracker.UI.Local do
   defp dispatch(service, token, scope, :access_audit, args, now),
     do: Service.access_audit(service, token, scope, args["params"] || %{}, now)
 
+  defp dispatch(service, token, scope, :privacy, _, now),
+    do: Service.privacy(service, token, scope, now)
+
   defp dispatch(service, token, scope, :list, %{"resource" => "notification_endpoints"}, now),
     do: Service.notification_endpoints(service, token, scope, now)
 
@@ -188,6 +191,17 @@ defmodule Wotex.Tracker.UI.Local do
 
   defp dispatch(service, token, scope, :unenroll, args, now),
     do: Service.unenroll(service, token, scope, args["operation"], args["request"], now)
+
+  defp dispatch(service, token, scope, :delete_domain_data, args, now),
+    do:
+      Service.delete_domain_data(
+        service,
+        token,
+        scope,
+        args["operation"],
+        args["request"],
+        now
+      )
 
   defp dispatch(service, token, scope, :revoke, args, now),
     do: Service.revoke(service, token, scope, args["operation"], args["request"], now)

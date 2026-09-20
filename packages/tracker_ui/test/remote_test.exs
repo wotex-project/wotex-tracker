@@ -118,6 +118,7 @@ defmodule Wotex.Tracker.UI.RemoteTest do
              }
            }},
           {:access_audit, %{"params" => "invalid"}},
+          {:privacy, %{"extra" => true}},
           {:submit, %{"operation" => "", "request" => %{}}},
           {:analytics, %{"query" => String.duplicate("x", 1_048_577)}},
           {:analytics, %{"query" => self()}}
@@ -204,6 +205,7 @@ defmodule Wotex.Tracker.UI.RemoteTest do
       {:credentials, %{}, "GET", "/credentials", nil},
       {:access_audit, %{"params" => %{"cursor" => "next"}}, "GET", "/access_audit?cursor=next",
        nil},
+      {:privacy, %{}, "GET", "/privacy", nil},
       {:list, %{"resource" => "observations", "params" => %{"limit" => 25}}, "GET",
        "/observations?limit=25", nil},
       {:list, %{"resource" => "notification_endpoints"}, "GET", "/notification_endpoints", nil},
@@ -236,6 +238,7 @@ defmodule Wotex.Tracker.UI.RemoteTest do
     mutation_cases = [
       acknowledge_alert: "alert_acknowledgements",
       associate: "associations",
+      delete_domain_data: "domain_data_deletions",
       delete_policy: "policy_deletions",
       delete_query: "saved_query_deletions",
       enroll: "enrollments",

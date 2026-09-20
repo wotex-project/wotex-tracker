@@ -949,6 +949,209 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert has_element?(view, "caption", "25 successful decisions at audit snapshot")
   end
 
+  test "an administrator reviews and deletes all retained scope data", c do
+    {thing, _} = materialized(c)
+    {:ok, view, html} = live(c.conn, "/privacy")
+
+    assert html =~ ~s(href="/privacy">Privacy</a>)
+    assert has_element?(view, "h1", "Retained scope data")
+    assert has_element?(view, "caption", "Retained rows in the managed primary store")
+    assert has_element?(view, "caption", "Rows preserved by domain-data deletion")
+    assert has_element?(view, "th", "Observations")
+    assert has_element?(view, "td", "1")
+    assert html =~ "not deleted"
+    assert html =~ "cannot be undone"
+    refute has_element?(view, "#delete-domain-data")
+
+    view |> element("button", "Prepare data deletion") |> render_click()
+    path = assert_patch(view)
+    assert path =~ "/privacy?operation="
+    assert has_element?(view, "#delete-domain-data")
+    assert render(view) =~ "delete retained domain data"
+    render_patch(view, path)
+    assert has_element?(view, "#delete-domain-data")
+
+    render_submit(view, "delete", %{"deletion" => %{"confirmation" => "delete data"}})
+    assert has_element?(view, "[role=alert]", "Check the required fields")
+    assert {:ok, _} = Service.get(c.service, c.admin, c.scope, "enrollments", thing, c.now)
+
+    view
+    |> form("#delete-domain-data", deletion: %{confirmation: "delete retained domain data"})
+    |> render_submit()
+
+    assert has_element?(view, "[role=status]", "Retained domain data deleted and verified")
+    refute has_element?(view, "#delete-domain-data")
+    assert has_element?(view, "h2", "Last verified deletion")
+
+    render_submit(view, "delete", %{
+      "deletion" => %{"confirmation" => "delete retained domain data"}
+    })
+
+    assert has_element?(view, "[role=status]", "Retained domain data deleted and verified")
+
+    assert {:ok, %{"items" => []}} =
+             Service.list(c.service, c.admin, c.scope, "enrollments", %{}, c.now)
+
+    assert {:ok, privacy} = Service.privacy(c.service, c.admin, c.scope, c.now)
+    assert privacy["retained"]["observations"] == 0
+    assert privacy["retained"]["record_versions"] == 1
+    assert privacy["retained"]["events"] == 1
+    assert privacy["retained"]["operation_receipts"] == 1
+    assert {:ok, _} = Sessions.request(c.sessions, c.session, :access)
+
+    {:ok, recovered, _} = live(c.conn, path)
+    assert has_element?(recovered, "[role=status]", "Retained domain data deleted and verified")
+  end
+
+  test "domain deletion recovers a lost reply without submitting twice", c do
+    materialized(c)
+    {:ok, view, _} = live(c.conn, "/privacy")
+    view |> element("button", "Prepare data deletion") |> render_click()
+    path = assert_patch(view)
+
+    Agent.update(c.faults, &Map.put(&1, :delete_domain_data, :lost_reply))
+
+    view
+    |> form("#delete-domain-data", deletion: %{confirmation: "delete retained domain data"})
+    |> render_submit()
+
+    assert has_element?(view, "[role=status]", "Deletion outcome unknown")
+    refute has_element?(view, "#delete-domain-data")
+
+    Agent.update(c.faults, &Map.put(&1, :privacy, :unavailable))
+    view |> element("button", "Check operation outcome") |> render_click()
+    assert has_element?(view, "[role=status]", "Deletion outcome unknown")
+    assert has_element?(view, "[role=alert]")
+
+    view |> element("button", "Check operation outcome") |> render_click()
+    assert has_element?(view, "[role=status]", "Retained domain data deleted and verified")
+
+    {:ok, recovered, _} = live(c.conn, path)
+    assert has_element?(recovered, "[role=status]", "Retained domain data deleted and verified")
+  end
+
+  test "privacy keeps the last valid projection and excludes reader credentials", c do
+    materialized(c)
+    {:ok, view, _} = live(c.conn, "/privacy")
+    assert has_element?(view, "caption", "Retained rows in the managed primary store")
+
+    Agent.update(c.faults, &Map.put(&1, :privacy, {:reply, {:ok, %{}}}))
+    view |> element("button", "Prepare data deletion") |> render_click()
+    assert has_element?(view, "[role=alert]")
+    assert has_element?(view, "caption", "Retained rows in the managed primary store")
+    refute has_element?(view, "#delete-domain-data")
+
+    {:ok, %{"id" => reader}} = Sessions.login(c.sessions, c.reader, c.scope)
+    conn = build_conn() |> init_test_session(%{"browser_session" => reader})
+    {:ok, reader_view, html} = live(conn, "/privacy")
+    assert has_element?(reader_view, "h2", "Administrator access required")
+    refute html =~ "Retained rows in the managed primary store"
+    refute html =~ "delete retained domain data"
+    refute has_element?(reader_view, "button", "Prepare data deletion")
+    render_click(reader_view, "prepare", %{})
+    assert has_element?(reader_view, "[role=alert]", "does not permit")
+    render_click(reader_view, "ignored-event", %{})
+
+    operation = Identifier.uuid()
+    {:ok, forged, _} = live(conn, "/privacy?operation=" <> operation)
+    refute has_element?(forged, "#delete-domain-data")
+
+    render_submit(forged, "delete", %{
+      "deletion" => %{"confirmation" => "delete retained domain data"}
+    })
+
+    assert has_element?(forged, "[role=alert]", "does not permit")
+    assert {:error, %{"code" => "forbidden"}} = Sessions.request(c.sessions, reader, :privacy)
+  end
+
+  test "privacy fails closed for unavailable state and unrelated receipts", c do
+    Agent.update(c.faults, &Map.put(&1, :privacy, {:persistent, :unavailable}))
+    {:ok, unavailable, _} = live(c.conn, "/privacy?operation=" <> Identifier.uuid())
+    assert has_element?(unavailable, "h2", "Retention details unavailable")
+    assert has_element?(unavailable, "[role=alert]")
+    refute has_element?(unavailable, "#delete-domain-data")
+    Agent.update(c.faults, &Map.delete(&1, :privacy))
+
+    {:ok, invalid, _} = live(c.conn, "/privacy?operation=not-a-uuid")
+    assert has_element?(invalid, "[role=alert]", "Check the required fields")
+    refute has_element?(invalid, "#delete-domain-data")
+
+    materialized(c)
+    assert {:ok, privacy} = Service.privacy(c.service, c.admin, c.scope, c.now)
+    {:ok, mismatch, _} = live(c.conn, "/privacy")
+    mismatch |> element("button", "Prepare data deletion") |> render_click()
+    path = assert_patch(mismatch)
+
+    operation =
+      path |> URI.parse() |> Map.fetch!(:query) |> URI.decode_query() |> Map.fetch!("operation")
+
+    receipt = %{
+      "outcome" => "committed",
+      "operation_id" => operation,
+      "generation" => privacy["generation"],
+      "disposition" => "accepted",
+      "publication" => nil,
+      "data" => %{
+        "schema" => "wtr.domain-data-deletion.v1",
+        "action" => "deleted_retained_domain_data",
+        "deleted_at" => c.now,
+        "removed" => privacy["retained"],
+        "preserved" => privacy["preserved_on_deletion"],
+        "backups" => "not_deleted",
+        "offline_exports" => "not_deleted",
+        "remote_publications" => "not_deleted"
+      }
+    }
+
+    Agent.update(c.faults, &Map.put(&1, :operation, {:reply, {:ok, receipt}}))
+    mismatch |> element("button", "Check operation outcome") |> render_click()
+    assert has_element?(mismatch, "[role=alert]", "different workflow")
+    refute has_element?(mismatch, "#delete-domain-data")
+  end
+
+  test "privacy retains an uncertain operation after a request failure", c do
+    materialized(c)
+    {:ok, view, _} = live(c.conn, "/privacy")
+    view |> element("button", "Prepare data deletion") |> render_click()
+    Agent.update(c.faults, &Map.put(&1, :delete_domain_data, :unavailable))
+
+    view
+    |> form("#delete-domain-data", deletion: %{confirmation: "delete retained domain data"})
+    |> render_submit()
+
+    assert has_element?(view, "[role=status]", "Deletion outcome unknown")
+    assert has_element?(view, "[role=alert]")
+    refute has_element?(view, "#delete-domain-data")
+  end
+
+  test "a stale privacy confirmation cannot delete newer scope state", c do
+    materialized(c)
+    {:ok, view, _} = live(c.conn, "/privacy")
+    view |> element("button", "Prepare data deletion") |> render_click()
+
+    assert {:ok, _} =
+             Service.revoke(
+               c.service,
+               c.admin,
+               c.scope,
+               Identifier.uuid(),
+               %{"credential_id" => "reader", "expected_generation" => "3"},
+               c.now
+             )
+
+    view
+    |> form("#delete-domain-data", deletion: %{confirmation: "delete retained domain data"})
+    |> render_submit()
+
+    assert has_element?(view, "[role=alert]", "service changed")
+    refute has_element?(view, "#delete-domain-data")
+
+    assert {:ok, %{"items" => items}} =
+             Service.list(c.service, c.admin, c.scope, "observations", %{}, c.now)
+
+    assert length(items) == 1
+  end
+
   test "a stale revocation refuses to remove access", c do
     {:ok, view, _} = live(c.conn, "/access")
     view |> element("button", "Prepare revocation") |> render_click()

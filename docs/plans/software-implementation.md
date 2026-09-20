@@ -420,8 +420,10 @@ Administrators can remove an enrolled asset from current views after a stated,
 confirmed and recoverable operation. The service can also inspect exact retained
 scope counts and delete all managed domain data through an explicitly confirmed,
 generation-checked, recoverable operation while preserving revocations and the
-bounded access audit; the shared destructive UI and configurable retention remain
-open. An Activity page
+bounded access audit. The shared Privacy page admits those exact counts, discloses
+the limits of the managed-store claim, requires the literal confirmation phrase
+and verifies the retained marker before reporting success; readers receive no
+counts or destructive form. Configurable automatic retention remains open. An Activity page
 pages the credential's recent committed changes for recovery. The shared Access
 page also lists the current principal's token-redacted mobile notification
 installations and removes one through an explicitly confirmed, generation-checked,

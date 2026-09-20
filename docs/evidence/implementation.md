@@ -3831,3 +3831,39 @@ the 522-file stack-language policy passed.
 This completes the durable service deletion boundary. Shared application
 presentation and configurable automatic domain retention remain separate work;
 backup/export/remote-destination deletion remains operator-managed by design.
+
+### Shared retained-data deletion presentation — 2026-09-20
+
+The shared package now exposes an administrator-only Privacy page through the
+same local and bounded remote service adapters. It presents exact retained
+primary-store and preserved-security counts, the current generation, the last
+deletion marker and the fixed access-audit bounds. The page explicitly excludes
+consistent backups, offline exports and already-remote publications from the
+deletion claim. Reader credentials neither request nor render the counts or the
+destructive form.
+
+Preparation refreshes the exact privacy projection, captures that generation
+under a stable operation reference in the address, and requires the literal
+`delete retained domain data` phrase. Submission occurs once. An ambiguous reply
+removes the form and recovers through the durable operation receipt. Even a
+committed receipt is not presented as success until a fresh exact projection has
+the same generation, matching deletion timestamp and removed counts, plus only
+the privacy marker, deletion event and current receipt among managed domain rows.
+Malformed projections preserve the last admitted preview; stale generations
+close without deleting newer state; unrelated receipts fail closed.
+
+Workflow tests exercise exact preview, typed confirmation, current-session
+survival, reconnect recovery, a deliberately lost acknowledgement, stale-write
+refusal, malformed-preview preservation, reader exclusion and the closed remote
+HTTP mapping. The Privacy link is part of the shared layout used by browser and
+kiosk hosts. The complete shared-UI gate passed 166 tests at 95.0% production
+line coverage, with compiler, unused-dependency, formatter, dependency audit,
+strict Credo, ExDoc, Dialyzer, 57-member archive inspection, licences and the
+523-file stack-language policy. The UI-enabled application-host gate passed 22
+tests at 95.5% coverage together with its compiler, formatter, strict Credo,
+ExDoc, Dialyzer, native CLI build/format, dependency audit, licences and
+stack-language policy.
+
+This completes the recoverable shared deletion workflow. Configurable automatic
+retention remains open, and deletion of operator-managed backup/export/remote
+copies remains outside the application by design.

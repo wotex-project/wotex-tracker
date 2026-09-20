@@ -19,6 +19,7 @@ defmodule Wotex.Tracker.UI.Remote do
   @mutations %{
     acknowledge_alert: "alert_acknowledgements",
     associate: "associations",
+    delete_domain_data: "domain_data_deletions",
     delete_policy: "policy_deletions",
     delete_query: "saved_query_deletions",
     enroll: "enrollments",
@@ -135,6 +136,11 @@ defmodule Wotex.Tracker.UI.Remote do
   defp route(:access_audit, %{"params" => params} = arguments)
        when map_size(arguments) == 1,
        do: {:ok, get(["access_audit"], params)}
+
+  defp route(:privacy, arguments) when map_size(arguments) == 0,
+    do: {:ok, get(["privacy"])}
+
+  defp route(:privacy, _), do: error("invalid_request")
 
   defp route(:list, %{"resource" => resource} = arguments)
        when map_size(arguments) in 1..2 and resource in @resources,

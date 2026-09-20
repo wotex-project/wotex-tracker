@@ -34,7 +34,7 @@ defmodule Wotex.Tracker.UI.Layout do
         <header class="topbar">
           <a class="brand" href="/">WoTEx <span>Tracker</span></a>
           <nav aria-label="Main navigation">
-            <a href="/">Assets</a><a href="/setup">Setup</a><a href="/protection">Protection</a><a href="/dashboards">Dashboards</a><a href="/activity">Activity</a><a href="/access">Access</a>
+            <a href="/">Assets</a><a href="/setup">Setup</a><a href="/protection">Protection</a><a href="/dashboards">Dashboards</a><a href="/activity">Activity</a><a href="/access">Access</a><a href="/privacy">Privacy</a>
             <.form for={%{}} action="/session/logout" method="post">
               <button class="text-button" type="submit">Sign out</button>
             </.form>
