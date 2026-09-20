@@ -167,7 +167,11 @@ defmodule Wotex.Tracker.Nerves.QemuBootRecord do
       |> String.split("\n", trim: true)
       |> Enum.reject(&String.starts_with?(&1, "verification/"))
 
-    %{"commit" => String.trim(head), "tracked_changes" => source_changes != []}
+    %{
+      "commit" => String.trim(head),
+      "tracked_changes" => source_changes != [],
+      "tracked_paths" => source_changes
+    }
   end
 end
 
