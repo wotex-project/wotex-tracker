@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "WoTEx Tracker service",
-    "version": "1.35.0",
+    "version": "1.36.0",
     "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries, snapshot-pinned gap-honest route replay from retained private evidence, half-open time-windowed trip lifecycle pages and bounded completed-trip distance reconstruction, persisted rule status and administrator-managed heartbeat, battery, motion, geofence and suspicious-movement rule definitions evaluated against committed Thing evidence, atomic suspicious-movement orchestration over exact motion, arming and owner-presence inputs, explicit administrator-committed arming facts, closed owner-presence fact admission, acknowledgeable rule alerts listed per Thing for defined rules, administrator unenrollment, pinned incident snapshots, a current-access projection, an administrator credential inventory, a bounded successful-authorization audit, explicit retained-data inspection and scope deletion, and encrypted principal-bound APNs endpoint registration. No scanner, OS delivery evidence or physical interaction is implied."
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
@@ -8249,6 +8249,12 @@
                       "saved",
                       "deleted"
                     ]
+                  },
+                  "cause": {
+                    "enum": [
+                      "administrator",
+                      "automatic_inactivity"
+                    ]
                   }
                 },
                 "required": [
@@ -10887,6 +10893,12 @@
           "schema": {
             "const": "wtr.privacy-deletion.v1"
           },
+          "cause": {
+            "enum": [
+              "administrator",
+              "automatic_inactivity"
+            ]
+          },
           "deleted_at": {
             "type": "integer",
             "minimum": 0,
@@ -10902,6 +10914,7 @@
         },
         "required": [
           "schema",
+          "cause",
           "deleted_at",
           "generation",
           "removed"
@@ -10912,7 +10925,34 @@
         "type": "object",
         "properties": {
           "domain_data": {
-            "const": "retained_until_administrator_deletion"
+            "enum": [
+              "retained_until_administrator_deletion",
+              "deleted_after_scope_inactivity"
+            ]
+          },
+          "inactivity_retention_ms": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 31536000000
+              }
+            ]
+          },
+          "enforcement_interval_ms": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 86400000
+              }
+            ]
           },
           "deletion_scope": {
             "const": "all_retained_domain_data_in_scope"
@@ -10948,6 +10988,8 @@
         },
         "required": [
           "domain_data",
+          "inactivity_retention_ms",
+          "enforcement_interval_ms",
           "deletion_scope",
           "credential_revocations",
           "successful_access_audit",

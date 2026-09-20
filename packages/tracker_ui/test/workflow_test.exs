@@ -1109,6 +1109,26 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     refute has_element?(mismatch, "#delete-domain-data")
   end
 
+  test "privacy presents an admitted automatic inactivity policy", c do
+    materialized(c)
+    assert {:ok, privacy} = Service.privacy(c.service, c.admin, c.scope, c.now)
+
+    automatic =
+      put_in(privacy["policy"], %{
+        privacy["policy"]
+        | "domain_data" => "deleted_after_scope_inactivity",
+          "inactivity_retention_ms" => 86_400_000,
+          "enforcement_interval_ms" => 60_000
+      })
+
+    Agent.update(c.faults, &Map.put(&1, :privacy, {:persistent, {:reply, {:ok, automatic}}}))
+    {:ok, view, html} = live(c.conn, "/privacy")
+    assert html =~ "automatically deleted after 86400000 ms"
+    assert html =~ "background check runs every 60000 ms"
+    assert has_element?(view, "button", "Prepare data deletion")
+    Agent.update(c.faults, &Map.delete(&1, :privacy))
+  end
+
   test "privacy retains an uncertain operation after a request failure", c do
     materialized(c)
     {:ok, view, _} = live(c.conn, "/privacy")

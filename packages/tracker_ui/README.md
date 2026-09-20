@@ -186,7 +186,7 @@ The first cohort exercises real authorized services, duplicate prevention,
 lost-reply recovery, revocation, read-only denial, upload bounds, bounded
 lists/history, CSRF protection and credential custody. Device discovery and
 capture, basemaps, owner-presence capture, physical notification delivery,
-interactions, configurable automatic retention and cross-surface accessibility remain
+interactions, hardware anti-stalking mechanisms and cross-surface accessibility remain
 subsequent work. A
 responsive browser view does not qualify a mobile or Pi application.
 

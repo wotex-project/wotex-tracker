@@ -73,11 +73,11 @@ publication status), or `unknown`. A lost reply is unknown; clients query the
 same operation identity and never automatically retry a physical Action.
 Committed results are retained for seven days of explicit receiver time;
 expired keys remain tombstones and return `operation_expired`. Expiry cannot
-silently permit re-execution. Event cursors expire after seven days; a cursor
+silently permit re-execution before a disclosed scope deletion. Event cursors expire after seven days; a cursor
 outside retained history requires an explicit resnapshot. The first store
-retains evidence/history and expired tombstones until explicit operator-managed
-offline retention; it rejects at capacity rather than silently deleting linked
-evidence. Automatic retention/deletion and backup erasure remain separate work.
+retains evidence/history and expired tombstones until administrator deletion or
+configured whole-scope inactivity deletion; it rejects at capacity rather than
+silently deleting linked evidence. Backup erasure remains separate operator work.
 
 Publication intents contain the exact Thing/deployment document and generation.
 Publication is a separate effect. Only the latest generation for that Thing may
@@ -376,7 +376,7 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
-## HTTP and stream contract 1.35.0
+## HTTP and stream contract 1.36.0
 
 The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
 2020-12. The independently maintained Elixir audit checks document shape,
@@ -454,6 +454,16 @@ intact; loss after commit resolves through ordinary operation lookup. Existing
 event cursors cannot cross the erased sequence and fail explicitly. Durable
 credential revocations and the separately bounded successful-access audit remain
 so deletion cannot reactivate access or erase its security record.
+
+The optional host `privacy_policy.domain_inactivity_retention_ms` accepts one
+minute through one year. When configured, the same complete managed-domain
+deletion runs atomically at the exact boundary after the last domain mutation.
+Every authorization enforces the boundary before reading or writing, and the
+store also checks once per minute without waiting for access. Successful reads
+and access-audit entries do not extend the interval. Automatic deletion records
+the `automatic_inactivity` cause in its marker and public event but creates no
+fictional administrator receipt; a later mutation starts a new interval. The
+default remains administrator deletion only.
 
 The managed SQLite connection enables secure deletion of freed cells. This is a
 primary-store logical deletion contract, not a claim about every historical

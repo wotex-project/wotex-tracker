@@ -31,7 +31,7 @@ defmodule Wotex.Tracker.Service.DataDeletion do
          "retained" => retained(db, access.scope),
          "preserved_on_deletion" => preserved(db, access.scope),
          "last_deletion" => last_deletion(db, access.scope),
-         "policy" => policy()
+         "policy" => policy(options)
        }}
     after
       SQL.rollback(db)
@@ -81,8 +81,8 @@ defmodule Wotex.Tracker.Service.DataDeletion do
     next_generation = generation + 1
 
     delete_rows(db, access.scope)
-    write_marker(db, access.scope, next_generation, now, removed)
-    write_event(db, access.scope, next_generation, now)
+    write_marker(db, access.scope, next_generation, now, removed, "administrator")
+    write_event(db, access.scope, next_generation, now, "administrator")
     write_generation(db, access.scope, next_generation)
 
     result =
@@ -155,9 +155,17 @@ defmodule Wotex.Tracker.Service.DataDeletion do
     end
   end
 
-  defp policy,
-    do: %{
-      "domain_data" => "retained_until_administrator_deletion",
+  defp policy(options) do
+    automatic = options.domain_inactivity_retention_ms
+
+    %{
+      "domain_data" =>
+        if(automatic,
+          do: "deleted_after_scope_inactivity",
+          else: "retained_until_administrator_deletion"
+        ),
+      "inactivity_retention_ms" => automatic,
+      "enforcement_interval_ms" => if(automatic, do: options.retention_check_ms, else: nil),
       "deletion_scope" => "all_retained_domain_data_in_scope",
       "credential_revocations" => "preserved_for_access_control",
       "successful_access_audit" => %{
@@ -168,6 +176,7 @@ defmodule Wotex.Tracker.Service.DataDeletion do
       "offline_exports" => "outside_managed_primary_store",
       "remote_publications" => "outside_managed_primary_store"
     }
+  end
 
   defp delete_rows(db, scope) do
     for table <-
@@ -178,9 +187,10 @@ defmodule Wotex.Tracker.Service.DataDeletion do
     SQL.rows!(db, "DELETE FROM records WHERE scope=? AND kind!='access'", [scope])
   end
 
-  defp write_marker(db, scope, generation, now, removed) do
+  defp write_marker(db, scope, generation, now, removed, cause) do
     marker = %{
       "schema" => "wtr.privacy-deletion.v1",
+      "cause" => cause,
       "deleted_at" => now,
       "generation" => Integer.to_string(generation),
       "removed" => removed
@@ -193,10 +203,10 @@ defmodule Wotex.Tracker.Service.DataDeletion do
     ])
   end
 
-  defp write_event(db, scope, generation, now) do
+  defp write_event(db, scope, generation, now, cause) do
     event = %{
       "type" => "privacy.data_deleted",
-      "data" => %{"id" => "domain-data", "action" => "deleted"}
+      "data" => %{"id" => "domain-data", "action" => "deleted", "cause" => cause}
     }
 
     SQL.rows!(db, "INSERT INTO events(scope,generation,created_at,document) VALUES(?,?,?,?)", [
@@ -250,5 +260,88 @@ defmodule Wotex.Tracker.Service.DataDeletion do
       :abort -> {:error, :unknown}
       :crash -> exit(:injected_crash)
     end
+  end
+
+  @doc false
+  def enforce(db, scope, now, options) do
+    retention = options.domain_inactivity_retention_ms
+
+    if is_integer(retention) do
+      case last_domain_activity(db, scope) do
+        activity when is_integer(activity) and activity + retention <= now ->
+          automatic_delete(db, scope, now, options)
+
+        _ ->
+          :ok
+      end
+    else
+      :ok
+    end
+  end
+
+  defp automatic_delete(db, scope, now, options) do
+    SQL.execute!(db, "BEGIN IMMEDIATE")
+
+    try do
+      case last_domain_activity(db, scope) do
+        activity
+        when is_integer(activity) and activity + options.domain_inactivity_retention_ms <= now ->
+          generation = Transaction.generation(db, scope)
+          if generation >= 9_223_372_036_854_775_806, do: throw({:storage, :capacity_exceeded})
+          next_generation = generation + 1
+          removed = retained(db, scope)
+
+          delete_rows(db, scope)
+          write_marker(db, scope, next_generation, now, removed, "automatic_inactivity")
+          write_event(db, scope, next_generation, now, "automatic_inactivity")
+          write_generation(db, scope, next_generation)
+          fault!(options, :retention_before_commit)
+
+          case SQL.boundary(fn -> SQL.execute!(db, "COMMIT") end) do
+            :ok -> :ok
+            {:error, _} -> throw({:storage, :unknown})
+          end
+
+        _ ->
+          :ok
+      end
+    after
+      SQL.rollback(db)
+    end
+  end
+
+  # Successful reads do not extend domain lifetime. Administrator deletion
+  # markers and their receipts are excluded so an empty scope is not repeatedly
+  # deleted on every retention interval.
+  defp last_domain_activity(db, scope) do
+    [[activity]] =
+      SQL.rows!(
+        db,
+        """
+        SELECT max(activity) FROM (
+          SELECT created_at AS activity FROM events
+            WHERE scope=? AND json_extract(document,'$.type')!='privacy.data_deleted'
+          UNION ALL
+          SELECT expires_at-? AS activity FROM operations
+            WHERE scope=? AND coalesce(json_extract(result,'$.data.action'),'')!='deleted_retained_domain_data'
+          UNION ALL
+          SELECT evaluated_at AS activity FROM rule_states WHERE scope=?
+          UNION ALL
+          SELECT created_at AS activity FROM rule_event_intents WHERE scope=?
+          UNION ALL
+          SELECT admitted_at AS activity FROM forward_queue WHERE scope=?
+        )
+        """,
+        [
+          scope,
+          @operation_retention_ms,
+          scope,
+          scope,
+          scope,
+          scope
+        ]
+      )
+
+    activity
   end
 end

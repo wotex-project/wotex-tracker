@@ -80,6 +80,14 @@ defmodule Wotex.Tracker.Host.ConfigTest do
              timeout: 1000
            }
 
+    write(
+      c.path,
+      Map.put(c.document, "privacy_policy", %{"domain_inactivity_retention_ms" => 86_400_000})
+    )
+
+    assert {:ok, private} = Config.load(c.path)
+    assert private[:store_options] == [domain_inactivity_retention_ms: 86_400_000]
+
     refute inspect(options) =~ c.token
     refute inspect(options) =~ c.document["secret_key"]
 
@@ -171,6 +179,19 @@ defmodule Wotex.Tracker.Host.ConfigTest do
         Enum.map(
           [nil, [], %{"unknown" => 1}, %{"max_pages" => 262_145}, %{"max_rows" => 0}],
           &%{"storage_limits" => &1}
+        )
+
+    changes =
+      changes ++
+        Enum.map(
+          [
+            nil,
+            [],
+            %{"unknown" => 1},
+            %{"domain_inactivity_retention_ms" => 59_999},
+            %{"domain_inactivity_retention_ms" => 31_536_000_001}
+          ],
+          &%{"privacy_policy" => &1}
         )
 
     for document <- invalid ++ Enum.map(changes, &Map.merge(c.document, &1)) do

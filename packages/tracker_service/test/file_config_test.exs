@@ -60,6 +60,14 @@ defmodule Wotex.Tracker.Service.HTTP.FileConfigTest do
     assert {:ok, limited} = FileConfig.load(c.path)
     assert limited[:store_options] == [max_rows: 100]
 
+    write(
+      c.path,
+      Map.put(c.document, "privacy_policy", %{"domain_inactivity_retention_ms" => 86_400_000})
+    )
+
+    assert {:ok, private} = FileConfig.load(c.path)
+    assert private[:store_options] == [domain_inactivity_retention_ms: 86_400_000]
+
     for change <- [
           %{"listen" => %{"ip" => "::1", "port" => 4000}},
           %{
@@ -128,6 +136,10 @@ defmodule Wotex.Tracker.Service.HTTP.FileConfigTest do
           %{"tls" => %{}},
           %{"storage_limits" => %{"max_rows" => 100_001}},
           %{"storage_limits" => %{"extra" => 1}},
+          %{"privacy_policy" => nil},
+          %{"privacy_policy" => %{"domain_inactivity_retention_ms" => 59_999}},
+          %{"privacy_policy" => %{"domain_inactivity_retention_ms" => 31_536_000_001}},
+          %{"privacy_policy" => %{"extra" => 86_400_000}},
           %{"unknown" => 1}
         ] do
       write(c.path, Map.merge(c.document, change))

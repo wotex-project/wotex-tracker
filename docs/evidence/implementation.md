@@ -3867,3 +3867,38 @@ stack-language policy.
 This completes the recoverable shared deletion workflow. Configurable automatic
 retention remains open, and deletion of operator-managed backup/export/remote
 copies remains outside the application by design.
+
+### Configurable whole-scope inactivity retention — 2026-09-20
+
+Hosts may now opt into `privacy_policy.domain_inactivity_retention_ms` from one
+minute through one year; omission preserves the administrator-deletion-only
+default. The exact policy, interval and one-minute background enforcement period
+are visible in `GET …/privacy` and the shared Privacy page. OpenAPI contract
+1.36.0 admits both policy modes and requires every deletion marker and public
+deletion event to distinguish `administrator` from `automatic_inactivity`.
+
+The store calculates activity only from domain mutation evidence: public domain
+events, non-deletion operation commits, rule evaluation/event times and queued
+delivery admission. Successful reads and the separate access audit do not extend
+the interval. Every service authorization enforces the exact boundary before a
+read or write, while a store-owned periodic check deletes an idle scope without
+waiting for another request. Deletion uses the existing immediate transaction,
+preserves credential revocations and the bounded access audit, invalidates old
+event cursors and writes a minimal marker/event at the next generation. It does
+not invent an administrator operation receipt, and deletion-only metadata is
+excluded from activity so an empty scope is not repeatedly rewritten.
+
+Tests cover the millisecond before and at the boundary, preserved revocation,
+old-cursor rejection, no repeated deletion, no-request periodic enforcement,
+automatic-policy presentation and a fault injected before commit that leaves all
+domain rows intact before a successful retry. The closed private host
+configuration rejects unknown fields and intervals outside its bound. The
+managed-store claim remains unchanged: backups, offline exports and already
+remote publications still require operator-managed expiry and deletion.
+
+The complete service gate passed 303 tests and two generated properties at
+95.1% production line coverage. The shared-UI gate passed 167 tests at 95.0%,
+the default application-host gate passed 12 tests at 95.7%, and the UI-enabled
+host gate passed 22 tests at 95.5%. Their compiler, unused-dependency, formatter,
+dependency audit, strict Credo, ExDoc, Dialyzer, OpenAPI, archive, native CLI,
+licence and stack-language checks passed wherever configured.

@@ -65,7 +65,7 @@ defmodule Wotex.Tracker.Service.HTTP.Config do
         length(options) == length(Enum.uniq(Keyword.keys(options))) and
         Enum.all?(
           Keyword.keys(options),
-          &(&1 in ~w(max_rows max_pages busy_timeout timeout forward_max_items forward_max_bytes forward_max_age_ms forward_max_attempts)a)
+          &(&1 in ~w(max_rows max_pages busy_timeout timeout forward_max_items forward_max_bytes forward_max_age_ms forward_max_attempts domain_inactivity_retention_ms retention_check_ms)a)
         )
 
   defp history_options?(options),

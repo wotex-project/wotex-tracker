@@ -44,6 +44,14 @@ next generation. Durable credential revocations and the bounded access audit are
 preserved. SQLite secure deletion is enabled for the managed store, but backups,
 offline exports and already-remote publications are explicitly outside the
 erase claim and remain operator-managed.
+Hosts may configure `privacy_policy.domain_inactivity_retention_ms` from one
+minute through one year. When enabled, any service authorization enforces the
+exact boundary and the store also checks every minute without waiting for a
+request. A quiet scope is deleted through the same atomic managed-store boundary
+with an `automatic_inactivity` marker, but without inventing an administrator
+operation receipt. Reads and access-audit writes do not extend domain lifetime;
+any domain mutation starts a new inactivity interval. The policy is disabled by
+default.
 An exact six-field form may instead provide an admitted `catalogue`, one
 compatible admitted `model`, and a bounded `decoders` list containing exactly
 one trusted unary callback for every decoder revision referenced by that
@@ -390,7 +398,7 @@ and key paths. Explicit `:proxy` mode requires an HTTPS public origin and a
 protected proxy-to-listener network; forwarded headers never supply authority or
 Forms. No remote exposure is inferred.
 
-OpenAPI **3.1.0**, contract revision **1.35.0**, is packaged at
+OpenAPI **3.1.0**, contract revision **1.36.0**, is packaged at
 `priv/openapi/v1.json` and served at `/api/v1/openapi.json`. Liveness is
 `/health/live`; authenticated resources are under `/api/v1/scopes/{scope}`.
 Use `Authorization: Bearer …`, and a UUIDv4 `Idempotency-Key` for POST mutations.

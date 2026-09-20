@@ -28,6 +28,8 @@ defmodule Wotex.Tracker.Service.DataDeletionTest do
 
     assert before["policy"] == %{
              "domain_data" => "retained_until_administrator_deletion",
+             "inactivity_retention_ms" => nil,
+             "enforcement_interval_ms" => nil,
              "deletion_scope" => "all_retained_domain_data_in_scope",
              "credential_revocations" => "preserved_for_access_control",
              "successful_access_audit" => %{
@@ -149,6 +151,7 @@ defmodule Wotex.Tracker.Service.DataDeletionTest do
     assert after_delete["retained"]["events"] == 1
     assert after_delete["retained"]["operation_receipts"] == 1
     assert after_delete["last_deletion"]["generation"] == "4"
+    assert after_delete["last_deletion"]["cause"] == "administrator"
     assert after_delete["last_deletion"]["removed"] == before["retained"]
 
     {restored, _} = store(directory: backup_directory)
@@ -198,6 +201,138 @@ defmodule Wotex.Tracker.Service.DataDeletionTest do
              Service.access_audit(c.service, c.admin, c.scope, %{"limit" => 100}, c.now)
 
     assert Enum.any?(audit, &(&1["activity"] == "delete_domain_data"))
+  end
+
+  test "configured inactivity retention atomically deletes a quiet domain at the exact boundary" do
+    clock = :atomics.new(1, [])
+    :atomics.put(clock, 1, 1_700_000_000_000)
+
+    c =
+      service(
+        domain_inactivity_retention_ms: 1_000,
+        retention_check_ms: 60_000,
+        clock: fn -> :atomics.get(clock, 1) end
+      )
+
+    {thing, _} = materialized(c)
+
+    assert {:ok, %{"generation" => "4"}} =
+             Service.revoke(
+               c.service,
+               c.admin,
+               c.scope,
+               Identifier.uuid(),
+               %{"credential_id" => "reader", "expected_generation" => "3"},
+               c.now
+             )
+
+    assert {:ok, %{"stream_cursor" => old_cursor}} =
+             Service.list(c.service, c.admin, c.scope, "things", %{}, c.now)
+
+    assert {:ok, before} = Service.privacy(c.service, c.admin, c.scope, c.now)
+
+    assert before["policy"] == %{
+             "domain_data" => "deleted_after_scope_inactivity",
+             "inactivity_retention_ms" => 1_000,
+             "enforcement_interval_ms" => 60_000,
+             "deletion_scope" => "all_retained_domain_data_in_scope",
+             "credential_revocations" => "preserved_for_access_control",
+             "successful_access_audit" => %{
+               "retention_ms" => 2_592_000_000,
+               "maximum_entries" => 10_000
+             },
+             "backups" => "outside_managed_primary_store",
+             "offline_exports" => "outside_managed_primary_store",
+             "remote_publications" => "outside_managed_primary_store"
+           }
+
+    :atomics.put(clock, 1, c.now + 999)
+
+    assert {:ok, %{"items" => [%{"id" => ^thing}]}} =
+             Service.list(c.service, c.admin, c.scope, "things", %{}, c.now + 999)
+
+    :atomics.put(clock, 1, c.now + 1_000)
+
+    assert {:ok, privacy} = Service.privacy(c.service, c.admin, c.scope, c.now + 1_000)
+    assert privacy["generation"] == "5"
+    assert privacy["last_deletion"]["cause"] == "automatic_inactivity"
+    assert privacy["last_deletion"]["removed"] == before["retained"]
+    assert privacy["retained"]["record_versions"] == 1
+    assert privacy["retained"]["events"] == 1
+    assert privacy["retained"]["operation_receipts"] == 0
+    assert privacy["preserved_on_deletion"]["credential_revocations"] == 1
+
+    assert {:ok, %{"generation" => "5", "items" => []}} =
+             Service.list(c.service, c.admin, c.scope, "things", %{}, c.now + 1_000)
+
+    assert {:error, %{"code" => "invalid_cursor"}} =
+             Service.events(c.service, c.admin, c.scope, old_cursor, c.now + 1_000)
+
+    assert {:ok, %{"items" => credentials}} =
+             Service.credentials(c.service, c.admin, c.scope, c.now + 1_000)
+
+    assert Enum.find(credentials, &(&1["credential_id"] == "reader"))["status"] == "revoked"
+
+    :atomics.put(clock, 1, c.now + 2_000)
+
+    assert {:ok, %{"generation" => "5", "items" => []}} =
+             Service.list(c.service, c.admin, c.scope, "things", %{}, c.now + 2_000)
+  end
+
+  test "the periodic store check deletes quiet data without a new service request" do
+    clock = :atomics.new(1, [])
+    :atomics.put(clock, 1, 1_700_000_000_000)
+
+    c =
+      service(
+        domain_inactivity_retention_ms: 1_000,
+        retention_check_ms: 60_000,
+        clock: fn -> :atomics.get(clock, 1) end
+      )
+
+    materialized(c)
+    :atomics.put(clock, 1, c.now + 1_000)
+    send(c.store.pid, :enforce_domain_retention)
+    :sys.get_state(c.store.pid)
+
+    assert {:ok, %{"generation" => "4", "items" => []}} =
+             Store.snapshot(c.store, query(%{kind: "things"}))
+
+    assert {:ok, privacy} = Service.privacy(c.service, c.admin, c.scope, c.now + 1_000)
+    assert privacy["last_deletion"]["cause"] == "automatic_inactivity"
+  end
+
+  test "automatic retention rolls back completely when its commit is aborted" do
+    clock = :atomics.new(1, [])
+    failure = :atomics.new(1, [])
+    :atomics.put(clock, 1, 1_700_000_000_000)
+    :atomics.put(failure, 1, 1)
+
+    c =
+      service(
+        domain_inactivity_retention_ms: 1_000,
+        retention_check_ms: 60_000,
+        clock: fn -> :atomics.get(clock, 1) end,
+        fault: fn phase ->
+          if phase == :retention_before_commit and :atomics.get(failure, 1) == 1,
+            do: :abort,
+            else: :ok
+        end
+      )
+
+    materialized(c)
+    :atomics.put(clock, 1, c.now + 1_000)
+
+    assert {:error, %{"code" => "storage_unavailable"}} =
+             Service.list(c.service, c.admin, c.scope, "things", %{}, c.now + 1_000)
+
+    assert {:ok, %{"generation" => "3", "items" => [_]}} =
+             Store.snapshot(c.store, query(%{kind: "things"}))
+
+    :atomics.put(failure, 1, 0)
+
+    assert {:ok, %{"generation" => "4", "items" => []}} =
+             Service.list(c.service, c.admin, c.scope, "things", %{}, c.now + 1_000)
   end
 
   test "failure before deletion commit leaves every domain row intact" do

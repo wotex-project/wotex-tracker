@@ -423,7 +423,9 @@ generation-checked, recoverable operation while preserving revocations and the
 bounded access audit. The shared Privacy page admits those exact counts, discloses
 the limits of the managed-store claim, requires the literal confirmation phrase
 and verifies the retained marker before reporting success; readers receive no
-counts or destructive form. Configurable automatic retention remains open. An Activity page
+counts or destructive form. Hosts can opt into exact whole-scope inactivity
+retention, enforced on access and by a periodic store check without allowing
+reads to extend domain lifetime. An Activity page
 pages the credential's recent committed changes for recovery. The shared Access
 page also lists the current principal's token-redacted mobile notification
 installations and removes one through an explicitly confirmed, generation-checked,

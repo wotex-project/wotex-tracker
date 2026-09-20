@@ -19,6 +19,10 @@ configuration or token. The closed `wtr.host.v1` document contains:
 - optional `tls`: exact `certfile` and `keyfile` absolute paths in TLS mode;
 - optional `storage_limits`: lower ceilings for `max_rows` (≤100000),
   `max_pages` (≤262144), `busy_timeout` (≤1000 ms) and `timeout` (≤5000 ms).
+- optional `privacy_policy.domain_inactivity_retention_ms`: automatically delete
+  the complete managed domain scope after 60000–31536000000 ms without a domain
+  mutation; authorization enforces the boundary and the store also checks every
+  minute. The policy is disabled when omitted.
 
 HTTP server exposure and grant semantics are those of `wotex_tracker_service`.
 The instance key is secret; credential entries contain token hashes. The host

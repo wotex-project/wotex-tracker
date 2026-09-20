@@ -20,6 +20,7 @@ defmodule Wotex.Tracker.Service.HTTP.FileConfig do
     "busy_timeout" => {:busy_timeout, 1000},
     "timeout" => {:timeout, 5000}
   }
+  @maximum_inactivity_retention_ms 31_536_000_000
 
   @doc "Loads at most 64 KiB and returns explicit validated HTTP server options."
   @spec load(term()) :: {:ok, keyword()} | {:error, :invalid_configuration}
@@ -81,7 +82,10 @@ defmodule Wotex.Tracker.Service.HTTP.FileConfig do
   defp options(document) when is_map(document) do
     with true <-
            Enum.all?(@fields, &Map.has_key?(document, &1)) and
-             Enum.all?(Map.keys(document), &(&1 in (@fields ++ ["tls", "storage_limits"]))),
+             Enum.all?(
+               Map.keys(document),
+               &(&1 in (@fields ++ ["tls", "storage_limits", "privacy_policy"]))
+             ),
          "wtr.host.v1" <- document["schema"],
          {:ok, secret} <- key(document["secret_key"]),
          {:ok, entries} <- entries(document["credentials"]),
@@ -94,7 +98,8 @@ defmodule Wotex.Tracker.Service.HTTP.FileConfig do
          {:ok, ip, port} <- listen(document["listen"]),
          {:ok, exposure} <- exposure(document["exposure"]),
          {:ok, tls} <- tls(document["tls"]),
-         {:ok, storage_limits} <- storage_limits(Map.get(document, "storage_limits", %{})) do
+         {:ok, storage_limits} <- storage_limits(Map.get(document, "storage_limits", %{})),
+         {:ok, privacy_policy} <- privacy_policy(Map.get(document, "privacy_policy", %{})) do
       origin =
         if document["public_origin"] == "listener", do: :listener, else: document["public_origin"]
 
@@ -107,7 +112,7 @@ defmodule Wotex.Tracker.Service.HTTP.FileConfig do
          exposure: exposure,
          public_origin: origin,
          tls: tls,
-         store_options: storage_limits
+         store_options: storage_limits ++ privacy_policy
        ]}
     else
       _ -> {:error, :invalid_configuration}
@@ -194,4 +199,13 @@ defmodule Wotex.Tracker.Service.HTTP.FileConfig do
   end
 
   defp storage_limits(_), do: {:error, :invalid_configuration}
+
+  defp privacy_policy(policy) when is_map(policy) and map_size(policy) == 0, do: {:ok, []}
+
+  defp privacy_policy(%{"domain_inactivity_retention_ms" => retention} = policy)
+       when map_size(policy) == 1 and is_integer(retention) and
+              retention in 60_000..@maximum_inactivity_retention_ms,
+       do: {:ok, [domain_inactivity_retention_ms: retention]}
+
+  defp privacy_policy(_), do: {:error, :invalid_configuration}
 end

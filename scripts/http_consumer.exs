@@ -326,6 +326,7 @@ defmodule Wotex.Tracker.HTTPConsumer do
     %{"schema" => "wtr.privacy.v1", "generation" => "3"} = before
     true = before["retained"]["observations"] > 0
     "outside_managed_primary_store" = before["policy"]["backups"]
+    nil = before["policy"]["inactivity_retention_ms"]
 
     request(context, "delete_domain_data", deletion,
       who: :reader,
@@ -358,7 +359,10 @@ defmodule Wotex.Tracker.HTTPConsumer do
 
     %{
       "generation" => "4",
-      "last_deletion" => %{"schema" => "wtr.privacy-deletion.v1"}
+      "last_deletion" => %{
+        "schema" => "wtr.privacy-deletion.v1",
+        "cause" => "administrator"
+      }
     } = data(context, "get_privacy", privacy)
 
     IO.puts("HTTP_CONSUMER_PASS openapi=true data_deletion=true backups=false")

@@ -152,6 +152,7 @@ defmodule Wotex.Tracker.Service.Store do
           {:ok, map()} | {:error, atom()}
   def authorized_analytics(store, access, spec, now) do
     with {:ok, admitted} <- QuerySpec.validate(spec),
+         :ok <- StoreCall.run(store, {:enforce_retention, access, now}),
          do: AnalyticsCall.run(store.analytics, access, admitted, now)
   end
 
@@ -161,6 +162,7 @@ defmodule Wotex.Tracker.Service.Store do
   def authorized_analytics_at(store, access, spec, now, generation)
       when is_integer(generation) and generation >= 0 do
     with {:ok, admitted} <- QuerySpec.validate(spec),
+         :ok <- StoreCall.run(store, {:enforce_retention, access, now}),
          do: AnalyticsCall.run_at(store.analytics, access, admitted, now, generation)
   end
 
@@ -348,10 +350,12 @@ defmodule Wotex.Tracker.Service.Store do
   @impl true
   def init(options) do
     with {:ok, options} <- options(options),
-         {:ok, path} <- StorePath.database(options.directory) do
-      open(path, options)
+         {:ok, path} <- StorePath.database(options.directory),
+         {:ok, state} <- open(path, options) do
+      {:ok, schedule_retention(state)}
     else
       {:error, reason} -> {:stop, reason}
+      {:stop, reason} -> {:stop, reason}
     end
   end
 
@@ -379,9 +383,29 @@ defmodule Wotex.Tracker.Service.Store do
 
   def handle_call(message, _from, state) do
     started = System.monotonic_time()
-    reply = SQL.boundary(fn -> dispatch(message, state) end)
+
+    reply =
+      SQL.boundary(fn ->
+        :ok = enforce_retention(message, state)
+        dispatch(message, state)
+      end)
+
     emit_call(message, reply, state, started)
     {:reply, reply, state}
+  end
+
+  @impl true
+  def handle_info(:enforce_domain_retention, state) do
+    _ =
+      SQL.boundary(fn ->
+        now = retention_now(state.options)
+
+        for [scope] <- SQL.rows!(state.db, "SELECT scope FROM scopes ORDER BY scope") do
+          DataDeletion.enforce(state.db, scope, now, state.options)
+        end
+      end)
+
+    {:noreply, schedule_retention(state)}
   end
 
   @impl true
@@ -431,10 +455,12 @@ defmodule Wotex.Tracker.Service.Store do
       forward_max_items: 1024,
       forward_max_bytes: 16_777_216,
       forward_max_age_ms: 604_800_000,
-      forward_max_attempts: 8
+      forward_max_attempts: 8,
+      domain_inactivity_retention_ms: nil,
+      retention_check_ms: 60_000
     ]
 
-    if Keyword.keyword?(options) and length(options) <= 12 and
+    if Keyword.keyword?(options) and length(options) <= 15 and
          length(Keyword.keys(options)) == length(Enum.uniq(Keyword.keys(options))) and
          Enum.all?(Keyword.keys(options), &(&1 in [:directory | Keyword.keys(defaults)])) do
       validate_options(defaults |> Keyword.merge(options) |> Map.new(), defaults)
@@ -452,7 +478,8 @@ defmodule Wotex.Tracker.Service.Store do
       forward_max_items: defaults[:forward_max_items],
       forward_max_bytes: defaults[:forward_max_bytes],
       forward_max_age_ms: defaults[:forward_max_age_ms],
-      forward_max_attempts: defaults[:forward_max_attempts]
+      forward_max_attempts: defaults[:forward_max_attempts],
+      retention_check_ms: 86_400_000
     }
 
     limits_valid =
@@ -460,18 +487,92 @@ defmodule Wotex.Tracker.Service.Store do
         is_integer(merged[key]) and merged[key] in 1..maximum
       end)
 
-    if Map.has_key?(merged, :directory) and limits_valid and is_function(merged.fault, 1) and
+    if Map.has_key?(merged, :directory) and limits_valid and
+         valid_retention?(merged.domain_inactivity_retention_ms) and
+         is_function(merged.fault, 1) and
          valid_credentials?(merged.credentials) and
          (is_nil(merged.clock) or is_function(merged.clock, 0)),
        do: {:ok, merged},
        else: {:error, :invalid_options}
   end
 
+  defp valid_retention?(nil), do: true
+
+  defp valid_retention?(retention),
+    do: is_integer(retention) and retention in 1..31_536_000_000
+
   defp valid_credentials?(nil), do: true
 
   defp valid_credentials?(credentials), do: match?({:ok, _}, Credentials.validate(credentials))
 
+  defp enforce_retention(message, state) do
+    case retention_context(message) do
+      {scope, now} ->
+        DataDeletion.enforce(
+          state.db,
+          scope,
+          Authority.now(state.options, now),
+          state.options
+        )
+
+      nil ->
+        :ok
+    end
+  end
+
+  defp retention_context({:authorized_operation, access, _id, now}),
+    do: {access_scope(access), now}
+
+  defp retention_context({:replay, access, _permission, _intent, now}),
+    do: {access_scope(access), now}
+
+  defp retention_context({:authorized_history, access, _permission, _query, now}),
+    do: {access_scope(access), now}
+
+  defp retention_context({:authorized_fetch, access, _permission, _query, now}),
+    do: {access_scope(access), now}
+
+  defp retention_context({:authorized_policies, access, _permission, _thing, _generation, now}),
+    do: {access_scope(access), now}
+
+  defp retention_context({:authorized_notification_endpoints, access, _generation, _limit, now}),
+    do: {access_scope(access), now}
+
+  defp retention_context({:authorized_operations, access, _query, now}),
+    do: {access_scope(access), now}
+
+  defp retention_context({:authorized_revocations, access, _ids, now}),
+    do: {access_scope(access), now}
+
+  defp retention_context({:authorized, access, _permission, _activity, now}),
+    do: {access_scope(access), now}
+
+  defp retention_context({:authorized_access_audit, access, _query, now}),
+    do: {access_scope(access), now}
+
+  defp retention_context({:authorized_privacy, access, now}),
+    do: {access_scope(access), now}
+
+  defp retention_context({:delete_domain_data, access, _operation, _request, now}),
+    do: {access_scope(access), now}
+
+  defp retention_context({:authorized_snapshot, access, _permission, _query, now}),
+    do: {access_scope(access), now}
+
+  defp retention_context({:authorized_events, access, query}),
+    do: {access_scope(access), query.now}
+
+  defp retention_context({:authorized_trip_summary_input, access, _thing, _trip, now}),
+    do: {access_scope(access), now}
+
+  defp retention_context({:enforce_retention, access, now}),
+    do: {access_scope(access), now}
+
+  defp retention_context(_), do: nil
+
   defp dispatch({:mutate, update}, state), do: Transaction.mutate(state.db, update, state.options)
+
+  defp dispatch({:enforce_retention, _access, _now}, _state), do: :ok
 
   defp dispatch({:operation, scope, principal, id, now}, state),
     do: Transaction.operation(state.db, scope, principal, id, Authority.now(state.options, now))
@@ -804,6 +905,16 @@ defmodule Wotex.Tracker.Service.Store do
       end
     end
   end
+
+  defp schedule_retention(%{options: %{domain_inactivity_retention_ms: nil}} = state), do: state
+
+  defp schedule_retention(state) do
+    Process.send_after(self(), :enforce_domain_retention, state.options.retention_check_ms)
+    state
+  end
+
+  defp retention_now(%{clock: clock}) when is_function(clock, 0), do: clock.()
+  defp retention_now(_), do: System.system_time(:millisecond)
 
   defp emit_call({:mutate, _}, result, _state, started),
     do: OperationalTelemetry.store(:mutation, result, started)

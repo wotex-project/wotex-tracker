@@ -43,6 +43,9 @@ defmodule Wotex.Tracker.Service.StorePathTest do
           [directory: directory(), forward_max_bytes: 16_777_217],
           [directory: directory(), forward_max_age_ms: 604_800_001],
           [directory: directory(), forward_max_attempts: 9],
+          [directory: directory(), domain_inactivity_retention_ms: 0],
+          [directory: directory(), domain_inactivity_retention_ms: 31_536_000_001],
+          [directory: directory(), retention_check_ms: 86_400_001],
           [directory: directory(), extra: 1],
           [directory: directory(), timeout: 1, timeout: 2],
           [directory: directory(), fault: :not_function]

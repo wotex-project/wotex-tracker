@@ -28,8 +28,7 @@ defmodule Wotex.Tracker.UI.PrivacyLive do
     "rule_event_intents" => 0,
     "operation_receipts" => 1
   }
-  @policy %{
-    "domain_data" => "retained_until_administrator_deletion",
+  @base_policy %{
     "deletion_scope" => "all_retained_domain_data_in_scope",
     "credential_revocations" => "preserved_for_access_control",
     "successful_access_audit" => %{
@@ -159,8 +158,9 @@ defmodule Wotex.Tracker.UI.PrivacyLive do
         <section class="panel" aria-labelledby="retained-data-title">
           <h2 id="retained-data-title">Managed primary-store data</h2>
           <p>
-            These exact counts describe the current scope at generation <span class="identifier">{@privacy["generation"]}</span>.
-            Domain data is retained until an administrator deletes it.
+            These exact counts describe the current scope at generation <span class="identifier">{@privacy["generation"]}</span>. {retention_description(
+              @privacy["policy"]
+            )}
           </p>
           <div class="table-scroll">
             <table>
@@ -209,6 +209,7 @@ defmodule Wotex.Tracker.UI.PrivacyLive do
           <h2 id="last-deletion-title">Last verified deletion</h2>
           <p>
             Deleted {Presenter.timestamp(%{"value" => @privacy["last_deletion"]["deleted_at"]})} at generation <span class="identifier">{@privacy["last_deletion"]["generation"]}</span>.
+            Cause: {deletion_cause(@privacy["last_deletion"])}.
           </p>
         </section>
 
@@ -393,12 +394,12 @@ defmodule Wotex.Tracker.UI.PrivacyLive do
            "retained" => retained,
            "preserved_on_deletion" => preserved,
            "last_deletion" => last_deletion,
-           "policy" => @policy
+           "policy" => policy
          } = privacy
        ) do
     map_size(privacy) == 6 and generation?(generation) and
       count_map?(retained, @retained_keys) and count_map?(preserved, @preserved_keys) and
-      deletion_marker?(last_deletion)
+      deletion_marker?(last_deletion) and policy?(policy)
   end
 
   defp privacy?(_), do: false
@@ -408,16 +409,62 @@ defmodule Wotex.Tracker.UI.PrivacyLive do
   defp deletion_marker?(
          %{
            "schema" => "wtr.privacy-deletion.v1",
+           "cause" => cause,
            "deleted_at" => deleted_at,
            "generation" => generation,
            "removed" => removed
          } = marker
        ),
        do:
-         map_size(marker) == 4 and Codec.time?(deleted_at) and generation?(generation) and
+         map_size(marker) == 5 and cause in ~w(administrator automatic_inactivity) and
+           Codec.time?(deleted_at) and generation?(generation) and
            count_map?(removed, @retained_keys)
 
   defp deletion_marker?(_), do: false
+
+  defp policy?(policy) when is_map(policy) and map_size(policy) == 9 do
+    base = Map.drop(policy, ~w(domain_data inactivity_retention_ms enforcement_interval_ms))
+
+    base == @base_policy and
+      case policy do
+        %{
+          "domain_data" => "retained_until_administrator_deletion",
+          "inactivity_retention_ms" => nil,
+          "enforcement_interval_ms" => nil
+        } ->
+          true
+
+        %{
+          "domain_data" => "deleted_after_scope_inactivity",
+          "inactivity_retention_ms" => retention,
+          "enforcement_interval_ms" => interval
+        } ->
+          is_integer(retention) and retention in 1..31_536_000_000 and
+            is_integer(interval) and interval in 1..86_400_000
+
+        _ ->
+          false
+      end
+  end
+
+  defp policy?(_), do: false
+
+  defp retention_description(%{
+         "domain_data" => "deleted_after_scope_inactivity",
+         "inactivity_retention_ms" => retention,
+         "enforcement_interval_ms" => interval
+       }) do
+    "Domain data is automatically deleted after #{retention} ms without a domain mutation; " <>
+      "the background check runs every #{interval} ms and access enforces the boundary immediately."
+  end
+
+  defp retention_description(_),
+    do: "Domain data is retained until an administrator deletes it."
+
+  defp deletion_cause(%{"cause" => "automatic_inactivity"}),
+    do: "configured scope inactivity"
+
+  defp deletion_cause(_), do: "administrator confirmation"
 
   defp committed_receipt?(
          %{
