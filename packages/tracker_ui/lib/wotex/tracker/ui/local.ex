@@ -89,6 +89,9 @@ defmodule Wotex.Tracker.UI.Local do
   defp dispatch(service, token, scope, :credentials, _, now),
     do: Service.credentials(service, token, scope, now)
 
+  defp dispatch(service, token, scope, :access_audit, args, now),
+    do: Service.access_audit(service, token, scope, args["params"] || %{}, now)
+
   defp dispatch(service, token, scope, :list, %{"resource" => "notification_endpoints"}, now),
     do: Service.notification_endpoints(service, token, scope, now)
 

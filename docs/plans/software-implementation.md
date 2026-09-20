@@ -421,7 +421,10 @@ confirmed and recoverable operation; data deletion remains open. An Activity pag
 pages the credential's recent committed changes for recovery. The shared Access
 page also lists the current principal's token-redacted mobile notification
 installations and removes one through an explicitly confirmed, generation-checked,
-recoverable operation without deleting canonical alerts. The shared package now
+recoverable operation without deleting canonical alerts. Administrators can page
+the bounded successful-access journal, including its coverage and truncation
+disclosure, through the same exact local or remote service contract; readers do
+not receive it, and invalid later pages preserve the last admitted snapshot. The shared package now
 also provides a bounded HTTPS client whose closed action mapping
 uses the same versioned service endpoints, validates exact envelopes and makes
 ambiguous mutations recoverable without automatic replay. Complete application,

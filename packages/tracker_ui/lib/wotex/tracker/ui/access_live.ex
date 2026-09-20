@@ -1,7 +1,7 @@
 defmodule Wotex.Tracker.UI.AccessLive do
   @moduledoc """
   Shows service access, browser sessions, registered notification installations
-  and administrator credential revocation.
+  and administrator credential revocation and successful-access audit.
 
   The page displays principal, scope, expiry, and grant categories without
   exposing the bearer token. Administrators also see the service's credential
@@ -55,7 +55,9 @@ defmodule Wotex.Tracker.UI.AccessLive do
          endpoint_generation: nil,
          endpoint_outcome: nil,
          endpoint_error: nil,
-         endpoint_closed: false
+         endpoint_closed: false,
+         access_audit: nil,
+         access_audit_error: nil
        )}
 
   @impl true
@@ -72,6 +74,17 @@ defmodule Wotex.Tracker.UI.AccessLive do
   @impl true
   def handle_event("refresh", _, socket),
     do: {:noreply, socket |> clear_revoke() |> load()}
+
+  def handle_event(
+        "next-access-audit",
+        _,
+        %{assigns: %{access_audit: %{"cursor" => cursor}}} = socket
+      )
+      when is_binary(cursor),
+      do: {:noreply, load_access_audit(socket, %{"cursor" => cursor})}
+
+  def handle_event("newest-access-audit", _, socket),
+    do: {:noreply, load_access_audit(socket)}
 
   def handle_event("prepare-revoke", _, socket) do
     if socket.assigns.identity["can_manage_queries"] do
@@ -482,7 +495,8 @@ defmodule Wotex.Tracker.UI.AccessLive do
         <h2 id="scope-credentials-title">Credentials in this scope</h2>
         <p>
           The service host configures these credentials. Revoking one ends every browser and API
-          session using it in this scope and cannot be undone. Individual accesses are not recorded.
+          session using it in this scope and cannot be undone. Successful service authorization
+          decisions are recorded in the access audit below.
         </p>
         <.notice error={@credentials_error} />
         <p :if={is_nil(@credentials)} role="status">
@@ -533,6 +547,71 @@ defmodule Wotex.Tracker.UI.AccessLive do
               </tr>
             </tbody>
           </table>
+        </div>
+      </section>
+      <section
+        :if={@access && @identity["can_manage_queries"]}
+        class="panel"
+        aria-labelledby="access-audit-title"
+      >
+        <h2 id="access-audit-title">Successful access audit</h2>
+        <p>
+          Successful service authorization decisions only. Rejected sign-in attempts are not part
+          of this journal. Entries omit bearer credentials, request bodies and resource identifiers.
+        </p>
+        <.notice error={@access_audit_error} />
+        <p :if={is_nil(@access_audit)} role="status">
+          The successful access audit is unavailable. Refresh access to retry.
+        </p>
+        <div :if={@access_audit}>
+          <p>
+            Coverage began {Presenter.timestamp(%{"value" => @access_audit["coverage_started_at"]})}. The service
+            retains at most {@access_audit["maximum_entries"]} decisions per scope for {div(
+              @access_audit["retention_ms"],
+              86_400_000
+            )} days.
+          </p>
+          <p :if={@access_audit["truncated"]} role="status">
+            Older entries have been discarded by the disclosed retention or capacity bound.
+          </p>
+          <div
+            class="table-scroll"
+            tabindex="0"
+            role="region"
+            aria-labelledby="access-audit-title"
+          >
+            <table>
+              <caption>
+                {length(@access_audit["items"])} successful decisions at audit snapshot {@access_audit[
+                  "snapshot"
+                ]}
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Time</th><th scope="col">Principal</th><th scope="col">
+                    Credential
+                  </th><th scope="col">Permission</th><th scope="col">Activity</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr :for={entry <- @access_audit["items"]}>
+                  <td>{Presenter.timestamp(%{"value" => entry["occurred_at"]})}</td>
+                  <td>{entry["principal"]}</td>
+                  <td>{entry["credential_id"]}</td>
+                  <td>{entry["permission"]}</td>
+                  <td>{audit_activity(entry["activity"])}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="actions">
+            <button
+              :if={@access_audit["cursor"]}
+              class="secondary"
+              phx-click="next-access-audit"
+            >Older decisions</button>
+            <button class="secondary" phx-click="newest-access-audit">Return to newest</button>
+          </div>
         </div>
       </section>
       <section :if={@other_operation} class="operation" aria-labelledby="revoke-other-title">
@@ -638,7 +717,11 @@ defmodule Wotex.Tracker.UI.AccessLive do
           assign(socket, access: nil, error: %{"code" => "storage_unavailable"})
       end
 
-    socket |> load_credentials() |> load_browser_sessions() |> load_endpoints()
+    socket
+    |> load_credentials()
+    |> load_browser_sessions()
+    |> load_endpoints()
+    |> load_access_audit()
   end
 
   defp load_browser_sessions(%{assigns: %{access: nil}} = socket),
@@ -700,6 +783,72 @@ defmodule Wotex.Tracker.UI.AccessLive do
 
   defp load_endpoints(socket),
     do: assign(socket, endpoints: nil, endpoints_generation: nil, endpoints_error: nil)
+
+  defp load_access_audit(socket, params \\ %{})
+
+  defp load_access_audit(
+         %{assigns: %{identity: %{"can_manage_queries" => true}}} = socket,
+         params
+       ) do
+    case Auth.request(socket, :access_audit, %{"params" => params}) do
+      {:ok, page} ->
+        if access_audit_page?(page) do
+          assign(socket, access_audit: page, access_audit_error: nil)
+        else
+          assign(socket, access_audit_error: %{"code" => "storage_unavailable"})
+        end
+
+      {:error, error} ->
+        assign(socket, access_audit_error: error)
+    end
+  end
+
+  defp load_access_audit(socket, _params),
+    do: assign(socket, access_audit: nil, access_audit_error: nil)
+
+  defp access_audit_page?(
+         %{
+           "snapshot" => snapshot,
+           "items" => items,
+           "cursor" => cursor,
+           "coverage_started_at" => coverage,
+           "retention_ms" => 2_592_000_000,
+           "maximum_entries" => 10_000,
+           "truncated" => truncated
+         } = page
+       )
+       when map_size(page) == 7 and is_list(items) and length(items) <= 100 and
+              is_boolean(truncated) do
+    valid_generation?(snapshot) and Codec.time?(coverage) and audit_cursor?(cursor) and
+      Enum.all?(items, &access_audit_entry?/1)
+  end
+
+  defp access_audit_page?(_), do: false
+
+  defp access_audit_entry?(
+         %{
+           "schema" => "wtr.access-audit-entry.v1",
+           "credential_id" => credential,
+           "principal" => principal,
+           "permission" => permission,
+           "activity" => activity,
+           "occurred_at" => occurred_at
+         } = entry
+       )
+       when map_size(entry) == 6,
+       do:
+         Codec.id?(credential) and Codec.id?(principal) and
+           permission in ~w(admin enroll ingest interact raw read) and Codec.id?(activity) and
+           Codec.time?(occurred_at)
+
+  defp access_audit_entry?(_), do: false
+
+  defp audit_cursor?(nil), do: true
+
+  defp audit_cursor?("wtrc1." <> encoded = cursor),
+    do: byte_size(cursor) in 8..4096 and encoded != "" and String.valid?(cursor)
+
+  defp audit_cursor?(_), do: false
 
   defp invalid_endpoints(socket),
     do:
@@ -951,6 +1100,8 @@ defmodule Wotex.Tracker.UI.AccessLive do
   defp credential_status(%{"status" => "expired"}), do: "Expired"
   defp credential_status(%{"status" => "active"}), do: "Active"
   defp credential_status(_), do: "Unknown"
+
+  defp audit_activity(value), do: value |> String.replace("_", " ") |> String.capitalize()
 
   defp conflict, do: %{"code" => "conflict"}
 

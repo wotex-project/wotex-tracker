@@ -3760,3 +3760,34 @@ This is a bounded audit of successful service authorization decisions, not an
 operating-system login log or a record of rejected credential guesses. Shared UI
 presentation, retained domain-data deletion and configurable domain retention
 remain separate work.
+
+### Shared successful-access presentation — 2026-09-20
+
+The shared Access page now admits and presents the successful-access journal for
+administrators through both local and bounded remote adapters. It pages newest
+first and shows the exact receiver time, principal, configured credential,
+required permission and closed service activity. The page repeats that rejected
+sign-in attempts are outside this journal and that bearer credentials, request
+bodies and resource identifiers are omitted. It also exposes the coverage start,
+fixed 30-day retention, 10,000-entry capacity and durable truncation disclosure.
+Readers do not request or render the journal.
+
+The presentation validates the exact seven-field page and six-field entry shapes,
+closed permission vocabulary, identifiers, timestamps, snapshot, cursor, bounds
+and maximum page size before replacing the current view. Temporary service
+failure or a malformed later response leaves the last valid page visible with an
+error. Tests exercise a real 27-entry journal across pages, return to the newest
+snapshot, token non-disclosure, failure preservation, malformed-response
+rejection and reader exclusion. The remote client tests its exact encoded GET
+mapping and rejects non-map parameters.
+
+The complete shared-UI gate passed 160 tests at 95.0% production line coverage.
+Compiler, unused-dependency, formatter, dependency audit, strict Credo, ExDoc,
+Dialyzer, 56-member archive inspection, licences and the 520-file stack-language
+policy passed. The UI-enabled application-host gate passed 22 tests at 95.5%
+coverage together with its compiler, formatter, strict Credo, ExDoc, Dialyzer,
+native CLI build/format, dependency audit, licences and stack-language policy.
+
+This closes shared presentation of the successful-access journal. Retained
+domain-data deletion and configurable domain retention remain separate privacy
+work; physical Pi and mobile acceptance also remain open.

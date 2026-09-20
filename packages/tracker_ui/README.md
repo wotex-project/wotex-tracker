@@ -124,6 +124,13 @@ explicit warning and generation check; lost replies retain the operation
 reference and count as committed only after the refreshed principal-owned list
 no longer contains that installation. Removal stops future push delivery to that
 installation without deleting canonical alerts, and the app may register again.
+Administrators also see the service's bounded successful-access journal newest
+first. Each row identifies the principal, configured credential, required
+permission, closed service activity and receiver time, while omitting bearer
+credentials, request bodies and resource identifiers. The page discloses the
+coverage start, fixed 30-day/10,000-entry bounds and whether older entries were
+discarded. Readers never receive the journal, and a failed or malformed later
+page does not replace the last admitted snapshot.
 An administrator can remove an enrolled asset from its detail page. The removal
 page states that the asset, its state and its rule definitions leave current
 views while history, evidence and alerts remain, then requires a prepared

@@ -884,6 +884,71 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert {:error, :unauthorized} = Service.authorize(c.service, c.admin, c.scope, "read", c.now)
   end
 
+  test "an administrator pages the bounded successful-access audit", c do
+    for index <- 1..27 do
+      assert {:ok, _} =
+               Service.authorize(
+                 c.service,
+                 c.admin,
+                 c.scope,
+                 "read",
+                 "fixture_access_#{index}",
+                 c.now
+               )
+    end
+
+    {:ok, view, html} = live(c.conn, "/access")
+    assert has_element?(view, "#access-audit-title", "Successful access audit")
+    assert has_element?(view, "caption", "25 successful decisions at audit snapshot")
+
+    assert has_element?(
+             view,
+             ~s(section[aria-labelledby="access-audit-title"] tbody tr:first-child td:last-child),
+             "Access audit"
+           )
+
+    assert has_element?(view, "button", "Older decisions")
+    assert html =~ "retains at most 10000 decisions per scope for 30 days"
+    refute html =~ c.admin
+    refute html =~ c.reader
+
+    view |> element("button", "Older decisions") |> render_click()
+    assert render(view) =~ "Fixture access 1"
+    refute has_element?(view, "button", "Older decisions")
+
+    view |> element("button", "Return to newest") |> render_click()
+    assert has_element?(view, "caption", "25 successful decisions at audit snapshot")
+    assert has_element?(view, "button", "Older decisions")
+
+    Agent.update(c.faults, &Map.put(&1, :access_audit, :unavailable))
+    view |> element("button", "Return to newest") |> render_click()
+    assert has_element?(view, "[role=alert]")
+    assert has_element?(view, "caption", "25 successful decisions at audit snapshot")
+
+    Agent.update(
+      c.faults,
+      &Map.put(
+        &1,
+        :access_audit,
+        {:reply,
+         {:ok,
+          %{
+            "snapshot" => "1",
+            "items" => [%{}],
+            "cursor" => nil,
+            "coverage_started_at" => c.now,
+            "retention_ms" => 2_592_000_000,
+            "maximum_entries" => 10_000,
+            "truncated" => false
+          }}}
+      )
+    )
+
+    view |> element("button", "Return to newest") |> render_click()
+    assert has_element?(view, "[role=alert]")
+    assert has_element?(view, "caption", "25 successful decisions at audit snapshot")
+  end
+
   test "a stale revocation refuses to remove access", c do
     {:ok, view, _} = live(c.conn, "/access")
     view |> element("button", "Prepare revocation") |> render_click()
@@ -1078,6 +1143,7 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     conn = build_conn() |> init_test_session(%{"browser_session" => reader})
     {:ok, view, html} = live(conn, "/access")
     refute html =~ "Credentials in this scope"
+    refute html =~ "Successful access audit"
     refute html =~ "owner"
     render_click(view, "prepare-revoke-other", %{"id" => "admin"})
     assert has_element?(view, "[role=alert]", "does not permit")

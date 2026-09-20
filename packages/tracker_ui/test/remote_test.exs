@@ -117,6 +117,7 @@ defmodule Wotex.Tracker.UI.RemoteTest do
                "x" => 3
              }
            }},
+          {:access_audit, %{"params" => "invalid"}},
           {:submit, %{"operation" => "", "request" => %{}}},
           {:analytics, %{"query" => String.duplicate("x", 1_048_577)}},
           {:analytics, %{"query" => self()}}
@@ -201,6 +202,8 @@ defmodule Wotex.Tracker.UI.RemoteTest do
       {:events, %{"cursor" => "a+b"}, "GET", "/events?cursor=a%2Bb", nil},
       {:operations, %{"params" => %{"limit" => 25}}, "GET", "/operations?limit=25", nil},
       {:credentials, %{}, "GET", "/credentials", nil},
+      {:access_audit, %{"params" => %{"cursor" => "next"}}, "GET", "/access_audit?cursor=next",
+       nil},
       {:list, %{"resource" => "observations", "params" => %{"limit" => 25}}, "GET",
        "/observations?limit=25", nil},
       {:list, %{"resource" => "notification_endpoints"}, "GET", "/notification_endpoints", nil},

@@ -132,6 +132,10 @@ defmodule Wotex.Tracker.UI.Remote do
   defp route(:credentials, arguments) when map_size(arguments) == 0,
     do: {:ok, get(["credentials"])}
 
+  defp route(:access_audit, %{"params" => params} = arguments)
+       when map_size(arguments) == 1,
+       do: {:ok, get(["access_audit"], params)}
+
   defp route(:list, %{"resource" => resource} = arguments)
        when map_size(arguments) in 1..2 and resource in @resources,
        do: {:ok, get([resource], arguments["params"] || %{})}
