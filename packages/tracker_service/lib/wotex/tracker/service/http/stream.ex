@@ -24,7 +24,14 @@ defmodule Wotex.Tracker.Service.HTTP.Stream do
   defp deliver(conn, service, access, page, config) do
     result =
       Enum.reduce_while(page["items"], {:ok, conn}, fn event, {:ok, conn} ->
-        with :ok <- Store.authorized(service.store, access, "read", config.clock.()),
+        with :ok <-
+               Store.authorized(
+                 service.store,
+                 access,
+                 "read",
+                 "event_stream_delivery",
+                 config.clock.()
+               ),
              {:ok, bytes} <- Codec.encode(event, 32_768),
              {:ok, conn} <-
                chunk(conn, ["id: ", event["cursor"], "\nevent: tracker\ndata: ", bytes, "\n\n"]) do
@@ -47,7 +54,14 @@ defmodule Wotex.Tracker.Service.HTTP.Stream do
     after
       config.poll_interval ->
         with {:ok, page} <- Events.batch(service, access, cursor, config.clock.()),
-             :ok <- Store.authorized(service.store, access, "read", config.clock.()),
+             :ok <-
+               Store.authorized(
+                 service.store,
+                 access,
+                 "read",
+                 "event_stream_delivery",
+                 config.clock.()
+               ),
              {:ok, conn} <- chunk(conn, ": keepalive\n\n") do
           deliver(conn, service, access, page, config)
         else

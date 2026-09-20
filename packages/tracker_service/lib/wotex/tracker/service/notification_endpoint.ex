@@ -175,7 +175,14 @@ defmodule Wotex.Tracker.Service.NotificationEndpoint do
            Store.notification_endpoint(service.store, scope, internal_id),
          {:ok, target} <- target(service, scope, internal_id, value),
          true <- target.revision == revision,
-         :ok <- Store.authorized(service.store, target.access, "admin", now) do
+         :ok <-
+           Store.authorized(
+             service.store,
+             target.access,
+             "admin",
+             "notification_delivery",
+             now
+           ) do
       {:ok, target}
     else
       {:error, :not_found} ->

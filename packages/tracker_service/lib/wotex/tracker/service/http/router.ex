@@ -438,6 +438,16 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
     {conn, Service.access(service, token, scope, now)}
   end
 
+  defp scoped(%{method: "GET"} = conn, ["access_audit"], params, context) do
+    {service, token, scope, now} = context
+
+    result =
+      with {:ok, params} <- list_params(params),
+           do: Service.access_audit(service, token, scope, params, now)
+
+    {conn, result}
+  end
+
   defp scoped(%{method: "GET"} = conn, ["notification_endpoints"], params, context)
        when map_size(params) == 0 do
     {service, token, scope, now} = context
@@ -473,6 +483,7 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
            "arming" => "explicit_administrative_fact",
            "owner_presence" => "closed_evidence_fact_admission",
            "notifications" => "encrypted_principal_bound_apns_registration",
+           "access_audit" => "bounded_successful_authorization_decisions",
            "runtime" => %{
              "readproperty" => "available",
              "observeproperty" => "available",

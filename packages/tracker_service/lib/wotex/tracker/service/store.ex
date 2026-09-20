@@ -18,6 +18,7 @@ defmodule Wotex.Tracker.Service.Store do
 
   alias Wotex.Tracker.Service.{
     Access,
+    AccessAudit,
     AnalyticsCall,
     Authority,
     Codec,
@@ -117,10 +118,19 @@ defmodule Wotex.Tracker.Service.Store do
   @spec events(t(), map()) :: {:ok, map()} | {:error, atom()}
   def events(store, query), do: StoreCall.run(store, {:events, query})
 
-  @doc "Checks current credential grants and durable revocation before a delivery."
+  @doc "Checks current authority and durably records the successful authorization decision."
   @spec authorized(t(), Access.t(), String.t(), integer()) :: :ok | {:error, atom()}
   def authorized(store, access, permission, now),
-    do: StoreCall.run(store, {:authorized, access, permission, now})
+    do: authorized(store, access, permission, "authorize", now)
+
+  @spec authorized(t(), Access.t(), String.t(), String.t(), integer()) ::
+          :ok | {:error, atom()}
+  def authorized(store, access, permission, activity, now),
+    do: StoreCall.run(store, {:authorized, access, permission, activity, now})
+
+  @doc false
+  def authorized_access_audit(store, access, query, now),
+    do: StoreCall.run(store, {:authorized_access_audit, access, query, now})
 
   @doc "Checks current authority inside the same SQLite read snapshot as the requested page."
   @spec authorized_snapshot(t(), Access.t(), String.t(), map(), integer()) ::
@@ -612,16 +622,33 @@ defmodule Wotex.Tracker.Service.Store do
 
   defp dispatch({:events, query}, state), do: Read.events(state.db, query)
 
-  defp dispatch({:authorized, access, permission, now}, state),
-    do:
+  defp dispatch({:authorized, access, permission, activity, now}, state) do
+    now = Authority.now(state.options, now)
+
+    AccessAudit.record(state.db, access, permission, activity, now, fn ->
       Authority.check!(
         state.db,
         state.options.credentials,
         access,
         access_scope(access),
         permission,
-        Authority.now(state.options, now)
+        now
       )
+    end)
+  end
+
+  defp dispatch({:authorized_access_audit, access, query, now}, state),
+    do:
+      AccessAudit.page(state.db, access, query, fn ->
+        Authority.check!(
+          state.db,
+          state.options.credentials,
+          access,
+          access_scope(access),
+          "admin",
+          Authority.now(state.options, now)
+        )
+      end)
 
   defp dispatch({:authorized_snapshot, access, permission, query, now}, state),
     do:
@@ -727,7 +754,7 @@ defmodule Wotex.Tracker.Service.Store do
     try do
       SQL.rows!(state.db, "INSERT OR IGNORE INTO scopes VALUES('__readiness__',0)")
       [[version]] = SQL.rows!(state.db, "SELECT sqlite_version()")
-      {:ok, %{"writable" => true, "schema" => "7", "sqlite" => version}}
+      {:ok, %{"writable" => true, "schema" => "8", "sqlite" => version}}
     after
       SQL.rollback(state.db)
     end

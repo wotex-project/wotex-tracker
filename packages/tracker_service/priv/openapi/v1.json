@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "WoTEx Tracker service",
-    "version": "1.33.0",
-    "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries, snapshot-pinned gap-honest route replay from retained private evidence, half-open time-windowed trip lifecycle pages and bounded completed-trip distance reconstruction, persisted rule status and administrator-managed heartbeat, battery, motion, geofence and suspicious-movement rule definitions evaluated against committed Thing evidence, atomic suspicious-movement orchestration over exact motion, arming and owner-presence inputs, explicit administrator-committed arming facts, closed owner-presence fact admission, acknowledgeable rule alerts listed per Thing for defined rules, administrator unenrollment, pinned incident snapshots, a current-access projection, an administrator credential inventory and encrypted principal-bound APNs endpoint registration. No scanner, OS delivery evidence or physical interaction is implied."
+    "version": "1.34.0",
+    "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries, snapshot-pinned gap-honest route replay from retained private evidence, half-open time-windowed trip lifecycle pages and bounded completed-trip distance reconstruction, persisted rule status and administrator-managed heartbeat, battery, motion, geofence and suspicious-movement rule definitions evaluated against committed Thing evidence, atomic suspicious-movement orchestration over exact motion, arming and owner-presence inputs, explicit administrator-committed arming facts, closed owner-presence fact admission, acknowledgeable rule alerts listed per Thing for defined rules, administrator unenrollment, pinned incident snapshots, a current-access projection, an administrator credential inventory, a bounded successful-authorization audit and encrypted principal-bound APNs endpoint registration. No scanner, OS delivery evidence or physical interaction is implied."
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "security": [
@@ -89,7 +89,7 @@
                           "const": true
                         },
                         "schema": {
-                          "const": "7"
+                          "const": "8"
                         },
                         "sqlite": {
                           "type": "string",
@@ -174,6 +174,58 @@
         "description": "Returns the authenticated credential's non-secret identity, exact requested scope grants and expiry after current read authorization. It never returns the bearer token, token digest, access proof or grants for another scope."
       }
     },
+    "/api/v1/scopes/{scope}/access_audit": {
+      "get": {
+        "operationId": "list_access_audit",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/Cursor"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/AccessAuditPage"
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Pages successful authorization decisions newest first for an administrator. Entries identify the configured credential, principal, permission, closed activity and receiver time, never bearer tokens or request bodies. The encrypted cursor fixes the first page's sequence snapshot. The response discloses the fixed 30-day and 10,000-entry per-scope bounds and whether older rows have been discarded."
+      }
+    },
     "/api/v1/scopes/{scope}/capabilities": {
       "get": {
         "operationId": "capabilities",
@@ -232,6 +284,9 @@
                         "notifications": {
                           "const": "encrypted_principal_bound_apns_registration"
                         },
+                        "access_audit": {
+                          "const": "bounded_successful_authorization_decisions"
+                        },
                         "runtime": {
                           "type": "object",
                           "properties": {
@@ -269,6 +324,7 @@
                         "arming",
                         "owner_presence",
                         "notifications",
+                        "access_audit",
                         "runtime",
                         "directory"
                       ],
@@ -10486,6 +10542,111 @@
           "scope",
           "permissions",
           "expires_at"
+        ],
+        "additionalProperties": false
+      },
+      "AccessAuditEntry": {
+        "description": "One successful service authorization decision. Tokens, proofs and request bodies are excluded.",
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "wtr.access-audit-entry.v1"
+          },
+          "credential_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          },
+          "principal": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          },
+          "permission": {
+            "enum": [
+              "admin",
+              "enroll",
+              "ingest",
+              "interact",
+              "raw",
+              "read"
+            ]
+          },
+          "activity": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-max-utf8-bytes": 256
+          },
+          "occurred_at": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "schema",
+          "credential_id",
+          "principal",
+          "permission",
+          "activity",
+          "occurred_at"
+        ],
+        "additionalProperties": false
+      },
+      "AccessAuditPage": {
+        "description": "A snapshot-bound administrator page with explicit retention and capacity disclosure.",
+        "type": "object",
+        "properties": {
+          "snapshot": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,18})$"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AccessAuditEntry"
+            },
+            "maxItems": 100
+          },
+          "cursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4096,
+                "pattern": "^wtrc1\\.[A-Za-z0-9_-]+$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "coverage_started_at": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "retention_ms": {
+            "const": 2592000000
+          },
+          "maximum_entries": {
+            "const": 10000
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "snapshot",
+          "items",
+          "cursor",
+          "coverage_started_at",
+          "retention_ms",
+          "maximum_entries",
+          "truncated"
         ],
         "additionalProperties": false
       },

@@ -19,7 +19,14 @@ defmodule Wotex.Tracker.Service.HTTP.PropertyStream do
   defp deliver(conn, service, access, page, config) do
     result =
       Enum.reduce_while(page["items"], {:ok, conn}, fn item, {:ok, conn} ->
-        with :ok <- Store.authorized(service.store, access, "read", config.clock.()),
+        with :ok <-
+               Store.authorized(
+                 service.store,
+                 access,
+                 "read",
+                 "property_stream_delivery",
+                 config.clock.()
+               ),
              {:ok, bytes} <- Codec.encode(item["value"], 16_384),
              {:ok, conn} <-
                chunk(conn, [
@@ -54,7 +61,14 @@ defmodule Wotex.Tracker.Service.HTTP.PropertyStream do
     after
       config.poll_interval ->
         with {:ok, page} <- PropertyObservation.batch(service, access, cursor, config.clock.()),
-             :ok <- Store.authorized(service.store, access, "read", config.clock.()),
+             :ok <-
+               Store.authorized(
+                 service.store,
+                 access,
+                 "read",
+                 "property_stream_delivery",
+                 config.clock.()
+               ),
              {:ok, conn} <- chunk(conn, ": keepalive\n\n") do
           deliver(conn, service, access, page, config)
         else

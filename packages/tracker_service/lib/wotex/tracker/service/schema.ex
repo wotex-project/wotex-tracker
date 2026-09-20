@@ -3,15 +3,16 @@ defmodule Wotex.Tracker.Service.Schema do
 
   alias Wotex.Tracker.Service.SQL
 
-  # Every supported older version upgrades to schema 7 in one startup transaction.
+  # Every supported older version upgrades to schema 8 in one startup transaction.
   @migrations %{
-    1 => ~w(1-to-2.sql 2-to-3.sql 3-to-4.sql 4-to-5.sql 5-to-6.sql 6-to-7.sql),
-    2 => ~w(2-to-3.sql 3-to-4.sql 4-to-5.sql 5-to-6.sql 6-to-7.sql),
-    3 => ~w(3-to-4.sql 4-to-5.sql 5-to-6.sql 6-to-7.sql),
-    4 => ~w(4-to-5.sql 5-to-6.sql 6-to-7.sql),
-    5 => ~w(5-to-6.sql 6-to-7.sql),
-    6 => ~w(6-to-7.sql),
-    7 => []
+    1 => ~w(1-to-2.sql 2-to-3.sql 3-to-4.sql 4-to-5.sql 5-to-6.sql 6-to-7.sql 7-to-8.sql),
+    2 => ~w(2-to-3.sql 3-to-4.sql 4-to-5.sql 5-to-6.sql 6-to-7.sql 7-to-8.sql),
+    3 => ~w(3-to-4.sql 4-to-5.sql 5-to-6.sql 6-to-7.sql 7-to-8.sql),
+    4 => ~w(4-to-5.sql 5-to-6.sql 6-to-7.sql 7-to-8.sql),
+    5 => ~w(5-to-6.sql 6-to-7.sql 7-to-8.sql),
+    6 => ~w(6-to-7.sql 7-to-8.sql),
+    7 => ~w(7-to-8.sql),
+    8 => []
   }
 
   def initialize(db, options) do
@@ -53,7 +54,7 @@ defmodule Wotex.Tracker.Service.Schema do
 
     :wotex_tracker_service
     |> :code.priv_dir()
-    |> Path.join("schema/7.sql")
+    |> Path.join("schema/8.sql")
     |> File.read!()
     |> then(&SQL.execute!(db, &1))
   end
@@ -79,7 +80,10 @@ defmodule Wotex.Tracker.Service.Schema do
           {"rule_states",
            "scope,kind,rule_id,state_identity,document,generation,evaluated_at,transition_identity"},
           {"rule_event_intents",
-           "scope,id,digest,kind,rule_id,generation,created_at,document,mode,action"}
+           "scope,id,digest,kind,rule_id,generation,created_at,document,mode,action"},
+          {"access_audit",
+           "sequence,scope,credential_id,principal,permission,activity,occurred_at"},
+          {"access_audit_state", "scope,coverage_started_at,truncated"}
         ] do
       SQL.rows!(db, "SELECT #{columns} FROM #{table} LIMIT 0")
     end

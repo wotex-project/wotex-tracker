@@ -22,7 +22,7 @@ a quiet scope's last event predates retention. Subsequent events still obey
 retention. The HTTP layer must bind this pair, principal, scope and issue/expiry
 time in its authenticated cursor; raw storage tokens do not grant authority.
 
-Schema version 7 is created transactionally using `PRAGMA user_version`.
+Schema version 8 is created transactionally using `PRAGMA user_version`.
 Version 1 upgrades through the forward-queue, rule-state, rule-history,
 rule-event projection and alert schemas in the same startup transaction; later
 versions start at their next step. The version 3 step reassigns existing rule versions
@@ -33,7 +33,9 @@ their complete private copy. The version 5 step backfills one unacknowledged
 alert record for every existing rule event intent, identical to a newly written
 alert. The version 6 step sets each alert's `thing_id` to the Thing of a service
 definition with the alert's rule kind and ID, or null when none exists. Other scopes, operations, observations, events,
-records, publications and queue items remain unchanged. Unknown newer schemas
+records, publications and queue items remain unchanged. The version 7 step adds
+the bounded access-audit and per-scope coverage metadata without manufacturing
+historical entries. Unknown newer schemas
 fail startup. Migrations may never silently reset data.
 WAL, `synchronous=FULL`, foreign keys, a 1,000 ms busy timeout, 1,000-page
 auto-checkpoint and a 262,144-page database ceiling are mandatory. Page size is
@@ -236,9 +238,18 @@ principal, that scope's sorted permissions, expiry, `current` flag and
 `status` (`revoked`, `expired` at host time, or `active`). A revocation reports
 its time, acting principal and generation, read at the current committed
 generation. Token digests, secret keys and other scopes' grants are never
-returned, and a revocation of an ID no longer configured is not listed. These
-primitives are not HTTP/session or complete access-audit acceptance; accesses
-themselves are not recorded.
+returned, and a revocation of an ID no longer configured is not listed.
+
+Every successful facade authorization and explicit stream-delivery
+reauthorization appends a durable access-audit entry before returning authority.
+Entries contain only scope, configured credential ID, principal, required
+permission, a closed service activity and receiver time; they omit bearer
+material, proofs, request bodies and resource identifiers. The audit is separate
+from domain generations and retains at most 10,000 entries per scope for 30 days.
+Expiry or capacity removal sets a durable truncation marker. Administrator-only
+pages are newest first, bind an encrypted cursor to the first page's sequence
+snapshot and disclose the coverage start, bounds and truncation state. Failed
+authentication and denied grants yield no successful-access entry.
 
 Cursor format `wtrc1` uses AES-256-GCM, fresh 96-bit nonces, an authenticated
 instance/principal/scope/purpose binding and explicit issue/expiry times. Internal
@@ -365,7 +376,7 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
-## HTTP and stream contract 1.33.0
+## HTTP and stream contract 1.34.0
 
 The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
 2020-12. The independently maintained Elixir audit checks document shape,
@@ -385,8 +396,9 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | --- | --- |
 | `/health/live` | GET public liveness |
 | `/api/v1/openapi.json` | GET public machine contract |
-| `/api/v1/scopes/{scope}/health/ready` | GET authenticated writable-store check reporting store schema `7` |
+| `/api/v1/scopes/{scope}/health/ready` | GET authenticated writable-store check reporting store schema `8` |
 | `/api/v1/scopes/{scope}/access` | GET the current credential's non-secret ID, principal, exact requested-scope permissions and expiry after current read authorization |
+| `/api/v1/scopes/{scope}/access_audit` | GET an administrator-only, snapshot-bound page of successful authorization decisions with explicit retention/capacity disclosure |
 | `/api/v1/scopes/{scope}/capabilities` | GET explicit available/unsupported/unconfigured status; rules report `heartbeat_battery_motion_geofence_suspicious_movement_definitions`, route and trip history advertise their paging contracts, trip summaries advertise bounded gap-honest reconstruction, arming reports an explicit administrative fact, and owner presence reports closed evidence-fact admission |
 | `…/analytics/query` | POST one read-only structured measurement query against a committed snapshot |
 | `…/analytics/pages` | POST one snapshot-pinned bucket page with an encrypted continuation |

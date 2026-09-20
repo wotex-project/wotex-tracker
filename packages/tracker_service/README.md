@@ -26,6 +26,13 @@ ID, principal, exact scope permissions and expiry after the ordinary durable
 revocation check. Bearer material, its digest, the internal access proof and
 grants for other scopes are never returned. This gives remote presentation hosts
 the same explicit authority projection as an in-process UI adapter.
+Every successful service authorization is also appended to a separate durable,
+administrator-only audit without changing the scope's domain generation.
+`Service.access_audit/5` and `GET …/access_audit` page a snapshot of credential
+ID, principal, permission, closed activity and receiver time. Bearer material,
+request bodies and resource identifiers are excluded. The audit retains at most
+10,000 entries per scope for 30 days and reports its original coverage start and
+whether retention or capacity has discarded older entries.
 An exact six-field form may instead provide an admitted `catalogue`, one
 compatible admitted `model`, and a bounded `decoders` list containing exactly
 one trusted unary callback for every decoder revision referenced by that
@@ -372,7 +379,7 @@ and key paths. Explicit `:proxy` mode requires an HTTPS public origin and a
 protected proxy-to-listener network; forwarded headers never supply authority or
 Forms. No remote exposure is inferred.
 
-OpenAPI **3.1.0**, contract revision **1.31.0**, is packaged at
+OpenAPI **3.1.0**, contract revision **1.34.0**, is packaged at
 `priv/openapi/v1.json` and served at `/api/v1/openapi.json`. Liveness is
 `/health/live`; authenticated resources are under `/api/v1/scopes/{scope}`.
 Use `Authorization: Bearer …`, and a UUIDv4 `Idempotency-Key` for POST mutations.

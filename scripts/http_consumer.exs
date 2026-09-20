@@ -280,6 +280,42 @@ defmodule Wotex.Tracker.HTTPConsumer do
     IO.puts("HTTP_CONSUMER_PASS openapi=true notification_endpoints=true private_token=false")
   end
 
+  defp run(context, %{"mode" => "access_audit"}) do
+    prefix = "/api/v1/scopes/" <> encode_segment(context.scope)
+    audit = prefix <> "/access_audit"
+
+    request(context, "list_access_audit", audit, who: :reader, status: 403)
+    data(context, "get_current_access", prefix <> "/access", who: :reader)
+    {response, bytes} = request(context, "list_access_audit", audit <> "?limit=2")
+
+    %{
+      "data" => %{
+        "items" => [
+          %{
+            "schema" => "wtr.access-audit-entry.v1",
+            "credential_id" => "admin",
+            "principal" => "owner",
+            "permission" => "admin",
+            "activity" => "access_audit"
+          },
+          %{
+            "credential_id" => "reader",
+            "principal" => "viewer",
+            "permission" => "read",
+            "activity" => "access"
+          }
+        ],
+        "retention_ms" => 2_592_000_000,
+        "maximum_entries" => 10_000,
+        "truncated" => false
+      }
+    } = response
+
+    false = String.contains?(bytes, context.credentials.token)
+    false = String.contains?(bytes, context.credentials.reader)
+    IO.puts("HTTP_CONSUMER_PASS openapi=true access_audit=true private_token=false")
+  end
+
   defp run(context, descriptor) do
     workflow(context, descriptor)
 

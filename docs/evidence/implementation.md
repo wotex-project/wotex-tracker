@@ -3725,3 +3725,38 @@ This manages only registered notification delivery installations for the current
 principal. It is not a general device inventory, remote device wipe or physical
 APNs-delivery claim. Complete access audit, retained-data deletion and retention
 management remain open privacy work.
+
+### Durable successful-access audit — 2026-09-20
+
+Store schema 8 adds a separate durable access-audit journal and per-scope
+coverage metadata. Every successful facade authorization and explicit stream
+delivery reauthorization records the configured credential ID, principal,
+required permission, closed service activity and receiver time before authority
+is returned. The audit stores no bearer token, digest, proof, request body or
+resource identifier and does not advance the domain generation. Invalid tokens,
+denied grants and revoked credentials do not manufacture successful-access rows.
+The version 7 migration adds empty audit tables and therefore makes no claim
+about access before migration.
+
+The journal retains at most 10,000 entries per scope for 30 days. Cleanup occurs
+inside the next successful authorization transaction; expiry or capacity
+removal sets a durable truncation marker. An administrator can page the newest
+entries through `Service.access_audit/5` or `GET …/access_audit`. Its encrypted
+cursor binds principal, scope, page size and the first page's sequence snapshot.
+Every page discloses the coverage start, retention, capacity and truncation
+state. Readers cannot inspect it. OpenAPI contract 1.34.0 includes the exact
+entry/page shapes and the independent HTTP consumer checks the real endpoint,
+reader denial and token non-disclosure.
+
+Tests cover exact projections, failed-auth exclusion, pagination with later
+commits, changed limits, malformed/future cursors, restart persistence, the
+30-day equality boundary, capacity eviction and unchanged domain generation.
+The complete service gate passed 292 tests and two generated properties at 95.0%
+production line coverage. Compiler, unused-dependency, formatter, dependency
+audit, strict Credo, ExDoc, Dialyzer, boundary checks, 99-member archive
+inspection, OpenAPI audit, licences and the 520-file stack-language policy passed.
+
+This is a bounded audit of successful service authorization decisions, not an
+operating-system login log or a record of rejected credential guesses. Shared UI
+presentation, retained domain-data deletion and configurable domain retention
+remain separate work.

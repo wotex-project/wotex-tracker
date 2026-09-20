@@ -151,7 +151,7 @@ defmodule Wotex.Tracker.Service.RuleStoreTest do
     :ok = File.chmod(path, 0o600)
 
     {store, _} = store(directory: directory)
-    assert {:ok, %{"schema" => "7"}} = Store.readiness(store)
+    assert {:ok, %{"schema" => "8"}} = Store.readiness(store)
     assert {:ok, %{"generation" => "3"}} = Store.snapshot(store, query(%{scope: "existing"}))
     assert {:ok, %{"generation" => "1"}} = Store.commit_rule(store, transitions().baseline)
   end
@@ -177,7 +177,7 @@ defmodule Wotex.Tracker.Service.RuleStoreTest do
     :ok = File.chmod(path, 0o600)
 
     {store, _} = store(directory: directory)
-    assert {:ok, %{"schema" => "7"}} = Store.readiness(store)
+    assert {:ok, %{"schema" => "8"}} = Store.readiness(store)
 
     assert {:ok, %{"items" => [%{"id" => "urn:uuid:asset"}]}} =
              Store.snapshot(store, query(%{scope: "existing"}))

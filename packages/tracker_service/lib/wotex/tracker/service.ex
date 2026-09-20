@@ -123,7 +123,7 @@ defmodule Wotex.Tracker.Service do
           {:ok, map()} | {:error, map()}
   def submit(service, token, scope, operation, request, now) do
     result =
-      with {:ok, access} <- authorize(service, token, scope, "ingest", now),
+      with {:ok, access} <- authorize(service, token, scope, "ingest", "submit", now),
            true <- Identifier.operation?(operation),
            {:ok, observation} <- Import.admit(request) do
         {:ok, identity} = Observation.identity(observation)
@@ -189,7 +189,7 @@ defmodule Wotex.Tracker.Service do
           {:ok, map()} | {:error, map()}
   def read_property(service, token, scope, thing, name, context, now) do
     result =
-      with {:ok, access} <- authorize(service, token, scope, "read", now),
+      with {:ok, access} <- authorize(service, token, scope, "read", "read_property", now),
            do: Interaction.read(service, access, thing, name, context, now)
 
     Result.normalize(result)
@@ -200,7 +200,7 @@ defmodule Wotex.Tracker.Service do
           {:ok, map()} | {:error, map()}
   def list(service, token, scope, resource, params, now) do
     result =
-      with {:ok, access} <- authorize(service, token, scope, "read", now),
+      with {:ok, access} <- authorize(service, token, scope, "read", "list", now),
            :ok <- resource(resource),
            {:ok, query} <- page_query(service, access, resource, params, now),
            {:ok, page} <- Store.authorized_snapshot(service.store, access, "read", query, now) do
@@ -215,7 +215,7 @@ defmodule Wotex.Tracker.Service do
           {:ok, map()} | {:error, map()}
   def get(service, token, scope, resource, id, now) do
     result =
-      with {:ok, access} <- authorize(service, token, scope, "read", now),
+      with {:ok, access} <- authorize(service, token, scope, "read", "get", now),
            :ok <- resource(resource),
            {:ok, row} <- fetch(service, access, storage_kind(resource), id, nil, "read", now),
            {:ok, value} <- Projection.public(resource, id, row["value"]) do
@@ -230,7 +230,7 @@ defmodule Wotex.Tracker.Service do
           {:ok, map()} | {:error, map()}
   def history(service, token, scope, resource, id, params, now) do
     result =
-      with {:ok, access} <- authorize(service, token, scope, "read", now),
+      with {:ok, access} <- authorize(service, token, scope, "read", "history", now),
            :ok <- resource(resource),
            do: History.page(service, access, resource, id, params, now)
 
@@ -242,7 +242,7 @@ defmodule Wotex.Tracker.Service do
           {:ok, map()} | {:error, map()}
   def analytics(service, token, scope, document, now) do
     result =
-      with {:ok, access} <- authorize(service, token, scope, "read", now),
+      with {:ok, access} <- authorize(service, token, scope, "read", "analytics", now),
            {:ok, spec} <- query_spec(document),
            do: Store.authorized_analytics(service.store, access, spec, now)
 
@@ -254,7 +254,7 @@ defmodule Wotex.Tracker.Service do
           {:ok, map()} | {:error, map()}
   def analytics_page(service, token, scope, request, now) do
     result =
-      with {:ok, access} <- authorize(service, token, scope, "read", now),
+      with {:ok, access} <- authorize(service, token, scope, "read", "analytics_page", now),
            do: AnalyticsPage.run(service, access, request, now)
 
     Result.normalize(result)
@@ -265,7 +265,7 @@ defmodule Wotex.Tracker.Service do
           {:ok, map()} | {:error, map()}
   def route_history(service, token, scope, request, now) do
     result =
-      with {:ok, access} <- authorize(service, token, scope, "read", now),
+      with {:ok, access} <- authorize(service, token, scope, "read", "route_history", now),
            do: RouteHistory.run(service, access, request, now)
 
     Result.normalize(result)
@@ -380,7 +380,8 @@ defmodule Wotex.Tracker.Service do
           {:ok, map()} | {:error, map()}
   def notification_endpoints(service, token, scope, now) do
     result =
-      with {:ok, access} <- authorize(service, token, scope, "admin", now),
+      with {:ok, access} <-
+             authorize(service, token, scope, "admin", "notification_endpoints", now),
            do: NotificationEndpoint.list(service, access, nil, now)
 
     Result.normalize(result)
@@ -391,7 +392,8 @@ defmodule Wotex.Tracker.Service do
           {:ok, map()} | {:error, map()}
   def notification_endpoint(service, token, scope, id, now) do
     result =
-      with {:ok, access} <- authorize(service, token, scope, "admin", now),
+      with {:ok, access} <-
+             authorize(service, token, scope, "admin", "notification_endpoint", now),
            true <- Codec.id?(id),
            do: NotificationEndpoint.fetch(service, access, id, now)
 
@@ -402,7 +404,7 @@ defmodule Wotex.Tracker.Service do
   @spec access(t(), String.t(), String.t(), integer()) :: {:ok, map()} | {:error, map()}
   def access(service, token, scope, now) do
     result =
-      with {:ok, access} <- authorize(service, token, scope, "read", now),
+      with {:ok, access} <- authorize(service, token, scope, "read", "access", now),
            entry when not is_nil(entry) <-
              Enum.find(
                Credentials.inventory(service.credentials, scope),
@@ -451,7 +453,7 @@ defmodule Wotex.Tracker.Service do
           {:ok, map()} | {:error, map()}
   def thing_policies(service, token, scope, thing, now) do
     result =
-      with {:ok, access} <- authorize(service, token, scope, "read", now),
+      with {:ok, access} <- authorize(service, token, scope, "read", "thing_policies", now),
            {:ok, page} <-
              Store.authorized_policies(service.store, access, "read", thing, nil, now) do
         {:ok,
@@ -479,7 +481,7 @@ defmodule Wotex.Tracker.Service do
           {:ok, map()} | {:error, map()}
   def thing_rules(service, token, scope, thing, now) do
     result =
-      with {:ok, access} <- authorize(service, token, scope, "read", now),
+      with {:ok, access} <- authorize(service, token, scope, "read", "thing_rules", now),
            {:ok, page} <-
              Store.authorized_policies(service.store, access, "read", thing, nil, now),
            {:ok, items} <- rule_statuses(service, access, page, now) do
@@ -500,7 +502,7 @@ defmodule Wotex.Tracker.Service do
           {:ok, map()} | {:error, map()}
   def thing_alerts(service, token, scope, thing, params, now) do
     result =
-      with {:ok, access} <- authorize(service, token, scope, "read", now),
+      with {:ok, access} <- authorize(service, token, scope, "read", "thing_alerts", now),
            {:ok, query} <- thing_alert_query(service, access, thing, params, now),
            {:ok, page} <- Store.authorized_snapshot(service.store, access, "read", query, now),
            {:ok, items} <- Projection.public_items("alerts", page["items"]) do
@@ -524,7 +526,7 @@ defmodule Wotex.Tracker.Service do
           {:ok, map()} | {:error, map()}
   def thing_trips(service, token, scope, thing, params, now) do
     result =
-      with {:ok, access} <- authorize(service, token, scope, "read", now),
+      with {:ok, access} <- authorize(service, token, scope, "read", "thing_trips", now),
            {:ok, query} <- thing_trip_query(service, access, thing, params, now),
            {:ok, page} <- Store.authorized_snapshot(service.store, access, "read", query, now),
            {:ok, items} <- Projection.public_items("alerts", page["items"]) do
@@ -541,7 +543,7 @@ defmodule Wotex.Tracker.Service do
           {:ok, map()} | {:error, map()}
   def trip_summary(service, token, scope, thing, trip, now) do
     result =
-      with {:ok, access} <- authorize(service, token, scope, "read", now),
+      with {:ok, access} <- authorize(service, token, scope, "read", "trip_summary", now),
            do: TripSummary.run(service, access, thing, trip, now)
 
     Result.normalize(result)
@@ -565,7 +567,8 @@ defmodule Wotex.Tracker.Service do
           {:ok, map()} | {:error, map()}
   def execute_saved_query(service, token, scope, id, now) do
     result =
-      with {:ok, access} <- authorize(service, token, scope, "read", now),
+      with {:ok, access} <-
+             authorize(service, token, scope, "read", "execute_saved_query", now),
            {:ok, row} <- fetch(service, access, "saved_queries", id, nil, "read", now),
            {:ok, spec} <- SavedQuery.query(row["value"], id, now),
            {:ok, pin} <- SavedQuery.pin(row["value"], id),
@@ -579,7 +582,7 @@ defmodule Wotex.Tracker.Service do
           {:ok, binary()} | {:error, map()}
   def raw_observation(service, token, scope, id, now) do
     result =
-      with {:ok, access} <- authorize(service, token, scope, "raw", now),
+      with {:ok, access} <- authorize(service, token, scope, "raw", "raw_observation", now),
            {:ok, index} <- fetch(service, access, "resolutions", id, nil, "raw", now),
            {:ok, row} <-
              fetch(
@@ -603,7 +606,7 @@ defmodule Wotex.Tracker.Service do
           {:ok, binary()} | {:error, map()}
   def raw_evidence(service, token, scope, id, now) do
     result =
-      with {:ok, access} <- authorize(service, token, scope, "raw", now),
+      with {:ok, access} <- authorize(service, token, scope, "raw", "raw_evidence", now),
            {:ok, row} <- fetch(service, access, "evidence", id, nil, "raw", now) do
         Codec.encode(row["value"]["claims"])
       end
@@ -616,7 +619,7 @@ defmodule Wotex.Tracker.Service do
           {:ok, map()} | {:error, map()}
   def events(service, token, scope, cursor, now) do
     result =
-      with {:ok, access} <- authorize(service, token, scope, "read", now),
+      with {:ok, access} <- authorize(service, token, scope, "read", "events", now),
            do: Events.batch(service, access, cursor, now)
 
     Result.normalize(result)
@@ -635,7 +638,7 @@ defmodule Wotex.Tracker.Service do
   @spec credentials(t(), String.t(), String.t(), integer()) :: {:ok, map()} | {:error, map()}
   def credentials(service, token, scope, now) do
     result =
-      with {:ok, access} <- authorize(service, token, scope, "admin", now),
+      with {:ok, access} <- authorize(service, token, scope, "admin", "credentials", now),
            entries = Credentials.inventory(service.credentials, scope),
            {:ok, page} <-
              Store.authorized_revocations(
@@ -661,7 +664,7 @@ defmodule Wotex.Tracker.Service do
           {:ok, map()} | {:error, map()}
   def revoke(service, token, scope, operation, request, now) do
     result =
-      with {:ok, access} <- authorize(service, token, scope, "admin", now),
+      with {:ok, access} <- authorize(service, token, scope, "admin", "revoke", now),
            true <- Identifier.operation?(operation),
            %{"credential_id" => id, "expected_generation" => generation}
            when map_size(request) == 2 <- request,
@@ -709,7 +712,7 @@ defmodule Wotex.Tracker.Service do
           {:ok, map()} | {:error, map()}
   def operation(service, token, scope, id, now) do
     result =
-      with {:ok, access} <- authorize(service, token, scope, "read", now),
+      with {:ok, access} <- authorize(service, token, scope, "read", "operation", now),
            true <- Identifier.operation?(id) do
         Store.authorized_operation(service.store, access, id, now)
       else
@@ -733,7 +736,7 @@ defmodule Wotex.Tracker.Service do
           {:ok, map()} | {:error, map()}
   def operations(service, token, scope, params, now) do
     result =
-      with {:ok, access} <- authorize(service, token, scope, "read", now),
+      with {:ok, access} <- authorize(service, token, scope, "read", "operations", now),
            {:ok, query} <- operation_query(service, access, params, now),
            {:ok, page} <- Store.authorized_operations(service.store, access, query, now) do
         {:ok,
@@ -747,15 +750,49 @@ defmodule Wotex.Tracker.Service do
     Result.normalize(result)
   end
 
+  @doc """
+  Pages successful authorization decisions in this scope, newest first.
+
+  Requires `admin`. Entries contain the configured credential ID, principal,
+  permission, closed service activity and receiver time, never bearer tokens or
+  request bodies. The first page fixes a sequence snapshot. Storage retains at
+  most 10,000 entries per scope for 30 days and reports whether older entries
+  have been discarded.
+  """
+  @spec access_audit(t(), String.t(), String.t(), map(), integer()) ::
+          {:ok, map()} | {:error, map()}
+  def access_audit(service, token, scope, params, now) do
+    result =
+      with {:ok, access} <- authorize(service, token, scope, "admin", "access_audit", now),
+           {:ok, query} <- access_audit_query(service, access, params, now),
+           {:ok, page} <- Store.authorized_access_audit(service.store, access, query, now) do
+        {:ok,
+         page
+         |> Map.delete("next")
+         |> Map.put("cursor", access_audit_cursor(service, access, page, query.limit, now))}
+      end
+
+    Result.normalize(result)
+  end
+
   @doc "Authenticates current scope authority; transports must repeat this before every delivery."
   @spec authorize(t(), term(), term(), String.t(), integer()) ::
           {:ok, Wotex.Tracker.Service.Access.t()} | {:error, atom()}
   def authorize(service, token, scope, permission, now) do
+    authorize(service, token, scope, permission, "authorize", now)
+  end
+
+  @doc false
+  @spec authorize(t(), term(), term(), String.t(), String.t(), integer()) ::
+          {:ok, Wotex.Tracker.Service.Access.t()} | {:error, atom()}
+  def authorize(service, token, scope, permission, activity, now) do
     with {:ok, access} <-
            Credentials.authenticate(service.credentials, token, scope, permission, now),
-         :ok <- Store.authorized(service.store, access, permission, now) do
+         true <- Codec.id?(activity),
+         :ok <- Store.authorized(service.store, access, permission, activity, now) do
       {:ok, access}
     else
+      false -> {:error, :invalid_request}
       {:error, :unknown} -> {:error, :storage_unavailable}
       error -> error
     end
@@ -792,7 +829,7 @@ defmodule Wotex.Tracker.Service do
 
   defp resource_mutation(service, {token, scope, operation, request, now}, kind, implementation) do
     result =
-      with {:ok, access} <- authorize(service, token, scope, "enroll", now),
+      with {:ok, access} <- authorize(service, token, scope, "enroll", kind, now),
            true <- Identifier.operation?(operation),
            :ok <- implementation.admit(request) do
         intent = %{
@@ -828,7 +865,8 @@ defmodule Wotex.Tracker.Service do
 
   defp admin_mutation(service, {token, scope, operation, request, now}, module, action, name) do
     result =
-      with {:ok, access} <- authorize(service, token, scope, "admin", now),
+      with {:ok, access} <-
+             authorize(service, token, scope, "admin", "#{action}_#{name}", now),
            true <- Identifier.operation?(operation),
            :ok <- admit_admin(module, action, request) do
         intent = %{
@@ -1008,6 +1046,62 @@ defmodule Wotex.Tracker.Service do
         %{
           "kind" => "operations",
           "generation" => page["generation"],
+          "after" => page["next"],
+          "limit" => limit
+        },
+        now
+      )
+
+    cursor
+  end
+
+  defp access_audit_query(service, access, %{"cursor" => cursor} = params, now)
+       when map_size(params) <= 2 do
+    with true <- Enum.all?(Map.keys(params), &(&1 in ["limit", "cursor"])),
+         {:ok, data} <-
+           Cursor.open(
+             Credentials.derive_key(service.credentials, :cursor),
+             binding(service, access, "page"),
+             cursor,
+             now
+           ),
+         true <-
+           data["kind"] == "access_audit" and
+             Map.get(params, "limit", data["limit"]) == data["limit"] do
+      {:ok,
+       %{
+         scope: access.scope,
+         snapshot: data["generation"],
+         before: data["after"],
+         limit: data["limit"]
+       }}
+    else
+      false -> {:error, :invalid_cursor}
+      error -> error
+    end
+  end
+
+  defp access_audit_query(_service, access, params, _now)
+       when is_map(params) and map_size(params) <= 1 do
+    limit = Map.get(params, "limit", 25)
+
+    if Enum.all?(Map.keys(params), &(&1 == "limit")) and is_integer(limit) and limit in 1..100,
+      do: {:ok, %{scope: access.scope, snapshot: nil, before: nil, limit: limit}},
+      else: {:error, :invalid_request}
+  end
+
+  defp access_audit_query(_, _, _, _), do: {:error, :invalid_request}
+
+  defp access_audit_cursor(_service, _access, %{"next" => nil}, _limit, _now), do: nil
+
+  defp access_audit_cursor(service, access, page, limit, now) do
+    {:ok, cursor} =
+      Cursor.issue(
+        Credentials.derive_key(service.credentials, :cursor),
+        binding(service, access, "page"),
+        %{
+          "kind" => "access_audit",
+          "generation" => page["snapshot"],
           "after" => page["next"],
           "limit" => limit
         },

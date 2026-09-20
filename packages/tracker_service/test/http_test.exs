@@ -74,6 +74,16 @@ defmodule Wotex.Tracker.HTTPTest do
     assert_capacity_released(capacity)
   end
 
+  test "an independent HTTP process inspects the bounded access audit" do
+    context = service()
+    server = start_supervised!({Server, options(context)})
+
+    output = run_consumer(context, server, %{"mode" => "access_audit"})
+    assert output =~ "HTTP_CONSUMER_PASS openapi=true access_audit=true private_token=false"
+    assert {:ok, capacity} = Server.child(server, :capacity)
+    assert_capacity_released(capacity)
+  end
+
   test "instances use distinct listeners and stores; invalid exposure and configuration fail closed" do
     first = service()
     second = service()
