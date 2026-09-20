@@ -5014,3 +5014,30 @@ The implementation commit is
 
 This is build-configuration evidence only; it does not prove a firmware artifact
 boot, a physical Pi, a tracker, SIM, carrier or production network.
+
+### Bounded interactive route evidence map — 2026-09-20
+
+The shared route-history screen now provides keyboard-operable pan, zoom and
+reset controls over its retained-position SVG. A closed viewport accepts only
+the supported commands, uses fixed 1x, 2x, 4x and 8x zoom levels and clamps every
+view box inside the rendered coordinate space. Boundary commands are stable
+no-ops, malformed state and unknown commands fail closed, and the viewport resets
+when an asset, query or page changes.
+
+Navigation changes only the presentation of the authorized page. The exact
+coordinate table, rejected and excluded evidence, explicit service gaps and
+page-local segments remain authoritative. The screen still does not fetch a
+basemap or tiles, match a road, invent a position or connect pages. The history
+export's bounded duplicate-cursor ledger also uses a transparent map so fresh
+Erlang/OTP 29 Dialyzer analysis does not rely on the opaque `MapSet` type.
+
+Both shared-UI runtime lanes passed 173 tests at 95.0% coverage with every
+configured compiler, dependency, formatter, audit, strict Credo, documentation,
+Dialyzer, boundary, language, archive and licence check. The viewport
+implementation commit is
+`b3b1f5ef1f55a838d7194e21b8b6d50d1bf42231`; the cursor-ledger compatibility
+commit is `e44558630912c49ceb44ddcca4755e598127b228`.
+
+This is software evidence for bounded keyboard navigation. It does not qualify
+a physical touch or gesture surface, screen-reader behavior, a contextual or
+offline map source, or any particular browser, Pi display or iPhone.

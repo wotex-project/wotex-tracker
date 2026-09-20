@@ -88,8 +88,11 @@ and positions, retained state history, gap-honest route pages and a structured
 per-asset analytics table.
 Position-capable state appears on overview and asset screens with source,
 uncertainty, clock and quality disclosures; the UI does not imply a live, fused or
-canonical location. Live scanning, maps and the rest of the application remain
-subsequent work.
+canonical location. Route history now includes a bounded interactive
+retained-position map with keyboard-operable pan and zoom controls while keeping
+exact coordinates, exclusions and gaps visible. It has no contextual basemap,
+tile source, road matching or invented position. Live scanning, contextual map
+data and the rest of the application remain subsequent work.
 
 The independent mobile host now pins its Mob runtime cohort without changing the
 root library's Elixir floor. Its first executable boundary is a private SQLite

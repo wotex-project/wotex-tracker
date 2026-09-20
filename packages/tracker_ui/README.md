@@ -212,12 +212,15 @@ The route-history screen defaults to a one-day UTC window ending after the
 latest retained asset state. Readers can choose trusted-fix/receiver fallback,
 valid/suspect quality, adjacent time/distance gaps and a bounded page size. Its
 SVG uses separate paths for service segments and the short antimeridian delta;
-it has no basemap and makes no claim between recorded points. Missing or
-ambiguous materialisations and rejected samples remain visible. Previous/next
-navigation reloads every page under current authority, retains the displayed
-page on temporary failure and never connects coordinates across pages. Page
-export reruns the exact cursor-bound request under current authority, requires
-the displayed content identity and downloads a bounded cursor-free JSON document.
+keyboard-operable controls pan, reset and zoom the bounded view at fixed levels.
+The viewport resets when its query or page changes and never changes the
+underlying evidence. It has no basemap, tile source or road matching and makes no
+claim between recorded points. Missing or ambiguous materialisations and
+rejected samples remain visible. Previous/next navigation reloads every page
+under current authority, retains the displayed page on temporary failure and
+never connects coordinates across pages. Page export reruns the exact
+cursor-bound request under current authority, requires the displayed content
+identity and downloads a bounded cursor-free JSON document.
 
 The analytics screen builds a closed absolute UTC query for one retained asset
 using a currently recorded numeric measurement and unit. It restricts the
