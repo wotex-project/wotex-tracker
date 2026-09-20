@@ -93,6 +93,14 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
        }),
        do: :property
 
+  defp request_operation(%{
+         path_info: ["api", "v1", "scopes", _, "things", _, "actions", _]
+       }),
+       do: :action
+
+  defp request_operation(%{path_info: ["api", "v1", "scopes", _, "actions", _]}),
+    do: :action
+
   defp request_operation(%{method: "POST", path_info: ["api", "v1", "scopes", _ | _]}),
     do: :mutation
 
@@ -301,6 +309,26 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
     end
   end
 
+  defp scoped(
+         %{method: "POST"} = conn,
+         ["things", thing, "actions", name],
+         params,
+         {service, token, scope, now}
+       )
+       when map_size(params) == 0 do
+    operation = operation_id(conn)
+
+    with {:ok, _} <- Service.authorize(service, token, scope, "interact", now),
+         true <- not is_nil(operation),
+         {:ok, body, conn} <- Wire.body(conn) do
+      {conn, Service.invoke_action(service, token, scope, operation, thing, name, body, now)}
+    else
+      false -> {conn, Wire.mutation_error(:invalid_request, operation)}
+      {:error, code, conn} -> {conn, Wire.mutation_error(code, operation)}
+      {:error, code} -> {conn, Wire.mutation_error(code, operation)}
+    end
+  end
+
   defp scoped(%{method: "GET"} = conn, ["things", thing, "policies"], params, context)
        when map_size(params) == 0 do
     {service, token, scope, now} = context
@@ -416,6 +444,12 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
     {conn, Service.operation(service, token, scope, id, now)}
   end
 
+  defp scoped(%{method: "GET"} = conn, ["actions", id], params, context)
+       when map_size(params) == 0 do
+    {service, token, scope, now} = context
+    {conn, Service.action_status(service, token, scope, id, now)}
+  end
+
   defp scoped(%{method: "GET"} = conn, ["health", "ready"], params, context)
        when map_size(params) == 0 do
     {service, token, scope, now} = context
@@ -496,7 +530,7 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
            "runtime" => %{
              "readproperty" => "available",
              "observeproperty" => "available",
-             "invokeaction" => "unsupported"
+             "invokeaction" => Atom.to_string(service.action_delivery)
            },
            "directory" => "unconfigured"
          }}

@@ -175,7 +175,7 @@ defmodule Wotex.Tracker.Service.StoreTest do
                update(%{operation_id: "second", expected_generation: "1", observation: nil})
              )
 
-    {full, directory} = store(max_pages: 28)
+    {full, directory} = store(max_pages: 32)
 
     large =
       update(%{records: [%{kind: "state", id: "large", value: String.duplicate("x", 100_000)}]})

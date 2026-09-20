@@ -229,8 +229,14 @@ lineage together. Forms use the configured origin and the service Property API.
 Runtime `ExposedThing` dispatches authorized reads against the TD and state from
 one committed generation. Unavailable measurements return HTTP 503. Explicit
 host delivery evidence enables observation of committed Property values. Physical
-Actions remain unsupported. No Directory destination or
-publication effect is implicit.
+Actions require a separately configured `ActionDispatcher`; no packaged profile
+or device transport enables one implicitly. The machine API durably admits an
+exact-generation intent after `interact` authorization and exposes a
+caller-owned status. Dispatch rechecks authority and revision, marks the intent
+unknown before exactly one `Wotex.Runtime.ConsumedThing.invoke_action/4` call,
+and never retries it after timeout, crash or ambiguous transport completion.
+Runtime acceptance remains protocol evidence with unknown physical effect. No
+Directory destination or publication effect is implicit.
 
 An `enroll` grant can derive initial state/evidence for the same Thing in its
 materialisation transaction. It cannot import observations or export raw data.

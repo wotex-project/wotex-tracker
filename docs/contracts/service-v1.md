@@ -22,7 +22,7 @@ a quiet scope's last event predates retention. Subsequent events still obey
 retention. The HTTP layer must bind this pair, principal, scope and issue/expiry
 time in its authenticated cursor; raw storage tokens do not grant authority.
 
-Schema version 8 is created transactionally using `PRAGMA user_version`.
+Schema version 9 is created transactionally using `PRAGMA user_version`.
 Version 1 upgrades through the forward-queue, rule-state, rule-history,
 rule-event projection and alert schemas in the same startup transaction; later
 versions start at their next step. The version 3 step reassigns existing rule versions
@@ -35,7 +35,8 @@ alert. The version 6 step sets each alert's `thing_id` to the Thing of a service
 definition with the alert's rule kind and ID, or null when none exists. Other scopes, operations, observations, events,
 records, publications and queue items remain unchanged. The version 7 step adds
 the bounded access-audit and per-scope coverage metadata without manufacturing
-historical entries. Unknown newer schemas
+historical entries. The version 8 step adds caller-scoped durable Action intents
+without manufacturing work from existing Things. Unknown newer schemas
 fail startup. Migrations may never silently reset data.
 WAL, `synchronous=FULL`, foreign keys, a 1,000 ms busy timeout, 1,000-page
 auto-checkpoint and a 262,144-page database ceiling are mandatory. Page size is
@@ -376,7 +377,7 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
-## HTTP and stream contract 1.38.0
+## HTTP and stream contract 1.39.0
 
 The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
 2020-12. The independently maintained Elixir audit checks document shape,
@@ -396,7 +397,7 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | --- | --- |
 | `/health/live` | GET public liveness |
 | `/api/v1/openapi.json` | GET public machine contract |
-| `/api/v1/scopes/{scope}/health/ready` | GET authenticated writable-store check reporting store schema `8` |
+| `/api/v1/scopes/{scope}/health/ready` | GET authenticated writable-store check reporting store schema `9` |
 | `/api/v1/scopes/{scope}/access` | GET the current credential's non-secret ID, principal, exact requested-scope permissions and expiry after current read authorization |
 | `/api/v1/scopes/{scope}/access_audit` | GET an administrator-only, snapshot-bound page of successful authorization decisions with explicit retention/capacity disclosure |
 | `/api/v1/scopes/{scope}/privacy` | GET administrator-only exact retained primary-store counts, preservation rules, last deletion marker and limits of the deletion claim |
@@ -425,12 +426,31 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | `…/things/{id}/rules` | GET the committed status of every rule defined for one Thing at one snapshot |
 | `…/things/{id}/properties/{property}` | GET authorized Runtime Property scalar |
 | `…/things/{id}/properties/{property}/observe` | GET committed Property values as resumable SSE |
+| `…/things/{id}/actions/{action}` | POST one exact-generation, caller-scoped Action intent after `interact` authorization; the idempotency key identifies the retained intent |
+| `…/actions/{operation}` | GET the same principal's currently authorized durable Action status without dispatch or retry |
 | `…/observations/{id}/raw`, `…/evidence/{id}/raw` | GET raw-permission native JSON downloads |
 | `…/observations`, `…/enrollments`, `…/associations`, `…/materialisations`, `…/revocations` | POST corresponding domain mutation |
 | `…/operations` | GET the caller's own unexpired receipts, newest first |
 | `…/operations/{operation}` | GET same-principal durable receipt |
 | `…/events` | GET bounded replay with a required cursor |
 | `…/events/stream` | GET resumable SSE |
+
+Action admission accepts exactly `expected_generation` and `input`. The current
+Thing must still declare an explicit `invokeaction` Form and the input must fit
+the service's closed primitive boolean, integer, number or string subset.
+Objects, arrays, regex-pattern execution and `multipleOf` arithmetic are not
+silently approximated. A configured dispatcher restores the exact TD, rechecks
+the retained caller's current `interact` authority and durable revocation, and
+claims the intent as `unknown` before calling `Wotex.Runtime.ConsumedThing`.
+
+Each intent therefore has at most one transport attempt. A dispatcher crash,
+timeout, transport failure or lost completion stays `unknown`; restart never
+selects it again. Construction, Form selection or credential resolution failure
+is `failed` and proved not dispatched. Changed authority or Thing revision is
+`denied`. Runtime `ok`/`accepted` is reported as protocol `accepted`, while
+`physical_effect` remains `unknown`. Device credentials, Action input, Forms and
+Runtime metadata are absent from status responses and operational snapshots.
+No packaged profile currently supplies an Action or device transport.
 
 Scoped endpoints require a canonical bearer token in `Authorization`; POST
 mutations additionally require a UUIDv4 `Idempotency-Key`. Analytics queries,
@@ -445,8 +465,8 @@ They are logged as a fixed failure message, never exception/request text.
 Self-revocation may commit its own receipt; subsequent requests are denied.
 
 The scope deletion operation removes observations, every non-access domain
-record version, events, publication intents, queued deliveries, rule state and
-event intents, and prior operation receipts in one immediate transaction. It
+record version, events, publication intents, queued deliveries, Action intents,
+rule state and event intents, and prior operation receipts in one immediate transaction. It
 then advances the scope generation and retains only a minimal deletion marker,
 public deletion event and the caller-recoverable receipt. Exact retry returns
 that receipt; stale generation conflicts; failure before commit leaves every row

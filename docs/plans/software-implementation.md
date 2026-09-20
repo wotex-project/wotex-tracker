@@ -169,6 +169,14 @@ generators, consumers, build orchestration and images contain no Python. No
 external database server, AI provider, Lab or UI is required for this service
 gate.
 
+The service now also admits caller-scoped Action intents against the exact
+current Thing generation. Schema 9 retains the private input and access proof;
+the public status omits both. An optional supervised dispatcher rechecks durable
+revocation and TD identity, claims unknown before one WoTEx Runtime invocation,
+and never retries a claimed intent. HTTP admission/status and OpenAPI 1.39.0 are
+covered with a synthetic Runtime transport. No packaged Action, device adapter
+or physical-effect evidence is claimed.
+
 ## Phase 4 — passive BLE hardware proof
 
 Fix the public scanning adapter and WTR.13 lifecycle budgets before implementation.

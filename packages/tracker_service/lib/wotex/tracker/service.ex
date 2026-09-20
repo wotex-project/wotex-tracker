@@ -13,6 +13,7 @@ defmodule Wotex.Tracker.Service do
   alias Wotex.Tracker.Protocols.Teltonika.{ATC700, ATC700Import, TAT140, TAT140Import}
 
   alias Wotex.Tracker.Service.{
+    ActionInteraction,
     AgentProjection,
     Alert,
     AnalyticsPage,
@@ -51,7 +52,11 @@ defmodule Wotex.Tracker.Service do
   @derive {Inspect, only: [:base_url]}
   @enforce_keys [:store, :credentials, :catalogue, :model, :decoders, :base_url]
   defstruct @enforce_keys ++
-              [cellular_ingress: :unconfigured, notification_delivery: :unconfigured]
+              [
+                cellular_ingress: :unconfigured,
+                notification_delivery: :unconfigured,
+                action_delivery: :unconfigured
+              ]
 
   @type t :: %__MODULE__{
           store: Store.t(),
@@ -61,7 +66,8 @@ defmodule Wotex.Tracker.Service do
           decoders: map(),
           base_url: String.t(),
           cellular_ingress: :unconfigured | :configured,
-          notification_delivery: :unconfigured | :configured
+          notification_delivery: :unconfigured | :configured,
+          action_delivery: :unconfigured | :configured
         }
 
   @doc "Builds a service using either the packaged RAWv2 contract or an exact trusted profile configuration."
@@ -95,6 +101,33 @@ defmodule Wotex.Tracker.Service do
              cellular_ingress in [:unconfigured, :configured] do
     with {:ok, service} <- packaged(store, credentials, base, contract),
          do: {:ok, %{service | cellular_ingress: cellular_ingress}}
+  end
+
+  def new(
+        %{
+          store: %Store{} = store,
+          credentials: credentials,
+          base_url: base,
+          contract: contract,
+          cellular_ingress: cellular_ingress,
+          notification_delivery: notification_delivery,
+          action_delivery: action_delivery
+        } = input
+      )
+      when map_size(input) == 7 and
+             contract in @packaged_contracts and
+             cellular_ingress in [:unconfigured, :configured] and
+             notification_delivery in [:unconfigured, :configured] and
+             action_delivery in [:unconfigured, :configured] do
+    with {:ok, service} <- packaged(store, credentials, base, contract) do
+      {:ok,
+       %{
+         service
+         | cellular_ingress: cellular_ingress,
+           notification_delivery: notification_delivery,
+           action_delivery: action_delivery
+       }}
+    end
   end
 
   def new(
@@ -283,6 +316,74 @@ defmodule Wotex.Tracker.Service do
            do: Interaction.read(service, access, thing, name, context, now)
 
     Result.normalize(result)
+  end
+
+  @doc "Durably queues one authorized Action invocation for exactly one dispatch attempt."
+  @spec invoke_action(
+          t(),
+          String.t(),
+          String.t(),
+          String.t(),
+          String.t(),
+          String.t(),
+          map(),
+          integer()
+        ) ::
+          {:ok, map()} | {:error, map()}
+  def invoke_action(service, token, scope, operation, thing, name, request, now) do
+    result =
+      with {:ok, access} <- authorize(service, token, scope, "interact", "invoke_action", now),
+           true <- service.action_delivery == :configured,
+           true <- Identifier.operation?(operation),
+           :ok <- ActionInteraction.admit(request) do
+        intent = %{
+          operation_id: operation,
+          request: %{
+            "operation" => "invoke_action",
+            "thing_id" => thing,
+            "action" => name,
+            "input" => request["input"]
+          },
+          expected_generation: request["expected_generation"],
+          observation_identity: nil
+        }
+
+        execute_action(service, access, intent, now, fn ->
+          ActionInteraction.prepare(
+            service,
+            access,
+            operation,
+            thing,
+            name,
+            request,
+            now
+          )
+        end)
+      end
+
+    case result do
+      false -> Result.mutation({:error, :unsupported}, operation)
+      value -> Result.mutation(value, operation)
+    end
+  end
+
+  @doc "Reads one caller-owned durable Action outcome without redispatching it."
+  @spec action_status(t(), String.t(), String.t(), String.t(), integer()) ::
+          {:ok, map()} | {:error, map()}
+  def action_status(service, token, scope, operation, now) do
+    result =
+      with {:ok, access} <- authorize(service, token, scope, "interact", "action_status", now),
+           do: Store.authorized_action_status(service.store, access, operation, now)
+
+    Result.normalize(result)
+  end
+
+  defp execute_action(service, access, intent, now, prepare) do
+    case Store.replay(service.store, access, "interact", intent, now) do
+      :new -> prepare.()
+      {:error, :unknown} -> {:error, :storage_unavailable}
+      result -> result
+    end
   end
 
   @doc "Projects current authorized Thing affordances into a closed provider-neutral agent contract."

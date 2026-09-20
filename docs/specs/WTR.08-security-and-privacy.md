@@ -44,6 +44,17 @@ Read-only sensing and physical control have different risk. Actions such as immo
 
 An AI engine may propose a physical Action but MUST NOT bypass the same authorization/policy boundary used by human/API callers.
 
+The service's first executable Action boundary retains a caller-scoped intent
+only after current `interact` authorization, exact Thing-generation matching and
+closed primitive input admission. Its optional dispatcher rechecks current
+grants, durable revocation and Thing identity immediately before claim. Claim is
+durably `unknown` before one WoTEx Runtime transport call; timeout, crash and
+ambiguous transport completion are never retried automatically. Selection or
+credential failure is distinct from transport uncertainty, and protocol
+acceptance never becomes physical-effect success. Packaged profiles still
+declare no Action, so this is synthetic boundary evidence rather than hardware
+qualification.
+
 ## Anti-stalking
 
 The application MUST include an abuse analysis before claiming production

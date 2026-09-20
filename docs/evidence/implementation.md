@@ -5438,3 +5438,43 @@ No packaged profile currently declares an Action. The exercised Action is a
 synthetic contract fixture only: no service authorization, durable dispatch,
 execution adapter, device acknowledgement or physical effect was implemented,
 exercised or claimed.
+
+### Durable at-most-once Action invocation — 2026-09-20
+
+The service now admits one caller-scoped Action operation against an exact
+current Thing generation, its validated `invokeaction` Form and a closed
+primitive input schema. Admission reuses the current `interact` authorization
+boundary, retains the access proof privately and writes the intent plus
+idempotent operation result in one SQLite transaction. Schema revision 9 adds
+the bounded Action-intent table and a direct revision-8 migration. Domain-data
+deletion includes the retained intents.
+
+The explicitly supervised dispatcher rechecks durable authorization and the
+exact Thing identity before claim. A claim changes `pending` to `unknown` in a
+committed transaction before calling `Wotex.Runtime.ConsumedThing.invoke_action/4`.
+No claimed operation is automatically selected again. A process death, timeout
+or transport ambiguity therefore remains `unknown` instead of risking a second
+physical attempt. Runtime construction, Form selection and credential failures
+are terminal `failed` outcomes before transport; revocation or Thing revision
+change is `denied`. Runtime `ok` and `accepted` results become protocol-level
+`accepted`, while `physical_effect` remains `unknown`.
+
+HTTP contract revision 1.39.0 exposes the authenticated invocation and
+same-principal status resources plus configured/unconfigured capability
+discovery. Status omits Action input, Forms, device credentials and Runtime
+metadata. Tests exercise exact replay after a Thing revision, conflicting
+replay, malformed input, dispatch-time revocation, pre/post-commit faults,
+settlement conflict, worker death, timeout, transport ambiguity, unavailable
+supervision and the real HTTP router through the supervised Runtime boundary.
+
+The complete service gate passed on Elixir 1.18.4/Erlang/OTP 27.3.4.15 with
+382 tests and two generated properties at 95.0% production line coverage. The
+same gate passed on Elixir 1.20.4/Erlang/OTP 29.0.4 with 382 tests and two
+generated properties at 95.1%. Compiler, unused-dependency, formatter,
+vulnerability audit, strict Credo, ExDoc, Dialyzer, boundary, stack-language,
+archive, OpenAPI and licence checks passed in both lanes.
+
+No packaged profile declares an Action and no physical Action adapter or device
+was exercised. The synthetic transport proves the software boundary and
+at-most-once dispatch attempt, not device receipt, completion, idempotence or a
+physical effect.

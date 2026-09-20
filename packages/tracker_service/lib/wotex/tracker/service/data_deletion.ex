@@ -121,6 +121,7 @@ defmodule Wotex.Tracker.Service.DataDeletion do
       "events" => count(db, "events", scope),
       "publications" => count(db, "publications", scope),
       "queued_deliveries" => count(db, "forward_queue", scope),
+      "action_intents" => count(db, "action_intents", scope),
       "rule_states" => count(db, "rule_states", scope),
       "rule_event_intents" => count(db, "rule_event_intents", scope),
       "operation_receipts" => count(db, "operations", scope)
@@ -180,7 +181,7 @@ defmodule Wotex.Tracker.Service.DataDeletion do
 
   defp delete_rows(db, scope) do
     for table <-
-          ~w(observations events publications forward_queue rule_states rule_event_intents operations) do
+          ~w(observations events publications forward_queue action_intents rule_states rule_event_intents operations) do
       SQL.rows!(db, "DELETE FROM #{table} WHERE scope=?", [scope])
     end
 
@@ -330,11 +331,14 @@ defmodule Wotex.Tracker.Service.DataDeletion do
           SELECT created_at AS activity FROM rule_event_intents WHERE scope=?
           UNION ALL
           SELECT admitted_at AS activity FROM forward_queue WHERE scope=?
+          UNION ALL
+          SELECT admitted_at AS activity FROM action_intents WHERE scope=?
         )
         """,
         [
           scope,
           @operation_retention_ms,
+          scope,
           scope,
           scope,
           scope,

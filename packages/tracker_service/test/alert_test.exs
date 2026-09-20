@@ -167,7 +167,7 @@ defmodule Wotex.Tracker.Service.AlertTest do
     :ok = File.chmod(path, 0o600)
 
     {store, _} = store(directory: directory)
-    assert {:ok, %{"schema" => "8"}} = Store.readiness(store)
+    assert {:ok, %{"schema" => "9"}} = Store.readiness(store)
 
     assert {:ok, %{"items" => [%{"id" => ^id, "generation" => "2", "value" => migrated}]}} =
              Store.snapshot(store, query(%{scope: "existing", kind: "alerts"}))
@@ -212,7 +212,7 @@ defmodule Wotex.Tracker.Service.AlertTest do
     :ok = File.chmod(path, 0o600)
 
     {store, _} = store(directory: directory)
-    assert {:ok, %{"schema" => "8"}} = Store.readiness(store)
+    assert {:ok, %{"schema" => "9"}} = Store.readiness(store)
 
     assert {:ok, %{"items" => items}} =
              Store.snapshot(store, query(%{scope: "existing", kind: "alerts"}))

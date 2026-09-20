@@ -14,6 +14,7 @@ defmodule Wotex.Tracker.Service.HTTP.Server do
   alias Wotex.Tracker.Service.HTTP.{Capacity, Config, Router}
 
   alias Wotex.Tracker.Service.{
+    ActionDispatcher,
     NotificationDispatcher,
     OperationalHistory,
     ResourceSampler,
@@ -58,6 +59,12 @@ defmodule Wotex.Tracker.Service.HTTP.Server do
          do: NotificationDispatcher.snapshot(dispatcher)
   end
 
+  @doc "Returns bounded host-only Action dispatch metadata when configured."
+  def action_dispatcher(server) do
+    with {:ok, dispatcher} <- child(server, :action_dispatcher),
+         do: ActionDispatcher.snapshot(dispatcher)
+  end
+
   @doc false
   def context(server, config) do
     with {:ok, store} <- child(server, :store),
@@ -69,7 +76,8 @@ defmodule Wotex.Tracker.Service.HTTP.Server do
         contract: config.contract,
         cellular_ingress: config.cellular_ingress,
         notification_delivery:
-          if(config.notification_dispatcher, do: :configured, else: :unconfigured)
+          if(config.notification_dispatcher, do: :configured, else: :unconfigured),
+        action_delivery: if(config.action_dispatcher, do: :configured, else: :unconfigured)
       })
     end
   end
@@ -103,6 +111,7 @@ defmodule Wotex.Tracker.Service.HTTP.Server do
         Supervisor.child_spec({Store, store_options}, id: :store)
       ] ++
         notification_children(config) ++
+        action_children(config) ++
         [
           Supervisor.child_spec(
             {RuleScheduler,
@@ -130,6 +139,19 @@ defmodule Wotex.Tracker.Service.HTTP.Server do
       )
 
     [Supervisor.child_spec({NotificationDispatcher, options}, id: :notification_dispatcher)]
+  end
+
+  defp action_children(%{action_dispatcher: nil}), do: []
+
+  defp action_children(config) do
+    options =
+      Keyword.merge(config.action_dispatcher,
+        store: {:supervisor, self()},
+        credentials: config.credentials,
+        clock: config.clock
+      )
+
+    [Supervisor.child_spec({ActionDispatcher, options}, id: :action_dispatcher)]
   end
 
   defp origin(server, %{public_origin: :listener}) do

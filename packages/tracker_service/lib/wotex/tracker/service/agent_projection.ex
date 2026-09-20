@@ -6,18 +6,13 @@ defmodule Wotex.Tracker.Service.AgentProjection do
   never includes Forms, endpoints, credentials, observations or stored state.
   """
 
-  alias Wotex.Tracker.Service.{Codec, Identifier}
+  alias Wotex.Tracker.Service.{Codec, Identifier, PrimitiveSchema}
 
   @request_schema "wtr.agent-projection-request.v1"
   @response_schema "wtr.agent-tools.v1"
   @maximum_tools 32
   @maximum_name_bytes 128
-  @primitive_types ~w(boolean integer number string)
-  @numeric_fields ~w(exclusiveMaximum exclusiveMinimum maximum minimum multipleOf type unit)
-  @string_fields ~w(maxLength minLength pattern type)
-  @boolean_fields ~w(type)
   @ignored_affordance_fields ~w(description descriptions forms observable readOnly title titles writeOnly)
-  @unsupported_schema_fields ~w(allOf anyOf items oneOf properties)
 
   @doc false
   def admit(
@@ -158,41 +153,11 @@ defmodule Wotex.Tracker.Service.AgentProjection do
   defp optional_schema(nil), do: {:ok, nil}
   defp optional_schema(value), do: schema(value, [])
 
-  defp schema(%{"type" => type} = value, ignored) when type in @primitive_types do
-    fields = schema_fields(type)
-    keys = Map.keys(value) -- ignored
-
-    with true <- Enum.all?(keys, &(&1 in fields)),
-         false <- Enum.any?(@unsupported_schema_fields, &Map.has_key?(value, &1)),
-         projected <- Map.take(value, fields),
-         true <- constraints?(projected, type) do
-      {:ok, projected}
-    else
-      _ -> {:error, :unsupported}
-    end
+  defp schema(value, ignored) when is_map(value) do
+    PrimitiveSchema.project(Map.drop(value, ignored))
   end
 
   defp schema(_, _), do: {:error, :unsupported}
-
-  defp schema_fields(type) when type in ~w(integer number), do: @numeric_fields
-  defp schema_fields("string"), do: @string_fields
-  defp schema_fields("boolean"), do: @boolean_fields
-
-  defp constraints?(schema, type) when type in ~w(integer number) do
-    Enum.all?(Map.drop(schema, ~w(type unit)), fn {_, value} -> is_number(value) end) and
-      valid_unit?(schema)
-  end
-
-  defp constraints?(schema, "string") do
-    Enum.all?(Map.take(schema, ~w(minLength maxLength)), fn {_, value} ->
-      is_integer(value) and value >= 0
-    end) and
-      (is_nil(schema["pattern"]) or bounded_string?(schema["pattern"]))
-  end
-
-  defp constraints?(schema, "boolean"), do: map_size(schema) == 1
-
-  defp valid_unit?(schema), do: is_nil(schema["unit"]) or bounded_string?(schema["unit"])
 
   defp names?(names) when is_list(names) and length(names) <= @maximum_tools,
     do: Enum.all?(names, &bounded_name?/1) and length(Enum.uniq(names)) == length(names)

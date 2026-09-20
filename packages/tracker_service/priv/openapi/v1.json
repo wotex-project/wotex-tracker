@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "WoTEx Tracker service",
-    "version": "1.38.0",
-    "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries, snapshot-pinned gap-honest route replay from retained private evidence, half-open time-windowed trip lifecycle pages and bounded completed-trip distance reconstruction, persisted rule status and administrator-managed heartbeat, battery, motion, geofence and suspicious-movement rule definitions evaluated against committed Thing evidence, atomic suspicious-movement orchestration over exact motion, arming and owner-presence inputs, explicit administrator-committed arming facts, closed owner-presence fact admission, acknowledgeable rule alerts listed per Thing for defined rules, administrator unenrollment, pinned incident snapshots, a current-access projection, an administrator credential inventory, a bounded successful-authorization audit, explicit retained-data inspection and scope deletion, encrypted principal-bound APNs endpoint registration, and explicit configured/unconfigured notification-delivery composition status. No scanner, OS delivery evidence or physical interaction is implied."
+    "version": "1.39.0",
+    "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries, snapshot-pinned gap-honest route replay from retained private evidence, half-open time-windowed trip lifecycle pages and bounded completed-trip distance reconstruction, persisted rule status and administrator-managed heartbeat, battery, motion, geofence and suspicious-movement rule definitions evaluated against committed Thing evidence, atomic suspicious-movement orchestration over exact motion, arming and owner-presence inputs, explicit administrator-committed arming facts, closed owner-presence fact admission, acknowledgeable rule alerts listed per Thing for defined rules, administrator unenrollment, pinned incident snapshots, a current-access projection, an administrator credential inventory, a bounded successful-authorization audit, explicit retained-data inspection and scope deletion, encrypted principal-bound APNs endpoint registration, explicit configured/unconfigured notification-delivery composition status, and caller-scoped durable at-most-once WoT Action invocation through configured WoTEx Runtime ports. No scanner, OS delivery evidence or physical Action success is implied."
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "security": [
@@ -89,7 +89,7 @@
                           "const": true
                         },
                         "schema": {
-                          "const": "8"
+                          "const": "9"
                         },
                         "sqlite": {
                           "type": "string",
@@ -440,7 +440,11 @@
                               "const": "available"
                             },
                             "invokeaction": {
-                              "const": "unsupported"
+                              "type": "string",
+                              "enum": [
+                                "unconfigured",
+                                "configured"
+                              ]
                             }
                           },
                           "required": [
@@ -4753,6 +4757,143 @@
         "description": "Reads, in definition ID order, the committed status of every live rule definition bound to one Thing, identified as kind:id and read at the same committed generation as the definitions. Requires read authority. A definition without recorded status is omitted; an unknown Thing has none."
       }
     },
+    "/api/v1/scopes/{scope}/things/{id}/actions/{action}": {
+      "post": {
+        "operationId": "invoke_action",
+        "description": "Durably admits one interact-authorized Action intent at the exact current Thing generation. A supervised dispatcher reauthorizes it and invokes it through WoTEx Runtime at most once. Protocol acceptance is not physical-effect evidence; timeout or ambiguous transport completion remains unknown and is never retried automatically.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/ID"
+          },
+          {
+            "$ref": "#/components/parameters/Action"
+          },
+          {
+            "$ref": "#/components/parameters/Idempotency"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActionInvocationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Durable Action admission",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ActionReceipt"
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Admission commit outcome is unknown; poll the retained Action status without invoking again.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ActionReceipt"
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scopes/{scope}/actions/{operation}": {
+      "get": {
+        "operationId": "get_action_status",
+        "description": "Reads one caller-owned durable Action status after current interact authorization. This lookup never dispatches or retries the Action.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Scope"
+          },
+          {
+            "$ref": "#/components/parameters/Operation"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current durable Action status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schema": {
+                      "const": "wtr.response.v1"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ActionStatus"
+                    }
+                  },
+                  "required": [
+                    "schema",
+                    "data"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/scopes/{scope}/things/{id}/properties/{property}": {
       "get": {
         "operationId": "read_property",
@@ -6686,6 +6827,17 @@
           "x-max-utf8-bytes": 256
         }
       },
+      "Action": {
+        "name": "action",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "x-max-utf8-bytes": 128
+        }
+      },
       "Operation": {
         "name": "operation",
         "in": "path",
@@ -6767,6 +6919,207 @@
       }
     },
     "schemas": {
+      "ActionInvocationRequest": {
+        "type": "object",
+        "properties": {
+          "expected_generation": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]{0,18})$"
+          },
+          "input": {
+            "$ref": "#/components/schemas/NativeJSON"
+          }
+        },
+        "required": [
+          "expected_generation",
+          "input"
+        ],
+        "additionalProperties": false
+      },
+      "ActionReceipt": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "outcome": {
+                "const": "unknown"
+              },
+              "operation_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+              }
+            },
+            "required": [
+              "outcome",
+              "operation_id"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "outcome": {
+                "const": "committed"
+              },
+              "operation_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+              },
+              "generation": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]{0,18})$"
+              },
+              "disposition": {
+                "const": "queued"
+              },
+              "data": {
+                "type": "object",
+                "properties": {
+                  "action_id": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                  },
+                  "status": {
+                    "const": "queued"
+                  }
+                },
+                "required": [
+                  "action_id",
+                  "status"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "outcome",
+              "operation_id",
+              "generation",
+              "disposition",
+              "data"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      },
+      "ActionStatus": {
+        "type": "object",
+        "properties": {
+          "schema": {
+            "const": "wtr.action-status.v1"
+          },
+          "operation_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+          },
+          "thing": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^urn:uuid:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+              },
+              "generation": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]{0,18})$"
+              }
+            },
+            "required": [
+              "id",
+              "generation"
+            ],
+            "additionalProperties": false
+          },
+          "action": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "x-max-utf8-bytes": 128
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "unknown",
+              "accepted",
+              "denied",
+              "failed"
+            ]
+          },
+          "admitted_at": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "claimed_at": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "settled_at": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "outcome": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "classification": {
+                    "enum": [
+                      "dispatch_started",
+                      "authorization_or_revision_changed",
+                      "protocol_ok",
+                      "protocol_accepted",
+                      "runtime_construction",
+                      "runtime_selection",
+                      "runtime_credentials",
+                      "transport_unknown",
+                      "dispatch_unknown"
+                    ]
+                  },
+                  "completed_at": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "classification"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "physical_effect": {
+            "enum": [
+              "not_dispatched",
+              "unknown"
+            ]
+          }
+        },
+        "required": [
+          "schema",
+          "operation_id",
+          "thing",
+          "action",
+          "status",
+          "admitted_at",
+          "claimed_at",
+          "settled_at",
+          "outcome",
+          "physical_effect"
+        ],
+        "additionalProperties": false
+      },
       "NotificationEndpoint": {
         "description": "Principal-owned mobile push registration. The APNs token and internal record identifier are private and never appear in this projection.",
         "type": "object",
@@ -10851,6 +11204,11 @@
             "minimum": 0,
             "maximum": 100000
           },
+          "action_intents": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000
+          },
           "rule_states": {
             "type": "integer",
             "minimum": 0,
@@ -10873,6 +11231,7 @@
           "events",
           "publications",
           "queued_deliveries",
+          "action_intents",
           "rule_states",
           "rule_event_intents",
           "operation_receipts"

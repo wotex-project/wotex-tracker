@@ -4,7 +4,7 @@ defmodule Wotex.Tracker.Service.HTTP.Config do
   alias Wotex.Tracker.Service.{Codec, Credentials}
 
   @required ~w(directory credentials ip port public_origin exposure)a
-  @optional ~w(tls clock request_timeout stream_lifetime poll_interval store_options operational_history rule_scheduler notification_dispatcher contract cellular_ingress)a
+  @optional ~w(tls clock request_timeout stream_lifetime poll_interval store_options operational_history rule_scheduler notification_dispatcher action_dispatcher contract cellular_ingress)a
 
   def new(options) when is_list(options) do
     if Keyword.keyword?(options) and length(options) == map_size(Map.new(options)),
@@ -27,6 +27,7 @@ defmodule Wotex.Tracker.Service.HTTP.Config do
           operational_history: [],
           rule_scheduler: [],
           notification_dispatcher: nil,
+          action_dispatcher: nil,
           contract: :ruuvi_raw_v2,
           cellular_ingress: :unconfigured
         },
@@ -58,6 +59,7 @@ defmodule Wotex.Tracker.Service.HTTP.Config do
         history_options?(value.operational_history) and
         scheduler_options?(value.rule_scheduler) and
         dispatcher_options?(value.notification_dispatcher) and
+        action_dispatcher_options?(value.action_dispatcher) and
         value.cellular_ingress in [:unconfigured, :configured]
 
   defp budgets?(value),
@@ -117,6 +119,37 @@ defmodule Wotex.Tracker.Service.HTTP.Config do
         option_integer?(options, :max_batch, 1..32) and
         option_integer?(options, :timeout_ms, 1..30_000)
 
+  defp action_dispatcher_options?(nil), do: true
+
+  defp action_dispatcher_options?(options) when is_list(options) do
+    allowed = [:runtime, :scopes, :interval_ms, :max_batch, :timeout_ms, :monotonic_clock]
+
+    Keyword.keyword?(options) and
+      length(options) == length(Enum.uniq(Keyword.keys(options))) and
+      Enum.all?(Keyword.keys(options), &(&1 in allowed)) and
+      action_dispatcher_values?(options)
+  end
+
+  defp action_dispatcher_options?(_), do: false
+
+  defp action_dispatcher_values?(options),
+    do:
+      Keyword.has_key?(options, :runtime) and runtime?(Keyword.get(options, :runtime)) and
+        scopes?(Keyword.get(options, :scopes)) and
+        option_integer?(options, :interval_ms, 1..60_000) and
+        option_integer?(options, :max_batch, 1..32) and
+        option_integer?(options, :timeout_ms, 1..30_000) and
+        option_function?(options, :monotonic_clock)
+
+  defp runtime?(%{profiles: profiles, transports: transports, credentials: {module, _}} = runtime)
+       when map_size(runtime) == 3,
+       do:
+         is_list(profiles) and profiles != [] and is_map(transports) and is_atom(module) and
+           Code.ensure_loaded?(module) and
+           function_exported?(module, :resolve, 4)
+
+  defp runtime?(_), do: false
+
   defp adapter?({module, _context}) when is_atom(module),
     do: function_exported?(module, :deliver, 3)
 
@@ -133,6 +166,13 @@ defmodule Wotex.Tracker.Service.HTTP.Config do
     case Keyword.fetch(options, key) do
       :error -> true
       {:ok, value} -> is_integer(value) and value in range
+    end
+  end
+
+  defp option_function?(options, key) do
+    case Keyword.fetch(options, key) do
+      :error -> true
+      {:ok, value} -> is_function(value, 0)
     end
   end
 

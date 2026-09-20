@@ -19,6 +19,8 @@ defmodule Wotex.Tracker.Service.Store do
   alias Wotex.Tracker.Service.{
     Access,
     AccessAudit,
+    ActionIntent,
+    ActionQueue,
     AnalyticsCall,
     Authority,
     Codec,
@@ -243,6 +245,42 @@ defmodule Wotex.Tracker.Service.Store do
           {:ok, map()} | {:error, atom()}
   def confirm_publication(store, scope, thing, generation, cleanup),
     do: StoreCall.run(store, {:confirm_publication, scope, thing, generation, cleanup})
+
+  @doc "Durably admits one authorized Action intent without executing it."
+  @spec admit_action(t(), ActionIntent.t()) :: {:ok, map()} | {:error, atom()}
+  def admit_action(store, intent) do
+    with {:ok, admitted} <- ActionIntent.validate(intent),
+         do: StoreCall.run(store, {:admit_action, admitted})
+  end
+
+  @doc false
+  def claim_actions(store, scope, now, limit) do
+    if Codec.id?(scope) and Codec.time?(now) and is_integer(limit) and limit in 1..32,
+      do: StoreCall.run(store, {:claim_actions, scope, now, limit}),
+      else: {:error, :invalid_query}
+  end
+
+  @doc false
+  def settle_action(store, scope, principal, id, identity, completion) do
+    with true <- Enum.all?([scope, principal, id, identity], &Codec.id?/1),
+         {:ok, completion} <- ActionQueue.completion(completion) do
+      StoreCall.run(
+        store,
+        {:settle_action, scope, principal, id, identity, completion}
+      )
+    else
+      _ -> {:error, :invalid_query}
+    end
+  end
+
+  @doc "Reads one caller-owned Action status after current interact authorization."
+  @spec authorized_action_status(t(), Access.t(), String.t(), integer()) ::
+          {:ok, map()} | {:error, atom()}
+  def authorized_action_status(store, access, id, now) do
+    if Codec.id?(id) and Codec.time?(now),
+      do: StoreCall.run(store, {:authorized_action_status, access, id, now}),
+      else: {:error, :invalid_query}
+  end
 
   @doc "Durably admits one bounded item or records a lossy overflow disposition."
   @spec enqueue_forward(t(), ForwardItem.t()) :: {:ok, map()} | {:error, atom()}
@@ -553,6 +591,9 @@ defmodule Wotex.Tracker.Service.Store do
   defp retention_context({:authorized_privacy, access, now}),
     do: {access_scope(access), now}
 
+  defp retention_context({:authorized_action_status, access, _id, now}),
+    do: {access_scope(access), now}
+
   defp retention_context({:delete_domain_data, access, _operation, _request, now}),
     do: {access_scope(access), now}
 
@@ -814,6 +855,34 @@ defmodule Wotex.Tracker.Service.Store do
 
   defp dispatch({:confirm_publication, scope, thing, generation, cleanup}, state),
     do: Publication.confirm(state.db, scope, thing, generation, cleanup)
+
+  defp dispatch({:admit_action, intent}, state),
+    do: ActionQueue.admit(state.db, intent, state.options)
+
+  defp dispatch({:claim_actions, scope, now, limit}, state),
+    do:
+      ActionQueue.claim(
+        state.db,
+        scope,
+        Authority.now(state.options, now),
+        limit,
+        state.options
+      )
+
+  defp dispatch({:settle_action, scope, principal, id, identity, completion}, state),
+    do:
+      ActionQueue.settle(
+        state.db,
+        scope,
+        principal,
+        id,
+        identity,
+        completion,
+        state.options
+      )
+
+  defp dispatch({:authorized_action_status, access, id, now}, state),
+    do: ActionQueue.authorized_status(state.db, access, id, now, state.options)
 
   defp dispatch({:enqueue_forward, item}, state),
     do: ForwardQueue.enqueue(state.db, item, state.options)
