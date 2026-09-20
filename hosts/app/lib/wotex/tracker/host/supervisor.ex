@@ -12,7 +12,15 @@ defmodule Wotex.Tracker.Host.Supervisor do
   @impl true
   def init(options) do
     parent = self()
-    {:ok, config} = Config.new(options[:service])
+
+    service =
+      Keyword.put(
+        options[:service],
+        :cellular_ingress,
+        if(options[:cellular], do: :configured, else: :unconfigured)
+      )
+
+    {:ok, config} = Config.new(service)
 
     provider = fn ->
       with {:ok, server} <- Server.child(parent, Server), do: Server.context(server, config)
@@ -36,7 +44,7 @@ defmodule Wotex.Tracker.Host.Supervisor do
       end
 
     Supervisor.init(
-      [{Server, options[:service]}] ++ cellular ++ browser ++ native,
+      [{Server, service}] ++ cellular ++ browser ++ native,
       strategy: :rest_for_one
     )
   end

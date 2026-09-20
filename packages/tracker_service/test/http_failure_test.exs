@@ -161,6 +161,7 @@ defmodule Wotex.Tracker.HTTPFailureTest do
             %{
               "data" => %{
                 "analytics" => "structured_queries",
+                "cellular" => "unconfigured",
                 "route_history" => "snapshot_pinned_gap_honest_pages",
                 "trip_history" => "snapshot_pinned_event_pages"
               }

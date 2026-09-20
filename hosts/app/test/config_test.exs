@@ -307,6 +307,15 @@ defmodule Wotex.Tracker.Host.ConfigTest do
     assert stopped["index"]["value"] == 1
     assert stopped["positions"] == []
 
+    assert {:ok, {{127, 0, 0, 1}, api_port}} = Server.listener_info(api)
+    url = String.to_charlist("http://127.0.0.1:#{api_port}/api/v1/scopes/workshop/capabilities")
+    headers = [{~c"authorization", String.to_charlist("Bearer " <> c.token)}]
+
+    assert {:ok, {{_, 200, _}, _, body}} =
+             :httpc.request(:get, {url, headers}, [timeout: 1_000], body_format: :binary)
+
+    assert {:ok, %{"data" => %{"cellular" => "configured"}}} = Codec.decode(body)
+
     assert :ok = Supervisor.stop(host)
     refute Process.alive?(api)
     refute Process.alive?(listener)

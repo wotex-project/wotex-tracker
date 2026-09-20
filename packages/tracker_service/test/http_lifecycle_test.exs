@@ -30,7 +30,8 @@ defmodule Wotex.Tracker.HTTPLifecycleTest do
       Keyword.merge(options(context),
         exposure: :tls,
         public_origin: "https://localhost",
-        tls: %{certfile: cert, keyfile: key}
+        tls: %{certfile: cert, keyfile: key},
+        cellular_ingress: :configured
       )
 
     server = start_supervised!({Server, options})
@@ -48,6 +49,7 @@ defmodule Wotex.Tracker.HTTPLifecycleTest do
              :httpc.request(:get, {url, headers}, [timeout: 5000, ssl: ssl], body_format: :binary)
 
     assert body =~ ~s("import":"available")
+    assert body =~ ~s("cellular":"configured")
     assert {:ok, config} = Config.new(options)
     assert {:ok, service} = Server.context(server, config)
     assert service.base_url == "https://localhost"
@@ -111,7 +113,8 @@ defmodule Wotex.Tracker.HTTPLifecycleTest do
           [ip: {0, 0, 0, 0, 0, 0, 0, 1}],
           [public_origin: "http://127.0.0.1:43210/"],
           [exposure: :proxy, public_origin: "https://tracker.example.test"],
-          [rule_scheduler: [max_rules: 32, refresh_interval: 100]]
+          [rule_scheduler: [max_rules: 32, refresh_interval: 100]],
+          [cellular_ingress: :configured]
         ] do
       assert {:ok, _} = Config.new(Keyword.merge(options(context), change))
     end
@@ -130,6 +133,7 @@ defmodule Wotex.Tracker.HTTPLifecycleTest do
           [exposure: :proxy, public_origin: "https://user:secret@example.test"],
           [rule_scheduler: [max_rules: 0]],
           [rule_scheduler: [unknown: true]],
+          [cellular_ingress: :available],
           [notification_dispatcher: []],
           [notification_dispatcher: [adapter: {String, nil}]],
           [

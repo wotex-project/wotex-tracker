@@ -4,7 +4,7 @@ defmodule Wotex.Tracker.Service.HTTP.Config do
   alias Wotex.Tracker.Service.{Codec, Credentials}
 
   @required ~w(directory credentials ip port public_origin exposure)a
-  @optional ~w(tls clock request_timeout stream_lifetime poll_interval store_options operational_history rule_scheduler notification_dispatcher contract)a
+  @optional ~w(tls clock request_timeout stream_lifetime poll_interval store_options operational_history rule_scheduler notification_dispatcher contract cellular_ingress)a
 
   def new(options) when is_list(options) do
     if Keyword.keyword?(options) and length(options) == map_size(Map.new(options)),
@@ -27,7 +27,8 @@ defmodule Wotex.Tracker.Service.HTTP.Config do
           operational_history: [],
           rule_scheduler: [],
           notification_dispatcher: nil,
-          contract: :ruuvi_raw_v2
+          contract: :ruuvi_raw_v2,
+          cellular_ingress: :unconfigured
         },
         input
       )
@@ -56,7 +57,8 @@ defmodule Wotex.Tracker.Service.HTTP.Config do
       is_function(value.clock, 0) and store_options?(value.store_options) and
         history_options?(value.operational_history) and
         scheduler_options?(value.rule_scheduler) and
-        dispatcher_options?(value.notification_dispatcher)
+        dispatcher_options?(value.notification_dispatcher) and
+        value.cellular_ingress in [:unconfigured, :configured]
 
   defp budgets?(value),
     do:

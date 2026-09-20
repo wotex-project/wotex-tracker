@@ -48,7 +48,7 @@ defmodule Wotex.Tracker.Service do
   @resources ~w(observations resolutions evidence state enrollments things saved_queries rules policies alerts arming owner_presence)
   @derive {Inspect, only: [:base_url]}
   @enforce_keys [:store, :credentials, :catalogue, :model, :decoders, :base_url]
-  defstruct @enforce_keys
+  defstruct @enforce_keys ++ [cellular_ingress: :unconfigured]
 
   @type t :: %__MODULE__{
           store: Store.t(),
@@ -56,7 +56,8 @@ defmodule Wotex.Tracker.Service do
           catalogue: Catalogue.t(),
           model: Model.t(),
           decoders: map(),
-          base_url: String.t()
+          base_url: String.t(),
+          cellular_ingress: :unconfigured | :configured
         }
 
   @doc "Builds a service using either the packaged RAWv2 contract or an exact trusted profile configuration."
@@ -76,6 +77,22 @@ defmodule Wotex.Tracker.Service do
       when map_size(input) == 4 and
              contract in [:ruuvi_raw_v2, :teltonika_tat140_codec8e],
       do: packaged(store, credentials, base, contract)
+
+  def new(
+        %{
+          store: %Store{} = store,
+          credentials: credentials,
+          base_url: base,
+          contract: contract,
+          cellular_ingress: cellular_ingress
+        } = input
+      )
+      when map_size(input) == 5 and
+             contract in [:ruuvi_raw_v2, :teltonika_tat140_codec8e] and
+             cellular_ingress in [:unconfigured, :configured] do
+    with {:ok, service} <- packaged(store, credentials, base, contract),
+         do: {:ok, %{service | cellular_ingress: cellular_ingress}}
+  end
 
   def new(
         %{

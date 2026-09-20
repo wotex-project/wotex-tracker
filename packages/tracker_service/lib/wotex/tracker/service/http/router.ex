@@ -481,7 +481,7 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
            "api_version" => "v1",
            "import" => "available",
            "ble_scan" => "unsupported",
-           "cellular" => "unsupported",
+           "cellular" => Atom.to_string(service.cellular_ingress),
            "rules" => "heartbeat_battery_motion_geofence_suspicious_movement_definitions",
            "analytics" => "structured_queries",
            "route_history" => "snapshot_pinned_gap_honest_pages",

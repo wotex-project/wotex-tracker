@@ -66,7 +66,8 @@ defmodule Wotex.Tracker.Service.HTTP.Server do
         store: Store.handle(store),
         credentials: config.credentials,
         base_url: origin,
-        contract: config.contract
+        contract: config.contract,
+        cellular_ingress: config.cellular_ingress
       })
     end
   end
