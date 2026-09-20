@@ -251,7 +251,9 @@ The analytics screen builds a closed absolute UTC query for one retained asset
 using a currently recorded numeric measurement and unit. It restricts the
 aggregation and bucket vocabulary, delegates validation and execution to the
 authorized service, and shows the snapshot, qualified/excluded counts and only
-observed buckets. Line, area and point views keep gaps separate, expose exact
+observed buckets. Cumulative movement and sequence counters default to `last`;
+the shared query contract also rejects a forged `mean`, including one proposed
+by an optional model adapter. Line, area and point views keep gaps separate, expose exact
 bucket details in the table and offer keyboard-accessible time-window controls.
 The quality selector allows valid, suspect, or both admitted qualities; invalid
 readings remain excluded. A saved query retains the selected quality filter.

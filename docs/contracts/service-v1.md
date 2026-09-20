@@ -637,8 +637,10 @@ to establish physical delivery and tap evidence.
 to eight state series, an absolute from-inclusive/to-exclusive Unix-millisecond
 window, accepted quality values, UTC bucket size, order and one of count,
 minimum, maximum, mean or last aggregation. Windows are limited to 31 days and
-1,000 points per series. Unknown fields, changed content identities, named
-timezones and rolling windows fail before storage access.
+1,000 points per series. `movementCounter` and `measurementSequence` are
+cumulative counters: the authoritative query admission rejects `mean`, while
+`last` preserves an exact reset to zero. Unknown fields, changed content
+identities, named timezones and rolling windows fail before storage access.
 
 The service opens a dedicated read-only connection and transaction, rechecks
 current authority inside that transaction and pins the current scope generation.

@@ -51,6 +51,43 @@ defmodule Wotex.Tracker.AnalyticsTest do
     assert point["last_event_at"] == 20
   end
 
+  test "cumulative counter resets remain exact and cannot be averaged" do
+    query =
+      spec(%{
+        measurement: "movementCounter",
+        unit: "1",
+        aggregation: :last,
+        from_at: 0,
+        to_at: 1_000,
+        bucket_ms: 1_000
+      })
+
+    rows = [
+      row("before-reset", "a", 10, 17, measurement: "movementCounter", unit: "1"),
+      row("after-reset", "a", 20, 0, measurement: "movementCounter", unit: "1")
+    ]
+
+    assert {:ok, result} = Analytics.evaluate(rows, query, "snapshot")
+    point = get_in(result.series, [Access.at(0), "points", Access.at(0)])
+    assert point["value"] === 0
+    assert point["last_event_at"] == 20
+
+    for measurement <- ~w(movementCounter measurementSequence) do
+      refute QuerySpec.aggregation_allowed?(measurement, :mean)
+
+      assert {:error, _} =
+               QuerySpec.new(
+                 Map.merge(spec_input(), %{
+                   measurement: measurement,
+                   aggregation: :mean
+                 })
+               )
+    end
+
+    assert QuerySpec.aggregation_allowed?("temperature", :mean)
+    refute QuerySpec.aggregation_allowed?("temperature", :median)
+  end
+
   test "descending order and input permutations retain the same result identity" do
     rows = [row("one", "a", 0, 1), row("two", "a", 1_000, 2), row("three", "b", 2_000, 3)]
     query = spec(%{aggregation: :last, order: :descending})
@@ -260,24 +297,36 @@ defmodule Wotex.Tracker.AnalyticsTest do
     availability = Keyword.get(options, :availability, :available)
     quality = Keyword.get(options, :quality, :valid)
     unit = Keyword.get(options, :unit, "V")
+    measurement = Keyword.get(options, :measurement, "batteryVoltage")
 
     {:ok, value} =
-      QueryRow.new(row_input(id, series, event_at, value, availability, quality, unit))
+      QueryRow.new(
+        row_input(id, series, event_at, value, availability, quality, unit, measurement)
+      )
 
     value
   end
 
-  defp row_input(id, series, event_at, value, availability, quality, unit),
-    do: %{
-      measurement: "batteryVoltage",
-      series: series,
-      event_at: event_at,
-      value: value,
-      unit: unit,
-      availability: availability,
-      quality: quality,
-      evidence_identity: id
-    }
+  defp row_input(
+         id,
+         series,
+         event_at,
+         value,
+         availability,
+         quality,
+         unit,
+         measurement \\ "batteryVoltage"
+       ),
+       do: %{
+         measurement: measurement,
+         series: series,
+         event_at: event_at,
+         value: value,
+         unit: unit,
+         availability: availability,
+         quality: quality,
+         evidence_identity: id
+       }
 
   defp result_input(result) do
     Map.take(

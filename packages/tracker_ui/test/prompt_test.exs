@@ -61,6 +61,19 @@ defmodule Wotex.Tracker.UI.PromptTest do
       assert {:error, %{"code" => "prompt_invalid"}} =
                Prompt.propose(socket, "Temperature today", @measurements, 1_700_000_000_000)
     end
+
+    Process.put(
+      :prompt_reply,
+      {:ok, %{@proposal | "measurement" => "movementCounter", "aggregation" => "mean"}}
+    )
+
+    assert {:error, %{"code" => "prompt_invalid"}} =
+             Prompt.propose(
+               socket,
+               "Average movement counter",
+               [%{"kind" => "movementCounter", "unit" => "1"}],
+               1_700_000_000_000
+             )
   end
 
   test "missing or failing provider and invalid input cannot interrupt structured analytics" do

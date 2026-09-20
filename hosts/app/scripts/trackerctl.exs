@@ -90,15 +90,12 @@ defmodule Wotex.Tracker.Host.CLI.Transport do
       {"connection", "close"}
     ]
 
+    headers = if request.body, do: [{"content-type", "application/json"} | headers], else: headers
+
     headers =
-      if request.body do
-        [
-          {"content-type", "application/json"},
-          {"idempotency-key", request.operation} | headers
-        ]
-      else
-        headers
-      end
+      if request.operation,
+        do: [{"idempotency-key", request.operation} | headers],
+        else: headers
 
     deadline =
       System.monotonic_time(:millisecond) +
@@ -452,7 +449,10 @@ defmodule Wotex.Tracker.Host.CLI do
 
   defp execute(global, command) do
     {path, body, properties} = target(global.scope, command)
-    operation = if body, do: command.operation || Identifier.uuid()
+
+    operation =
+      if mutation?(command.name), do: Map.get(command, :operation) || Identifier.uuid()
+
     if operation, do: emit_stderr(%{"schema" => "wtr.cli.v1", "operation_id" => operation})
 
     try do
@@ -624,6 +624,11 @@ defmodule Wotex.Tracker.Host.CLI do
 
   defp parse_command(["operation", id]), do: %{name: :operation, id: operation_id(id)}
 
+  defp parse_command(["analytics", path | arguments]) do
+    options = parse_options(arguments, output: :string)
+    %{name: :analytics, value: path, output: options[:output]}
+  end
+
   defp parse_command(["action", "invoke", thing, name | arguments]) do
     options =
       parse_options(arguments,
@@ -721,6 +726,13 @@ defmodule Wotex.Tracker.Host.CLI do
 
   defp command_target(%{name: :operation, id: id}, base),
     do: {base <> "/operations/" <> encode_segment(id), nil, finite("application/json")}
+
+  defp command_target(%{name: :analytics} = command, base) do
+    body = command.value |> input() |> Codec.encode!()
+
+    {base <> "/analytics/query", body,
+     finite("application/json") |> Map.put(:output, command.output)}
+  end
 
   defp command_target(%{name: :action_invoke} = command, base),
     do: action_target(base, command)
@@ -867,6 +879,18 @@ defmodule Wotex.Tracker.Host.CLI do
 
   defp stream(property),
     do: %{stream: true, accept: "text/event-stream", raw: false, property: property, output: nil}
+
+  defp mutation?(name),
+    do:
+      name in [
+        :action_invoke,
+        :associate,
+        :enroll,
+        :import,
+        :materialize,
+        :revoke,
+        :unenroll
+      ]
 
   defp validate_stream(command) do
     unless command.seconds in 1..300 and command.max_events in 1..1_000,

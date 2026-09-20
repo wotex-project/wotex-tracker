@@ -11,6 +11,7 @@ defmodule Wotex.Tracker.QuerySpec do
   @fields ~w(id revision dataset measurement unit series qualities from_at to_at timezone bucket_ms aggregation order max_points)a
   @serialized_fields ~w(schema algorithm id revision dataset measurement unit series qualities from_at to_at timezone bucket_ms aggregation order max_points window_semantics missing_values identity)
   @aggregations ~w(count min max mean last)a
+  @cumulative_measurements ~w(movementCounter measurementSequence)
   @qualities ~w(valid suspect)a
   @maximum_window_ms 2_678_400_000
   @type t :: %__MODULE__{}
@@ -36,7 +37,7 @@ defmodule Wotex.Tracker.QuerySpec do
          true <- window <= @maximum_window_ms,
          true <- input.timezone == "Etc/UTC",
          true <- is_integer(input.bucket_ms) and input.bucket_ms in 1..@maximum_window_ms,
-         true <- input.aggregation in @aggregations,
+         true <- aggregation_allowed?(input.measurement, input.aggregation),
          true <- input.order in [:ascending, :descending],
          true <- is_integer(input.max_points) and input.max_points in 1..1_000,
          true <- bucket_count(window, input.bucket_ms) <= input.max_points,
@@ -59,6 +60,14 @@ defmodule Wotex.Tracker.QuerySpec do
   end
 
   def validate(_, _), do: Admission.fail(:invalid_input)
+
+  @doc "Reports whether an aggregation is meaningful for the named measurement."
+  @spec aggregation_allowed?(term(), term()) :: boolean()
+  def aggregation_allowed?(measurement, aggregation)
+      when is_binary(measurement) and aggregation in @aggregations,
+      do: aggregation != :mean or measurement not in @cumulative_measurements
+
+  def aggregation_allowed?(_, _), do: false
 
   @doc "Projects the query to closed native JSON for APIs and saved dashboards."
   @spec to_map(term(), term()) :: {:ok, map()} | {:error, Error.t()}

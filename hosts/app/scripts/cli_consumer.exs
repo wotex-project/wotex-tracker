@@ -149,6 +149,23 @@ defmodule Wotex.Tracker.Host.CLIConsumer do
     [24.3] = call(context, ["read", thing, "temperature"])
     [100_044] = call(context, ["read", thing, "pressure"])
 
+    query_path = Path.join(Path.dirname(observation_path), "query.json")
+    File.write!(query_path, Codec.encode!(query(thing)))
+
+    [%{"data" => query_result}] = call(context, ["analytics", query_path])
+    "wtr.query-result.v1" = query_result["schema"]
+    "temperature" = query_result["spec"]["measurement"]
+    ^thing = get_in(query_result, ["series", Access.at(0), "id"])
+    24.3 = get_in(query_result, ["series", Access.at(0), "points", Access.at(0), "value"])
+
+    query_export = Path.join(Path.dirname(observation_path), "query-result.json")
+    [] = call(context, ["analytics", query_path, "--output", query_export])
+
+    %{"schema" => "wtr.response.v1", "data" => ^query_result} =
+      query_export |> File.read!() |> Codec.decode!()
+
+    0o600 = Bitwise.band(File.stat!(query_export).mode, 0o777)
+
     [%{"data" => %{"items" => []}}] = call(context, ["list", "policies", "--thing", thing])
     [%{"data" => %{"items" => []}}] = call(context, ["list", "policies"])
 
@@ -311,7 +328,8 @@ defmodule Wotex.Tracker.Host.CLIConsumer do
 
     IO.puts(
       "CLI_CONSUMER_PASS workflow=true explicit_association=true history=true " <>
-        "sse=true property_observation=true native_types=true self_revocation=true rule_status=true unenrollment=true"
+        "sse=true property_observation=true analytics=true native_types=true " <>
+        "self_revocation=true rule_status=true unenrollment=true"
     )
   end
 
@@ -364,6 +382,29 @@ defmodule Wotex.Tracker.Host.CLIConsumer do
       "provenance" => %{},
       "payload" => %{"kind" => "bytes", "encoding" => "base64", "data" => payload}
     }
+  end
+
+  defp query(thing) do
+    {:ok, spec} =
+      Wotex.Tracker.QuerySpec.new(%{
+        id: "cli-temperature-history",
+        revision: "query-v1",
+        dataset: :measurements,
+        measurement: "temperature",
+        unit: "Cel",
+        series: [thing],
+        qualities: [:valid],
+        from_at: @now,
+        to_at: @now + 1,
+        timezone: "Etc/UTC",
+        bucket_ms: 1,
+        aggregation: :last,
+        order: :ascending,
+        max_points: 1
+      })
+
+    {:ok, document} = Wotex.Tracker.QuerySpec.to_map(spec)
+    document
   end
 
   defp warmer_payload do

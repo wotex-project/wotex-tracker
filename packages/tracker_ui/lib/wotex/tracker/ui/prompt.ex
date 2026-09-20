@@ -9,8 +9,17 @@ defmodule Wotex.Tracker.UI.Prompt do
   remains a separate authorized service operation.
   """
 
+  alias Wotex.Tracker.QuerySpec
+
   @query_keys ~w(kind measurement aggregation quality from to bucket view explanation)
   @clarify_keys ~w(kind question)
+  @aggregation_atoms %{
+    "count" => :count,
+    "min" => :min,
+    "max" => :max,
+    "mean" => :mean,
+    "last" => :last
+  }
   @aggregations ~w(count min max mean last)
   @qualities ~w(valid suspect valid_suspect)
   @buckets ~w(hour six_hours day)
@@ -80,7 +89,7 @@ defmodule Wotex.Tracker.UI.Prompt do
            "explanation" => explanation
          } <- proposal,
          true <- valid_measurement?(measurement, measurements),
-         true <- valid_choices?(aggregation, quality, bucket, view),
+         true <- valid_choices?(measurement, aggregation, quality, bucket, view),
          true <- bounded?(from, 40) and bounded?(to, 40),
          true <- bounded?(explanation, 512) and explanation != "" do
       {:query, Map.take(proposal, ~w(measurement aggregation quality from to bucket view)),
@@ -95,10 +104,14 @@ defmodule Wotex.Tracker.UI.Prompt do
   defp valid_measurement?(measurement, measurements),
     do: is_binary(measurement) and Enum.any?(measurements, &(&1["kind"] == measurement))
 
-  defp valid_choices?(aggregation, quality, bucket, view),
-    do:
-      aggregation in @aggregations and quality in @qualities and
-        bucket in @buckets and view in @views
+  defp valid_choices?(measurement, aggregation, quality, bucket, view) do
+    with {:ok, aggregation} <- Map.fetch(@aggregation_atoms, aggregation),
+         true <- QuerySpec.aggregation_allowed?(measurement, aggregation) do
+      quality in @qualities and bucket in @buckets and view in @views
+    else
+      _ -> false
+    end
+  end
 
   defp bounded?(value, max),
     do: is_binary(value) and String.valid?(value) and byte_size(value) <= max

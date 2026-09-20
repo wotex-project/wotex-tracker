@@ -131,6 +131,7 @@ defmodule Wotex.Tracker.ReleaseProbe do
       first = cli_sample(instance, thing)
       expected_snapshot = "property:snapshot:#{generation}:#{generation}"
       ^expected_snapshot = first["event"]
+      cli_analytics(instance, thing)
       operation = Identifier.uuid()
       body = %{"thing_id" => thing, "expected_generation" => generation}
       receipt = request(instance, "/materialisations", body: body, operation: operation)
@@ -168,6 +169,7 @@ defmodule Wotex.Tracker.ReleaseProbe do
         "http_openapi_sse" => "pass",
         "property_observation" => "pass",
         "cli_property_resume" => "pass",
+        "cli_analytics" => "pass",
         "history" => "pass",
         "sigterm_active_stream" => "pass",
         "shutdown_seconds" => Float.round(shutdown / 1_000, 3),
@@ -310,13 +312,14 @@ defmodule Wotex.Tracker.ReleaseProbe do
     }
 
     client = Path.join(directory, "client.json")
+    now = System.system_time(:millisecond)
 
     write_json(client, %{
       "url" => "http://127.0.0.1:#{port}",
       "scope" => @scope,
       "token" => token,
       "reader" => reader,
-      "now" => System.system_time(:millisecond)
+      "now" => now
     })
 
     browser = if browser?, do: browser_configuration(directory), else: nil
@@ -331,6 +334,7 @@ defmodule Wotex.Tracker.ReleaseProbe do
       document: %{document | "credentials" => [admin, reader_entry]},
       origin: "http://127.0.0.1:#{port}",
       descriptor: client,
+      now: now,
       browser: browser,
       apns: apns,
       process: nil
@@ -735,6 +739,69 @@ defmodule Wotex.Tracker.ReleaseProbe do
 
     false = String.contains?(output, instance.token)
     %{"schema" => "wtr.property.v1", "value" => 24.3} = Codec.decode!(output)
+  end
+
+  defp cli_analytics(instance, thing) do
+    query_path = Path.join(instance.directory, "release-query.json")
+    output_path = Path.join(instance.directory, "release-query-result.json")
+
+    query = %{
+      "schema" => "wtr.query-spec.v1",
+      "algorithm" => "absolute-utc-buckets-v1",
+      "id" => "release-cli-temperature-history",
+      "revision" => "query-v1",
+      "dataset" => "measurements",
+      "measurement" => "temperature",
+      "unit" => "Cel",
+      "series" => [thing],
+      "qualities" => ["valid"],
+      "from_at" => instance.now,
+      "to_at" => instance.now + 1,
+      "timezone" => "Etc/UTC",
+      "bucket_ms" => 1,
+      "aggregation" => "last",
+      "order" => "ascending",
+      "max_points" => 1,
+      "window_semantics" => "from_inclusive_to_exclusive",
+      "missing_values" => "excluded_and_disclosed"
+    }
+
+    query = Map.put(query, "identity", "wtr-json-v1:sha256:" <> Codec.digest(query))
+    write_json(query_path, query)
+
+    {output, 0} =
+      System.cmd(
+        Path.join([instance.release, "bin", "trackerctl"]),
+        [
+          "--url",
+          instance.origin,
+          "--scope",
+          @scope,
+          "--token-file",
+          Path.join(instance.directory, "operator.token"),
+          "analytics",
+          query_path,
+          "--output",
+          output_path
+        ],
+        stderr_to_stdout: true
+      )
+
+    "" = output
+    0o600 = Bitwise.band(File.stat!(output_path).mode, 0o777)
+
+    %{"schema" => "wtr.response.v1", "data" => result} =
+      output_path |> File.read!() |> Codec.decode!()
+
+    %{
+      "schema" => "wtr.query-result.v1",
+      "spec" => ^query,
+      "series" => [%{"id" => ^thing, "points" => [%{"value" => 24.3}]}]
+    } = result
+
+    true = result["qualified_rows"] > 0
+
+    :ok
   end
 
   defp open_stream(instance, cursor) do

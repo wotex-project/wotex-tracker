@@ -102,6 +102,33 @@ defmodule Wotex.Tracker.Service.AnalyticsTest do
     assert get_in(included, ["series", Access.at(0), "points", Access.at(0), "value"]) === 9.5
   end
 
+  test "service rejects counter means and preserves the last value across a reset" do
+    c = service()
+
+    put_state(c, "sensor", "0", c.now, [
+      measurement(17, "available", "valid", "movementCounter", "1")
+    ])
+
+    put_state(c, "sensor", "1", c.now + 1, [
+      measurement(0, "available", "valid", "movementCounter", "1")
+    ])
+
+    last =
+      query_document("sensor", c.now, c.now + 10, 10,
+        measurement: "movementCounter",
+        unit: "1",
+        aggregation: :last
+      )
+
+    assert {:ok, result} = Service.analytics(c.service, c.reader, c.scope, last, c.now)
+    assert get_in(result, ["series", Access.at(0), "points", Access.at(0), "value"]) === 0
+
+    mean = last |> Map.put("aggregation", "mean") |> reidentify_query()
+
+    assert {:error, %{"code" => "invalid_request"}} =
+             Service.analytics(c.service, c.reader, c.scope, mean, c.now)
+  end
+
   test "closed queries retain scope authorization and reject incompatible units" do
     c = service()
     put_state(c, "sensor", "0", c.now, 1, "available", "valid")
@@ -288,7 +315,7 @@ defmodule Wotex.Tracker.Service.AnalyticsTest do
         id: "temperature-history",
         revision: "service-query-v1",
         dataset: :measurements,
-        measurement: "temperature",
+        measurement: Keyword.get(options, :measurement, "temperature"),
         unit: Keyword.get(options, :unit, "Cel"),
         series: [series],
         qualities: Keyword.get(options, :qualities, [:valid]),
@@ -342,14 +369,19 @@ defmodule Wotex.Tracker.Service.AnalyticsTest do
     assert {:ok, _} = Store.mutate(c.store, update)
   end
 
-  defp measurement(value, availability, quality),
+  defp measurement(value, availability, quality, kind \\ "temperature", unit \\ "Cel"),
     do: %{
-      "kind" => "temperature",
+      "kind" => kind,
       "value" => Projection.scalar(value),
-      "unit" => "Cel",
+      "unit" => unit,
       "availability" => availability,
       "quality" => quality
     }
+
+  defp reidentify_query(document) do
+    material = Map.delete(document, "identity")
+    Map.put(material, "identity", "wtr-json-v1:sha256:" <> Codec.digest(material))
+  end
 
   defp bulk_history(directory, scope, event_at, count) do
     document = %{

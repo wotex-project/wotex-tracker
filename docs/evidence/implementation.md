@@ -5698,3 +5698,37 @@ documentation catalogue, delivery graph, evidence and link check passed.
 These results use bounded synthetic line work. They do not qualify a third-party
 map dataset or licence, physical display, touch/gesture behavior, screen reader,
 offline storage budget, signed iPhone application or Pi firmware image.
+
+### Field-specific counter aggregation admission — 2026-09-20
+
+The authoritative `wtr.query-spec.v1` admission now rejects `mean` for the
+cumulative `movementCounter` and `measurementSequence` fields. The shared
+browser still defaults those fields to `last`, but it now asks the same core
+eligibility function used by the service instead of maintaining a separate
+allowlist. Optional prompted-query proposals pass through that function before
+they can populate the structured form. Direct HTTP clients cannot bypass the
+rule with a correctly reidentified document. The packaged CLI now executes one
+closed query document through the same HTTP operation without manufacturing a
+mutation receipt or idempotency key. Both its independent source consumer and
+the assembled-release probe query the enrolled Thing, check the exact 24.3 °C
+last value and privately export the unchanged response envelope.
+
+Known-answer tests retain a movement counter before and after a reset and
+require the last-observed result to preserve the exact zero. The service test
+persists the same reset in two committed generations, executes `last`, then
+submits a content-consistent `mean` request and requires rejection before query
+execution. Ordinary temperature means remain admitted.
+
+On both required runtime lanes, the complete root gate passed 202 tests, 19
+generated properties and one doctest at 95.1% production line coverage; the
+complete service gate passed 385 tests and two generated properties at 95.1%;
+and the complete shared-UI gate passed 193 tests at 95.0%. Compiler,
+unused-dependency, formatter, vulnerability audit, strict Credo, ExDoc,
+Dialyzer, boundary, OpenAPI, stack-language, documentation, archive and licence
+checks passed where configured. The complete headless standalone-host gate
+passed 28 tests at 95.8%, and the UI-enabled gate passed 39 tests at 95.7%,
+including their CLI and native-consumer checks. A locally assembled bundled
+release then passed the black-box HTTP/SSE, restart, storage-failure and packaged
+CLI probe with `cli_analytics=pass`. This is deterministic software evidence;
+it does not satisfy the recorded real-provider or physical cross-surface
+analytics gates.

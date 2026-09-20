@@ -406,7 +406,9 @@ extracts numeric measurement rows from committed state history. It scans at most
 100,000 matching rows across one to eight explicit series and returns a
 content-identified `wtr.query-result.v1` with disclosure counts and preserved
 gaps. The operation is read-only, so it does not use mutation receipts or
-`Idempotency-Key`.
+`Idempotency-Key`. Query admission rejects `mean` for the cumulative
+`movementCounter` and `measurementSequence` fields; `last` retains an exact
+reset to zero.
 
 `Service.analytics_page/5` and `POST …/analytics/pages` split the same admitted
 window into bounded bucket pages. An encrypted seven-day cursor binds the exact

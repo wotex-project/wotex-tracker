@@ -31,7 +31,6 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
     "suspect" => [:suspect],
     "valid_suspect" => [:valid, :suspect]
   }
-  @counter_kinds ~w(movementCounter measurementSequence)
   @follow_interval_ms 5_000
 
   @impl true
@@ -631,7 +630,8 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
 
     %{
       "measurement" => first["kind"],
-      "aggregation" => if(first["kind"] in @counter_kinds, do: "last", else: "mean"),
+      "aggregation" =>
+        if(QuerySpec.aggregation_allowed?(first["kind"], :mean), do: "mean", else: "last"),
       "quality" => "valid",
       "from" => iso8601(max(0, end_at - 86_400_000)),
       "to" => iso8601(end_at),
@@ -845,8 +845,14 @@ defmodule Wotex.Tracker.UI.AnalyticsLive do
     end
   end
 
-  defp aggregation("mean", kind) when kind in @counter_kinds, do: :error
-  defp aggregation(value, _), do: Map.fetch(@aggregations, value)
+  defp aggregation(value, kind) do
+    with {:ok, aggregation} <- Map.fetch(@aggregations, value),
+         true <- QuerySpec.aggregation_allowed?(kind, aggregation) do
+      {:ok, aggregation}
+    else
+      _ -> :error
+    end
+  end
 
   defp utc_milliseconds(value) when is_binary(value) do
     case DateTime.from_iso8601(value) do

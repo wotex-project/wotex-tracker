@@ -9099,6 +9099,7 @@
             "maximum": 2678400000
           },
           "aggregation": {
+            "description": "Closed numeric aggregation. mean is rejected for the cumulative movementCounter and measurementSequence fields; use last to preserve counter resets.",
             "enum": [
               "count",
               "min",

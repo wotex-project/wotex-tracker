@@ -216,6 +216,13 @@ uses one idempotency key and never retries. A timeout or disconnected attempt
 must be resolved with `action status UUID`; `accepted` is protocol acceptance,
 not proof of a physical effect.
 
+`trackerctl analytics QUERY.json [--output RESULT.json]` executes one exact
+`wtr.query-spec.v1` through the authorized service. This is a read-only POST: it
+does not send an idempotency key, invent an operation receipt or retry a failed
+exchange. The input is capped at 1 MiB before JSON decoding, the service applies
+the stricter query contract, and an output file is created privately and never
+overwritten.
+
 ## Optional browser interface
 
 Build this composition with `WOTEX_TRACKER_UI=1`. It adds the shared

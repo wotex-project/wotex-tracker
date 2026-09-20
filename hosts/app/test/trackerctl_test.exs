@@ -164,6 +164,58 @@ defmodule Wotex.Tracker.Host.TrackerctlTest do
     assert error(result)["code"] == "input_too_large"
   end
 
+  test "analytics sends one bounded read-only POST without an idempotency key", context do
+    query = Path.join(context.directory, "query.json")
+
+    document = %{
+      "schema" => "wtr.query-spec.v1",
+      "algorithm" => "absolute-utc-buckets-v1",
+      "id" => "cli-query",
+      "revision" => "query-v1",
+      "dataset" => "measurements",
+      "measurement" => "temperature",
+      "unit" => "Cel",
+      "series" => ["thing one"],
+      "qualities" => ["valid"],
+      "from_at" => 0,
+      "to_at" => 1,
+      "timezone" => "Etc/UTC",
+      "bucket_ms" => 1,
+      "aggregation" => "last",
+      "order" => "ascending",
+      "max_points" => 1,
+      "window_semantics" => "from_inclusive_to_exclusive",
+      "missing_values" => "excluded_and_disclosed",
+      "identity" => "wtr-json-v1:sha256:" <> String.duplicate("0", 64)
+    }
+
+    File.write!(query, Codec.encode!(document))
+
+    response =
+      Codec.encode!(%{
+        "schema" => "wtr.response.v1",
+        "data" => %{"schema" => "wtr.query-result.v1", "series" => []}
+      })
+
+    {result, request} =
+      peer_request(
+        context,
+        http_response(200, "OK", "application/json", response),
+        ["analytics", query]
+      )
+
+    assert result.status == 0
+    assert request =~ "POST /api/v1/scopes/workshop/analytics/query HTTP/1.1"
+    assert String.downcase(request) =~ "content-type: application/json"
+    refute String.downcase(request) =~ "idempotency-key:"
+    assert request =~ Codec.encode!(document)
+
+    File.write!(query, :binary.copy(" ", 1_048_577))
+    result = run_cli(context, ["analytics", query])
+    assert result.status == 1
+    assert error(result) == %{"code" => "input_too_large"}
+  end
+
   test "response byte, header, media and version limits fail closed", context do
     oversized = :binary.copy(" ", 4_194_305)
 

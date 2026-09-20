@@ -95,6 +95,10 @@ output, no tools or retries, bounded request/response bytes, deadline, rate,
 concurrency and cost preflight, cancellation on caller loss, and redacted state.
 Synthetic provider and transport tests pass. A separately recorded real
 public-provider run and cross-surface acceptance remain open.
+The packaged standalone CLI also executes one caller-supplied closed query
+document through the same endpoint as a read-only POST. It emits no mutation
+operation or idempotency key and supports a private, no-overwrite exact response
+export.
 Model execution is explicitly configured and can be disabled; deterministic
 tracking and structured analytics MUST remain useful without AI or any external
 observability service.
