@@ -84,11 +84,12 @@ defmodule Wotex.Tracker.LoopbackClientTest do
           {"HTTP/1.1 " <> String.duplicate("x", 100), [max_header_bytes: 32],
            {:error, :request_failed}},
           {"HTTP/1.1 100 Continue\r\n\r\n", [], {:error, :response_rejected}},
-          {"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\n1",
-           [deadline: System.monotonic_time(:millisecond) + 500], {:error, :timeout}}
+          {"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\n1", [deadline: {:relative, 1_000}],
+           {:error, :timeout}}
         ] do
       {config, peer} = peer(wire)
       credential = Credentials.generate_token()
+      options = relative_deadline(options)
       result = LoopbackClient.request(request(config, options), credential, config)
 
       case expected do
@@ -161,5 +162,15 @@ defmodule Wotex.Tracker.LoopbackClientTest do
 
     {:ok, config} = LoopbackClient.new("http://127.0.0.1:#{port}", "workshop")
     {config, peer}
+  end
+
+  defp relative_deadline(options) do
+    case Keyword.get(options, :deadline) do
+      {:relative, milliseconds} ->
+        Keyword.put(options, :deadline, System.monotonic_time(:millisecond) + milliseconds)
+
+      _ ->
+        options
+    end
   end
 end
