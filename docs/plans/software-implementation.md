@@ -371,6 +371,13 @@ document with an independently generated session secret when the operator gives
 a distinct browser port. This does not add UI dependencies to the headless image
 or constitute TLS, on-device setup or display acceptance.
 
+A separate read-only offline recovery command validates that a restored private
+tree retains the initialized instance/path marker, contains no interrupted
+generation or SQLite sidecars, and has the expected application identity, a
+schema/table contract matching the current image and a passing integrity check.
+It performs no copy, migration or repair. Physical backup media and restore
+trials remain required.
+
 Complete both product profiles: durable headless service on `nerves_system_rpi5`
 and shared LiveView on `kiosk_system_rpi5` with local Cog display. Physical touch
 acceptance covers setup, map/history, graph gestures, keyboard/focus/scaling,

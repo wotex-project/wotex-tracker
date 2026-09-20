@@ -132,8 +132,27 @@ private Tracker tree from a SQLite-consistent backup onto separate media, retain
 the 0700/0600 modes and storage identity, and boot the restored copy. Do not copy
 a live database without its SQLite backup operation, remove the marker to force
 initialization, or reuse an empty `prepared` marker for an initialized appliance.
-The source tests cover missing, corrupt, unsafe and interrupted states; physical
-power-loss, full-media, unmountable-partition and restore trials remain required.
+
+Before installing that candidate, validate its read-only staged tree:
+
+```sh
+WOTEX_PATH_DEPS=1 MIX_TARGET=host MIX_ENV=test mise exec -- \
+  mix run --no-start scripts/validate_recovery.exs -- \
+  --directory /absolute/private/restored/tracker
+```
+
+The validator requires the initialized marker to match the service instance and
+fixed `/root/tracker/data` path. It rejects an interrupted marker generation,
+missing or non-private database, SQLite sidecars, corruption and a schema newer
+or older than this image's exact current schema. Direct-TLS material is checked
+at its staged equivalent path. SQLite is opened read-only for `application_id`,
+`user_version`, the current table contract and `quick_check`; successful output
+contains paths and validation facts only. It does not copy, migrate, rename,
+delete or repair the candidate.
+
+The source tests cover missing, corrupt, unsafe, unsupported and interrupted
+states; physical power-loss, full-media, unmountable-partition and restore trials
+remain required.
 
 ## Current limits
 

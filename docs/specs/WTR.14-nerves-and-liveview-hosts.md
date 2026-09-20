@@ -23,10 +23,13 @@ Pi image has booted on a Pi. A source-level storage marker now permits one
 prepared initialization and
 makes later missing, unsafe, corrupt or unsupported stores an explicit
 `recovery_required` startup result. No physical storage-recovery or hardware
-acceptance exists yet. Bootable headless and local-display profiles remain
-required product deliverables and optional installations. They consume the pure
-library without changing its startup or dependency contract. WTR.13 governs the
-root.
+acceptance exists yet. A read-only offline validator now admits only a restored
+private tree whose initialized marker, service instance, runtime path, supported
+SQLite schema/table contract and integrity check agree, without migrating or
+repairing it.
+Bootable headless and local-display profiles remain required product deliverables
+and optional installations. They consume the pure library without changing its
+startup or dependency contract. WTR.13 governs the root.
 
 ## Separate library and appliance
 
@@ -158,6 +161,16 @@ markers and backup/recovery procedure. Firmware rollback and application-data
 rollback are separate: an older image must read the stored schema or fail with
 an explicit recovery requirement. Never validate firmware solely because its UI
 responds while ingestion/storage is broken.
+
+The source recovery command checks an offline staged candidate created from the
+service's SQLite-consistent backup operation. It requires the closed initialized
+marker to match the configured instance and fixed runtime data path, rejects an
+unfinished marker transition and SQLite sidecars, then opens the private database
+read-only to check its application identity, exact current schema/table contract
+and `quick_check`. It also maps direct-TLS material to its staged path and checks
+its private-file policy. Its result contains no credential, storage identity or
+database content. This is pre-install software admission, not proof that backup
+media, copying, power interruption or physical restoration succeeds.
 
 Updates use the chosen Nerves system's firmware validation and revert mechanism
 with documented health criteria and a finite startup budget. Test bad images,

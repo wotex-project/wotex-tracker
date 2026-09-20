@@ -3,6 +3,9 @@ defmodule Wotex.Tracker.Service.Schema do
 
   alias Wotex.Tracker.Service.SQL
 
+  @application_id 1_465_143_857
+  @current_version 8
+
   # Every supported older version upgrades to schema 8 in one startup transaction.
   @migrations %{
     1 => ~w(1-to-2.sql 2-to-3.sql 3-to-4.sql 4-to-5.sql 5-to-6.sql 6-to-7.sql 7-to-8.sql),
@@ -39,16 +42,15 @@ defmodule Wotex.Tracker.Service.Schema do
       end
 
       SQL.execute!(db, "COMMIT")
-      validate_tables(db)
-
-      case SQL.rows!(db, "PRAGMA quick_check") do
-        [["ok"]] -> :ok
-        _ -> throw({:storage, :storage_corrupt})
-      end
+      validate_current!(db)
     after
       SQL.rollback(db)
     end
   end
+
+  @doc false
+  @spec validate_current(term()) :: :ok | {:error, atom()}
+  def validate_current(db), do: SQL.boundary(fn -> validate_current!(db) end)
 
   defp create(db) do
     require_value!(SQL.rows!(db, "SELECT name FROM sqlite_master WHERE type='table'"), [])
@@ -90,6 +92,17 @@ defmodule Wotex.Tracker.Service.Schema do
     end
 
     :ok
+  end
+
+  defp validate_current!(db) do
+    require_value!(SQL.rows!(db, "PRAGMA application_id"), [[@application_id]])
+    require_value!(SQL.rows!(db, "PRAGMA user_version"), [[@current_version]])
+    validate_tables(db)
+
+    case SQL.rows!(db, "PRAGMA quick_check") do
+      [["ok"]] -> :ok
+      _ -> throw({:storage, :storage_corrupt})
+    end
   end
 
   defp require_value!(value, value), do: :ok
