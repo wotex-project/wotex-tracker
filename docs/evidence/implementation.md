@@ -5530,3 +5530,19 @@ packages. The root archive contained 112 members and all 57 package-owned
 source/assets; the service archive contained 121 members and all 117; the shared
 UI archive contained 59 members and all 55. These checks validate local package
 contents, not public registry publication or fresh public dependency resolution.
+
+### Current-schema appliance recovery seam — 2026-09-20
+
+The Nerves host recovery and direct-TLS readiness fixtures now obtain the exact
+current SQLite version and complete schema asset from the service's `Schema`
+owner. Advancing the service to schema 9 had left the appliance fixture on
+schema 8 and made its positive recovery and TLS-health scenarios fail closed;
+the host no longer duplicates that version. Its negative newer-schema and
+logically incomplete-current-schema cases are derived from the same owner.
+
+Both required runtime lanes passed all 48 headless-host tests with the application
+intentionally not auto-started, plus formatter, strict Credo and forced Dialyzer
+checks. Recovery admits the complete schema-9 database, rejects version 10 and
+an incomplete schema-9 database, and the authenticated direct-TLS health response
+reports schema 9. This is host software evidence only; no firmware was built or
+booted on a Pi and no physical restore or rollback trial was performed.

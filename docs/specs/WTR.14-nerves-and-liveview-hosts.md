@@ -43,9 +43,11 @@ initialized storage identity, the actual bound service listener and a writable
 current-schema store pass one synchronous core-health check. The enabled Nerves
 Runtime startup guard can therefore validate pending firmware only after those
 criteria pass; the ten-minute heart handshake and guard's 15-minute callback
-bound failure before the system reverts. Bad-image validation and revert still
-require physical target evidence. An opt-in source profile now loads the same
-private, closed cellular-host document as the standalone application and
+bound failure before the system reverts. Recovery and readiness acceptance
+derive the current schema version and schema asset from the service owner rather
+than retaining a host-local version constant. Bad-image validation and revert
+still require physical target evidence. An opt-in source profile now loads the
+same private, closed cellular-host document as the standalone application and
 supervises the bounded Teltonika listener beside the shared service. A host
 integration test proves real-socket login, two-record admission, acknowledgment,
 durable inspection and joint shutdown. It does not establish a Pi boot, tracker,

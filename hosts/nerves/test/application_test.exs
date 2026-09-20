@@ -10,7 +10,7 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
   alias Wotex.Tracker.Protocols.Teltonika.{TAT140, TCPSession}
   alias Wotex.Tracker.Service
   alias Wotex.Tracker.Service.Cellular.Server, as: CellularServer
-  alias Wotex.Tracker.Service.{Codec, Credentials}
+  alias Wotex.Tracker.Service.{Codec, Credentials, Schema}
   alias Wotex.Tracker.Service.HTTP.Config, as: ServerConfig
   alias Wotex.Tracker.Service.HTTP.Server
 
@@ -468,7 +468,8 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
                body_format: :binary
              )
 
-    assert {:ok, %{"data" => %{"writable" => true, "schema" => "8"}}} = Codec.decode(body)
+    schema = Integer.to_string(Schema.current_version())
+    assert {:ok, %{"data" => %{"writable" => true, "schema" => ^schema}}} = Codec.decode(body)
     assert :ok = Supervisor.stop(host)
   end
 

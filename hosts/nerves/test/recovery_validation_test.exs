@@ -3,7 +3,7 @@ defmodule Wotex.Tracker.Nerves.RecoveryValidationTest do
 
   alias Exqlite.Sqlite3
   alias Wotex.Tracker.Nerves.{Provisioner, RecoveryValidation}
-  alias Wotex.Tracker.Service.Codec
+  alias Wotex.Tracker.Service.{Codec, Schema}
 
   @runtime_root "/root/tracker"
 
@@ -47,7 +47,7 @@ defmodule Wotex.Tracker.Nerves.RecoveryValidationTest do
     assert result["schema"] == "wtr.nerves-recovery-validation.v1"
     assert result["database_file"] == c.database
     assert result["storage_state"] == "initialized"
-    assert result["database_schema"] == "8"
+    assert result["database_schema"] == Integer.to_string(Schema.current_version())
     assert result["integrity_check"] == "ok"
     refute Map.has_key?(result, "instance_id")
     refute Map.has_key?(result, "storage_id")
@@ -87,7 +87,7 @@ defmodule Wotex.Tracker.Nerves.RecoveryValidationTest do
     assert {:error, :recovery_required} = RecoveryValidation.validate(c.root, @runtime_root)
     File.rm!(c.database <> "-wal")
 
-    set_schema(c.database, 9)
+    set_schema(c.database, Schema.current_version() + 1)
     assert {:error, :recovery_required} = RecoveryValidation.validate(c.root, @runtime_root)
 
     File.rm!(c.database)
@@ -147,7 +147,7 @@ defmodule Wotex.Tracker.Nerves.RecoveryValidationTest do
     :ok =
       :wotex_tracker_service
       |> :code.priv_dir()
-      |> Path.join("schema/8.sql")
+      |> Path.join("schema/#{Schema.current_version()}.sql")
       |> File.read!()
       |> then(&Sqlite3.execute(database, &1))
 
@@ -171,7 +171,13 @@ defmodule Wotex.Tracker.Nerves.RecoveryValidationTest do
 
   defp create_incomplete_database(path) do
     {:ok, database} = Sqlite3.open(path)
-    :ok = Sqlite3.execute(database, "PRAGMA application_id=1465143857; PRAGMA user_version=8")
+
+    :ok =
+      Sqlite3.execute(
+        database,
+        "PRAGMA application_id=1465143857; PRAGMA user_version=#{Schema.current_version()}"
+      )
+
     :ok = Sqlite3.close(database)
     File.chmod!(path, 0o600)
   end

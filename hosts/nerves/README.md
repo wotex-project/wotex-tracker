@@ -220,6 +220,12 @@ at its staged equivalent path. SQLite is opened read-only for `application_id`,
 contains paths and validation facts only. It does not copy, migrate, rename,
 delete or repair the candidate.
 
+The host acceptance fixture resolves the current version and matching complete
+schema asset from `Wotex.Tracker.Service.Schema`. A service schema advance must
+therefore update the packaged schema itself, not a duplicated appliance version
+constant; both offline recovery and authenticated readiness assert that same
+current value.
+
 The source tests cover missing, corrupt, unsafe, unsupported and interrupted
 states; physical power-loss, full-media, unmountable-partition and restore trials
 remain required.
