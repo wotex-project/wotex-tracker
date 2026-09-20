@@ -20,6 +20,13 @@ WOTEX_PATH_DEPS=1 MIX_ENV=test mise exec -- mix check --no-retry
 `Wotex.Tracker.Service.new/1` takes an explicit `Store` handle, `Credentials`
 value and public `base_url` origin. It loads the packaged RAWv2 catalogue and
 environmental model. The host owns time, credential custody and supervision.
+`Wotex.Tracker.Service.HostProvisioning.initialize/1` supplies a shared,
+create-only seam for hosts that need to prepare the closed `wtr.host.v1`
+document, private operator-token file and empty data directory. The caller gives
+separate destination and runtime roots plus explicit expiry time. The operation
+uses exclusive 0600 files and 0700 directories, never returns the bearer token,
+never replaces an occupied path and starts no listener. It creates only a
+loopback configuration; exposed/TLS deployment remains explicit host policy.
 Every facade operation authenticates an ephemeral bearer token and exact scope.
 `Service.access/4` and `GET …/access` return the current credential's non-secret
 ID, principal, exact scope permissions and expiry after the ordinary durable

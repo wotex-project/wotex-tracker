@@ -52,8 +52,9 @@ bin/trackerctl --scope workshop init --directory "$PWD/_build/local" \
 This creates a 0700 directory, a private configuration and a fresh operator token
 with all scope grants and a one-day expiry. `--expires-in` permits 1–604800 seconds.
 Initialization refuses existing files; it never rotates credentials or replaces
-data implicitly. It prints file paths, never the token. A partial filesystem
-failure requires inspecting the newly created directory before trying again.
+data implicitly. It prints file paths, never the token. Ordinary filesystem
+failure removes only paths created by that attempt; an occupied path is left
+unchanged.
 
 For source development, start the configured host from this directory:
 

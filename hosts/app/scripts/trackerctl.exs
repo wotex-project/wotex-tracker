@@ -410,11 +410,10 @@ defmodule Wotex.Tracker.Host.CLI do
 
   import Bitwise
   alias Wotex.Tracker.Host.CLI.Transport
-  alias Wotex.Tracker.Service.{Codec, Identifier}
+  alias Wotex.Tracker.Service.{Codec, HostProvisioning, Identifier}
 
   @resources ~w(observations resolutions evidence enrollments things state rules policies alerts)
   @raw_resources ~w(observations evidence)
-  @grants ~w(read raw ingest enroll admin interact)
 
   def main(arguments) do
     Application.ensure_all_started(:crypto)
@@ -857,53 +856,37 @@ defmodule Wotex.Tracker.Host.CLI do
     identifier(command.instance_id)
     directory = Path.expand(command.directory)
     if Path.type(command.directory) != :absolute, do: fail("private_directory_required")
-    ensure_directory(directory)
-    private_directory(directory)
-    config = Path.join(directory, "config.json")
-    token_path = Path.join(directory, "operator.token")
-    data = Path.join(directory, "data")
 
-    if Enum.any?([config, token_path, data], &(File.exists?(&1) or symlink?(&1))),
-      do: fail("configuration_exists")
-
-    ensure_directory(data)
-    token = :crypto.strong_rand_bytes(32) |> Base.url_encode64(padding: false)
-
-    document = %{
-      "schema" => "wtr.host.v1",
-      "instance_id" => command.instance_id,
-      "secret_key" => Base.encode64(:crypto.strong_rand_bytes(32)),
-      "data_directory" => data,
-      "listen" => %{"ip" => command.bind, "port" => command.port},
-      "exposure" => "loopback",
-      "public_origin" => "listener",
-      "credentials" => [
-        %{
-          "id" => "operator",
-          "principal" => "operator",
-          "token_sha256" => :crypto.hash(:sha256, token) |> Base.encode16(case: :lower),
-          "grants" => %{global.scope => @grants},
-          "expires_at" => System.system_time(:millisecond) + command.expires_in * 1_000
-        }
-      ]
-    }
-
-    exclusive_write(token_path, token <> "\n")
-    exclusive_write(config, Codec.encode!(document) <> "\n")
-
-    emit(%{
-      "schema" => "wtr.cli.v1",
-      "config" => config,
-      "token_file" => token_path,
-      "data_directory" => data
+    HostProvisioning.initialize(%{
+      destination_root: directory,
+      runtime_root: directory,
+      instance_id: command.instance_id,
+      scope: global.scope,
+      ip: command.bind,
+      port: command.port,
+      expires_at: System.system_time(:millisecond) + command.expires_in * 1_000
     })
+    |> finish_initialize()
   end
 
-  defp ensure_directory(path) do
-    case File.mkdir(path) do
-      :ok -> File.chmod!(path, 0o700)
-      {:error, :eexist} -> :ok
-      _ -> fail("private_directory_required")
+  defp finish_initialize(result) do
+    case result do
+      {:ok, paths} ->
+        emit(%{
+          "schema" => "wtr.cli.v1",
+          "config" => paths.config,
+          "token_file" => paths.token_file,
+          "data_directory" => paths.data_directory
+        })
+
+      {:error, :private_directory_required} ->
+        fail("private_directory_required")
+
+      {:error, :configuration_exists} ->
+        fail("configuration_exists")
+
+      _ ->
+        fail("invalid_configuration")
     end
   end
 
@@ -954,24 +937,6 @@ defmodule Wotex.Tracker.Host.CLI do
       _ -> fail(code)
     end
   end
-
-  defp exclusive_write(path, bytes) do
-    case File.open(path, [:write, :binary, :exclusive]) do
-      {:ok, file} ->
-        try do
-          :ok = File.chmod(path, 0o600)
-          :ok = IO.binwrite(file, bytes)
-          :ok = :file.sync(file)
-        after
-          File.close(file)
-        end
-
-      _ ->
-        fail("configuration_exists")
-    end
-  end
-
-  defp symlink?(path), do: match?({:ok, %{type: :symlink}}, File.lstat(path))
 
   defp resource(value, allowed) do
     if value in allowed, do: value, else: usage("invalid_resource")

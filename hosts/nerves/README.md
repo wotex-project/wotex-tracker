@@ -32,16 +32,46 @@ with a separate private storage directory below it. The file is the shared
 `wtr.host.v1` JSON format documented by [the standalone host](../app/README.md).
 It must be a singly linked 0600 regular file, with no symlinked ancestors.
 Credentials are token hashes plus a 32-byte instance key; the firmware creates
-neither tokens nor a default listener. A missing or invalid document stops the
-Tracker application with a fixed `invalid_configuration` error. It does not
-silently claim an empty history.
+neither tokens nor a default listener during boot. A missing or invalid document
+stops the Tracker application with a fixed `invalid_configuration` error. It
+does not silently claim an empty history.
 
 Only loopback and direct TLS exposure are admitted. The image has no reverse
 proxy, so proxy mode is rejected. A TLS certificate and private key must each
 be a singly linked 0600 regular file under `/root/tracker`. Select an explicit
 HTTPS public origin and provision certificates and operator tokens outside the
 firmware. The local host test exercises this configuration policy and the
-service/store supervision, but there is not yet a device provisioning workflow.
+service/store supervision.
+
+### Offline first provisioning
+
+The host profile includes a create-only provisioning command for preparing a
+private appliance tree before boot. Its parent directory must already exist and
+the destination must be an absolute path on a filesystem that preserves Unix
+ownership and modes:
+
+```sh
+WOTEX_PATH_DEPS=1 MIX_TARGET=host MIX_ENV=test mise exec -- \
+  mix run --no-start scripts/provision.exs -- \
+  --directory /absolute/private/staging/tracker \
+  --instance-id workshop-pi --scope workshop --port 4000
+```
+
+The command uses the service package's shared host provisioner. It creates a
+0700 destination and data directory, exclusive 0600 `config.json` and
+`operator.token` files, a fresh instance key and one operator credential with a
+one-day default expiry. `--expires-in` accepts 1–604800 seconds. Output contains
+only file paths; read the token from its private file. A repeated command refuses
+the occupied tree without changing it, and normal failure removes only paths
+created by that attempt.
+
+The generated configuration always names `/root/tracker/config.json` and
+`/root/tracker/data` as runtime paths. If `--directory` is a staging or mounted-
+media path, install its contents at exactly `/root/tracker` while preserving
+0700/0600 modes and ownership. That installation step is operator- and media-
+specific; the command does not flash a device. It also does not generate TLS or
+`browser.json`, expose a network listener, rotate an existing credential or
+provide an authenticated on-device setup screen. Those remain separate gates.
 
 ## Native operational resources
 

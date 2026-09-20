@@ -12,12 +12,15 @@ resource sampler beside the service; it contributes only system available
 memory, BEAM-process RSS and one-minute load to volatile operational history.
 The ARM64 QEMU boot gate now requires one such retained sample on both a fresh
 data partition and its reboot before its serial probe can pass.
-Neither Pi image has
-booted on a Pi, and no device provisioning workflow, durable-storage policy or
-hardware acceptance exists yet. Bootable headless and local-display profiles
-remain required product deliverables and optional installations. They consume
-the pure library without changing its startup or dependency contract. WTR.13
-governs the root.
+An offline create-only host provisioner now prepares the exact private service
+tree for `/root/tracker` through the shared service configuration seam. It emits
+only private file paths and can target mounted media without embedding the mount
+path in runtime configuration. It is not an authenticated on-device setup UI,
+TLS/browser provisioning or media installation. Neither Pi image has booted on
+a Pi, and no durable-storage policy or hardware acceptance exists yet. Bootable
+headless and local-display profiles remain required product deliverables and
+optional installations. They consume the pure library without changing its
+startup or dependency contract. WTR.13 governs the root.
 
 ## Separate library and appliance
 

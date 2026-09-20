@@ -4118,3 +4118,44 @@ reports unmatched `nil | pid()` returns at `test/support/fake_client.ex` lines
 17 and 18. No receipt is promoted for that cohort until the upstream gate is
 clean and the complete qualifier passes. Physical Linux/Pi behavior, capacity
 budgets and Darwin/mobile adapters remain unqualified.
+
+### Offline Nerves appliance provisioning seam — 2026-09-20
+
+The service package now owns one create-only `HostProvisioning` seam for the
+closed `wtr.host.v1` document. Callers provide separate absolute destination and
+runtime roots plus explicit credential expiry. A successful operation creates a
+0700 root and data directory, exclusive 0600 configuration and token files, a
+fresh instance key and one full operator credential for an exact scope. Only
+loopback exposure is generated. The returned descriptor contains paths but no
+bearer, and loading the generated document revalidates the normal service HTTP
+configuration contract.
+
+The standalone `trackerctl init` command now uses that shared implementation
+without changing its output contract. The Nerves host adds a separate source
+command that fixes runtime paths at `/root/tracker` while accepting an absolute
+offline staging destination. It accepts both Mix argument separator forms,
+bounds token expiry to seven days and never supplies TLS, browser configuration,
+media writing or a network-exposure shortcut. An occupied configuration, token
+or data path is left unchanged. Injected writer tests exercise token failure,
+config collision, malformed output and runtime-path mismatch; each removes only
+paths created by that attempt.
+
+The actual Nerves source command created an isolated staging tree with exact
+0700 directory and 0600 file modes. Its admitted document retained
+`/root/tracker/data`, `127.0.0.1:4321`, `loopback` and `listener`. Repeating the
+same documented command returned `configuration_exists`; SHA-256 checks before
+and after proved both private files unchanged. The exact temporary staging tree
+was removed afterward.
+
+The complete service gate passed 309 tests and two generated properties at
+95.0% production line coverage. Its compiler, formatter, dependency audit,
+strict Credo, ExDoc, Dialyzer, OpenAPI, 101-member archive, licences and
+stack-language policy passed. The standalone headless host passed 18 tests at
+96.7%, and its browser composition passed 29 tests at 96.0%, with all configured
+CLI/native/static gates. Nerves headless verification passed 10 tests and the
+kiosk composition passed 13, both with warnings-as-errors and formatter checks.
+
+This closes only offline software preparation of the private service tree. It
+does not prove transfer to selected media, an authenticated on-device bootstrap,
+browser/TLS provisioning, clock policy, durable-storage recovery or a physical
+Pi boot. Those gates remain explicit.
