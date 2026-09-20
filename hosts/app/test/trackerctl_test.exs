@@ -80,6 +80,90 @@ defmodule Wotex.Tracker.Host.TrackerctlTest do
     assert response_value(result)["data"]["operation_id"] == operation
   end
 
+  test "Action invocation is a single bounded mutation and status polling is read-only",
+       context do
+    operation = Identifier.uuid()
+    input = Path.join(context.directory, "action-input.json")
+    File.write!(input, "5")
+
+    receipt =
+      Codec.encode!(%{
+        "schema" => "wtr.response.v1",
+        "data" => %{
+          "outcome" => "committed",
+          "operation_id" => operation,
+          "generation" => "4",
+          "disposition" => "queued",
+          "data" => %{"action_id" => operation, "status" => "queued"}
+        }
+      })
+
+    {result, request} =
+      peer_request(
+        context,
+        http_response(200, "OK", "application/json", receipt),
+        [
+          "action",
+          "invoke",
+          "thing one",
+          "refresh now",
+          "--input",
+          input,
+          "--generation",
+          "4",
+          "--operation",
+          operation
+        ]
+      )
+
+    assert result.status == 0
+
+    assert request =~
+             "POST /api/v1/scopes/workshop/things/thing%20one/actions/refresh%20now HTTP/1.1"
+
+    assert String.downcase(request) =~ "idempotency-key: #{operation}"
+    assert request =~ ~s({"expected_generation":"4","input":5})
+
+    status =
+      Codec.encode!(%{
+        "schema" => "wtr.response.v1",
+        "data" => %{
+          "schema" => "wtr.action-status.v1",
+          "operation_id" => operation,
+          "status" => "unknown",
+          "physical_effect" => "unknown"
+        }
+      })
+
+    {result, request} =
+      peer_request(
+        context,
+        http_response(200, "OK", "application/json", status),
+        ["action", "status", operation]
+      )
+
+    assert result.status == 0
+    assert request =~ "GET /api/v1/scopes/workshop/actions/#{operation} HTTP/1.1"
+    refute String.downcase(request) =~ "idempotency-key:"
+
+    File.write!(input, :binary.copy(" ", 16_385))
+
+    result =
+      run_cli(context, [
+        "action",
+        "invoke",
+        "thing",
+        "refresh",
+        "--input",
+        input,
+        "--generation",
+        "4"
+      ])
+
+    assert result.status == 1
+    assert error(result)["code"] == "input_too_large"
+  end
+
   test "response byte, header, media and version limits fail closed", context do
     oversized = :binary.copy(" ", 4_194_305)
 
@@ -215,7 +299,27 @@ defmodule Wotex.Tracker.Host.TrackerctlTest do
     {result, Task.await(task, 4_000)}
   end
 
+  defp peer_request(context, response, arguments) do
+    {:ok, listener} =
+      :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true, ip: {127, 0, 0, 1}])
+
+    {:ok, {_, port}} = :inet.sockname(listener)
+    task = Task.async(fn -> serve_request(listener, response) end)
+    result = run_cli(context, arguments, port)
+    {result, Task.await(task, 4_000)}
+  end
+
   defp serve(listener, response, pending) do
+    {observations, _request} = exchange(listener, response, pending)
+    observations
+  end
+
+  defp serve_request(listener, response) do
+    {_observations, request} = exchange(listener, response, false)
+    request
+  end
+
+  defp exchange(listener, response, pending) do
     {:ok, connection} = :gen_tcp.accept(listener, 3_000)
     :ok = :gen_tcp.close(listener)
     request = receive_headers(connection, <<>>)
@@ -234,7 +338,7 @@ defmodule Wotex.Tracker.Host.TrackerctlTest do
       end
 
     :gen_tcp.close(connection)
-    observations
+    {observations, request}
   end
 
   defp receive_headers(_connection, request) when byte_size(request) > 16_384,

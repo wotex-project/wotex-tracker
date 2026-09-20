@@ -170,6 +170,8 @@ With those global options before the command, the available commands are:
 | `materialize THING --generation 2` | Persist the evidence-backed TD and initial state |
 | `list things`, `read THING temperature` | Inspect TDs and read Properties |
 | `observe THING temperature --seconds 30 --max-events 100` | Committed Property values; resume explicitly with `--cursor` |
+| `action invoke THING refresh --input input.json --generation N` | Queue one authorized Action attempt with a bounded JSON input value |
+| `action status UUID` | Poll the caller-owned durable Action outcome without dispatching it again |
 | `history state THING --limit 25` | Immutable history; resume with `--cursor` |
 | `list rules`, `inspect rules KIND:RULE`, `history rules KIND:RULE` | Read-only committed rule status without private evidence |
 | `list policies`, `list alerts`, `inspect`/`history` of either | Rule definitions and recorded alerts |
@@ -207,7 +209,12 @@ that sample. Replayed metadata stays stable even when encrypted cursors differ.
 There is no automatic reconnect. Unavailable samples close the stream; after
 recovery, start a fresh snapshot without a cursor. This is observation of committed
 Thing state; imports require explicit association and materialisation first.
-Physical scanner/Action commands remain unsupported in capabilities.
+Passive scanning remains unsupported. Action invocation is available only when
+the host reports `runtime.invokeaction` as `configured` and the current Thing
+declares that Action. The CLI reads one JSON value from a file capped at 16 KiB,
+uses one idempotency key and never retries. A timeout or disconnected attempt
+must be resolved with `action status UUID`; `accepted` is protocol acceptance,
+not proof of a physical effect.
 
 ## Optional browser interface
 

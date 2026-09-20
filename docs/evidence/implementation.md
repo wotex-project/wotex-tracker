@@ -5478,3 +5478,25 @@ No packaged profile declares an Action and no physical Action adapter or device
 was exercised. The synthetic transport proves the software boundary and
 at-most-once dispatch attempt, not device receipt, completion, idempotence or a
 physical effect.
+
+### Headless CLI Action control — 2026-09-20
+
+The packaged `trackerctl` client now exposes the versioned Action machine
+boundary without adding an execution path of its own. `action invoke` reads one
+JSON input value from a local file capped at 16 KiB, validates the Thing, Action,
+generation and optional UUID operation identity before I/O, URL-encodes path
+segments and makes exactly one authenticated mutation attempt. It never retries.
+`action status` performs a separate authenticated read of the caller-owned
+durable outcome and sends no idempotency header.
+
+Wire tests use an independent TCP peer to inspect the exact POST/GET targets,
+request document and idempotency behavior. Oversized local input fails before a
+network attempt. The complete standalone-host gate passed 27 tests with 97.4%
+production line coverage on both Elixir 1.18.4/Erlang/OTP 27.3.4.15 and Elixir
+1.20.4/Erlang/OTP 29.0.4. Compiler, formatter, strict Credo, CLI compilation and
+lint, ExDoc, Dialyzer, vulnerability audit, locked Rust consumer build,
+stack-language and licence checks passed in both lanes.
+
+The peer is a protocol fixture. No packaged Action, configured production
+Runtime, physical adapter, device acknowledgement or physical effect was
+exercised or claimed.

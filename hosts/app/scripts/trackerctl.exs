@@ -624,6 +624,27 @@ defmodule Wotex.Tracker.Host.CLI do
 
   defp parse_command(["operation", id]), do: %{name: :operation, id: operation_id(id)}
 
+  defp parse_command(["action", "invoke", thing, name | arguments]) do
+    options =
+      parse_options(arguments,
+        input: :string,
+        generation: :string,
+        operation: :string
+      )
+
+    %{
+      name: :action_invoke,
+      thing: identifier(thing),
+      action: action_name(name),
+      input: required(options[:input]),
+      generation: generation(required(options[:generation])),
+      operation: if(options[:operation], do: operation_id(options[:operation]))
+    }
+  end
+
+  defp parse_command(["action", "status", id]),
+    do: %{name: :action_status, id: operation_id(id)}
+
   defp parse_command(["read", thing, property]),
     do: %{name: :read, thing: identifier(thing), property: identifier(property)}
 
@@ -701,6 +722,12 @@ defmodule Wotex.Tracker.Host.CLI do
   defp command_target(%{name: :operation, id: id}, base),
     do: {base <> "/operations/" <> encode_segment(id), nil, finite("application/json")}
 
+  defp command_target(%{name: :action_invoke} = command, base),
+    do: action_target(base, command)
+
+  defp command_target(%{name: :action_status, id: id}, base),
+    do: {base <> "/actions/" <> encode_segment(id), nil, finite("application/json")}
+
   defp command_target(%{name: :read} = command, base),
     do: property_target(base, command, false)
 
@@ -776,6 +803,22 @@ defmodule Wotex.Tracker.Host.CLI do
     {base <> "/events" <> query(%{"cursor" => command.cursor}), nil, finite("application/json")}
   end
 
+  defp action_target(base, command) do
+    body =
+      Codec.encode!(%{
+        "expected_generation" => command.generation,
+        "input" => input(command.input, 16_384)
+      })
+
+    path =
+      base <>
+        "/things/" <>
+        encode_segment(command.thing) <>
+        "/actions/" <> encode_segment(command.action)
+
+    {path, body, finite("application/json")}
+  end
+
   defp mutation_target(base, command) do
     {resource, body} =
       case command.name do
@@ -837,8 +880,8 @@ defmodule Wotex.Tracker.Host.CLI do
 
   defp encode_segment(value), do: URI.encode(value, &URI.char_unreserved?/1)
 
-  defp input(path) do
-    bytes = bounded_read(path, 1_048_576, "input_too_large")
+  defp input(path, limit \\ 1_048_576) do
+    bytes = bounded_read(path, limit, "input_too_large")
 
     case Codec.decode(bytes) do
       {:ok, value} -> value
@@ -963,6 +1006,15 @@ defmodule Wotex.Tracker.Host.CLI do
   end
 
   defp identifier(_), do: usage("invalid_identifier")
+
+  defp action_name(value) when is_binary(value) do
+    if byte_size(value) in 1..128 and String.valid?(value) and
+         not String.contains?(value, ["\0", "\r", "\n"]),
+       do: value,
+       else: usage("invalid_action_name")
+  end
+
+  defp action_name(_), do: usage("invalid_action_name")
 
   defp operation_id(value) do
     if Regex.match?(
