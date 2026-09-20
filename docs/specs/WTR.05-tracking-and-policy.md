@@ -23,8 +23,10 @@ admits complete content-validated owner-presence facts, retains their evidence
 privately and never interprets missing state as absence. The service now
 reevaluates exact live suspicious bindings on definition saves, motion
 materialisation, arming changes and owner-presence admission, atomically staging
-stable event intent and a reviewed alert. Notification delivery and product
-hardware acceptance remain unfinished.
+stable event intent and a reviewed alert. For ordered cellular imports, current
+measurement and position rules now select only the final validated record; an
+older evidence hash or earlier GNSS fix cannot override a final no-fix record.
+Notification delivery and product hardware acceptance remain unfinished.
 
 ## Tracking is evidence, not a GPS field
 

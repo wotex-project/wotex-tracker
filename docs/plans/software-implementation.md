@@ -343,8 +343,11 @@ suspicious-movement rule definitions for enrolled Things through the service.
 The suspicious definition binds one exact same-Thing motion policy privately;
 saving it does not manufacture a current status. Saving a stateful definition
 and materialising its Thing evaluate it atomically against committed evidence;
-position rules fail closed unless the bundle has exactly one position, rather
-than inventing source selection. The scheduler ages the time-driven state. Every
+snapshot position rules fail closed unless the bundle has exactly one position,
+rather than inventing source selection. For an ordered cellular bundle, rules
+select only samples parented by its validated final record, matching the current
+state projection and preserving an explicit final no-fix result. The scheduler
+ages the time-driven state. Every
 rule event becomes a public alert, and administrators can acknowledge a live
 alert once. The shared browser can inspect and conditionally change the retained
 arming fact for an asset with a motion definition. Closed owner-presence evidence

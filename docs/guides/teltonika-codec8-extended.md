@@ -100,13 +100,20 @@ measurement and position projections; triggers, IO identifiers and raw values
 remain privileged evidence. The final record also supplies the compatible
 current measurement/position view. The generic cellular Thing Model can then be
 materialised with `position`, `motion` and `batteryVoltage` Properties.
+Rule evaluation follows that same current-record contract: battery selection is
+limited to the final record's measurement evidence, and motion/geofence
+selection is limited to its position evidence. An earlier evidence ID cannot win
+by lexical order, and an earlier valid fix is not reused when the final record
+has no fix. Multiple positions within the selected record still fail closed
+without an explicit source-selection policy.
 
 These slices now cover TCP login, data framing, bounded socket ownership,
 durable admission, ACK decisions, retransmission reconciliation, record-aware
 TAT140 mapping, semantic persistence, cellular Thing materialisation and an
-optional standalone-host deployment. The host uses separate private listener
-configuration, a fixed packaged contract and a lazy supervised service handoff;
-one real two-record TCP exchange proves the configured path and shutdown
-ownership. Command codecs, UDP, operator network/firewall qualification and live
-hardware evidence remain separate acceptance work. The physical protocol stays
-clear TCP and is not advertised as TLS or authenticated transport.
+optional standalone and appliance host deployment. Each host uses separate
+private listener configuration, a fixed packaged contract and a lazy supervised
+service handoff; real two-record TCP exchanges prove each configured software
+path and shutdown ownership. Command codecs, UDP, operator network/firewall
+qualification and live hardware evidence remain separate acceptance work. The
+physical protocol stays clear TCP and is not advertised as TLS or authenticated
+transport.

@@ -4906,3 +4906,30 @@ This proves opt-in appliance software composition for the fixture-backed path.
 It does not prove that either image boots on a Pi, nor a physical tracker,
 firmware, modem, SIM, carrier, firewall, encrypted transport or production
 network.
+
+### Current-record cellular rule selection — 2026-09-20
+
+The cellular state projection already defined the last ordered AVL record as the
+current measurement and position view, but rule evaluation previously considered
+all evidence together. Measurement evidence was sorted by its content ID, so an
+older record could win by hash order. Position evaluation could likewise reuse
+an earlier valid fix when the final record explicitly contained no fix.
+
+Rule evaluation now recognizes the closed Teltonika record transport lineage,
+validates unique bounded record indices and selects only measurement or position
+claims parented by the final record. Invalid or ambiguous record lineage fails
+closed. Snapshot decoders keep their existing one-position selection contract,
+and multiple positions in the selected cellular record remain unselected without
+an explicit source policy.
+
+The regression deliberately assigns a lexically earlier ID to the older 3.60 V
+sample and a later ID to the final 3.59 V sample, then proves the battery rule
+uses 3.59 V. It also establishes prior inside-geofence state and proves that the
+earlier GNSS fix cannot produce an exit when the final record has no fix. Both
+service runtime lanes passed 339 tests and two generated properties at 95.1%
+coverage with every configured check, including strict Credo and Dialyzer. The
+implementation commit is `33291c455619f2967357783ca6ed6565bdf461fe`.
+
+This closes current-snapshot ordering for record-aware rules. It does not infer
+travel through intermediate records, trigger multiple live state transitions
+inside one atomic frame or provide physical cellular evidence.
