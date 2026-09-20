@@ -4249,3 +4249,58 @@ This is a startup exposure policy, not a hardware-RTC, NTP-server provenance,
 long-duration drift, synchronization-loss, physical-network or credential-
 recovery qualification. Loopback operation labels the retained time only as an
 estimate; it does not claim synchronized expiry semantics.
+
+### Offline Nerves kiosk provisioning — 2026-09-20
+
+The create-only appliance provisioner now accepts an optional browser port. It
+requires that port to differ from the service port, then writes a closed
+`wtr.browser.v1` document under the same private root. The document fixes the
+listener to loopback HTTP, derives the matching public origin and contains a
+fresh independent 64-byte session-signing secret. The exclusive 0600 file is
+reread through the production file-configuration boundary and must match the
+generated closed map exactly. The command returns only its path; neither its
+result nor its encoded output contains the secret. An occupied browser path is
+left unchanged, while a failed browser step removes only service, storage and
+browser paths created by that attempt.
+
+The documented kiosk command was exercised against an isolated absolute staging
+tree with service port 4001 and browser port 4000. The root and data directory
+modes were 0700; service, storage, browser and token file modes were 0600. The
+redacted browser document contained only loopback `127.0.0.1:4000`, its matching
+origin and the closed schema fields. Repeating the command returned
+`configuration_exists`. Before/after SHA-256 values were unchanged: service
+`3f48d90b1322464efa41f64923c22180061ef3516bd660346fe2101a701c0ca2`,
+storage `4aad92f57b94c33ccfce5daf1fe8c54c0a7dfa3a63baa504a9a8cd5f5f7da50a`,
+browser `f8f9290a72e9b0a5badd90c07e4ce0922ed409abeb8c4ea9d614a4514dfee897`
+and token file
+`3edee26514749bf9977dbf8b32c11e8d830ee2515f0a57b070fa97b94894a5cd`.
+The short-lived token value was never recorded, and the temporary tree was
+removed afterward.
+
+Headless host verification passed 27 tests and kiosk verification passed 30 on
+Elixir 1.20.4 / OTP 29.0.4, including warnings-as-errors compilation. The
+repository gate passed 164 tests and 19 generated properties at 95.4% production
+line coverage, with all configured compiler, dependency, formatter, audit,
+Credo, ExDoc, Dialyzer, archive, licence, documentation and stack-language
+checks. The headless application inventory still excludes Phoenix, LiveView,
+Myelin and the UI application; the optional provisioning module introduces no
+UI dependency.
+
+Both Pi 5 profiles rebuilt from Tracker commit
+`6b4f05651fb340c4c194b4055bdcdfc116ee9b00`. The headless firmware SHA-256 is
+`f98befde7f39363f29cd54687ce6bc4939fb1c0336dd6c15cbfb77b2db775f5e`;
+the kiosk firmware SHA-256 is
+`39e6373f4bb2a22218044f9c687ffb3c73ebd35622047736c145fd57674e6aa7`.
+The regenerated ARM64 QEMU firmware SHA-256 is
+`f92b39bed92c34e2b6af19428472cb76c002a905452af61c1aee107b3f6baec7`.
+A fresh-partition boot and a reboot of the same disk both passed the private
+store, loopback HTTP, native-resource and initialized-marker probe. Complete
+application inventories, target metadata, checks and boot-log digests are in the
+three Nerves receipts. The receipts identify the concurrent uncommitted WTR.15
+documentation path; all implementation sources in this cohort were committed
+before the builds.
+
+This proves offline generation and validation of the kiosk's local browser
+configuration without broadening the headless artifact. It does not generate or
+provision TLS, provide authenticated on-device setup, install physical media, or
+qualify a Pi display, touch panel, radio, clock or storage device.
