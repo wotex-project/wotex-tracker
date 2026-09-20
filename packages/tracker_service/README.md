@@ -37,6 +37,18 @@ schemas. Tool identity binds the Thing generation and affordance. Forms, URLs,
 credentials, observations and stored state are omitted; unsupported or writable
 schemas fail closed. This is a projection seam only: it starts no model process,
 contacts no provider and cannot execute a physical operation.
+`Wotex.Tracker.Service.AgentConnector` is the optional explicitly started
+consumer of that projection. Its exact `wtr.agent-connector.v1` configuration
+requires an HTTPS endpoint, private authorization and finite timeout, event,
+response and concurrency budgets. Disabled configuration returns `:ignore`;
+missing or incompatible adapters report `unavailable` without blocking service
+startup. Each provider call runs in a monitored process and is killed on caller
+loss, explicit cancellation or deadline. Ordered text events and the final
+provider document are bounded and validated. A closed
+`wtr.agent-proposal-policy.v1` affordance allowlist can classify validated
+primitive Action arguments as `pending_review`; every other proposal is
+`denied`. Neither disposition executes an Action. The public tests use only a
+synthetic adapter and make no Refpath interoperability claim.
 `Service.access/4` and `GET …/access` return the current credential's non-secret
 ID, principal, exact scope permissions and expiry after the ordinary durable
 revocation check. Bearer material, its digest, the internal access proof and

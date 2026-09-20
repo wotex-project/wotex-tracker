@@ -5256,3 +5256,39 @@ This is the provider-neutral projection boundary only. It does not start a
 connector or model process, contact a public or private provider, exercise
 stream cancellation, execute an Action, or establish private Refpath
 interoperability.
+
+### Bounded synthetic agent connector — 2026-09-20
+
+The public service package now supplies an explicitly started provider-neutral
+agent connector and adapter behaviour. Its exact `wtr.agent-connector.v1`
+document admits one HTTPS endpoint, private authorization value and finite
+deadline, event, response-byte and concurrency limits. Disabled configuration
+returns `:ignore`, so it creates no process. Missing and callback-incompatible
+adapters start with redacted `unavailable` status and do not block ordinary
+service operation.
+
+Each `wtr.agent-investigation-request.v1` reuses the authorized current-revision
+tool projection before a monitored worker receives the provider-neutral request.
+The worker accepts only ordered, bounded `wtr.agent-stream-event.v1` text deltas
+and one exact `wtr.agent-provider-result.v1` completion. Explicit cancellation,
+caller death, deadline expiry, over-capacity admission, malformed or oversized
+events, adapter rejection, return corruption, raise, throw and untrappable kill
+all fail without stopping the connector. Provider authorization is excluded
+from inspection, status and the provider request body.
+
+Action output is checked against the projected boolean, integer, number or
+string input schema. A closed `wtr.agent-proposal-policy.v1` affordance-name
+allowlist marks a matching proposal `pending_review`; all others are `denied`.
+There is no execution callback or WoT interaction path in the connector.
+
+The complete service gate passed 358 tests and two generated properties on
+Elixir 1.18.4/Erlang/OTP 27.3.4.15 at 95.1% production line coverage and on
+Elixir 1.20.4/Erlang/OTP 29.0.4 at 95.2%. Compiler, dependency, formatter,
+vulnerability audit, strict Credo, ExDoc, Dialyzer, boundary, stack-language,
+archive, OpenAPI and licence checks passed in both lanes. The implementation
+commit is `3c7763bb5d6712875563461192798046a5d9618d`.
+
+This is a synthetic provider-neutral contract test, not a live public-model or
+private Refpath exchange. No private module, provider credential, physical
+Action, public availability or general interoperability was exercised or
+claimed.

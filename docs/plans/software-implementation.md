@@ -491,8 +491,15 @@ reauthorizes, refetches the current validated TD and emits only explicitly named
 read-only Property tools and proposal-only Actions with primitive closed schemas.
 Stable tool identity includes the Thing, generation, affordance and operation.
 No Forms, endpoints, credentials, observations or stored values leave through
-this boundary. Provider transport, supervision, cancellation and proposal
-execution remain later Phase 9 work.
+this boundary. An explicitly enabled provider-neutral connector now supplies
+the versioned synthetic transport seam. Disabled configuration starts no
+process; absent or incompatible adapters remain unavailable without blocking
+Tracker. Monitored workers enforce finite concurrency, deadlines, ordered event
+and response limits, and terminate on cancellation or caller loss. Primitive
+Action output is either denied or retained as `pending_review` under a closed
+affordance-name policy; the connector cannot execute it. A real provider run,
+private compatible Refpath revision and any separately reauthorized execution
+boundary remain unclaimed.
 
 Acceptance: a synthetic connector example, disabled/absent and failed-connector
 tests, with separately labelled private live execution if available. Version

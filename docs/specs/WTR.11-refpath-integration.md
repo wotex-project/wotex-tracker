@@ -2,10 +2,10 @@
 
 ## Status
 
-Partially implemented. The public service now provides the provider-neutral,
-current-revision tool projection described below. The connector process,
-provider exchange, stream cancellation, policy-gated proposal execution and
-private Refpath interoperability remain unimplemented and unclaimed.
+Public synthetic boundary implemented. The service provides the
+provider-neutral, current-revision tool projection and the explicitly started,
+bounded connector described below. No public or private provider exchange,
+physical proposal execution or private Refpath interoperability is claimed.
 
 ## Boundary
 
@@ -74,4 +74,30 @@ A promotional integration may demonstrate validated affordances, read-only inves
 
 The connector has explicit enablement, endpoint/provider configuration, authentication, finite deadlines and redacted error/stream limits. Disabled means no connection, background process, model request or compile-time private module dependency. A missing/incompatible provider produces an unavailable result without blocking Tracker boot, discovery, decoding, rules or the ordinary UI.
 
-Before implementation, version the projection/connector schema and test Thing-plus-affordance identity, explicit unsupported schema constructs, numeric fidelity, stale TD revisions, stream cancellation and policy-denied proposals. Authenticate and re-authorize at execution time, not at tool-schema generation. Only validated, authorized projections leave the host; raw tracking history, stable identifiers and credential material require their own explicit disclosure policy. The public suite tests absence, synthetic operation and connector failure; a private integration suite is optional and honestly unavailable without its prerequisites.
+`Wotex.Tracker.Service.AgentConnector` is the public synthetic connector. The
+exact `wtr.agent-connector.v1` configuration requires explicit enablement,
+HTTPS provider endpoint, private authorization and finite deadline, event,
+response and concurrency limits. Disabled configuration returns `:ignore` and
+starts no process. A missing or callback-incompatible adapter starts in an
+`unavailable` state without touching ordinary Tracker work. Each investigation
+reauthorizes its exact disclosure through `Service.agent_tools/5` before the
+provider worker receives `wtr.agent-provider-request.v1`.
+
+Provider work runs in a linked, monitored process. Explicit cancellation,
+caller loss, deadline expiry, malformed or excessive streaming output, crashes,
+throws and kills terminate that work without stopping the connector. Only
+ordered `wtr.agent-stream-event.v1` text deltas and an exact
+`wtr.agent-provider-result.v1` completion are accepted. Action output is checked
+against the projected primitive input schema and classified by a closed
+`wtr.agent-proposal-policy.v1` allowlist as `denied` or `pending_review`; the
+connector has no execution path. Authorization is available only to the
+host-supplied adapter configuration and is redacted from inspection and status.
+
+The public suite versions the projection and connector schemas and tests
+Thing-plus-affordance identity, explicit unsupported schema constructs, numeric
+fidelity, stale TD revisions, cancellation, absence, synthetic streaming,
+connector failure and policy-denied proposals. Any later execution boundary
+must authenticate and reauthorize again; projection or `pending_review` never
+authorizes an Action. Raw tracking history and credential material require
+separate explicit disclosure policy. A private integration suite remains
+optional and honestly unavailable without its prerequisites.
