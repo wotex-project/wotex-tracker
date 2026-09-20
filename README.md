@@ -206,9 +206,12 @@ definitions under current read authority, and an administrator can save the
 current graph as a fixed, rolling or incident-snapshot definition, edit or
 delete it, and combine compatible definitions. Open saved dashboards and the
 unsaved analytics page can follow committed changes with explicit stale and
-terminal-denial behavior. An optional bounded prompt adapter proposes the same
-closed query form. General dashboard composition and sharing, a recorded real
-public-provider prompt run and physical cross-surface acceptance remain open.
+terminal-denial behavior. Compatible saved definitions can be composed into a
+multi-series dashboard, and every saved dashboard exposes a credential-free
+relative link that still requires the recipient's current same-scope authority.
+An optional bounded prompt adapter proposes the same closed query form. A
+recorded real public-provider prompt run and physical cross-surface acceptance
+remain open.
 
 The service package also defines closed `:telemetry` events for requests,
 queries, import stages, commits, forward queues, publication reconciliation and
