@@ -81,7 +81,11 @@ defmodule Wotex.Tracker.ReleaseQualifier do
         fixtures,
         "--native-consumer",
         client
-      ] ++ if(ui?, do: ["--browser"], else: [])
+      ] ++
+        if(ui?,
+          do: ["--browser", "--native-resource", "darwin_system_tools"],
+          else: []
+        )
 
     output =
       Command.plain!(
@@ -245,7 +249,8 @@ defmodule Wotex.Tracker.ReleaseQualifier do
           "/var/lib/wotex",
           "--native-consumer",
           "/verification/#{@native_client}"
-        ] ++ if(ui?, do: ["--browser", "--native-resource"], else: [])
+        ] ++
+          if(ui?, do: ["--browser", "--native-resource", "linux_procfs"], else: [])
 
       output =
         docker!([

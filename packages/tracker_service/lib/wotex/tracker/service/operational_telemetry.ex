@@ -30,7 +30,7 @@ defmodule Wotex.Tracker.Service.OperationalTelemetry do
   @resource_operations ~w(readiness checkpoint backup)a
   @render_outcomes ~w(ok unavailable)a
   @native_surfaces ~w(nerves service)a
-  @native_sources ~w(linux_procfs)a
+  @native_sources ~w(darwin_system_tools linux_procfs)a
   @native_measurements ~w(system_available_memory_bytes process_rss_bytes load_1m_milli)a
 
   @doc "Returns the complete event vocabulary and its measurement units."

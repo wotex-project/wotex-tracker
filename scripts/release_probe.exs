@@ -66,6 +66,7 @@ defmodule Wotex.Tracker.ReleaseProbe do
 
   @scope "workshop"
   @body_limit 4_194_304
+  @native_resource_sources ~w(darwin_system_tools linux_procfs)
 
   def main(arguments) do
     {options, rest, invalid} =
@@ -74,15 +75,16 @@ defmodule Wotex.Tracker.ReleaseProbe do
           readonly_directory: :string,
           native_consumer: :string,
           browser: :boolean,
-          native_resource: :boolean
+          native_resource: :string
         ]
       )
 
     unless invalid == [] and length(rest) == 2 and
-             (options[:native_resource] != true or options[:browser] == true),
+             options[:native_resource] in [nil | @native_resource_sources] and
+             (options[:native_resource] == nil or options[:browser] == true),
            do:
              raise(
-               "usage: release_probe.exs RELEASE FIXTURES [--readonly-directory PATH] [--native-consumer PATH] [--browser [--native-resource]]"
+               "usage: release_probe.exs RELEASE FIXTURES [--readonly-directory PATH] [--native-consumer PATH] [--browser [--native-resource SOURCE]]"
              )
 
     [release, fixtures] = Enum.map(rest, &Path.expand/1)
@@ -106,7 +108,7 @@ defmodule Wotex.Tracker.ReleaseProbe do
           release,
           Path.join(fixtures, "persistent"),
           options[:browser] == true,
-          options[:native_resource] == true
+          options[:native_resource]
         )
       )
       |> Map.merge(failures(release, fixtures, options[:readonly_directory]))
@@ -116,7 +118,7 @@ defmodule Wotex.Tracker.ReleaseProbe do
     IO.puts("RELEASE_PROBE_PASS " <> Jason.encode!(report))
   end
 
-  defp lifecycle(release, directory, browser?, native_resource?) do
+  defp lifecycle(release, directory, browser?, native_resource_source) do
     instance = new_instance(release, directory, browser?)
 
     try do
@@ -124,7 +126,7 @@ defmodule Wotex.Tracker.ReleaseProbe do
       HTTPConsumer.main([instance.descriptor])
       %{"notification_delivery" => "configured"} = request(instance, "/capabilities")
       thing = request(instance, "/things")["items"] |> hd() |> Map.fetch!("id")
-      browser_cookie = browser_workflow(instance, thing, native_resource?)
+      browser_cookie = browser_workflow(instance, thing, native_resource_source)
       generation = request(instance, "/state")["generation"]
       first = cli_sample(instance, thing)
       expected_snapshot = "property:snapshot:#{generation}:#{generation}"
@@ -174,7 +176,7 @@ defmodule Wotex.Tracker.ReleaseProbe do
         "retained_revocation" => "pass",
         "notification_delivery" => "pass",
         "browser" => if(browser_cookie, do: "pass", else: "not-in-artifact"),
-        "native_resource" => if(native_resource?, do: "pass", else: "not-requested")
+        "native_resource" => if(native_resource_source, do: "pass", else: "not-requested")
       }
     after
       terminate(instance)
@@ -377,9 +379,9 @@ defmodule Wotex.Tracker.ReleaseProbe do
     %{config: config, origin: origin, secret: secret}
   end
 
-  defp browser_workflow(%{browser: nil}, _thing, false), do: nil
+  defp browser_workflow(%{browser: nil}, _thing, nil), do: nil
 
-  defp browser_workflow(instance, thing, native_resource?) do
+  defp browser_workflow(instance, thing, native_resource_source) do
     origin = instance.browser.origin
     {200, headers, sign_in} = browser_request(:get, origin <> "/sign-in", [], nil)
     [_, csrf] = Regex.run(~r/name="_csrf_token"[^>]*value="([^"]+)"/, sign_in)
@@ -396,7 +398,10 @@ defmodule Wotex.Tracker.ReleaseProbe do
     false = String.contains?(body, instance.token)
     false = String.contains?(inspect(login_headers), instance.token)
     cookie = browser_cookie(login_headers)
-    if native_resource?, do: await_native_resource!(instance, cookie, 50)
+
+    if native_resource_source,
+      do: await_native_resource!(instance, cookie, native_resource_source, 50)
+
     {200, _headers, assets} = browser_request(:get, origin <> "/", [{~c"cookie", cookie}], nil)
     true = String.contains?(assets, thing)
 
@@ -503,10 +508,10 @@ defmodule Wotex.Tracker.ReleaseProbe do
     cookie
   end
 
-  defp await_native_resource!(_instance, _cookie, 0),
-    do: raise("Linux browser artifact did not expose its native resource sample")
+  defp await_native_resource!(_instance, _cookie, source, 0),
+    do: raise("browser artifact did not expose its #{source} native resource sample")
 
-  defp await_native_resource!(instance, cookie, attempts) do
+  defp await_native_resource!(instance, cookie, source, attempts) do
     {200, _headers, body} =
       browser_request(
         :get,
@@ -521,14 +526,14 @@ defmodule Wotex.Tracker.ReleaseProbe do
       "process_rss_bytes",
       "load_1m_milli",
       "surface: service",
-      "source: linux_procfs"
+      "source: #{source}"
     ]
 
     if Enum.all?(expected, &String.contains?(body, &1)) do
       :ok
     else
       Process.sleep(100)
-      await_native_resource!(instance, cookie, attempts - 1)
+      await_native_resource!(instance, cookie, source, attempts - 1)
     end
   end
 

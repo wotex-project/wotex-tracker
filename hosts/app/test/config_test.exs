@@ -413,7 +413,7 @@ defmodule Wotex.Tracker.Host.ConfigTest do
     assert {:ok, options} = Config.load(c.path)
 
     source =
-      {NativeSource,
+      {:linux_procfs, NativeSource,
        {:ok,
         %{
           system_available_memory_bytes: 4_096,
