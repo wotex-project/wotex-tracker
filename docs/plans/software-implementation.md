@@ -485,6 +485,15 @@ configured connector may present a promotional read-only investigation and gover
 Action proposals over validated public affordances. Public tests need no private
 source or credentials.
 
+The provider-neutral projection boundary is now present. A caller supplies an
+exact disclosure policy for one current Thing generation; the service
+reauthorizes, refetches the current validated TD and emits only explicitly named
+read-only Property tools and proposal-only Actions with primitive closed schemas.
+Stable tool identity includes the Thing, generation, affordance and operation.
+No Forms, endpoints, credentials, observations or stored values leave through
+this boundary. Provider transport, supervision, cancellation and proposal
+execution remain later Phase 9 work.
+
 Acceptance: a synthetic connector example, disabled/absent and failed-connector
 tests, with separately labelled private live execution if available. Version
 the connector schema and test authorization/redaction under WTR.11. No synthetic

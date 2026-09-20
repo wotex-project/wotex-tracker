@@ -5227,3 +5227,32 @@ This local development-release run did not refresh the ordinary immutable
 artifact-cohort receipts or rerun the Linux read-only container. The adapter is
 operational telemetry only; it is not capacity qualification, durable history
 or physical-device evidence.
+
+### Provider-neutral agent tool projection — 2026-09-20
+
+The service now admits an exact `wtr.agent-projection-request.v1` disclosure
+policy for one Thing and expected current generation. It authenticates the
+caller with ordinary `read` authority, refetches the current validated Thing
+Description and rejects stale revisions before emitting
+`wtr.agent-tools.v1`. Stable tool identifiers bind the Thing, generation,
+affordance kind, name and operation.
+
+Only explicitly named read-only Properties and proposal-only Actions are
+projected. Their schemas are restricted to closed boolean, integer, number and
+string forms with admitted numeric, length, pattern and unit constraints. The
+response excludes Forms, endpoints, credentials, observations and stored state.
+Unknown affordances, writable Properties, unsupported schema composition,
+objects, arrays, malformed disclosure, lost authority and stale generations
+fail closed.
+
+The complete service gates passed on Elixir 1.18.4/Erlang/OTP 27.3.4.15 and
+Elixir 1.20.4/Erlang/OTP 29.0.4. Each ran 349 tests and two generated properties
+at 95.1% production line coverage, together with compiler, dependency,
+formatter, vulnerability audit, strict Credo, ExDoc, Dialyzer, boundary,
+stack-language, archive, OpenAPI and licence checks. The implementation commit
+is `949bfd20a87fd32503590698f311825c98b06134`.
+
+This is the provider-neutral projection boundary only. It does not start a
+connector or model process, contact a public or private provider, exercise
+stream cancellation, execute an Action, or establish private Refpath
+interoperability.

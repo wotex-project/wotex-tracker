@@ -28,6 +28,15 @@ uses exclusive 0600 files and 0700 directories, never returns the bearer token,
 never replaces an occupied path and starts no listener. It creates only a
 loopback configuration; exposed/TLS deployment remains explicit host policy.
 Every facade operation authenticates an ephemeral bearer token and exact scope.
+`Service.agent_tools/5` additionally admits an exact
+`wtr.agent-projection-request.v1` disclosure policy, refetches the current
+validated Thing under `read` authority and rejects a stale generation. Its
+provider-neutral `wtr.agent-tools.v1` response contains only explicitly selected
+read-only Property tools and proposal-only Actions with closed primitive
+schemas. Tool identity binds the Thing generation and affordance. Forms, URLs,
+credentials, observations and stored state are omitted; unsupported or writable
+schemas fail closed. This is a projection seam only: it starts no model process,
+contacts no provider and cannot execute a physical operation.
 `Service.access/4` and `GET …/access` return the current credential's non-secret
 ID, principal, exact scope permissions and expiry after the ordinary durable
 revocation check. Bearer material, its digest, the internal access proof and

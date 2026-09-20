@@ -2,7 +2,10 @@
 
 ## Status
 
-Accepted target contract. No implementation claim.
+Partially implemented. The public service now provides the provider-neutral,
+current-revision tool projection described below. The connector process,
+provider exchange, stream cancellation, policy-gated proposal execution and
+private Refpath interoperability remain unimplemented and unclaimed.
 
 ## Boundary
 
@@ -39,6 +42,17 @@ Examples include asking which tracked assets are at risk, investigating a cold-c
 A Refpath integration SHOULD derive tool schemas from validated Thing affordances rather than hand-copying device APIs. Tool identity MUST include the Thing and affordance identity. Input/output schemas derive from WoT DataSchemas where compatible.
 
 Read-only Properties may have lower risk than writable Properties or Actions. Event subscriptions are context streams, not model-owned processes.
+
+The first public boundary is `Wotex.Tracker.Service.agent_tools/5`. It admits an
+exact `wtr.agent-projection-request.v1` disclosure policy naming one Thing,
+expected current generation, read-only Properties and proposal-only Actions.
+After ordinary `read` authorization it refetches the current Thing, rejects a
+stale generation and emits `wtr.agent-tools.v1`. Tool identities bind the Thing,
+generation, affordance kind, name and operation. The response supports only
+closed boolean, integer, number and string schemas with bounded compatible
+constraints. Forms, URLs, credentials, observations and retained state never
+enter the projection. Object, array, composition, writable Property and
+undeclared-affordance requests fail closed.
 
 ## Policy
 
