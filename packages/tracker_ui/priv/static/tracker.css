@@ -139,6 +139,8 @@ td ul { margin: 0; padding-left: 1rem; }
 .history-chart svg { display: block; width: 100%; height: auto; background: #f8faf8; border: 1px solid var(--line); border-radius: .4rem; }
 .history-chart figcaption { color: var(--muted); font-size: .88rem; margin-top: .5rem; }
 .chart-axis { stroke: #7c9288; stroke-width: 2; }
+.route-grid-line { stroke: #d6dfdb; stroke-width: 1; }
+.route-grid-label { fill: #52665d; font-size: 12px; }
 .chart-line { fill: none; stroke: #146351; stroke-width: 3; stroke-linejoin: round; }
 .chart-area { fill: #a8d8cb; stroke: none; }
 .chart-point { fill: #146351; stroke: white; stroke-width: 2; }

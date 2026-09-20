@@ -6042,6 +6042,10 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert html =~ "Quality excluded: suspect"
     refute html =~ "private-position-evidence"
     assert has_element?(view, "figure[data-route-map]")
+    assert has_element?(view, ".route-longitude-label", "179.90000° E")
+    assert has_element?(view, ".route-longitude-label", "179.95000° W")
+    assert has_element?(view, ".route-latitude-label", "10.20000° N")
+    assert length(Regex.scan(~r/class="route-grid-line"/, html)) == 10
     assert has_element?(view, ~s(svg[viewBox="0.00 0.00 1000.00 400.00"]))
     assert has_element?(view, "#route-map-status", "Map zoom 1×")
 

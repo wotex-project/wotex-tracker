@@ -5,14 +5,16 @@ defmodule Wotex.Tracker.UI.RouteChart do
   Service segments remain separate and therefore never gain a visual connector.
   Segment starts share the first point's longitude frame, then each segment is
   unwrapped independently so a qualified antimeridian crossing uses its short
-  delta without gaining a connector. The projection supplies no basemap, road
-  match, interpolation or cross-page continuity.
+  delta without gaining a connector. A bounded latitude/longitude graticule
+  makes the projection geographically inspectable without a basemap. The
+  projection supplies no road match, interpolation or cross-page continuity.
   """
 
   @left 56.0
   @right 944.0
   @top 24.0
   @bottom 376.0
+  @tick_intervals 4
 
   @doc "Returns nil for empty or malformed public routes."
   @spec project(term()) :: map() | nil
@@ -47,9 +49,56 @@ defmodule Wotex.Tracker.UI.RouteChart do
     %{
       segments: projected,
       longitude: {longitude_low, longitude_high},
-      latitude: {latitude_low, latitude_high}
+      latitude: {latitude_low, latitude_high},
+      longitude_ticks: longitude_ticks(longitude_low, longitude_high, @left, @right),
+      latitude_ticks: latitude_ticks(latitude_low, latitude_high, @bottom, @top)
     }
   end
+
+  defp longitude_ticks(low, high, output_low, output_high) do
+    decimals = decimals(high - low)
+
+    ticks(low, high, output_low, output_high, fn value, position ->
+      %{x: position, label: coordinate_label(normalize_longitude(value), :longitude, decimals)}
+    end)
+  end
+
+  defp latitude_ticks(low, high, output_low, output_high) do
+    decimals = decimals(high - low)
+
+    ticks(low, high, output_low, output_high, fn value, position ->
+      %{y: position, label: coordinate_label(value, :latitude, decimals)}
+    end)
+  end
+
+  defp ticks(low, high, output_low, output_high, project) do
+    Enum.map(0..@tick_intervals, fn index ->
+      ratio = index / @tick_intervals
+      value = low + (high - low) * ratio
+      project.(value, output_low + (output_high - output_low) * ratio)
+    end)
+  end
+
+  defp decimals(span) when span >= 10, do: 2
+  defp decimals(span) when span >= 1, do: 3
+  defp decimals(_), do: 5
+
+  defp normalize_longitude(value) do
+    normalized = value - 360 * :math.floor((value + 180) / 360)
+    if normalized == -180.0 and value > 0, do: 180.0, else: normalized
+  end
+
+  defp coordinate_label(value, axis, decimals) do
+    direction = direction(value, axis)
+    number = :erlang.float_to_binary(abs(value * 1.0), decimals: decimals)
+    if direction == "", do: number <> "°", else: number <> "° " <> direction
+  end
+
+  defp direction(value, :latitude) when value > 0, do: "N"
+  defp direction(value, :latitude) when value < 0, do: "S"
+  defp direction(value, :longitude) when value > 0, do: "E"
+  defp direction(value, :longitude) when value < 0, do: "W"
+  defp direction(_, _), do: ""
 
   defp segments(values) do
     Enum.reduce_while(values, {:ok, [], nil}, fn value, {:ok, acc, reference} ->

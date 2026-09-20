@@ -17,6 +17,22 @@ defmodule Wotex.Tracker.UI.RouteChartTest do
     assert_in_delta elem(chart.longitude, 0), 179.9, 0.000_001
     assert_in_delta elem(chart.longitude, 1), 180.2, 0.000_001
 
+    assert Enum.map(chart.longitude_ticks, & &1.label) == [
+             "179.90000° E",
+             "179.97500° E",
+             "179.95000° W",
+             "179.87500° W",
+             "179.80000° W"
+           ]
+
+    assert Enum.map(chart.latitude_ticks, & &1.label) == [
+             "10.000° N",
+             "10.250° N",
+             "10.500° N",
+             "10.750° N",
+             "11.000° N"
+           ]
+
     [first, second] = hd(chart.segments).points
     assert_in_delta first.longitude, 179.9, 0.000_001
     assert_in_delta second.longitude, 180.1, 0.000_001
@@ -26,6 +42,10 @@ defmodule Wotex.Tracker.UI.RouteChartTest do
   test "constant coordinates remain plottable while empty and malformed routes do not" do
     chart = RouteChart.project(%{"segments" => [%{"points" => [point("zero", 0, 0)]}]})
     assert [%{points: [%{x: 500.0, y: 200.0}]}] = chart.segments
+
+    assert Enum.map(chart.longitude_ticks, & &1.label) ==
+             ~w(0.500°_W 0.250°_W 0.000° 0.250°_E 0.500°_E)
+             |> Enum.map(&String.replace(&1, "_", " "))
 
     assert RouteChart.project(%{"segments" => []}) == nil
     assert RouteChart.project(%{"segments" => [%{"points" => []}]}) == nil

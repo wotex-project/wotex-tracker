@@ -262,14 +262,52 @@ defmodule Wotex.Tracker.UI.RouteLive do
         >
           <h3 id="route-map-title">Interactive retained-position map</h3>
           <p id="route-map-description" class="muted">
-            No contextual map layer is configured. The exact retained coordinates, separate
-            evidence segments and disclosed gaps remain available without tiles.
+            Latitude and longitude graticules provide geographic coordinate context. No
+            contextual map layer is configured. Exact retained coordinates, separate evidence
+            segments and disclosed gaps remain available without tiles.
           </p>
           <svg
             viewBox={RouteViewport.view_box(@viewport)}
             role="img"
             aria-label="Coordinate plot of page-local retained route segments; exact coordinates and gaps follow"
           >
+            <g class="route-graticule" aria-hidden="true">
+              <line
+                :for={tick <- @chart.longitude_ticks}
+                x1={tick.x}
+                y1="24"
+                x2={tick.x}
+                y2="376"
+                class="route-grid-line"
+              />
+              <line
+                :for={tick <- @chart.latitude_ticks}
+                x1="56"
+                y1={tick.y}
+                x2="944"
+                y2={tick.y}
+                class="route-grid-line"
+              />
+              <text
+                :for={tick <- @chart.longitude_ticks}
+                x={tick.x}
+                y="395"
+                text-anchor="middle"
+                class="route-grid-label route-longitude-label"
+              >
+                {tick.label}
+              </text>
+              <text
+                :for={tick <- @chart.latitude_ticks}
+                x="50"
+                y={tick.y}
+                text-anchor="end"
+                dominant-baseline="middle"
+                class="route-grid-label route-latitude-label"
+              >
+                {tick.label}
+              </text>
+            </g>
             <line x1="56" y1="376" x2="944" y2="376" class="chart-axis" />
             <line x1="56" y1="24" x2="56" y2="376" class="chart-axis" />
             <path :for={segment <- @chart.segments} d={segment.line} class="chart-line" />
@@ -288,8 +326,9 @@ defmodule Wotex.Tracker.UI.RouteLive do
             </circle>
           </svg>
           <figcaption>
-            Interactive coordinate map with separate service segments and short antimeridian
-            deltas. It supplies no basemap, street matching or position between recorded points.
+            Interactive geographic coordinate map with separate service segments and short
+            antimeridian deltas. It supplies no basemap, street matching or position between
+            recorded points.
           </figcaption>
           <div class="map-controls" role="group" aria-label="Evidence map pan and zoom controls">
             <button class="secondary" phx-click="map-view" phx-value-action="zoom-in">
