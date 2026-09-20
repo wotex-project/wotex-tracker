@@ -75,6 +75,7 @@ defmodule Wotex.Tracker.ReleaseProbe do
         strict: [
           readonly_directory: :string,
           native_consumer: :string,
+          native_only: :boolean,
           browser: :boolean,
           native_resource: :string
         ]
@@ -82,10 +83,13 @@ defmodule Wotex.Tracker.ReleaseProbe do
 
     unless invalid == [] and length(rest) == 2 and
              options[:native_resource] in [nil | @native_resource_sources] and
-             (options[:native_resource] == nil or options[:browser] == true),
+             (options[:native_resource] == nil or options[:browser] == true) and
+             (options[:native_only] != true or
+                (is_binary(options[:native_consumer]) and options[:browser] != true and
+                   is_nil(options[:readonly_directory]) and is_nil(options[:native_resource]))),
            do:
              raise(
-               "usage: release_probe.exs RELEASE FIXTURES [--readonly-directory PATH] [--native-consumer PATH] [--browser [--native-resource SOURCE]]"
+               "usage: release_probe.exs RELEASE FIXTURES [--readonly-directory PATH] [--native-consumer PATH [--native-only]] [--browser [--native-resource SOURCE]]"
              )
 
     [release, fixtures] = Enum.map(rest, &Path.expand/1)
@@ -100,21 +104,25 @@ defmodule Wotex.Tracker.ReleaseProbe do
 
     try do
       report =
-        %{
-          "runtime_licenses" => "pass",
-          "external_beam_tools_absent" => true,
-          "external_compiler_absent" => is_nil(System.find_executable("gcc"))
-        }
-        |> Map.merge(
-          lifecycle(
-            release,
-            Path.join(fixtures, "persistent"),
-            options[:browser] == true,
-            options[:native_resource]
+        if options[:native_only] == true do
+          native_consumer(release, fixtures, options[:native_consumer])
+        else
+          %{
+            "runtime_licenses" => "pass",
+            "external_beam_tools_absent" => true,
+            "external_compiler_absent" => is_nil(System.find_executable("gcc"))
+          }
+          |> Map.merge(
+            lifecycle(
+              release,
+              Path.join(fixtures, "persistent"),
+              options[:browser] == true,
+              options[:native_resource]
+            )
           )
-        )
-        |> Map.merge(failures(release, fixtures, options[:readonly_directory]))
-        |> Map.merge(native_consumer(release, fixtures, options[:native_consumer]))
+          |> Map.merge(failures(release, fixtures, options[:readonly_directory]))
+          |> Map.merge(native_consumer(release, fixtures, options[:native_consumer]))
+        end
 
       write_json(Path.join(fixtures, "result.json"), report)
       IO.puts("RELEASE_PROBE_PASS " <> Jason.encode!(report))
@@ -253,7 +261,10 @@ defmodule Wotex.Tracker.ReleaseProbe do
   defp native_consumer(_release, _fixtures, nil), do: %{}
 
   defp native_consumer(release, fixtures, executable) do
-    instance = new_instance(release, Path.join(fixtures, "native-client"))
+    instance =
+      release
+      |> new_instance(Path.join(fixtures, "native-client"))
+      |> Map.put(:apns, nil)
 
     try do
       instance = start(instance)
@@ -588,7 +599,11 @@ defmodule Wotex.Tracker.ReleaseProbe do
       |> Map.delete("WOTEX_TRACKER_CELLULAR_CONFIG")
       |> Map.delete("WOTEX_TRACKER_APNS_CONFIG")
       |> Map.put("WOTEX_TRACKER_CONFIG", instance.config)
-      |> Map.put("WOTEX_TRACKER_APNS_CONFIG", instance.apns.config)
+
+    environment =
+      if instance.apns,
+        do: Map.put(environment, "WOTEX_TRACKER_APNS_CONFIG", instance.apns.config),
+        else: environment
 
     environment =
       if instance.browser,
@@ -899,7 +914,7 @@ defmodule Wotex.Tracker.ReleaseProbe do
 
       secrets = [instance.token, instance.reader, instance.document["secret_key"]]
       secrets = if instance.browser, do: [instance.browser.secret | secrets], else: secrets
-      secrets = [instance.apns.private_key | secrets]
+      secrets = if instance.apns, do: [instance.apns.private_key | secrets], else: secrets
 
       for secret <- secrets,
           String.contains?(bytes, secret),

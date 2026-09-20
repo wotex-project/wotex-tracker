@@ -5876,7 +5876,7 @@ execution.
 The mobile host gate now includes one executable same-tracker scenario across
 four independently composed surfaces: the shared remote web client, the local Pi
 client, the mobile client with its native secure-store/lifecycle and offline
-cache, and the Rust HTTP consumer. The run starts the actual durable SQLite HTTP
+cache, and the then-current Rust HTTP consumer. The run starts the actual durable SQLite HTTP
 service, submits the same finite Ruuvi capture twice, enrolls and materialises the
 Thing, and checks the same temperature Property and generation on both Elixir UI
 paths. The remote Property adapter now reconstructs the local `{value,
@@ -5897,10 +5897,38 @@ capture, two duplicate dispositions, one generation advance, every recovery as
 
 The complete shared-UI gate passed 194 tests at 95.0% production line coverage
 on both supported runtime lanes. The complete mobile-host gate passed 89 tests
-at 95.4% and includes locked Rust format/build plus the integrated scenario. The
+at 95.4% and included locked Rust format/build plus the integrated scenario. The
 complete root gate passed 204 tests, 19 generated properties and one doctest at
 95.1%; documentation catalogue, delivery graph, evidence and link validation
 passed. This is local simulator evidence for the full software composition.
 Physical tracker/radio qualification, Pi display/touch, signed-iPhone behavior,
 live provider exchange and distribution retain their separate acceptance
 records.
+
+### Zig native protocol consumer migration — 2026-09-21
+
+The repository-owned independent HTTP/SSE consumer is now Zig and imports no
+Tracker domain module. The Cargo manifest, lockfile and Rust source were removed.
+The host and mobile gates format, unit-test and compile the Zig source with the
+pinned `0.17.0-dev.269+ebff43698` toolchain. Release qualification builds a
+native Darwin binary and directly cross-compiles a statically linked
+`aarch64-linux-musl` binary; it no longer starts a Rust builder image.
+
+Five Zig unit tests passed for canonical query identity with exact 64-bit JSON
+integers, chunked response decoding, bounded HTTP completion, LF/CRLF SSE frame
+handling and fail-closed origin/header/path validation. The maintained mobile
+development scenario first starts a clean loopback service and runs the complete
+native protocol flow: OpenAPI/version rejection, authorization, observation raw
+types, enrollment/materialisation, idempotency replay/conflict receipts,
+Property/history, analytics identity and pinned paging, saved-query lifecycle,
+SSE resume and active-stream credential revocation. It then runs the existing
+same-tracker web/Pi/mobile/native recovery composition. Both emitted their pass
+markers on Darwin ARM64.
+
+The static Linux ARM64 binary ran the same complete native protocol flow inside
+the read-only, network-isolated ARM64 release runtime and emitted
+`NATIVE_PROTOCOL_PASS`; the release harness emitted `RELEASE_PROBE_PASS` for the
+native-only lane. The bounded receipt is
+[`verification/zig-native-development.json`](../../verification/zig-native-development.json).
+Historical host/UI reports continue to name the Rust compiler that actually
+produced their older archived receipts; they are not rewritten as Zig evidence.

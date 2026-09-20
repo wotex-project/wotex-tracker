@@ -94,6 +94,14 @@ transformations and limitations are recorded in the
 capture, hardware, firmware, SIM/operator or direct-endpoint compatibility
 claim follows from these documentation fixtures.
 
+The manufacturer's [TAT140 general description](https://wiki.teltonika-gps.com/view/TAT140_General_description)
+and [TAT140 Bluetooth settings](https://wiki.teltonika-gps.com/view/TAT140_Bluetooth%C2%AE_settings),
+read 2026-09-21, identify the selected target's LTE Cat 1/GNSS/Bluetooth
+technology and configurable BLE sensor-scanning modes. They do not establish a
+phone provisioning protocol or physical behavior. WTR.09 therefore selects the
+TAT140 as the baseline hardware target while requiring exact firmware, EU model,
+SIM/carrier, direct-endpoint and BLE-sensor qualification.
+
 The official [ATC700 IO table](https://wiki.teltonika-gps.com/view/ATC700_Teltonika_Data_Sending_Parameters_ID),
 [tracking settings](https://wiki.teltonika-gps.com/view/ATC700_Tracking_settings)
 and [mobile-network settings](https://wiki.teltonika-gps.com/view/ATC700_Mobile_network),

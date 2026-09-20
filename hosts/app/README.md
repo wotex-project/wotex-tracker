@@ -441,8 +441,7 @@ signed local registry, then assembles the host against ordinary production
 requirements. It never enables production path dependencies. Public sibling
 release availability is a separate, currently unpassed gate.
 
-From the repository root, with Docker, the declared mise toolchains and a Rust
-toolchain installed:
+From the repository root, with Docker and the declared mise toolchains installed:
 
 ```sh
 MIX_ENV=test WOTEX_PATH_DEPS=1 mise exec -- mix run --no-start scripts/qualify_source.exs --host

@@ -27,12 +27,45 @@ defmodule Wotex.Tracker.IntegratedProductDevelopment do
     {:ok, supervisor} = DynamicSupervisor.start_link(strategy: :one_for_one)
 
     try do
+      native_protocol!(supervisor, Path.join(directory, "native-protocol"))
       report = run!(supervisor, directory)
       IO.puts("INTEGRATED_PRODUCT_SIMULATOR_PASS " <> Jason.encode!(report))
     after
       if Process.alive?(supervisor), do: Supervisor.stop(supervisor)
       File.rm_rf!(directory)
     end
+  end
+
+  defp native_protocol!(supervisor, directory) do
+    credentials = credentials!()
+    port = available_port!()
+    directory = private_directory!(directory)
+    service_directory = private_directory!(Path.join(directory, "service"))
+    server = start_server!(supervisor, server_options(service_directory, credentials, port))
+    descriptor = Path.join(directory, "descriptor.json")
+
+    File.write!(
+      descriptor,
+      Codec.encode!(%{
+        "url" => "http://127.0.0.1:#{port}",
+        "scope" => @scope,
+        "token" => credentials.admin.token,
+        "reader" => credentials.reader.token
+      })
+    )
+
+    File.chmod!(descriptor, 0o600)
+
+    {output, status} =
+      System.cmd(native_consumer_executable!(), [descriptor], stderr_to_stdout: true)
+
+    File.rm!(descriptor)
+    stop_child(supervisor, server)
+
+    expect!(
+      status == 0 and String.contains?(output, "NATIVE_PROTOCOL_PASS"),
+      "Zig protocol consumer: #{String.trim(output)}"
+    )
   end
 
   defp run!(supervisor, directory) do
@@ -447,12 +480,7 @@ defmodule Wotex.Tracker.IntegratedProductDevelopment do
   end
 
   defp native_consumer!(directory, origin, token, revoked, thing) do
-    root = Path.expand("../../..", __DIR__)
-
-    executable =
-      Path.join(root, "native/protocol_consumer/target/release/wotex-tracker-protocol-consumer")
-
-    expect!(File.regular?(executable), "built Rust consumer")
+    executable = native_consumer_executable!()
     descriptor = Path.join(directory, "native-integrated.json")
 
     File.write!(
@@ -472,8 +500,21 @@ defmodule Wotex.Tracker.IntegratedProductDevelopment do
     File.chmod!(descriptor, 0o600)
     {output, status} = System.cmd(executable, [descriptor], stderr_to_stdout: true)
     File.rm!(descriptor)
-    expect!(status == 0, "Rust consumer execution")
+    expect!(status == 0, "Zig consumer execution: #{String.trim(output)}")
     output
+  end
+
+  defp native_consumer_executable! do
+    root = Path.expand("../../..", __DIR__)
+
+    executable =
+      Path.join(
+        root,
+        "_build/native/protocol-consumer/darwin/bin/wotex-tracker-protocol-consumer"
+      )
+
+    expect!(File.regular?(executable), "built Zig consumer")
+    executable
   end
 
   defp capture do

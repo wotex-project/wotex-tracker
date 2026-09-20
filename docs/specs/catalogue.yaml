@@ -3,7 +3,7 @@ package: wotex_tracker
 status: target-contracts
 implementation_status: in-progress
 executed_evidence: [docs/evidence/implementation.md]
-updated: 2026-09-20
+updated: 2026-09-21
 
 principles:
   - headless-first
@@ -17,6 +17,16 @@ principles:
   - complete-product-with-optional-host-installation
   - shared-liveview-native-webview
   - required-gates-not-framework-limits
+  - local-development-before-external-qualification
+  - independent-completion-axes
+  - zig-for-safe-greenfield-native-boundaries
+
+completion_model:
+  version: 1
+  development: repository-owned code, local tooling and automated verification; external access is never a blocked status
+  local_acceptance: executable fixtures, peers, simulators, emulators, QEMU, containers and loopback integration
+  qualification: real hardware, radio, carrier, physical OS device or public-provider execution
+  distribution: external registry, account, signing, upload and review operations
 
 # depends_on identifies contract references, not installation or phase order.
 # WTR.13 governs every implementation from Phase 0.
@@ -100,6 +110,11 @@ delivery_targets:
     contracts: [WTR.00, WTR.01, WTR.02, WTR.03, WTR.04, WTR.13]
     requires: []
     implementation_status: implemented
+    development_status: complete
+    local_acceptance_status: passed
+    qualification_status: not-required
+    distribution_status: not-started
+    remaining_development: []
     evidence_refs: [docs/evidence/implementation.md]
     acceptance: pure fixture-to-TD, complete gate, clean optional-absent archive consumers
   - id: headless_service
@@ -107,6 +122,11 @@ delivery_targets:
     contracts: [WTR.06, WTR.07, WTR.08, WTR.13]
     requires: [core_library]
     implementation_status: in-progress
+    development_status: complete
+    local_acceptance_status: passed
+    qualification_status: not-required
+    distribution_status: not-started
+    remaining_development: []
     evidence_refs: [docs/evidence/implementation.md]
     acceptance: durable admission/recovery, versioned HTTP/SSE, clean release/image and non-Elixir client
   - id: tracking_hardware
@@ -114,13 +134,26 @@ delivery_targets:
     contracts: [WTR.03, WTR.05, WTR.06, WTR.09, WTR.12]
     requires: [headless_service]
     implementation_status: in-progress
+    development_status: in-progress
+    local_acceptance_status: in-progress
+    qualification_status: not-started
+    distribution_status: not-required
+    remaining_development:
+      - implement and wire the production passive-BLE scanner contract into service and Pi hosts
+      - finish the TAT140 configuration and BLE-sensor protocol adapters against deterministic local peers
     evidence_refs: [docs/evidence/implementation.md]
-    acceptance: real passive BLE, finished direct cellular tracker and complete smart-bike capability coverage
+    acceptance: qualified TAT140 direct cellular and BLE-sensor paths plus complete smart-bike capability coverage
   - id: shared_application
     required_for_product: true
     contracts: [WTR.07, WTR.08, WTR.15]
     requires: [headless_service, analytics]
     implementation_status: in-progress
+    development_status: in-progress
+    local_acceptance_status: in-progress
+    qualification_status: not-required
+    distribution_status: not-required
+    remaining_development:
+      - complete every browser workflow and accessibility assertion in WTR.15 against local service fixtures
     evidence_refs: [docs/evidence/implementation.md]
     acceptance: complete browser workflows, shared LiveView components, authorization, privacy and accessibility
   - id: analytics
@@ -128,6 +161,11 @@ delivery_targets:
     contracts: [WTR.05, WTR.07, WTR.08, WTR.16]
     requires: [headless_service]
     implementation_status: in-progress
+    development_status: complete
+    local_acceptance_status: passed
+    qualification_status: not-started
+    distribution_status: not-required
+    remaining_development: []
     evidence_refs: [docs/evidence/implementation.md]
     acceptance: known-answer queries, browser graph behavior, saved windows/snapshots, real prompted query and AI-absent operation
   - id: pi5_headless
@@ -135,6 +173,12 @@ delivery_targets:
     contracts: [WTR.06, WTR.07, WTR.09, WTR.14]
     requires: [headless_service]
     implementation_status: in-progress
+    development_status: in-progress
+    local_acceptance_status: in-progress
+    qualification_status: not-started
+    distribution_status: not-started
+    remaining_development:
+      - replace the legacy Ruuvi QEMU smoke observation with a deterministic TAT140 cellular protocol peer
     evidence_refs: [docs/evidence/implementation.md]
     acceptance: physical boot, target-runtime proof, durable storage and firmware/data recovery without UI
   - id: pi5_panel
@@ -142,6 +186,12 @@ delivery_targets:
     contracts: [WTR.08, WTR.14, WTR.15, WTR.16]
     requires: [pi5_headless, shared_application, analytics]
     implementation_status: in-progress
+    development_status: in-progress
+    local_acceptance_status: in-progress
+    qualification_status: not-started
+    distribution_status: not-started
+    remaining_development:
+      - finish the complete shared workflow and kiosk input/render acceptance in the local Pi/QEMU lane
     evidence_refs: [docs/evidence/implementation.md]
     acceptance: physical display/touch, complete shared workflows, offline use and isolated browser failure
   - id: ios_companion
@@ -149,6 +199,14 @@ delivery_targets:
     contracts: [WTR.08, WTR.09, WTR.15, WTR.16]
     requires: [tracking_hardware, shared_application, analytics]
     implementation_status: in-progress
+    development_status: in-progress
+    local_acceptance_status: in-progress
+    qualification_status: not-started
+    distribution_status: not-started
+    remaining_development:
+      - finish target-specific BLE provisioning screens and their closed native bridge commands
+      - finish local APNs registration, dispatch and notification-tap simulation including failure paths
+      - migrate safe standalone native and generated C-ABI surfaces to Zig and consolidate the Zig build graph
     evidence_refs: [docs/evidence/implementation.md]
     acceptance: real iPhone, native secure storage/BLE/push/lifecycle, signed install and distribution evidence
   - id: integrated_product
@@ -156,38 +214,52 @@ delivery_targets:
     contracts: [WTR.07, WTR.09, WTR.12, WTR.14, WTR.15, WTR.16]
     requires: [core_library, headless_service, tracking_hardware, shared_application, analytics, pi5_headless, pi5_panel, ios_companion]
     implementation_status: in-progress
+    development_status: in-progress
+    local_acceptance_status: in-progress
+    qualification_status: not-started
+    distribution_status: not-required
+    remaining_development:
+      - rerun the complete simulator composition after all development dependencies are complete
     evidence_refs: [docs/evidence/implementation.md]
     acceptance: same-tracker web/Pi/iPhone/non-Elixir scenario, resource budgets, failures and recovery
 
-initial_profiles:
+reference_fixtures:
   ruuvi_ruuvitag:
-    role: passive_ble_environmental_sensor
+    role: decoder_and_simulator_reference_only
     implementation_status: implemented
     current_evidence: fixture
     evidence_refs: [docs/evidence/implementation.md]
-    target_evidence: hardware-qualified
+    target_evidence: fixture
+    qualification_required: false
     mandatory_vendor_cloud: false
+    note: retained only for deterministic protocol regression coverage; it is not a product profile, purchase, hardware test or qualification target
+
+initial_profiles:
   teltonika_tat140:
-    role: rugged_cellular_asset_tracker
+    role: primary_rugged_cellular_gnss_and_ble_sensor_tracker
     implementation_status: in-progress
     current_evidence: fixture
     evidence_refs: [docs/evidence/implementation.md]
     target_evidence: hardware-qualified
+    qualification_required: true
     mandatory_vendor_cloud: false
+    note: exact Sweden/EU model, firmware, SIM, direct endpoint and documented BLE sensor behavior are the baseline physical tracker tests
   teltonika_atc700:
     role: compact_rechargeable_cellular_tracker
     implementation_status: in-progress
     current_evidence: fixture
     evidence_refs: [docs/evidence/implementation.md]
     target_evidence: hardware-qualified
+    qualification_required: false
     mandatory_vendor_cloud: false
-    caution: do_not_claim_ble_sensor_gateway_without_current_real-device_evidence
+    caution: comparison profile only; do not claim BLE sensor gateway or baseline hardware acceptance from this profile
   lorawan_tracker:
     role: optional_low-power_wide-area_tracker
     implementation_status: not-started
     current_evidence: research
     evidence_refs: []
     target_evidence: research
+    qualification_required: false
     mandatory_vendor_cloud: false
     note: no hardware selected until operator-controlled network path is verified
 

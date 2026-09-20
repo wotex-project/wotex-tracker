@@ -2,6 +2,10 @@
 
 ## Status
 
+This contract inherits WTR.12's independent completion axes and WTR.13's
+greenfield Zig policy. Missing external prerequisites never block locally
+executable implementation.
+
 Implemented for the reusable core and package boundary: `wotex_tracker` is an
 inert, headless library with explicit inputs, deterministic domain operations and
 no application callback, while service, browser, mobile and Nerves consumers live
@@ -33,7 +37,7 @@ The first implementation slice is deliberately narrower than the complete produc
 
 1. immutable `Observation`, `Evidence`, `DeviceProfile`, `Capability`, `Resolution`, and typed error values;
 2. pure deterministic fingerprint matching and profile resolution;
-3. pure bounded decoder contracts plus fixture-driven RuuviTag Raw v2 decoding;
+3. pure bounded decoder contracts plus fixture-driven Ruuvi RAWv2 reference decoding;
 4. deterministic Thing Model selection and TD materialisation inputs;
 5. validation through upstream `wotex`;
 6. an imported-fixture entry point using caller-supplied observations and an immutable catalogue; and

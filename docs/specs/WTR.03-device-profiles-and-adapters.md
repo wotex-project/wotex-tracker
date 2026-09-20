@@ -2,10 +2,14 @@
 
 ## Status
 
+This contract inherits WTR.12's independent completion axes and WTR.13's
+greenfield Zig policy. Missing external prerequisites never block locally
+executable implementation.
+
 Accepted target contract. The pure library implements immutable profile and
 catalogue values, deterministic resolution and a bounded trusted-decoder seam for
-measurements, positions and identity evidence. Ruuvi RAWv2 has documentation
-fixtures but no real-device qualification. A pure bounded Codec 8 Extended TCP
+measurements, positions and identity evidence. Ruuvi RAWv2 remains reference
+fixture coverage only and is not a physical qualification target. A pure bounded Codec 8 Extended TCP
 framer now validates the manufacturer documentation vector, arbitrary split and
 coalesced frames, record/IO counts and CRC while preserving unknown IO bytes.
 The pure TCP session seam also bounds split/coalesced 15-digit IMEI negotiation,

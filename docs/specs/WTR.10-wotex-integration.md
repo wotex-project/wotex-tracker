@@ -2,6 +2,10 @@
 
 ## Status
 
+This contract inherits WTR.12's independent completion axes and WTR.13's
+greenfield Zig policy. Missing external prerequisites never block locally
+executable implementation.
+
 Implemented for the selected software cohort: the root library consumes upstream
 `wotex` validation without alternate TD/TM types, while the service exercises
 upstream Runtime ExposedThing/ConsumedThing planning and the HTTP binding through

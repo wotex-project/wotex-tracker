@@ -13,6 +13,8 @@
 **/doc/
 **/cover/
 **/target/
+**/.zig-cache/
+**/zig-out/
 **/erl_crash.dump
 *.db
 *.db-wal

@@ -2,6 +2,10 @@
 
 ## Status
 
+This contract inherits WTR.12's independent completion axes and WTR.13's
+greenfield Zig policy. Missing external prerequisites never block locally
+executable implementation.
+
 Accepted target contract. Deterministic transport selection and degradation,
 bounded durable forwarding and explicit host scheduling are implemented for the
 software profiles that declare them. Direct cellular admission is an atomic

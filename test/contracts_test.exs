@@ -52,6 +52,25 @@ defmodule WotexTracker.ContractsTest do
     end
   end
 
+  test "completion axes keep local development distinct from external gates", %{catalogue: c} do
+    [first | rest] = c["delivery_targets"]
+
+    for change <- [
+          %{first | "development_status" => "blocked"},
+          %{
+            first
+            | "development_status" => "complete",
+              "remaining_development" => ["still open"]
+          },
+          %{first | "development_status" => "in-progress", "remaining_development" => []},
+          %{first | "development_status" => "in-progress", "local_acceptance_status" => "passed"},
+          %{first | "qualification_status" => "invented"}
+        ] do
+      assert {:error, :invalid_completion_axes} =
+               Contracts.validate(%{c | "delivery_targets" => [change | rest]}, ".")
+    end
+  end
+
   test "dependency installation defines no Tracker application callback" do
     assert [] == Application.spec(:wotex_tracker, :mod)
   end

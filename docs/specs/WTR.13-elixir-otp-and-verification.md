@@ -2,6 +2,10 @@
 
 ## Status
 
+This contract inherits WTR.12's independent completion axes and defines the
+greenfield Zig policy inherited by every WTR contract. Missing external
+prerequisites never block locally executable implementation.
+
 Implemented as the source/package verification floor for the root library,
 service, shared UI and applicable hosts. The declared Elixir 1.18.4 / OTP
 27.3.4.15 and Elixir 1.20.4 / OTP 29.0.4 lanes run their configured compiler,
@@ -30,14 +34,43 @@ substitution seams; explicit values or functions suffice for the first clock,
 catalogue and identity inputs. No generic plugin framework, macros/DSL compiler,
 Python service, Rust helper, NIF or database is needed for the first decoder.
 
-Repository implementation, verification and packaging use Elixir/Erlang or the
-established native language of the owning platform. Prefer C, C++ or Rust for
-native helpers and independent native consumers. Python is not admitted for
+Repository implementation, verification and packaging use Elixir/Erlang, Zig or
+the established native language of the owning platform. In this greenfield
+repository, prefer Zig for bounded native helpers, independent native consumers,
+generated C-ABI tables and native build orchestration. Python is not admitted for
 source, scripts, tests, generators, consumers, CLIs, build steps, runtime images
 or verification dependencies. Existing Python surfaces are migration debt and
 MUST be removed instead of extended. Independent consumers remain independent by
 using only the public wire or package contract and by importing no production
 domain modules; choosing a different language does not establish that boundary.
+
+### Greenfield Zig boundary
+
+The following are mandatory Zig migrations when touched and when the replacement
+passes the same or stronger executable receipts:
+
+- the standalone non-Elixir HTTP/SSE/JSON protocol consumer currently written in
+  Rust;
+- generated static-NIF or driver registration tables currently emitted as C;
+- duplicated mobile simulator/device build logic that can be expressed once as
+  typed Zig build modules; and
+- new self-contained native helpers that depend only on stable C ABIs or direct
+  operating-system interfaces with explicit ownership.
+
+Do not force Zig across an unsafe platform boundary. Objective-C or Swift remains
+the correct owner for UIKit, CoreBluetooth, Keychain, notification delegates and
+other Apple frameworks when their typed APIs, object ownership, delegate
+lifecycle or Xcode module integration would otherwise be replaced by manual
+runtime messaging. Erlang retains direct OTP boundaries; Elixir retains
+repository orchestration and product policy; SQL retains schemas/queries; POSIX
+launchers may remain shell. Existing C/C++/Rust dependency surfaces are
+compatibility inputs, not permission to add new product logic in those languages.
+
+A migration is complete only after native numeric JSON fidelity, canonical
+digests, SSE resume behavior, malformed-input bounds, host and Linux ARM64 builds
+and integrated-product receipts pass. Source-count reduction is not evidence of
+safety, and historical evidence continues to name the language/artifact that was
+actually executed.
 
 Future long-lived discovery/ingress components expose explicit `start_link/1`
 or child-spec APIs. The caller chooses the supervisor, IDs, optional names,

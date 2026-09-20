@@ -2,6 +2,10 @@
 
 ## Status
 
+This contract inherits WTR.12's independent completion axes and WTR.13's
+greenfield Zig policy. Missing external prerequisites never block locally
+executable implementation.
+
 Accepted target contract. The pure library implements normalized position
 evidence, explicit freshness, deterministic multi-source selection, stable event
 ordering and protocol-sequence handling; circle/polygon geofences and sparse

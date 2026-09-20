@@ -2,11 +2,15 @@
 
 ## Status
 
+This contract defines the independent completion axes inherited by every WTR
+contract and also inherits WTR.13's greenfield Zig policy. Missing external
+prerequisites never block locally executable implementation.
+
 Implemented for the repository's software evidence classes: unit/property tests,
 source-derived and synthetic fixtures, independent protocol peers, real local
 socket/HTTP/SSE integration, Runtime/HTTP-binding interoperability, clean archive
 consumers and bounded release/image lifecycle probes are recorded without class
-promotion. The required real Ruuvi, cellular tracker, Pi 5, iPhone and integrated
+promotion. The required real TAT140, Pi 5, iPhone and integrated
 field/product gates remain unpassed, so no hardware-qualified or complete-product
 claim is made. See the [implementation evidence](../evidence/implementation.md)
 and [fixture provenance](../provenance/ruuvi-raw-v2-fixtures.md).
@@ -25,6 +29,39 @@ Tracker distinguishes:
 
 No README claim may promote a lower evidence class as if it were higher.
 
+## Independent completion axes
+
+Every contract and delivery target uses these axes independently:
+
+1. `development_status` covers repository-owned code, local build tooling,
+   packaging, failure handling and automated tests. Its allowed states are
+   `not-started`, `in-progress` and `complete`; `blocked` is deliberately not an
+   allowed state. If a behavior can be implemented against a bounded local
+   substitute, absent hardware, credentials or accounts do not excuse leaving it
+   unwritten.
+2. `local_acceptance_status` covers executable fixtures, deterministic protocol
+   peers, simulators, emulators, QEMU, containers and loopback integration. Its
+   allowed states are `not-started`, `in-progress` and `passed`.
+3. `qualification_status` covers real TAT140/radio/carrier operation, physical
+   Pi/iPhone behavior and real public-provider exchanges. Its allowed states are
+   `not-required`, `not-started`, `in-progress` and `passed`.
+4. `distribution_status` covers package/store accounts, registry configuration,
+   signing authority, uploads and external review. It uses the same external
+   states as qualification.
+
+Development MUST reach `complete` before local acceptance can pass. Qualification
+and distribution may remain `not-started` while their external prerequisites are
+unavailable, but that state never propagates backward into development. Local
+tests exercise success, denial, timeout, malformed input, disconnect, retry and
+recovery for every external seam. A real external run then verifies the same
+contract without replacing those tests.
+
+For Apple work, the iOS simulator, local native peers and fake APNs provider are
+development/local-acceptance evidence. A physical iPhone, real BLE interaction,
+APNs entitlement and provider delivery are qualification evidence. Developer
+Program enrollment, App ID/certificate/profile registration, upload and review
+are distribution evidence. These three claims MUST remain distinct.
+
 ## Fixture provenance
 
 Every non-synthetic capture fixture MUST record device model, protocol/firmware revision when available, capture method, redaction/transformation, expected decoder/profile revision and source/license/permission. Credentials and stable personal identifiers are removed or deterministically replaced.
@@ -33,43 +70,44 @@ Published documentation vectors are source-derived fixtures, not real captures m
 
 ## Software milestone evidence
 
-The first software milestone is imported evidence -> resolution -> pure Ruuvi decode -> capabilities -> self-contained model -> upstream-validated TD. It requires no process, live radio, Runtime, Directory, Lab, Nx, AI or database. It proves no real endpoint is reachable. The first complete hardware PoC below is a later, stronger milestone and requires the explicit host/runtime lane.
+The first software milestone is imported evidence -> resolution -> pure reference-fixture decode -> capabilities -> self-contained model -> upstream-validated TD. The existing Ruuvi RAWv2 vector is only one deterministic parser fixture. It requires no process, live radio, Runtime, Directory, Lab, Nx, AI or database and proves no real endpoint is reachable. The first complete hardware PoC below is a later, stronger milestone and requires the explicit host/runtime lane.
 
 For each executed claim record the test command, full suite/selection, exit status, runtime/OS/architecture, Tracker revision or artifact digest, exact dependency identities, fixture/model/profile revisions and observed result. Catalogue `target_evidence`, `current_evidence`, `implementation_status` and `evidence_refs` are distinct. Empty evidence references never imply acceptance. Documentation/reference integrity checks validate specifications, not Tracker behavior.
 
-## Required first PoC
+## Required tracker qualification PoC
 
-The first complete acceptance path is:
+The baseline physical acceptance path is:
 
 ```text
-real RuuviTag advertisement
- -> BLE discovery observation
- -> deterministic Ruuvi profile resolution
- -> capability evidence
- -> decode temperature/humidity/pressure/motion/battery as supported by the qualified format
- -> materialise validated TD from a reusable Thing Model
- -> expose/consume through Wotex Runtime
+real Teltonika TAT140, exact EU variant and firmware
+ -> operator-owned SIM and direct LTE Cat 1 endpoint
+ -> bounded IMEI negotiation and Codec 8 Extended acknowledgement
+ -> deterministic TAT140 profile resolution
+ -> normalized GNSS position, movement and supported battery evidence
+ -> materialise a validated TD from the tracking Thing Model
+ -> expose/consume through WoTEx Runtime
  -> observe value through headless API/CLI
 ```
 
 No AI and no vendor cloud may be required.
 
-## Second acceptance path
+## TAT140 BLE-sensor path
 
-A finished cellular tracker such as a qualified TAT140 target sends records directly to an operator-controlled listener:
+The same qualified TAT140 also exercises its documented short-range radio before
+using the long-range path:
 
 ```text
-real tracker
- -> direct network ingress
- -> protocol identity/acknowledgement
- -> decoder/profile
- -> normalized position/battery/motion evidence
- -> same generic tracking Thing Model family
- -> validated TD
- -> WoT interface
+selected physical BLE sensor
+ -> TAT140 BLE scan under an exact configured mode
+ -> documented AVL sensor IO in a real device record
+ -> direct LTE delivery to the operator-controlled listener
+ -> preserved BLE provenance and normalized supported measurement
+ -> the same validated tracking Thing and WoT interface
 ```
 
-This proves that BLE discovery is one discovery lane, not the architecture.
+This proves the selected tracker can bridge a documented local sensor radio to
+the long-range path. It does not prove an iPhone provisioning protocol; that
+separate WTR.15 interaction must be verified against its exact interface.
 
 ## Optional LoRaWAN path
 
@@ -95,7 +133,7 @@ gates remain separately scoped. The product MUST additionally pass:
 
 1. durable standalone service, versioned HTTP/OpenAPI/SSE and clean non-Elixir
    release/image consumption under WTR.06/07;
-2. the required BLE and finished direct-cellular hardware paths plus smart-bike
+2. the qualified TAT140 direct-cellular and BLE-sensor paths plus smart-bike
    capability coverage under WTR.09;
 3. the complete shared application workflows under WTR.15;
 4. physical Pi 5 headless boot/recovery and local touch-panel operation under WTR.14;

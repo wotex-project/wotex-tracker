@@ -2,9 +2,15 @@
 
 ## Status
 
-Accepted target contract. Documentation-fixture software profiles exist for the
-initial Ruuvi, TAT140 and ATC700 targets, but no listed hardware is qualified and
-no physical implementation claim follows.
+This contract inherits WTR.12's independent completion axes and WTR.13's
+greenfield Zig policy. Missing external prerequisites never block locally
+executable implementation.
+
+Accepted target contract. The Teltonika TAT140 is the baseline physical tracker
+target. Documentation-fixture software profiles exist for TAT140 and ATC700, but
+no listed hardware is qualified and no physical implementation claim follows.
+Ruuvi RAWv2 is retained only as software regression data and is not a product,
+purchase, hardware-test or qualification target.
 
 ## Purpose
 
@@ -29,19 +35,37 @@ If any mandatory cloud independence claim cannot be verified, status is `researc
 
 Qualification records SHOULD include dimensions, mass, enclosure/IP/impact rating, power source, operating temperature, BLE capability, GNSS/positioning, LoRaWAN region/support, cellular bearers/bands, SIM/eSIM form, protocol openness, operator-controlled endpoint support, provisioning method, firmware/version evidence, Swedish network suitability, source URLs/revisions and test evidence.
 
-## Initial targets
+## Baseline target and reference fixtures
 
-### RuuviTag
+### Teltonika TAT140 — required physical tracker
 
-Purpose: passive BLE discovery/capability proof. Qualification requires an openly documented advertisement format and direct local scanning with no cloud dependency.
+Purpose: rugged smart-bike/asset tracking with GNSS, long-range LTE Cat 1
+delivery to an operator-controlled endpoint and documented BLE sensor support.
+The exact Sweden/EU hardware variant, firmware, BLE mode, SIM and carrier MUST
+be recorded. Qualification requires real GNSS/position, motion, battery, direct
+Codec 8 Extended acknowledgement and selected BLE-sensor evidence with vendor
+cloud services absent from the data path.
 
-### Teltonika TAT140
+The manufacturer's current [general description](https://wiki.teltonika-gps.com/view/TAT140_General_description)
+and [Bluetooth settings](https://wiki.teltonika-gps.com/view/TAT140_Bluetooth%C2%AE_settings)
+describe LTE Cat 1/GNSS/Bluetooth and BLE sensor scanning. Those pages establish
+a candidate capability, not qualification and not an iPhone provisioning
+protocol. Phone-to-tracker provisioning MUST use an exact documented interface
+proven on the selected TAT140 firmware, or the application must honestly present
+the actual supported provisioning path.
 
-Purpose: rugged cellular asset-tracker ingress proof. Qualification requires direct configuration to an operator-controlled endpoint and documented AVL codec behavior. Cloud management services must remain optional.
+### Ruuvi RAWv2 — software fixture only
 
-### Teltonika ATC700
+The existing Ruuvi decoder vectors and finite simulator remain useful for pure
+parser, discovery and failure-path regression. No RuuviTag will be acquired or
+used for product hardware testing. Passing those fixtures proves nothing about
+the selected TAT140, BLE radio operation or long-range tracking.
 
-Purpose: compact rechargeable cellular/GNSS tracker profile and comparison target. BLE sensor-gateway capability MUST NOT be claimed unless current device documentation and a real-device test prove it.
+### Teltonika ATC700 — optional comparison profile
+
+Purpose: compact rechargeable cellular/GNSS comparison profile. It is not
+required for baseline product acceptance. BLE sensor-gateway capability MUST NOT
+be claimed unless current device documentation and a real-device test prove it.
 
 The current documentation fixture establishes only Codec 8 Extended framing,
 the documented movement/battery IO mappings and configurability of a direct
@@ -62,12 +86,14 @@ For portable/bicycle use, a reference target is a finished compact rugged enclos
 
 ## Smart-bike and application coverage
 
-Complete product acceptance MUST include a qualified portable tracker/configuration
-covering position, battery, movement and the reporting/alert path, plus an exact
-local BLE provisioning/read path used by the companion. Record whether these
-capabilities belong to one device or explicitly associated components; proximity
-alone cannot associate a sensor with a bicycle. Manufacturer brochure claims,
-an unavailable control or a development board do not satisfy required coverage.
+Complete product acceptance MUST use the selected TAT140 configuration and cover
+position, battery, movement, documented BLE-sensor behavior and the long-range
+reporting/alert path. The companion also requires an exact supported local
+provisioning/read path. Record whether that phone-facing path belongs to the
+TAT140 or an explicitly associated component; the TAT140's ability to scan BLE
+sensors does not by itself prove that an iPhone can provision it. Proximity alone
+cannot associate a sensor with a bicycle. Manufacturer brochure claims, an
+unavailable control or a development board do not satisfy required coverage.
 
 Qualify the Pi 5 as a separate gateway/control-panel target under WTR.14, including
 display/touch/storage and power interruption. Its boot proof does not establish

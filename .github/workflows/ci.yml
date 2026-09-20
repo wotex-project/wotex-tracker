@@ -120,7 +120,9 @@ jobs:
         run: mix archive.install hex nerves_bootstrap 1.17.2 --force
       - name: Install native toolchain
         if: startsWith(matrix.profile, 'host') || matrix.profile == 'mobile'
-        run: rustup toolchain install 1.97.1 --profile minimal --component rustfmt && rustup default 1.97.1
+        uses: mlugg/setup-zig@8d6198c65fb0feaa111df26e6b467fea8345e46f # v2.0.5
+        with:
+          version: 0.17.0-dev.269+ebff43698
       - name: Check locked dependencies
         run: |
           if [ "$CI_TRACKER_UI" = "true" ]; then export WOTEX_TRACKER_UI=1; fi

@@ -2,6 +2,10 @@
 
 ## Status
 
+This contract inherits WTR.12's independent completion axes and WTR.13's
+greenfield Zig policy. Missing external prerequisites never block locally
+executable implementation.
+
 Public synthetic boundary implemented. The service provides the
 provider-neutral, current-revision tool projection and the explicitly started,
 bounded connector described below. No public or private provider exchange,

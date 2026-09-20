@@ -1,0 +1,45 @@
+{
+  "schema": "wtr.zig-native-development.v1",
+  "recorded_at": "2026-09-21",
+  "evidence_class": "simulator",
+  "toolchain": "zig 0.17.0-dev.269+ebff43698",
+  "source": {
+    "build_zig_sha256": "92f832c1b9864d7138fbe42c11a12b2f810c2e4b38c4945bedd2e54dcf2f987d",
+    "main_zig_sha256": "9a9f5f7ab80bf0d421cc8eec7bb0e532e9a935180e7cb26396f49dc4031a9f01"
+  },
+  "darwin_arm64": {
+    "binary_sha256": "9d8c14ab6139dd4b7bb1ee4228ac3dda89d0d94fde926a6f645e3190882de8ea",
+    "unit_tests": "pass",
+    "native_protocol": "pass",
+    "integrated_product": "pass"
+  },
+  "linux_arm64": {
+    "target": "aarch64-linux-musl",
+    "linkage": "static",
+    "binary_sha256": "212f9aae9cf7c23f71d0791f410035d71429fe0141c225bda5d25276d5a7efd9",
+    "runtime_image_id": "sha256:73c1d00250e5eed1ccaa66da2dc0960e89036925ac763bcaa5af523f31906b64",
+    "runtime_root": "read-only",
+    "network": "none",
+    "native_protocol": "pass"
+  },
+  "behaviors": {
+    "openapi": true,
+    "version_rejection": true,
+    "authorization": true,
+    "enrollment": true,
+    "observation": true,
+    "idempotency_conflict": true,
+    "native_json_types": true,
+    "property": true,
+    "history": true,
+    "analytics": true,
+    "analytics_pages": true,
+    "saved_queries": true,
+    "sse_resume": true,
+    "active_stream_revocation": true
+  },
+  "limitations": [
+    "The Linux native-only run used current BEAM application code over the previously built pinned ARM64 release runtime; it did not regenerate the full release archive or image.",
+    "Physical hardware, signed-device and public distribution gates are separate from this local protocol receipt."
+  ]
+}

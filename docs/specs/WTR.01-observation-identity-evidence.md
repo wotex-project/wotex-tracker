@@ -2,6 +2,10 @@
 
 ## Status
 
+This contract inherits WTR.12's independent completion axes and WTR.13's
+greenfield Zig policy. Missing external prerequisites never block locally
+executable implementation.
+
 Implemented for bounded observations, native-JSON/byte exports, evidence and
 closed evidence bundles, content identities, explicit pseudonymous association
 and typed consistency failures. Durable retention policy and physical identity

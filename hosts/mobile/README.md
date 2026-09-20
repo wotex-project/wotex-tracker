@@ -171,13 +171,16 @@ share-sheet or suspension claim.
 The same host also owns the integrated local product scenario. It starts the
 real durable service, finite passive-ingress simulator and native-capability
 peer, then drives one Thing through remote web, local Pi, mobile cache and an
-independent Rust HTTP consumer. The run restarts the service, disconnects and
+independent Zig HTTP consumer. The run restarts the service, disconnects and
 restores the native network, revokes the common reader, replays ingress across
 restart and verifies durable history without a physical Action:
 
 ```sh
-cargo build --release --locked \
-  --manifest-path ../../native/protocol_consumer/Cargo.toml
+mise exec -- zig build --build-file ../../native/protocol_consumer/build.zig \
+  -Doptimize=ReleaseSafe \
+  --prefix ../../_build/native/protocol-consumer/darwin \
+  --cache-dir ../../_build/zig-cache/protocol-consumer \
+  --global-cache-dir ../../_build/zig-global-cache
 WOTEX_PATH_DEPS=1 MIX_ENV=test mise exec -- \
   mix run --no-start scripts/integrated_product.exs
 ```

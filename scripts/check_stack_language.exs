@@ -1,7 +1,7 @@
 defmodule Wotex.Tracker.StackLanguageCheck do
   @moduledoc false
 
-  @root_extensions ~w(.ex .exs .erl .hrl .escript .sh .bash .zsh .fish .mk .cmake .toml .yml .yaml .rs .c .h .cc .cpp .hpp .js .mjs .cjs .jsx .ts .tsx .ipynb)
+  @root_extensions ~w(.ex .exs .erl .hrl .escript .sh .bash .zsh .fish .mk .cmake .toml .yml .yaml .zig .rs .c .h .cc .cpp .hpp .js .mjs .cjs .jsx .ts .tsx .ipynb)
   @python_extensions ~w(.py .pyi .pyw .pyc .pyo .pyd .pyx .pxd .pxi .pyz .whl .egg)
   @python_manifests ~w(Pipfile Pipfile.lock pyproject.toml poetry.lock uv.lock pdm.lock .python-version .python-versions tox.ini pytest.ini)
   @excluded_content_paths MapSet.new(["scripts/check_stack_language.exs"])

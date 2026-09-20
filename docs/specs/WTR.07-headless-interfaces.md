@@ -2,11 +2,17 @@
 
 ## Status
 
+This contract inherits WTR.12's independent completion axes and WTR.13's
+greenfield Zig policy. Missing external prerequisites never block locally
+executable implementation.
+
 Implemented for the pure facade and the explicit headless service: authenticated
 HTTP/JSON, OpenAPI, resumable SSE, durable SQLite state, bounded history and
 analytics, Runtime Property reads/observation, packaged CLI, bundled Darwin and
-Linux ARM64 releases, a local OCI image and an independent Rust consumer have
-executable evidence. Caller-scoped durable Action admission, at-most-once
+Linux ARM64 releases, a local OCI image and an independent Zig consumer have
+executable evidence. Older Rust receipts remain historical evidence only; the
+canonical consumer and its Darwin/Linux ARM64 build graph are Zig under WTR.13.
+Caller-scoped durable Action admission, at-most-once
 supervised WoTEx Runtime dispatch and authorized status polling now have a
 synthetic software boundary. The optional cellular listener reports its
 configured host composition without claiming physical readiness. Live BLE
@@ -151,6 +157,9 @@ events, reconnection, authorization and operation outcomes. Test signal shutdown
 restart, unwritable/full storage, API version mismatch, duplicate mutations,
 snapshot/stream races and revoked access. Documented commands must execute against
 the built artifact. Building does not authorize publishing an image or release.
+The repository-owned canonical native consumer MUST be Zig. Its implementation
+imports no Tracker domain module and proves independence only through the public
+wire contract.
 
 ## CLI
 

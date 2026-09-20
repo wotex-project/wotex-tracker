@@ -146,7 +146,7 @@ acceptance on a signed device, plus distribution gates, remain open.
 
 A first-class integrated development scenario now drives one durable simulated
 tracker through the remote web client, the local Pi client, the mobile native
-capability/cache composition and an independent Rust HTTP consumer. It admits
+capability/cache composition and an independent Zig HTTP consumer. It admits
 passive data, enrolls and materialises the Thing, restarts the actual service,
 disconnects and reconnects the mobile network, revokes the shared reader and
 replays duplicate ingress across restart. The scenario requires durable history,
@@ -294,13 +294,16 @@ records findings, resolutions, executed checks and remaining limitations.
 
 ## Initial proof matrix
 
-The first profiles are intended to prove different topologies rather than one preferred vendor:
+The baseline product hardware is the Teltonika TAT140. Other decoders remain
+software/reference coverage unless separately selected and qualified:
 
-- **RuuviTag** — passive BLE advertisement discovery and environmental sensing using an openly documented wire format.
-- **Teltonika TAT140** — finished rugged cellular asset tracker sending directly to an operator-controlled server.
-- **Teltonika ATC700** — compact rechargeable cellular tracker with a distinct
+- **Teltonika TAT140** — required finished rugged GNSS/LTE Cat 1/BLE-sensor
+  tracker sending directly to an operator-controlled server.
+- **Ruuvi RAWv2** — deterministic decoder/simulator fixture only; no RuuviTag
+  purchase, product use or hardware qualification is planned.
+- **Teltonika ATC700** — optional compact rechargeable cellular comparison with a distinct
   documentation-fixture profile and direct operator-server configuration path;
-  physical qualification remains open.
+  it is not required for baseline product acceptance.
 - **LoRaWAN** — optional later profile/ingress lane, only for hardware and network paths that pass the project's no-vendor-lock gate.
 
 Hardware names in specifications are qualification targets, not architectural dependencies.

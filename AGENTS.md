@@ -15,8 +15,12 @@
   only remove Python are allowed.
 - Prefer Elixir for repository orchestration, contract generation, acceptance
   consumers and host tooling. Use Erlang where direct OTP primitives make the
-  boundary clearer. Prefer C, C++ or Rust for native helpers and independent
-  native consumers. Platform applications use their established native language.
+  boundary clearer. For this greenfield repository, prefer Zig for bounded
+  native helpers, independent native consumers, generated C-ABI tables and native
+  build orchestration. Existing C, C++ and Rust surfaces are compatibility or
+  migration inputs, not defaults for new product logic. Platform applications
+  use their established native language where framework ownership, lifecycle or
+  toolchain safety makes that boundary clearer.
 - Keep independent acceptance consumers outside the production domain modules;
   language independence is not a substitute for protocol-boundary independence.
 

@@ -1,8 +1,9 @@
 # WoTEx implementation language audit
 
 The WoTEx repositories use Elixir/OTP for libraries, services, tests and
-orchestration. Native protocol boundaries use C, C++ or Rust according to their
-SDK or platform. A repository-owned Python runtime, client, test
+orchestration. New bounded native helpers and independent consumers use Zig;
+platform framework lifecycle remains in its safe native language. Existing C,
+C++ and Rust surfaces are compatibility or migration inputs. A repository-owned Python runtime, client, test
 runner or build harness is migration debt. A pinned upstream SDK generator that
 requires Python at build time is a narrower exception; it does not justify
 shipping an interpreter or writing our own orchestration in Python.
@@ -31,7 +32,7 @@ sibling's native acceptance suite.
 The Tracker CLI consumer originally used Python's standard library for process
 launch, JSON, temporary files and assertions. None of those operations
 required Python. It was a convenience choice, not a protocol, platform or SDK
-requirement. Elixir/OTP supplies the same facilities; the independent Rust wire
+requirement. Elixir/OTP supplies the same facilities; the independent Zig wire
 consumer supplies an additional native client. Using a second language alone
 never established client independence. The functions of the sibling scripts are
 observable below; their original authors' motivations are not inferred.
@@ -65,7 +66,7 @@ legacy boundary or an upstream prerequisite;
 those descriptions are not executable dependencies.
 
 The separate-process Elixir HTTP client preserves wire/OpenAPI independence
-from service domain code. An independent Rust client now also exercises the
+from service domain code. An independent Zig client now also exercises the
 implemented observation, enrollment, materialisation, Property, history,
 operation-receipt, analytics query and paging, saved query lifecycle, SSE-resume,
 API version and idempotency rejection, and active-stream revocation flow against
@@ -94,7 +95,8 @@ a scripting runtime to the release or verification image.
   server to export objects to real BlueZ and observe Confirm calls; it cannot
   supply native-client IPC responses. That is a bounded interoperability
   rationale, not permission for the Python production bridge or VM runner.
-  Preserve the independent wire test when replacing that peer with C++/Rust.
+  Preserve the independent wire test when replacing that peer with Zig or a
+  separately justified SDK-native peer.
 - The implemented-profile and catalogue descriptions accurately identify the
   legacy backend. Update them when native parity is evidenced, without claiming
   that the native target already satisfies the full software/stress matrix.
@@ -171,7 +173,7 @@ reintroduce the problem: identify the peer, independent stack, required behavior
 dependency pins and reason a native alternative cannot yet replace it.
 
 Tracker's `AGENTS.md`, implementation spec, plan and executable gate enforce its
-stricter zero-Python rule. The independent consumer is Rust; host orchestration
+stricter zero-Python rule. The independent consumer is Zig; host orchestration
 and CLI acceptance are Elixir. Tracker has no upstream build exception. The
 local commit rule also lives in `AGENTS.md`: conventional prefix, natural
 description and no specification/work-package identifier. The 62 unpushed commit

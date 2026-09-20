@@ -3,6 +3,34 @@
 Start with the [software implementation sequence](../plans/software-implementation.md).
 The WTR contracts describe required target behavior. Implementation readiness does not mean implementation, hardware qualification, interoperability, or conformance is complete.
 
+## Completion axes
+
+Every WTR contract and catalogue delivery target reports completion on four
+independent axes defined normatively by WTR.12:
+
+- **development** — repository-owned implementation that can be written and
+  verified locally;
+- **local acceptance** — executable tests using fixtures, deterministic peers,
+  simulators, emulators, QEMU, containers and loopback services;
+- **qualification** — real hardware, radio, carrier, operating-system device or
+  external-provider execution; and
+- **distribution** — registry/account/signing/upload/review work performed with
+  the required external authority.
+
+An unavailable device, SIM, carrier, provider credential, Apple membership or
+store account can leave qualification or distribution unpassed. It MUST NOT mark
+locally executable development as blocked. All code paths, adapters, failure
+handling, simulators, test doubles, packaging and automated acceptance that can
+run without the external prerequisite MUST be completed first. Conversely, a
+simulator, screenshot, local APNs peer, unsigned iOS build or QEMU boot never
+promotes the corresponding physical/provider/distribution axis.
+
+The language policy in WTR.13 also applies to every contract. For this greenfield
+product, Zig is the default language for bounded standalone native code and
+generated C-ABI surfaces where it is demonstrably safer and simpler. Platform
+framework integration retains the platform's established language when replacing
+it with manual runtime calls would weaken type, ownership or lifecycle safety.
+
 - [WTR.00 Library and application boundary](WTR.00-library-contract.md)
 - [WTR.01 Observation, identity and evidence model](WTR.01-observation-identity-evidence.md)
 - [WTR.02 Discovery, fingerprinting and capability resolution](WTR.02-discovery-and-capabilities.md)

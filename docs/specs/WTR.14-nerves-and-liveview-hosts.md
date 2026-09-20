@@ -2,6 +2,10 @@
 
 ## Status
 
+This contract inherits WTR.12's independent completion axes and WTR.13's
+greenfield Zig policy. Missing external prerequisites never block locally
+executable implementation.
+
 Accepted target contract. A separate headless host and Pi 5 development
 cross-build now exist under `hosts/nerves/`. A separately locked kiosk source
 profile reuses the shared LiveView package and has local endpoint/store-isolation
@@ -10,6 +14,9 @@ partition, private SQLite startup and loopback HTTP through Nerves. Its private
 QEMU-only software peer submits one deterministic Ruuvi observation over the
 authenticated HTTP boundary, verifies the decoded temperature state and replays
 the same durable operation after reboot. This is virtual software evidence only.
+That legacy fixture smoke MUST be replaced by a deterministic TAT140
+IMEI/Codec-8-Extended peer and tracking-state assertion before the Pi development
+axis is complete; no Ruuvi hardware test is planned.
 Both profiles supervise a bounded Linux procfs
 resource sampler beside the service; it contributes only system available
 memory, BEAM-process RSS and one-minute load to volatile operational history.

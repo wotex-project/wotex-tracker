@@ -2,6 +2,10 @@
 
 ## Status
 
+This contract inherits WTR.12's independent completion axes and WTR.13's
+greenfield Zig policy. Missing external prerequisites never block locally
+executable implementation.
+
 Implemented for the first pure software milestone: the packaged environmental
 sensor and cellular asset-tracker models, explicit evidence/capability mapping,
 deployment-owned Property/Action Forms and security, upstream TM/TD validation,

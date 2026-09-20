@@ -9,8 +9,8 @@ defmodule Wotex.Tracker.ReleaseQualifier do
   @ui_image "wotex-tracker-ui:0.1.0-linux-arm64-local"
   @builder_base "hexpm/elixir@sha256:473f77ee88977dc8cc5d05fb91080a308be86be3fc27d50aef9a837d07c8268b"
   @runtime_base "debian@sha256:88200866dfff7ea7f5cbcb6ec7c8a701889efe6fe859fe64d6990e4b07ea4171"
-  @rust_builder "rust@sha256:2775a09d208ff0d7c1f50490c45b62db929e87ba1dcbc3f2132ac71a704bcdd3"
   @native_client "wotex-tracker-protocol-consumer"
+  @linux_native_target "aarch64-linux-musl"
 
   def verify(workspace, registry, url, environment, ui? \\ false) do
     workspace = Path.expand(workspace)
@@ -104,7 +104,7 @@ defmodule Wotex.Tracker.ReleaseQualifier do
        "source_sha256" => digest,
        "platform" => :erlang.system_info(:system_architecture) |> to_string(),
        "native_client_sha256" => file_digest(client),
-       "native_compiler" => Command.plain!("rustc", ["--version"]) |> String.trim(),
+       "native_compiler" => "zig " <> (Command.plain!("zig", ["version"]) |> String.trim()),
        "result" => fixtures |> Path.join("result.json") |> File.read!() |> Jason.decode!(),
        "archive_sha256" => file_digest(artifact)
      }, artifact}
@@ -295,18 +295,8 @@ defmodule Wotex.Tracker.ReleaseQualifier do
          "image_id" => image_id,
          "image_tag" => image,
          "compiler" => compiler,
-         "native_builder" => @rust_builder,
-         "native_compiler" =>
-           docker!([
-             "run",
-             "--rm",
-             "--platform",
-             "linux/arm64",
-             @rust_builder,
-             "rustc",
-             "--version"
-           ])
-           |> String.trim(),
+         "native_builder" => "zig target #{@linux_native_target}",
+         "native_compiler" => "zig " <> (Command.plain!("zig", ["version"]) |> String.trim()),
          "native_client_sha256" => file_digest(client),
          "builder_packages" => String.split(packages, "\n", trim: true),
          "result" => result,
@@ -360,49 +350,52 @@ defmodule Wotex.Tracker.ReleaseQualifier do
 
   defp build_native_client(workspace) do
     source = Path.join(@root, "native/protocol_consumer")
-    target = Path.join(workspace, "native-client-target")
-    IO.puts("Host native: compiling independent Rust protocol consumer")
+    target = Path.join(workspace, "native-client-darwin")
+    cache = Path.join(workspace, "zig-cache-native-client")
+    global_cache = Path.join(workspace, "zig-global-cache")
+    IO.puts("Host native: compiling independent Zig protocol consumer")
 
     Command.plain!(
-      "cargo",
-      ["build", "--release", "--locked", "--manifest-path", Path.join(source, "Cargo.toml")],
-      env: %{"CARGO_TARGET_DIR" => target, "RUSTFLAGS" => "-Dwarnings"}
+      "zig",
+      [
+        "build",
+        "--build-file",
+        Path.join(source, "build.zig"),
+        "-Doptimize=ReleaseSafe",
+        "--prefix",
+        target,
+        "--cache-dir",
+        cache,
+        "--global-cache-dir",
+        global_cache
+      ]
     )
 
-    Path.join([target, "release", @native_client])
+    Path.join([target, "bin", @native_client])
   end
 
   defp build_linux_client(build) do
     source = Path.join(@root, "native/protocol_consumer")
     target = Path.join(build, "native-client")
-    File.mkdir!(target)
+    cache = Path.join(build, "zig-cache-native-client")
+    global_cache = Path.join(build, "zig-global-cache")
+    IO.puts("Host Linux ARM64: cross-compiling independent static Zig protocol consumer")
 
-    for name <- ~w(Cargo.toml Cargo.lock) do
-      File.cp!(Path.join(source, name), Path.join(target, name))
-    end
-
-    {:ok, _files} = File.cp_r(Path.join(source, "src"), Path.join(target, "src"))
-    IO.puts("Host Linux ARM64: compiling independent Rust protocol consumer")
-
-    docker!([
-      "run",
-      "--rm",
-      "--platform",
-      "linux/arm64",
-      "-v",
-      "#{target}:/build",
-      "-w",
-      "/build",
-      "-e",
-      "RUSTFLAGS=-Dwarnings",
-      @rust_builder,
-      "cargo",
+    Command.plain!("zig", [
       "build",
-      "--release",
-      "--locked"
+      "--build-file",
+      Path.join(source, "build.zig"),
+      "-Doptimize=ReleaseSafe",
+      "-Dtarget=#{@linux_native_target}",
+      "--prefix",
+      target,
+      "--cache-dir",
+      cache,
+      "--global-cache-dir",
+      global_cache
     ])
 
-    Path.join([target, "target", "release", @native_client])
+    Path.join([target, "bin", @native_client])
   end
 
   defp docker!(arguments), do: Command.plain!("docker", arguments)

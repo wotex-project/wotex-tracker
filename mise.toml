@@ -1,4 +1,4 @@
 [tools]
 elixir = "1.18.4-otp-27"
 erlang = "27.3.4.15"
-rust = "1.97.1"
+zig = "0.17.0-dev.269+ebff43698"

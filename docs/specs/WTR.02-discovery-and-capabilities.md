@@ -2,6 +2,10 @@
 
 ## Status
 
+This contract inherits WTR.12's independent completion axes and WTR.13's
+greenfield Zig policy. Missing external prerequisites never block locally
+executable implementation.
+
 Implemented for bounded provider observations, closed declarative predicates,
 immutable catalogues, deterministic unknown/ambiguous/resolved outcomes and
 evidence-backed readable capabilities. Imported captures and the configured

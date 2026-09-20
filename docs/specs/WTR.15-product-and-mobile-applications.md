@@ -2,6 +2,10 @@
 
 ## Status
 
+This contract inherits WTR.12's independent completion axes and WTR.13's
+greenfield Zig policy. Missing Apple account, signing, device or registry access
+never blocks locally executable implementation.
+
 Accepted target contract. A partial shared browser workflow exists; no complete
 application, mobile build or device acceptance exists.
 The asset page can read declared scalar Properties from the authorized committed
@@ -204,6 +208,15 @@ peripheral-only BLE API does not satisfy central support. Reusable BLE protocol
 and WoT mapping work belongs to `wotex_ble`; a mobile shell owns the platform
 bridge and permission lifecycle. No duplicate generic BLE stack belongs here.
 
+Zig owns the mobile build graph, generated C-ABI/static-NIF tables and any new
+bounded native helper that does not require an Apple object-framework lifecycle.
+UIKit, WebKit, CoreBluetooth, Keychain and notification delegate integration
+remain Objective-C or Swift where that preserves typed framework calls, ARC and
+delegate semantics. Do not replace those APIs with manual Objective-C runtime
+messaging merely to increase the Zig line count. A platform plugin may migrate
+to Zig only after the Mob/native build seam supports it and simulator plus device
+receipts prove equal lifecycle, error and memory behavior.
+
 Credentials MUST use platform secure storage, not ordinary preferences, JS
 storage or files presented as a keychain. Test sign-out, revocation, server
 switching, backup/restore and unavailable secure storage. The bridge exposes a
@@ -246,6 +259,32 @@ contract, consent, declared OS modes and physical lifecycle/energy evidence.
 Notification permissions or network denial must not disable independent tracking
 on the bike/service or erase local history.
 
+## Local development versus Apple qualification
+
+Apple account and device prerequisites never suspend implementation. Before any
+paid membership, registry setup or physical-device session, the development lane
+MUST complete all repository-owned work that can run locally, including:
+
+- the complete shared mobile workflows and target-specific TAT140 setup UI;
+- closed BLE bridge commands, permission states and deterministic local peers for
+  scan/connect/read/write success, denial, timeout, disconnect and malformed data;
+- secure-store success/unavailable/rotation/revocation contracts using the iOS
+  simulator or bounded native test host;
+- local APNs registration/provider/tap simulation covering token rotation,
+  invalid tokens, duplicate/old taps and cold/warm/background routing;
+- offline cache, process death, reconnect, SSE resume and lifecycle simulation;
+- simulator builds, packaged-asset manifests, accessibility checks and automated
+  screenshots for every UI state; and
+- unsigned/local artifacts and scripts needed to reproduce those checks.
+
+The qualification lane then uses a real iPhone and the selected TAT140 or its
+explicitly associated provisioning component to verify actual CoreBluetooth,
+Keychain, lifecycle, energy and notification behavior. The distribution lane is
+separate again: Developer Program enrollment, App ID and entitlement registration,
+certificate/profile or API-key custody, TestFlight/App Store upload and review.
+An external lane may remain pending, but no locally executable item may be listed
+under it or deferred because that account/device is absent.
+
 ## Distribution and funding
 
 Provide a documented local Xcode build/test path and a reproducible signed
@@ -259,10 +298,41 @@ distribution. [Account rules](https://developer.apple.com/help/account/basics/ab
 [enrollment](https://developer.apple.com/programs/enroll/),
 [fee waivers](https://developer.apple.com/help/account/membership/fee-waivers).
 
+Plan the enrollment lead time rather than treating payment as immediate
+capability. Individual enrollment requires an Apple Account with two-factor
+authentication, current legal/contact details, identity verification and a
+valid payment method. Apple permits the agreement and purchase during individual
+enrollment and directs applicants to contact support if membership confirmation
+has not arrived within 24 hours after purchase. Allow at least that day when
+scheduling physical acceptance. An invitation to an existing paid development
+team may avoid a separate enrollment, provided that team grants the required
+signing and capability access. [App enrollment](https://developer.apple.com/help/account/membership/enrolling-in-the-app),
+[program enrollment](https://developer.apple.com/help/account/membership/program-enrollment).
+
+Organization enrollment additionally requires a recognized legal entity,
+binding authority, a work-domain email and website, and normally a D-U-N-S
+number. When a new D-U-N-S number is needed, Apple documents up to five business
+days for issuance and up to two further business days for the data to reach
+Apple; Apple's organization review follows and has no promised completion time.
+Do not schedule organization enrollment as a same-day prerequisite.
+[D-U-N-S requirements](https://developer.apple.com/help/account/membership/D-U-N-S).
+
+Free Personal Team signing can exercise an installed build on the owner's phone,
+but Apple's iOS capability table does not make Push Notifications available to
+that membership class. Firebase, OneSignal and similar intermediaries do not
+remove APNs signing and entitlement requirements. After paid team access becomes
+active, configure the explicit App ID, Push Notifications capability, APNs
+provider key or certificate and development provisioning profile before running
+the physical delivery/tap test. For planning, reserve one to three hands-on hours
+for this setup and an already-implemented smoke test. That estimate is not an
+Apple service-level promise and excludes implementation of the mobile shell or
+notification dispatcher. [Supported iOS capabilities](https://developer.apple.com/help/account/reference/supported-capabilities-ios),
+[APNs authentication](https://developer.apple.com/help/account/capabilities/communicate-with-apns-using-authentication-tokens).
+
 Distribution requires account ownership, signing authority and any necessary
 funding. Sponsorship may cover those costs; it is not itself a prerequisite or
 a Tracker runtime service, and it does not lower acceptance requirements.
-An unfunded/unavailable distribution lane remains blocked; it is not complete.
+An unfunded/unavailable distribution lane remains pending; it is not complete.
 The web application remains independently usable. External build/distribution
 services are optional and must not be needed to build or operate the product.
 
@@ -273,7 +343,8 @@ submission and review are separate, authorized operations under the current
 
 ## Hard acceptance gates
 
-The application gate requires every workflow above through the public service,
+The development application gate requires every workflow above through the
+public service and local simulator/peer lanes,
 including denied/revoked access and disconnected operation. The mobile gate
 additionally requires a real iPhone, secure storage, real BLE central provisioning,
 cold-start notification routing, cache/reconnect and signed install evidence.

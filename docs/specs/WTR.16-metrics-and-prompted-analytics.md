@@ -2,6 +2,10 @@
 
 ## Status
 
+This contract inherits WTR.12's independent completion axes and WTR.13's
+greenfield Zig policy. Missing external prerequisites never block locally
+executable implementation.
+
 Accepted target contract. A first pure deterministic query core implements
 content-identified absolute-UTC numeric rows, closed query/result codecs and
 bounded count/min/max/mean/last aggregation. The first service adapter adds

@@ -2,6 +2,10 @@
 
 ## Status
 
+This contract inherits WTR.12's independent completion axes and WTR.13's
+greenfield Zig policy. Missing external prerequisites never block locally
+executable implementation.
+
 Accepted target contract. The maintained
 [abuse analysis](../security/abuse-analysis.md) and unauthenticated shared Safety
 page state the product's dual-use risks, implemented software controls, response

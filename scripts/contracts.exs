@@ -2,6 +2,9 @@ defmodule WotexTracker.Contracts do
   @moduledoc false
   @statuses ~w(not-started in-progress implemented accepted blocked)
   @evidence ~w(research fixture integration hardware-qualified)
+  @development_statuses ~w(not-started in-progress complete)
+  @local_acceptance_statuses ~w(not-started in-progress passed)
+  @external_statuses ~w(not-required not-started in-progress passed)
   @targets ~w(core_library headless_service tracking_hardware shared_application analytics pi5_headless pi5_panel ios_companion integrated_product)
 
   def check(root) do
@@ -34,13 +37,16 @@ defmodule WotexTracker.Contracts do
   defp shape?(catalogue) do
     is_list(catalogue["contracts"]) and is_list(catalogue["delivery_targets"]) and
       is_list(catalogue["executed_evidence"]) and is_map(catalogue["initial_profiles"]) and
+      is_map(catalogue["reference_fixtures"]) and
+      is_map(catalogue["completion_model"]) and catalogue["completion_model"]["version"] == 1 and
       Enum.all?(catalogue["contracts"], fn entry ->
         is_map(entry) and is_binary(entry["file"]) and is_list(entry["depends_on"])
       end) and
       Enum.all?(catalogue["delivery_targets"], fn entry ->
         is_map(entry) and is_list(entry["contracts"]) and is_list(entry["requires"]) and
-          is_list(entry["evidence_refs"])
-      end) and Enum.all?(Map.values(catalogue["initial_profiles"]), &is_map/1)
+          is_list(entry["evidence_refs"]) and is_list(entry["remaining_development"])
+      end) and Enum.all?(Map.values(catalogue["initial_profiles"]), &is_map/1) and
+      Enum.all?(Map.values(catalogue["reference_fixtures"]), &is_map/1)
   end
 
   defp validate_entries(catalogue, root) do
@@ -52,6 +58,7 @@ defmodule WotexTracker.Contracts do
          :ok <- unique_ids(targets),
          true <- Enum.sort(Enum.map(targets, & &1["id"])) == Enum.sort(@targets),
          true <- catalogue["implementation_status"] in @statuses,
+         :ok <- completion_axes(targets),
          :ok <- references(contracts, targets),
          :ok <- evidence(catalogue, root),
          true <-
@@ -63,6 +70,30 @@ defmodule WotexTracker.Contracts do
       {:error, _} = error -> error
       _ -> {:error, :invalid_catalogue}
     end
+  end
+
+  defp completion_axes(targets) do
+    valid =
+      Enum.all?(targets, fn entry ->
+        development = entry["development_status"]
+        local = entry["local_acceptance_status"]
+        qualification = entry["qualification_status"]
+        distribution = entry["distribution_status"]
+        remaining = entry["remaining_development"]
+
+        development in @development_statuses and
+          local in @local_acceptance_statuses and
+          qualification in @external_statuses and
+          distribution in @external_statuses and
+          Enum.all?(remaining, &(is_binary(&1) and String.trim(&1) != "")) and
+          ((development == "complete" and remaining == []) or
+             (development != "complete" and remaining != [])) and
+          (local != "passed" or development == "complete") and
+          (qualification != "passed" or local == "passed") and
+          (distribution != "passed" or local == "passed")
+      end)
+
+    if valid, do: :ok, else: {:error, :invalid_completion_axes}
   end
 
   defp normalize(pairs) when is_list(pairs) and pairs != [] do
@@ -121,7 +152,11 @@ defmodule WotexTracker.Contracts do
   end
 
   defp evidence(catalogue, root) do
-    entries = catalogue["delivery_targets"] ++ Map.values(catalogue["initial_profiles"])
+    entries =
+      catalogue["delivery_targets"] ++
+        Map.values(catalogue["initial_profiles"]) ++
+        Map.values(catalogue["reference_fixtures"])
+
     all_refs = catalogue["executed_evidence"]
 
     valid =
