@@ -28,6 +28,7 @@ defmodule WotexTrackerService.MixProject do
       tracker(),
       runtime(),
       http_binding(),
+      ble(),
       {:bandit, "== 1.12.5"},
       {:thousand_island, "== 1.5.0"},
       {:plug, "== 1.20.3"},
@@ -58,13 +59,16 @@ defmodule WotexTrackerService.MixProject do
   defp http_binding,
     do: sibling(:wotex_binding_http, "../../../wotex/packages/wotex-binding-http")
 
-  defp sibling(name, path) do
+  defp ble,
+    do: sibling(:wotex_ble, "../../../wotex/packages/wotex-ble", optional: true)
+
+  defp sibling(name, path, options \\ []) do
     case {System.get_env("WOTEX_PATH_DEPS"), Mix.env()} do
       {nil, _} ->
-        {name, "~> 0.1.0"}
+        if options == [], do: {name, "~> 0.1.0"}, else: {name, "~> 0.1.0", options}
 
       {"1", env} when env in [:dev, :test, :docs] ->
-        {name, [path: Path.expand(path, __DIR__), env: :dev]}
+        {name, [path: Path.expand(path, __DIR__), env: :dev] ++ options}
 
       _ ->
         raise "WOTEX_PATH_DEPS accepts only 1 in dev/test/docs; production requires artifacts"
