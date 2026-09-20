@@ -17,9 +17,12 @@ finite TCP listener now enforces login/frame deadlines and is exercised by an
 independent Erlang peer across every fixture split. A documentation-qualified
 TAT140 profile now preserves multi-record messages while mapping only AVL 240
 movement, AVL 67 battery voltage and valid GNSS fixes. Cellular admission now
-binds an optional configured profile ID into the durable raw observation.
-Profile-specific semantic persistence, a cellular Thing Model, live discovery,
-LoRaWAN and physical lifecycle acceptance remain unfinished.
+binds an optional configured profile ID into the durable raw observation. The
+record-aware import retains exact per-record evidence and the service atomically
+persists its ordered public projections and private bundle. The generic cellular
+Thing Model materialises the profile's position, motion and battery-voltage
+capabilities. Live discovery, production host deployment, LoRaWAN and physical
+lifecycle acceptance remain unfinished.
 
 ## Device profile
 

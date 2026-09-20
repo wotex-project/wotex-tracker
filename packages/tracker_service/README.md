@@ -61,9 +61,12 @@ any domain mutation starts a new inactivity interval. The policy is disabled by
 default.
 An exact six-field form may instead provide an admitted `catalogue`, one
 compatible admitted `model`, and a bounded `decoders` list containing exactly
-one trusted unary callback for every decoder revision referenced by that
-catalogue. Extra, duplicate, missing or model-incompatible configuration fails
-before the service is built; observations never select executable code.
+one trusted entry for every decoder revision referenced by that catalogue. An
+ordinary unary callback produces one normalized snapshot. An explicit
+`{:records, callback}` entry receives the observation and immutable catalogue
+and must return a validated record-aware TAT140 import. Extra, duplicate,
+missing, malformed or model-incompatible configuration fails before the service
+is built; observations never select executable code.
 
 `Wotex.Tracker.Service.Cellular.Ingress` is a separately started trusted-host
 bridge for decoded Teltonika packets. Its finite configuration maps keyed IMEI
@@ -76,7 +79,12 @@ commits one byte-preserving cellular observation per packet and derives a
 deterministic UUID operation ID for reconnect reconciliation. Accepted and
 duplicate commits return full-record ACK dispositions, known non-commits return
 zero-ACK dispositions and unknown outcomes require connection close. The bridge
-owns no socket and does not persist profile-specific semantic output yet.
+owns no socket. With the explicit TAT140 record entry, the same observation
+commit retains every AVL record in order, its private trigger/GPS/IO evidence and
+its normalized measurements and positions. Public state exposes the ordered
+records under `records`; the last record also supplies the compatibility
+`measurements` and `positions` projection. Enrollment and materialisation retain
+that state while producing the generic cellular asset-tracker Thing Description.
 
 `Wotex.Tracker.Service.Cellular.Server` composes that bridge with a separately
 started clear-TCP listener for the documented tracker protocol. The caller must

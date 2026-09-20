@@ -85,8 +85,24 @@ match depends on explicit operator configuration, the Teltonika adapter and
 Codec 8 Extended evidence. That is deterministic format/profile evidence, not
 authentication of a device or proof of a physical SKU.
 
+`Wotex.Tracker.Protocols.Teltonika.TAT140Import` converts that record output into
+one immutable evidence bundle without discarding a record that lacks a mapped
+sample. Stable capability claims describe the configured model support, each AVL
+record has its own private transport claim, and measurement/position claims
+point back to that record. Revalidation repeats the pure import from the exact
+observation and catalogue and rejects any changed result.
+
+The service enables this path only through an explicit record-decoder entry for
+the exact catalogue revision. One transaction persists the raw observation,
+resolution, every ordered record and the complete private bundle before the
+listener may ACK. Public `records` contain only normalized timestamp, priority,
+measurement and position projections; triggers, IO identifiers and raw values
+remain privileged evidence. The final record also supplies the compatible
+current measurement/position view. The generic cellular Thing Model can then be
+materialised with `position`, `motion` and `batteryVoltage` Properties.
+
 These slices now cover TCP login, data framing, bounded socket ownership,
-durable admission, ACK decisions, retransmission reconciliation and pure TAT140
-record mapping. Command codecs, UDP, service-side semantic persistence, the
-cellular Thing Model, deployment configuration and live hardware evidence remain
+durable admission, ACK decisions, retransmission reconciliation, record-aware
+TAT140 mapping, semantic persistence and cellular Thing materialisation. Command
+codecs, UDP, exposed/TLS host deployment and live hardware evidence remain
 separate acceptance work.

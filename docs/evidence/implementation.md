@@ -4791,5 +4791,46 @@ documentation-contract, archive and licence checks passed. The implementation
 commit is `aafa0dd9cf5921f2afb04016631c5740cfb67bdb`.
 
 This proves a self-contained semantic model and its immutable profile reference.
-It does not yet create position capability evidence, persist mapped AVL records,
-materialise a cellular Thing instance or qualify physical hardware.
+It does not by itself create position capability evidence, persist mapped AVL
+records, materialise a cellular Thing instance or qualify physical hardware.
+
+### Record-aware cellular persistence and materialisation — 2026-09-20
+
+The TAT140 record import now creates stable capability evidence for position,
+motion and battery voltage independently of which samples appear in a packet.
+Every AVL record remains ordered and has a private transport claim containing
+its trigger, GPS state and complete IO list. Each normalized measurement and
+position claim names that record claim as its parent. Revalidation repeats the
+pure import against the exact immutable observation and catalogue and compares
+the complete result, so a forged or altered record set cannot cross the
+materialisation boundary. The two-record documentation fixture produces three
+capability claims, two record claims, four measurement claims and one position
+claim without flattening its no-fix second record.
+
+The service decoder registry now distinguishes existing unary snapshot callbacks
+from explicit record-aware callbacks selected only by an exact configured
+revision. One existing SQLite update commits the byte-preserving observation,
+resolution, every ordered public record and all private evidence together. The
+public records omit triggers, IO identifiers and raw values; the final record is
+also projected into the existing current measurement/position fields. A lost
+post-commit response retains the whole packet and its retry resolves as a
+duplicate. Operator-confirmed enrollment and materialisation preserve those
+records and produce the validated cellular Thing Description.
+
+Both service runtime lanes passed their complete gates with 334 tests and two
+generated properties at 95.1% production line coverage. Elixir 1.18.4 on
+Erlang/OTP 27.3.4.15 and Elixir 1.20.4 on Erlang/OTP 29.0.4 passed compiler,
+dependency, formatter, vulnerability audit, strict Credo, ExDoc, Dialyzer,
+boundary, stack-language, archive, OpenAPI and licence checks. A scheduler test
+that depended on suite wall-clock timing was changed to explicit wall and
+monotonic clocks and passed 20 repeated targeted runs. The record import,
+materialisation, service persistence and test-hardening commits are
+`326f5c3e087e0b549f9c8a784711438606804216`,
+`d0580e744e54b44eafa7d15286e0868715cc4244`,
+`c595e18a47483f46ff5e5f076961c90b07b28213` and
+`f28f39f05cf4a336e7a4f0e82e4b2270dfa488a7`.
+
+This proves transactional software persistence and materialisation for the
+fixture-backed TAT140 path. It does not prove physical hardware, firmware, a SIM
+or operator network, transport authentication/encryption, command support or a
+production host deployment.

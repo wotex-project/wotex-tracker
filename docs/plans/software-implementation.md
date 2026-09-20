@@ -208,9 +208,14 @@ truncation, malformed and oversized frames, capacity, timeout and connection
 loss before and after commit. A documentation-qualified TAT140 profile now keeps
 every AVL record and unknown IO field while mapping only movement, battery
 voltage and valid GNSS positions. The durable cellular observation now carries
-an optional configured profile ID. Service-side semantic persistence, the
-cellular Thing Model, deployment configuration and all real-device evidence
-remain subsequent work.
+an optional configured profile ID. A record-aware import builds stable capability
+claims plus per-record transport, measurement and position evidence. An explicit
+service decoder entry atomically persists the raw frame, exact resolution,
+complete private bundle and ordered public record projections; retransmission
+still reconciles at the original packet boundary. The generic cellular Thing
+Model materialises position, motion and battery-voltage Properties from that
+bundle. Production host configuration, encrypted exposure and all real-device
+evidence remain subsequent work.
 
 Acceptance: independent fixtures and software-peer tests for every split boundary,
 coalescing/truncation, counts, unknown fields, ACK outcomes, reconnect, duplicates
