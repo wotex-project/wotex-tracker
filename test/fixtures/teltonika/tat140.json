@@ -1,0 +1,33 @@
+{
+  "schema": "wtr.teltonika-tat140-fixtures.v1",
+  "sources": [
+    "https://wiki.teltonika-gps.com/view/TAT100_AVL_ID_List",
+    "https://wiki.teltonika-gps.com/view/TAT140_System_settings"
+  ],
+  "read_at": "2026-09-20",
+  "qualification": "documentation-fixture",
+  "transformation": "Constructed a two-record Codec 8 Extended frame using the documented TAT140 movement AVL 240 and battery-voltage AVL 67 widths, ranges and multiplier. AVL 113 and 999 are deliberately retained as unsupported IO evidence. This is not a hardware capture.",
+  "vectors": [
+    {
+      "name": "documented_movement_battery_position_and_no_fix",
+      "hex": "00000000000000688E020000018BCFE56800010ABA9500232AAF80002A005A08002400F00004000200F001007148000200430E1003E7002A0000000000000000018BCFE652600000000000000000000000000000000000000003000100F000000200430E0603E7002B00000000000002000000EC",
+      "sha256": "2d1b68bc4ac72d6dbebe5028c39a1c2c96a42e992e50796b285dbdff694e8f8e",
+      "record_count": 2,
+      "records": [
+        {
+          "timestamp_ms": 1700000000000,
+          "motion": true,
+          "battery_voltage_v": 3.6,
+          "longitude_deg": 18.0,
+          "latitude_deg": 59.0
+        },
+        {
+          "timestamp_ms": 1700000060000,
+          "motion": false,
+          "battery_voltage_v": 3.59,
+          "position": null
+        }
+      ]
+    }
+  ]
+}
