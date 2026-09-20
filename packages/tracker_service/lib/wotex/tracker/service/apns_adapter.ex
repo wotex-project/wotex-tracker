@@ -287,9 +287,9 @@ defmodule Wotex.Tracker.Service.APNsAdapter do
     _, _ -> {:error, :invalid_private_key}
   end
 
-  defp private_key?({:ECPrivateKey, 1, secret, {:namedCurve, @p256_oid}, public, _}) do
-    is_binary(secret) and byte_size(secret) == 32 and is_binary(public) and
-      byte_size(public) == 65
+  defp private_key?({:ECPrivateKey, version, secret, {:namedCurve, @p256_oid}, public, _}) do
+    version in [1, :ecPrivkeyVer1] and is_binary(secret) and byte_size(secret) == 32 and
+      is_binary(public) and byte_size(public) == 65
   end
 
   defp private_key?(_), do: false

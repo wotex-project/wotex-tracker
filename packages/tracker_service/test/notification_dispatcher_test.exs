@@ -453,7 +453,11 @@ defmodule Wotex.Tracker.Service.NotificationDispatcherTest do
     {:ok, supervisor} = Supervisor.start_link([store_child], strategy: :one_for_one)
 
     on_exit(fn ->
-      if Process.alive?(supervisor), do: Supervisor.stop(supervisor)
+      try do
+        Supervisor.stop(supervisor)
+      catch
+        :exit, {:noproc, _} -> :ok
+      end
     end)
 
     dispatcher =
