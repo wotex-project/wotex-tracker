@@ -14,9 +14,11 @@ paired with an explicitly started service bridge that revalidates frames,
 serializes configured keyed-device admission and reconciles deterministic
 operation receipts before returning an ACK disposition. An explicitly started,
 finite TCP listener now enforces login/frame deadlines and is exercised by an
-independent Erlang peer across every fixture split. It is not a TAT140 profile.
-Device-specific mapping, deployment integration, live discovery, LoRaWAN and
-physical lifecycle acceptance remain unfinished.
+independent Erlang peer across every fixture split. A documentation-qualified
+TAT140 profile now preserves multi-record messages while mapping only AVL 240
+movement, AVL 67 battery voltage and valid GNSS fixes. Configured service
+integration, a cellular Thing Model, live discovery, LoRaWAN and physical
+lifecycle acceptance remain unfinished.
 
 ## Device profile
 

@@ -161,13 +161,15 @@ tracker. Package age, download counts and documentation volume were not treated
 as reliability measurements. Native libraries still require native platform tests.
 
 The Teltonika Codec wiki was inaccessible during the original review. A later
-2026-09-20 review obtained the manufacturer's current Codec 8 Extended layout
-and TAT140 codec-selection page. The pure TCP frame decoder and exact source
-fixture are now implemented and separately
-[provenanced](teltonika-codec8e-fixtures.md). This does not establish IMEI
-authentication, device-specific IO meaning, a listener, selected firmware,
-direct-endpoint behavior or physical qualification. Existing hardware names
-remain research candidates in the qualification ledger.
+2026-09-20 review obtained the manufacturer's current Codec 8 Extended layout,
+TAT140 codec-selection page and shared AVL ID table. The pure TCP frame decoder,
+exact protocol fixture and documentation-derived TAT140 movement/battery mapping
+are implemented and separately provenanced in the
+[Codec record](teltonika-codec8e-fixtures.md) and
+[TAT140 record](teltonika-tat140-fixtures.md). This does not establish IMEI
+authentication, selected firmware, direct-endpoint behavior or physical
+qualification. Existing hardware names remain research candidates in the
+qualification ledger.
 [Teltonika Codec reference](https://wiki.teltonika-gps.com/view/Codec).
 
 Refpath is private and under development. Public synthetic connector tests and

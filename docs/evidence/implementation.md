@@ -4699,6 +4699,43 @@ configured. The implementation commit is
 This proves bounded clear-TCP protocol execution against an independent software
 peer and commit-dependent retransmission behavior. It does not authenticate the
 device cryptographically, encrypt the tracker transport, provide host or
-firmware deployment configuration, map TAT140 IO identifiers into semantic
-capabilities, exercise commands or UDP, or prove a physical tracker, SIM and
-operator network; those remain separate acceptance boundaries.
+firmware deployment configuration, exercise commands or UDP, or prove a
+physical tracker, SIM and operator network; those remain separate acceptance
+boundaries.
+
+### Documentation-qualified TAT140 record mapping — 2026-09-20
+
+The pure `teltonika.tat140.codec8e` profile requires cellular ingress, the
+Teltonika TCP adapter, Codec 8 Extended and an exact operator-configured profile
+marker. Its strong resolution is profile-format evidence only; the marker and
+IMEI routing digest do not authenticate the hardware or prove a physical SKU.
+
+The record-aware mapper preserves every AVL record, its order, timestamp,
+priority, trigger identifier, GPS state and all fixed or variable IO bytes. It
+maps only the manufacturer-documented TAT140 fields: AVL 240 to boolean motion
+and AVL 67 to battery voltage in volts. Valid Codec GPS becomes a closed
+`wtr.position.v1` claim with explicit source units, untrusted device clock and
+receiver observation identity. No-fix and suspect GPS remain protocol evidence
+without an invented position. Unsupported AVL 113 remains raw because the
+reviewed table does not list TAT140 support. Duplicate known identifiers reject
+the message; invalid known values or widths become unavailable measurements
+while retaining their exact bytes.
+
+The two-record synthetic documentation fixture has SHA-256
+`2d1b68bc4ac72d6dbebe5028c39a1c2c96a42e992e50796b285dbdff694e8f8e`.
+Tests prove ordered multi-record output, a valid fix and no-fix record, unit
+conversion, unsupported IO retention, invalid value/width handling, duplicate
+rejection, profile resolution and required observation/frame provenance.
+
+Both supported runtime lanes passed the complete repository gate. Elixir 1.18.4
+on Erlang/OTP 27.3.4.15 passed 181 tests and 19 generated properties at 95.4%
+production line coverage. Elixir 1.20.4 on Erlang/OTP 29.0.4 passed the same
+tests at 95.5%. Compiler, dependency, formatter, vulnerability audit, strict
+Credo, ExDoc, Dialyzer, stack-language, documentation-contract, archive and
+licence checks all passed. The implementation commit is
+`ebf36f053b34edce110aa74be24ab5fb8a82a375`.
+
+This proves only documentation-derived semantic mapping. The service does not
+yet attach the configured marker or commit mapped record semantics. A cellular
+Thing Model, deployment integration, real hardware/firmware, direct endpoint,
+SIM/operator and command evidence remain unpassed.

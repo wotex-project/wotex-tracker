@@ -48,18 +48,20 @@ explicitly positionless.
 
 The pure library also contains bounded Teltonika TCP IMEI negotiation, Codec 8
 Extended framing and record decoding. It validates the complete documented
-frame, preserves unknown IO values without assigning device semantics and maps
-durable commit dispositions to explicit ACK-or-close decisions. This is an
-imported documentation-fixture boundary, not a TAT140 profile, listener or
-hardware qualification. See the
+frame, preserves unknown IO values and maps durable commit dispositions to
+explicit ACK-or-close decisions. A documentation-qualified TAT140 profile maps
+only the documented movement and battery-voltage IO fields plus valid GNSS
+fixes, preserving every record and unsupported IO value. This is not hardware
+qualification. See the
 [Codec 8 Extended guide](docs/guides/teltonika-codec8-extended.md).
 The service package adds explicitly started, serialized cellular admission:
 configured keyed IMEI lookup, exact raw-frame observation custody, deterministic
 retransmission receipts and commit-dependent ACK dispositions. Its optional
 bounded TCP server owns explicit login/frame deadlines and a finite connection
 budget; an independent Erlang peer exercises the real wire across every login
-and fixture-frame split. This still assigns no TAT140-specific semantics and is
-not hardware qualification.
+and fixture-frame split. The service does not yet attach the configured TAT140
+profile marker or persist the record-aware semantic result, and none of these
+slices is hardware qualification.
 
 The service accepts an exact host-configured catalogue/model/decoder set as an
 alternative to its packaged Ruuvi defaults. Position-capable decoder output is

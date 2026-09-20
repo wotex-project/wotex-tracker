@@ -53,15 +53,19 @@ All 15 sibling libraries excluding Lab have no first-party `mod:` application ca
 
 [Ruuvi RAWv2 format 5](https://docs.ruuvi.com/communication/bluetooth-advertisements/data-format-5-rawv2), read 2026-09-12, supplies frame layout and valid/extreme/unavailable vectors. An unavailable payload is still a complete frame; humidity above 100% is representable but anomalous. A movement counter alone is not a movement boolean. Before committing decoder fixtures, record the source snapshot/digest, permissions, transformations and profile revision. This living page is not firmware qualification; no real capture was obtained in this review.
 
-[Teltonika AVL Protocols](https://wiki.teltonika-gps.com/view/Teltonika_AVL_Protocols)
-and [TAT140 system settings](https://wiki.teltonika-gps.com/view/TAT140_System_settings),
-read 2026-09-20, supply the first bounded Codec 8 Extended TCP fixture contract
-and establish only that TAT140 can select that codec. The exact fixture
-transformation and limitations are recorded in the
-[Codec 8 Extended provenance](teltonika-codec8e-fixtures.md). No TAT140 profile,
-real capture, hardware, firmware, SIM/operator or direct-endpoint compatibility
-claim follows from this documentation fixture. Teltonika models and LoRaWAN
-remain research targets in the [hardware ledger](hardware-qualification.md).
+[Teltonika AVL Protocols](https://wiki.teltonika-gps.com/view/Teltonika_AVL_Protocols),
+[TAT140 system settings](https://wiki.teltonika-gps.com/view/TAT140_System_settings)
+and the shared
+[TAT100 AVL ID list](https://wiki.teltonika-gps.com/view/TAT100_AVL_ID_List),
+read 2026-09-20, supply the bounded Codec 8 Extended TCP fixture contract and
+the first documentation-qualified TAT140 mapping. The exact fixture
+transformations and limitations are recorded in the
+[Codec 8 Extended](teltonika-codec8e-fixtures.md) and
+[TAT140 profile](teltonika-tat140-fixtures.md) provenance records. No real
+capture, hardware, firmware, SIM/operator or direct-endpoint compatibility
+claim follows from these documentation fixtures. Teltonika hardware and
+LoRaWAN remain research targets in the
+[hardware ledger](hardware-qualification.md).
 
 ## Position geometry
 

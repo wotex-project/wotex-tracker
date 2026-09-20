@@ -67,7 +67,24 @@ official fixture frame, concatenated frames and retransmission. Additional wire
 tests cover truncation, invalid CRC, oversized declarations, login/frame timeout,
 capacity exhaustion and connection loss before and after commit.
 
+`Wotex.Tracker.Protocols.Teltonika.TAT140` adds a record-aware semantic seam for
+an observation explicitly marked with the operator-configured
+`teltonika.tat140.codec8e` profile. It never flattens a multi-record frame. Each
+record retains its ordered IO evidence and trigger identifier; AVL 240 maps to a
+boolean `motion` measurement, AVL 67 maps to `batteryVoltage` in volts, and a
+valid Codec GPS fix maps to one closed `wtr.position.v1` claim. No-fix and
+suspect GPS fields remain explicit protocol evidence without a position claim.
+Duplicate mapped identifiers fail the message, while an invalid mapped value or
+width becomes an unavailable measurement with the raw bytes retained.
+
+The profile deliberately does not map AVL 113 battery level: the reviewed
+manufacturer table does not list TAT140 support for that identifier. Its strong
+match depends on explicit operator configuration, the Teltonika adapter and
+Codec 8 Extended evidence. That is deterministic format/profile evidence, not
+authentication of a device or proof of a physical SKU.
+
 These slices now cover TCP login, data framing, bounded socket ownership,
-durable admission, ACK decisions and retransmission reconciliation. Command
-codecs, UDP, TAT140 IO semantics, a device profile, deployment configuration and
-live hardware evidence remain separate acceptance work.
+durable admission, ACK decisions, retransmission reconciliation and pure TAT140
+record mapping. Command codecs, UDP, service-side semantic persistence, the
+cellular Thing Model, deployment configuration and live hardware evidence remain
+separate acceptance work.
