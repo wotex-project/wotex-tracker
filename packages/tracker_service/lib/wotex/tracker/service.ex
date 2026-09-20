@@ -48,7 +48,8 @@ defmodule Wotex.Tracker.Service do
   @resources ~w(observations resolutions evidence state enrollments things saved_queries rules policies alerts arming owner_presence)
   @derive {Inspect, only: [:base_url]}
   @enforce_keys [:store, :credentials, :catalogue, :model, :decoders, :base_url]
-  defstruct @enforce_keys ++ [cellular_ingress: :unconfigured]
+  defstruct @enforce_keys ++
+              [cellular_ingress: :unconfigured, notification_delivery: :unconfigured]
 
   @type t :: %__MODULE__{
           store: Store.t(),
@@ -57,7 +58,8 @@ defmodule Wotex.Tracker.Service do
           model: Model.t(),
           decoders: map(),
           base_url: String.t(),
-          cellular_ingress: :unconfigured | :configured
+          cellular_ingress: :unconfigured | :configured,
+          notification_delivery: :unconfigured | :configured
         }
 
   @doc "Builds a service using either the packaged RAWv2 contract or an exact trusted profile configuration."
@@ -92,6 +94,30 @@ defmodule Wotex.Tracker.Service do
              cellular_ingress in [:unconfigured, :configured] do
     with {:ok, service} <- packaged(store, credentials, base, contract),
          do: {:ok, %{service | cellular_ingress: cellular_ingress}}
+  end
+
+  def new(
+        %{
+          store: %Store{} = store,
+          credentials: credentials,
+          base_url: base,
+          contract: contract,
+          cellular_ingress: cellular_ingress,
+          notification_delivery: notification_delivery
+        } = input
+      )
+      when map_size(input) == 6 and
+             contract in [:ruuvi_raw_v2, :teltonika_tat140_codec8e] and
+             cellular_ingress in [:unconfigured, :configured] and
+             notification_delivery in [:unconfigured, :configured] do
+    with {:ok, service} <- packaged(store, credentials, base, contract) do
+      {:ok,
+       %{
+         service
+         | cellular_ingress: cellular_ingress,
+           notification_delivery: notification_delivery
+       }}
+    end
   end
 
   def new(

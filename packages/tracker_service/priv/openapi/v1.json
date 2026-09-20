@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "WoTEx Tracker service",
-    "version": "1.37.0",
-    "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries, snapshot-pinned gap-honest route replay from retained private evidence, half-open time-windowed trip lifecycle pages and bounded completed-trip distance reconstruction, persisted rule status and administrator-managed heartbeat, battery, motion, geofence and suspicious-movement rule definitions evaluated against committed Thing evidence, atomic suspicious-movement orchestration over exact motion, arming and owner-presence inputs, explicit administrator-committed arming facts, closed owner-presence fact admission, acknowledgeable rule alerts listed per Thing for defined rules, administrator unenrollment, pinned incident snapshots, a current-access projection, an administrator credential inventory, a bounded successful-authorization audit, explicit retained-data inspection and scope deletion, and encrypted principal-bound APNs endpoint registration. No scanner, OS delivery evidence or physical interaction is implied."
+    "version": "1.38.0",
+    "description": "Authenticated imported-observation service with deterministic structured, paged and saved measurement queries, snapshot-pinned gap-honest route replay from retained private evidence, half-open time-windowed trip lifecycle pages and bounded completed-trip distance reconstruction, persisted rule status and administrator-managed heartbeat, battery, motion, geofence and suspicious-movement rule definitions evaluated against committed Thing evidence, atomic suspicious-movement orchestration over exact motion, arming and owner-presence inputs, explicit administrator-committed arming facts, closed owner-presence fact admission, acknowledgeable rule alerts listed per Thing for defined rules, administrator unenrollment, pinned incident snapshots, a current-access projection, an administrator credential inventory, a bounded successful-authorization audit, explicit retained-data inspection and scope deletion, encrypted principal-bound APNs endpoint registration, and explicit configured/unconfigured notification-delivery composition status. No scanner, OS delivery evidence or physical interaction is implied."
   },
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "security": [
@@ -417,6 +417,13 @@
                         "notifications": {
                           "const": "encrypted_principal_bound_apns_registration"
                         },
+                        "notification_delivery": {
+                          "type": "string",
+                          "enum": [
+                            "unconfigured",
+                            "configured"
+                          ]
+                        },
                         "access_audit": {
                           "const": "bounded_successful_authorization_decisions"
                         },
@@ -460,6 +467,7 @@
                         "arming",
                         "owner_presence",
                         "notifications",
+                        "notification_delivery",
                         "access_audit",
                         "privacy",
                         "runtime",

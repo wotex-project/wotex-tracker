@@ -318,7 +318,7 @@ defmodule Wotex.Tracker.Service.APNsAdapter do
   defp text?(_, _), do: false
 
   defp transport?({module, _context}) when is_atom(module),
-    do: function_exported?(module, :request, 2)
+    do: Code.ensure_loaded?(module) and function_exported?(module, :request, 2)
 
   defp transport?(_), do: false
 

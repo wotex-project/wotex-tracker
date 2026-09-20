@@ -5,6 +5,7 @@ defmodule Wotex.Tracker.Host.ConfigTest do
   alias Wotex.Tracker.Host.Supervisor, as: HostSupervisor
   alias Wotex.Tracker.Protocols.Teltonika.{TAT140, TCPSession}
   alias Wotex.Tracker.Service
+  alias Wotex.Tracker.Service.APNsHostConfig
   alias Wotex.Tracker.Service.Cellular.Server, as: CellularServer
   alias Wotex.Tracker.Service.{Codec, Credentials}
   alias Wotex.Tracker.Service.HTTP.Config, as: ServerConfig
@@ -48,8 +49,10 @@ defmodule Wotex.Tracker.Host.ConfigTest do
     previous = System.get_env("WOTEX_TRACKER_CONFIG")
     previous_browser = System.get_env("WOTEX_TRACKER_UI_CONFIG")
     previous_cellular = System.get_env("WOTEX_TRACKER_CELLULAR_CONFIG")
+    previous_apns = System.get_env("WOTEX_TRACKER_APNS_CONFIG")
     System.delete_env("WOTEX_TRACKER_UI_CONFIG")
     System.delete_env("WOTEX_TRACKER_CELLULAR_CONFIG")
+    System.delete_env("WOTEX_TRACKER_APNS_CONFIG")
 
     on_exit(fn ->
       if previous,
@@ -63,6 +66,10 @@ defmodule Wotex.Tracker.Host.ConfigTest do
       if previous_cellular,
         do: System.put_env("WOTEX_TRACKER_CELLULAR_CONFIG", previous_cellular),
         else: System.delete_env("WOTEX_TRACKER_CELLULAR_CONFIG")
+
+      if previous_apns,
+        do: System.put_env("WOTEX_TRACKER_APNS_CONFIG", previous_apns),
+        else: System.delete_env("WOTEX_TRACKER_APNS_CONFIG")
 
       File.rm_rf!(directory)
     end)
@@ -335,6 +342,73 @@ defmodule Wotex.Tracker.Host.ConfigTest do
     assert {:error, :invalid_configuration} = Config.load_cellular(path, :invalid)
   end
 
+  test "an optional private APNs configuration supervises provider delivery", c do
+    apns = apns_document()
+    path = Path.join(c.directory, "apns.json")
+    write(path, apns)
+
+    assert {:ok, service_options} = Config.load(c.path)
+    assert {:ok, apns_config} = Config.load_apns(path, service_options)
+    refute inspect(apns_config) =~ apns["private_key"]
+    refute inspect(apns_config) =~ apns["body"]
+
+    System.put_env("WOTEX_TRACKER_CONFIG", c.path)
+    System.put_env("WOTEX_TRACKER_APNS_CONFIG", path)
+    assert {:ok, host} = Application.start(:normal, [])
+
+    assert {Server, api, :supervisor, _} =
+             List.keyfind(Supervisor.which_children(host), Server, 0)
+
+    assert {:ok, dispatcher} = Server.child(api, :notification_dispatcher)
+    assert Process.alive?(dispatcher)
+
+    assert {:ok, %{"schema" => "wtr.notification-dispatcher.v1"}} =
+             Server.notification_dispatcher(api)
+
+    assert {:ok, server_config} =
+             service_options
+             |> Keyword.put(
+               :notification_dispatcher,
+               APNsHostConfig.dispatcher_options(apns_config)
+             )
+             |> ServerConfig.new()
+
+    assert {:ok, service} = Server.context(api, server_config)
+    assert service.notification_delivery == :configured
+
+    assert {:ok, {{127, 0, 0, 1}, api_port}} = Server.listener_info(api)
+    url = String.to_charlist("http://127.0.0.1:#{api_port}/api/v1/scopes/workshop/capabilities")
+    headers = [{~c"authorization", String.to_charlist("Bearer " <> c.token)}]
+
+    assert {:ok, {{_, 200, _}, _, body}} =
+             :httpc.request(:get, {url, headers}, [timeout: 1_000], body_format: :binary)
+
+    assert {:ok, %{"data" => %{"notification_delivery" => "configured"}}} =
+             Codec.decode(body)
+
+    assert :ok = Supervisor.stop(host)
+    refute Process.alive?(api)
+    refute Process.alive?(dispatcher)
+  end
+
+  test "APNs configuration is optional, private and fail closed", c do
+    assert {:ok, options} = Config.load(c.path)
+    assert {:ok, nil} = Config.load_apns(nil, options)
+    assert {:error, :invalid_configuration} = Config.load_apns("relative", options)
+
+    path = Path.join(c.directory, "apns.json")
+    write(path, %{})
+    assert {:error, :invalid_configuration} = Config.load_apns(path, options)
+
+    write(path, Map.put(apns_document(), "dispatch_timeout_ms", 1))
+    assert {:error, :invalid_configuration} = Config.load_apns(path, options)
+
+    write(path, apns_document())
+    File.chmod!(path, 0o644)
+    assert {:error, :invalid_configuration} = Config.load_apns(path, options)
+    assert {:error, :invalid_configuration} = Config.load_apns(path, :invalid)
+  end
+
   test "host supervision isolates an explicitly selected native resource adapter", c do
     assert {:ok, options} = Config.load(c.path)
 
@@ -473,5 +547,26 @@ defmodule Wotex.Tracker.Host.ConfigTest do
 
     [vector] = fixture["vectors"]
     Base.decode16!(vector["hex"])
+  end
+
+  defp apns_document do
+    key = :public_key.generate_key({:namedCurve, {1, 2, 840, 10_045, 3, 1, 7}})
+    entry = :public_key.pem_entry_encode(:PrivateKeyInfo, key)
+
+    %{
+      "schema" => "wtr.apns-host.v1",
+      "team_id" => "TEAMID1234",
+      "key_id" => "KEYID12345",
+      "private_key" => :public_key.pem_encode([entry]),
+      "topics" => ["org.wotex.tracker"],
+      "scopes" => ["workshop"],
+      "title" => "WotEx alert",
+      "body" => "Open WotEx to review this alert.",
+      "provider_timeout_ms" => 5_000,
+      "interval_ms" => 60_000,
+      "retry_after_ms" => 60_000,
+      "max_batch" => 8,
+      "dispatch_timeout_ms" => 6_000
+    }
   end
 end

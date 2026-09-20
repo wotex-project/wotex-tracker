@@ -16,13 +16,15 @@ defmodule Wotex.Tracker.Host.Application do
     with {:ok, options} <- Config.load(System.get_env("WOTEX_TRACKER_CONFIG")),
          {:ok, cellular} <-
            Config.load_cellular(System.get_env("WOTEX_TRACKER_CELLULAR_CONFIG"), options),
+         {:ok, apns} <- Config.load_apns(System.get_env("WOTEX_TRACKER_APNS_CONFIG"), options),
          {:ok, browser} <-
            Config.load_browser(System.get_env("WOTEX_TRACKER_UI_CONFIG"), options),
          true <- is_nil(browser) or Code.ensure_loaded?(Wotex.Tracker.Host.Browser) do
       Wotex.Tracker.Host.Supervisor.start_link(
         service: options,
         browser: browser,
-        cellular: cellular
+        cellular: cellular,
+        apns: apns
       )
     else
       false -> {:error, :ui_not_in_artifact}

@@ -490,6 +490,7 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
            "arming" => "explicit_administrative_fact",
            "owner_presence" => "closed_evidence_fact_admission",
            "notifications" => "encrypted_principal_bound_apns_registration",
+           "notification_delivery" => Atom.to_string(service.notification_delivery),
            "access_audit" => "bounded_successful_authorization_decisions",
            "privacy" => "administrator_inspection_and_scope_domain_data_deletion",
            "runtime" => %{

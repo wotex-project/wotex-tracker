@@ -105,6 +105,10 @@ defmodule Wotex.Tracker.HTTPLifecycleTest do
 
     assert {:ok, %{"schema" => "wtr.notification-dispatcher.v1"}} =
              Server.notification_dispatcher(server)
+
+    assert {:ok, config} = Config.new(configured)
+    assert {:ok, service} = Server.context(server, config)
+    assert service.notification_delivery == :configured
   end
 
   test "IPv6, explicit loopback origins and proxy exposure require complete bounded configuration",

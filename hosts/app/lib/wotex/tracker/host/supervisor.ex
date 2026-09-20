@@ -3,7 +3,7 @@ defmodule Wotex.Tracker.Host.Supervisor do
 
   use Supervisor
   alias Wotex.Tracker.Host.NativeResourceSampler
-  alias Wotex.Tracker.Service.Cellular.HostConfig
+  alias Wotex.Tracker.Service.{APNsHostConfig, Cellular.HostConfig}
   alias Wotex.Tracker.Service.Cellular.Server, as: CellularServer
   alias Wotex.Tracker.Service.HTTP.{Config, Server}
 
@@ -14,11 +14,12 @@ defmodule Wotex.Tracker.Host.Supervisor do
     parent = self()
 
     service =
-      Keyword.put(
-        options[:service],
+      options[:service]
+      |> Keyword.put(
         :cellular_ingress,
         if(options[:cellular], do: :configured, else: :unconfigured)
       )
+      |> notification_dispatcher(options[:apns])
 
     {:ok, config} = Config.new(service)
 
@@ -53,4 +54,9 @@ defmodule Wotex.Tracker.Host.Supervisor do
 
   defp cellular_children(%HostConfig{} = config, provider),
     do: [{CellularServer, HostConfig.server_options(config, provider)}]
+
+  defp notification_dispatcher(options, nil), do: options
+
+  defp notification_dispatcher(options, %APNsHostConfig{} = config),
+    do: Keyword.put(options, :notification_dispatcher, APNsHostConfig.dispatcher_options(config))
 end

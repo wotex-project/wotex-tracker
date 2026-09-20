@@ -11,7 +11,7 @@ defmodule Wotex.Tracker.Host.Config do
   """
 
   alias Wotex.Tracker.Host.{BrowserConfig, PromptConfig}
-  alias Wotex.Tracker.Service.Cellular.HostConfig
+  alias Wotex.Tracker.Service.{APNsHostConfig, Cellular.HostConfig}
   alias Wotex.Tracker.Service.HTTP.Config, as: ServerConfig
   alias Wotex.Tracker.Service.HTTP.FileConfig
   import Wotex.Tracker.Service.HTTP.FileConfig, only: [listen: 1, exposure: 1, tls: 1]
@@ -36,6 +36,25 @@ defmodule Wotex.Tracker.Host.Config do
   end
 
   def load_cellular(_, _), do: {:error, :invalid_configuration}
+
+  @doc "Loads an optional private APNs provider and dispatcher configuration."
+  @spec load_apns(term(), keyword()) ::
+          {:ok, APNsHostConfig.t() | nil} | {:error, :invalid_configuration}
+  def load_apns(nil, _service_options), do: {:ok, nil}
+
+  def load_apns(path, service_options) when is_list(service_options) do
+    with {:ok, document} <- FileConfig.read_document(path),
+         {:ok, config} <- APNsHostConfig.new(document),
+         dispatcher = APNsHostConfig.dispatcher_options(config),
+         {:ok, _} <-
+           ServerConfig.new(Keyword.put(service_options, :notification_dispatcher, dispatcher)) do
+      {:ok, config}
+    else
+      _ -> {:error, :invalid_configuration}
+    end
+  end
+
+  def load_apns(_, _), do: {:error, :invalid_configuration}
 
   @doc "Loads an optional, separately private browser listener configuration."
   @spec load_browser(term(), keyword()) ::
