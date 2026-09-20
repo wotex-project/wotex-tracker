@@ -198,11 +198,54 @@ defmodule Wotex.Tracker.UI.RemoteTest do
              )
   end
 
+  test "admits closed scalar Property values without widening response envelopes" do
+    for value <- [24.3, 0, false, nil, "available"] do
+      response =
+        {:ok, 200, [{"content-type", "application/json"}, {"x-wotex-generation", "3"}],
+         Jason.encode!(value)}
+
+      {:ok, remote} = remote(response)
+
+      assert {:ok, %{"value" => ^value, "generation" => "3"}} =
+               Remote.request(
+                 remote,
+                 @token,
+                 "workshop",
+                 :read_property,
+                 %{"thing" => "asset", "name" => "temperature"},
+                 0
+               )
+    end
+
+    response =
+      {:ok, 200, [{"content-type", "application/json"}, {"x-wotex-generation", "3"}],
+       Jason.encode!([24.3])}
+
+    {:ok, remote} = remote(response)
+
+    assert {:error, %{"code" => "storage_unavailable"}} =
+             Remote.request(
+               remote,
+               @token,
+               "workshop",
+               :read_property,
+               %{"thing" => "asset", "name" => "temperature"},
+               0
+             )
+  end
+
   test "closed UI actions map to the versioned HTTP contract" do
     responder = fn request ->
-      if String.ends_with?(request.path, "/raw"),
-        do: {:ok, 200, [{"content-type", header(request, "accept")}], ~s({"raw":true})},
-        else: json(%{"ok" => true})
+      cond do
+        String.ends_with?(request.path, "/raw") ->
+          {:ok, 200, [{"content-type", header(request, "accept")}], ~s({"raw":true})}
+
+        String.contains?(request.path, "/properties/") ->
+          {:ok, 200, [{"content-type", "application/json"}, {"x-wotex-generation", "3"}], "24.3"}
+
+        true ->
+          json(%{"ok" => true})
+      end
     end
 
     {:ok, remote} = remote(responder)
@@ -280,9 +323,11 @@ defmodule Wotex.Tracker.UI.RemoteTest do
     for {action, arguments, method, suffix, body} <- cases do
       assert {:ok, result} = Remote.request(remote, @token, "workshop", action, arguments, 0)
 
-      if action in [:raw_observation, :raw_evidence],
-        do: assert(result == ~s({"raw":true})),
-        else: assert(result == %{"ok" => true})
+      cond do
+        action in [:raw_observation, :raw_evidence] -> assert result == ~s({"raw":true})
+        action == :read_property -> assert result == %{"value" => 24.3, "generation" => "3"}
+        true -> assert result == %{"ok" => true}
+      end
 
       assert_receive {:remote_request, %{host: "service.example"}, request}
       assert request.method == method

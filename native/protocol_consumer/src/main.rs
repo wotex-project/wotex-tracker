@@ -14,6 +14,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .nth(1)
         .ok_or("usage: protocol-consumer DESCRIPTOR")?;
     let descriptor: Value = serde_json::from_slice(&fs::read(path)?)?;
+
+    if descriptor["mode"].as_str() == Some("integrated_product") {
+        return integrated_product(&descriptor);
+    }
+
     let origin = descriptor["url"].as_str().ok_or("missing URL")?;
     let address: SocketAddr = origin
         .strip_prefix("http://")
@@ -451,6 +456,110 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     println!("NATIVE_PROTOCOL_PASS openapi=true version_rejection=true enrollment=true observation=true idempotency_conflict=true native_types=true property=true history=true analytics=true analytics_pages=true saved_queries=true sse_resume=true active_stream_revocation=true");
+    Ok(())
+}
+
+fn integrated_product(descriptor: &Value) -> Result<(), Box<dyn std::error::Error>> {
+    let origin = descriptor["url"].as_str().ok_or("missing URL")?;
+    let address: SocketAddr = origin
+        .strip_prefix("http://")
+        .ok_or("expected a plain loopback origin")?
+        .parse()?;
+    if !address.ip().is_loopback() {
+        return Err("the development service must use loopback".into());
+    }
+
+    let scope = descriptor["scope"].as_str().ok_or("missing scope")?;
+    let token = descriptor["token"]
+        .as_str()
+        .ok_or("missing operator token")?;
+    let revoked = descriptor["revoked"]
+        .as_str()
+        .ok_or("missing revoked token")?;
+    let thing = descriptor["thing"].as_str().ok_or("missing Thing ID")?;
+    let generation = descriptor["generation"]
+        .as_str()
+        .ok_or("missing generation")?;
+    let history_generation = descriptor["history_generation"]
+        .as_str()
+        .ok_or("missing history generation")?;
+    let client = Client { address, token };
+    let prefix = format!("/api/v1/scopes/{scope}");
+
+    let state = client.call("GET", &format!("{prefix}/state"), None, None, None, 200)?;
+    assert_eq!(state["data"]["generation"], generation);
+
+    let property = client.call(
+        "GET",
+        &format!("{prefix}/things/{thing}/properties/temperature"),
+        None,
+        None,
+        None,
+        200,
+    )?;
+    assert_eq!(property, 24.3);
+
+    let history = client.call(
+        "GET",
+        &format!("{prefix}/things/{thing}/history"),
+        None,
+        None,
+        None,
+        200,
+    )?;
+    assert!(history["data"]["items"]
+        .as_array()
+        .ok_or("missing history items")?
+        .iter()
+        .any(|item| item["generation"] == history_generation));
+
+    let observations = client.call(
+        "GET",
+        &format!("{prefix}/observations"),
+        None,
+        None,
+        None,
+        200,
+    )?;
+    assert_eq!(
+        observations["data"]["items"]
+            .as_array()
+            .ok_or("missing observations")?
+            .len(),
+        1
+    );
+
+    let capabilities = client.call(
+        "GET",
+        &format!("{prefix}/capabilities"),
+        None,
+        None,
+        None,
+        200,
+    )?;
+    assert_eq!(
+        capabilities["data"]["runtime"]["invokeaction"],
+        "unconfigured"
+    );
+
+    let privacy = client.call("GET", &format!("{prefix}/privacy"), None, None, None, 200)?;
+    assert_eq!(privacy["data"]["retained"]["action_intents"], 0);
+
+    assert_eq!(
+        client.call(
+            "GET",
+            &format!("{prefix}/state"),
+            Some(revoked),
+            None,
+            None,
+            401,
+        )?["error"]["code"],
+        "unauthorized"
+    );
+
+    println!(
+        "NATIVE_INTEGRATED_PASS state=true property=true history=true duplicate_ingress=true revocation=true physical_actions=false"
+    );
     Ok(())
 }
 

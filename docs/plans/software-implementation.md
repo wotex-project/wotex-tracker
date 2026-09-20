@@ -690,8 +690,11 @@ routes their content to Mob's native text share sheet. Because the pinned
 first-party Bluetooth plugin is peripheral-only, an app-owned CoreBluetooth
 plugin now supplies the closed iOS central scan/connect/discover/read/confirmed-
 write transport seam without duplicating tracker protocol or WoT mapping.
-Signed Xcode/APNs configuration, a qualified target profile and every physical
-native/device gate remain subsequent work.
+A development-only native peer now executes the complete closed bridge surface,
+secure slots, lifecycle events, notifications, sharing and deterministic BLE
+central flow through the real root screen. Signed Xcode/APNs configuration, a
+qualified target profile and every physical native/device gate remain subsequent
+work.
 
 The standalone service host now closes the server half of that software seam.
 It optionally loads a separate private `wtr.apns-host.v1` document, admits the
@@ -797,6 +800,10 @@ Add an explicitly configured public model adapter for question-to-query translat
 synthetic boundary tests plus a separately recorded real-provider execution.
 The service validates, authorizes and executes queries. Optional BeamLens and
 Refpath investigations retain the same policy boundary. Exporters are optional.
+A dev/test-only local Responses peer now covers the complete schema-only request,
+closed proposal/clarification decoder and failure boundaries without a network
+or provider account; the separate real-provider execution remains an acceptance
+activity.
 
 Acceptance: known-answer queries, scope isolation, native numeric fidelity,
 missing/zero values, units/timezones, snapshot consistency, limits/cancellation,
@@ -812,6 +819,14 @@ and an independent non-Elixir client with required hardware qualified. Verify
 identity, evidence, units, generations and event IDs end to end. Kill/restart
 components, disconnect networks, revoke access and replay duplicate ingress while
 preserving durable history and preventing repeated physical effects.
+
+The executable local-development lane now runs the same durable simulated Thing
+through the remote web client, local Pi client, native mobile cache/lifecycle and
+independent Rust HTTP consumer. It performs an actual service restart, network
+disconnect/recovery, reader revocation and duplicate passive ingress across the
+restart, then proves retained history and the absence of physical Action intents.
+This completes the software/simulator composition while leaving the physical
+surface and live-provider acceptance below distinct.
 
 Complete every required catalogue delivery target, resource budget, clean artifact
 and operator recovery instruction. Signed install, actual distribution and store

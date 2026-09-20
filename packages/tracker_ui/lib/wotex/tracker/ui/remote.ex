@@ -175,7 +175,7 @@ defmodule Wotex.Tracker.UI.Remote do
 
   defp route(:read_property, %{"thing" => thing, "name" => name} = arguments)
        when map_size(arguments) == 2,
-       do: {:ok, get(["things", thing, "properties", name])}
+       do: {:ok, property(["things", thing, "properties", name])}
 
   defp route(
          :invoke_action,
@@ -226,6 +226,16 @@ defmodule Wotex.Tracker.UI.Remote do
 
   defp get(segments, query \\ %{}),
     do: %{method: "GET", segments: segments, query: query, body: "", type: :json, operation: nil}
+
+  defp property(segments),
+    do: %{
+      method: "GET",
+      segments: segments,
+      query: %{},
+      body: "",
+      type: :property,
+      operation: nil
+    }
 
   defp raw(segments, media),
     do: %{
@@ -303,6 +313,7 @@ defmodule Wotex.Tracker.UI.Remote do
               byte_size(body) <= @maximum_response_bytes do
     case request.type do
       :json -> json_response(status, headers, body, request.operation)
+      :property -> property_response(status, headers, body)
       {:raw, media} -> raw_response(status, headers, body, media)
     end
   end
@@ -330,6 +341,46 @@ defmodule Wotex.Tracker.UI.Remote do
 
   defp envelope(_, _, operation) when is_binary(operation), do: unknown(operation)
   defp envelope(_, _, _), do: unavailable()
+
+  defp property_response(200, headers, body) do
+    with true <- media?(headers, "application/json"),
+         {:ok, generation} <- property_generation(headers),
+         {:ok, value} <- Jason.decode(body),
+         true <- is_binary(value) or is_number(value) or is_boolean(value) or is_nil(value) do
+      {:ok, %{"value" => value, "generation" => generation}}
+    else
+      _ -> unavailable()
+    end
+  end
+
+  defp property_response(status, headers, body) when status in 400..599,
+    do: json_response(status, headers, body, nil)
+
+  defp property_response(_, _, _), do: unavailable()
+
+  defp property_generation(headers) do
+    case Enum.filter(headers, fn
+           {name, value} ->
+             is_binary(name) and is_binary(value) and
+               String.downcase(name) == "x-wotex-generation"
+
+           _ ->
+             false
+         end) do
+      [{_, value}] -> canonical_generation(value)
+      _ -> :error
+    end
+  end
+
+  defp canonical_generation(value) do
+    case Integer.parse(value) do
+      {generation, ""} when generation in 0..9_007_199_254_740_991 ->
+        if Integer.to_string(generation) == value, do: {:ok, value}, else: :error
+
+      _ ->
+        :error
+    end
+  end
 
   defp raw_response(200, headers, body, media) do
     if media?(headers, media), do: {:ok, body}, else: unavailable()

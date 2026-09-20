@@ -119,7 +119,7 @@ jobs:
         working-directory: wotex-tracker
         run: mix archive.install hex nerves_bootstrap 1.17.2 --force
       - name: Install native toolchain
-        if: startsWith(matrix.profile, 'host')
+        if: startsWith(matrix.profile, 'host') || matrix.profile == 'mobile'
         run: rustup toolchain install 1.97.1 --profile minimal --component rustfmt && rustup default 1.97.1
       - name: Check locked dependencies
         run: |

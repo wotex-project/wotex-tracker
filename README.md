@@ -144,6 +144,16 @@ HTTPS service without developer tooling while keeping session secrets
 ephemeral. Physical secure-storage, suspend/resume, BLE, push/tap and share
 acceptance on a signed device, plus distribution gates, remain open.
 
+A first-class integrated development scenario now drives one durable simulated
+tracker through the remote web client, the local Pi client, the mobile native
+capability/cache composition and an independent Rust HTTP consumer. It admits
+passive data, enrolls and materialises the Thing, restarts the actual service,
+disconnects and reconnects the mobile network, revokes the shared reader and
+replays duplicate ingress across restart. The scenario requires durable history,
+one admitted observation, one generation advance and no physical Action intent.
+It is complete local software evidence; physical radios, Pi display/touch, a
+signed iPhone, live providers and distribution retain their separate acceptance.
+
 The WTR.05 pure foundation admits position evidence, freshness, deterministic
 selection, event ordering with modular sequence evidence, and bounded geofence
 membership. See the [position guide](docs/guides/positions.md) and
@@ -247,8 +257,10 @@ terminal-denial behavior. Compatible saved definitions can be composed into a
 multi-series dashboard, and every saved dashboard exposes a credential-free
 relative link that still requires the recipient's current same-scope authority.
 An optional bounded prompt adapter proposes the same closed query form. A
-recorded real public-provider prompt run and physical cross-surface acceptance
-remain open.
+dev/test-only Responses peer now exercises its complete schema-only request,
+closed query or clarification response, limits and malicious-boundary handling
+without resolving a hostname. A recorded real public-provider prompt run and
+physical cross-surface acceptance remain open.
 
 The service package also defines closed `:telemetry` events for requests,
 queries, import stages, commits, forward queues, publication reconciliation and

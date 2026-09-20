@@ -155,8 +155,8 @@ delivery_targets:
     required_for_product: true
     contracts: [WTR.07, WTR.09, WTR.12, WTR.14, WTR.15, WTR.16]
     requires: [core_library, headless_service, tracking_hardware, shared_application, analytics, pi5_headless, pi5_panel, ios_companion]
-    implementation_status: not-started
-    evidence_refs: []
+    implementation_status: in-progress
+    evidence_refs: [docs/evidence/implementation.md]
     acceptance: same-tracker web/Pi/iPhone/non-Elixir scenario, resource budgets, failures and recovery
 
 initial_profiles:

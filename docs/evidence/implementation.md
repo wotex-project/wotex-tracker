@@ -5824,3 +5824,83 @@ This is deterministic simulator evidence for service admission, privacy,
 reconciliation, supervision and host composition. It does not claim live radio
 capture, antenna behavior, platform Bluetooth permissions, background scanning
 or physical-device interoperability.
+
+### Complete native mobile development simulator — 2026-09-20
+
+The mobile host now contains a development/test-only native capability peer and
+an exact remote-service peer, both excluded from production compilation. The
+composition starts the real loopback Phoenix endpoint, shared LiveView root,
+account-bound cache, credential owner and notification registrar. Its native peer
+implements the two secure-storage slots, bounded app/network lifecycle events,
+notification permission and token delivery, external navigation, native sharing,
+WebView effects and a deterministic BLE central peripheral. The service peer
+implements the same versioned client boundary without bypassing the mobile
+client, session or cache layers.
+
+The executable exercise routes offline/reconnect recovery, a notification tap,
+an authorized JSON share and scan/connect/discover/read/write/disconnect through
+the real root-screen clauses. Simulator status is redacted to effect counters,
+digests and secure slot names. The complete mobile-host gate passed 89 tests at
+95.4% production line coverage with compiler, unused-dependency, formatter,
+vulnerability audit, strict Credo, ExDoc, Dialyzer, stack-language and licence
+checks.
+
+This proves the native software composition and its bounded contracts. It does
+not claim iOS Keychain behavior, radio permissions or interoperability, APNs
+delivery, a system share sheet, suspend/resume behavior, signing or installation.
+
+### Local Responses development peer — 2026-09-20
+
+UI-enabled development and test hosts may select one exact local Responses
+provider, endpoint, model and token. The repository-owned peer parses the full
+schema-only request produced by the production adapter, validates its disclosure
+and structured-output contract, and returns either deterministic query fields or
+a clarification through the production decoder. It performs no DNS resolution
+or network request. Alternate development identities fail configuration, and the
+peer is absent from headless and production compilation.
+
+The headless host's complete gate passed 31 tests at 95.7% production line
+coverage and proves the peer remains absent. The UI-enabled host's complete gate
+passed 46 tests at 96.1%, including successful proposal and clarification flows,
+request validation, bounded concurrency/rate/cost behavior, malformed output,
+cancellation and secret-safe inspection. All configured compiler, CLI,
+native-consumer, formatter, audit, Credo, ExDoc, Dialyzer, stack-language and
+licence checks passed.
+
+This is deterministic provider-boundary evidence. It does not claim a public
+model's quality, availability, pricing, privacy behavior or a real-provider
+execution.
+
+### Integrated product development scenario — 2026-09-20
+
+The mobile host gate now includes one executable same-tracker scenario across
+four independently composed surfaces: the shared remote web client, the local Pi
+client, the mobile client with its native secure-store/lifecycle and offline
+cache, and the Rust HTTP consumer. The run starts the actual durable SQLite HTTP
+service, submits the same finite Ruuvi capture twice, enrolls and materialises the
+Thing, and checks the same temperature Property and generation on both Elixir UI
+paths. The remote Property adapter now reconstructs the local `{value,
+generation}` contract from the HTTP scalar and canonical generation header while
+keeping ordinary response envelopes closed.
+
+The scenario stops and restarts the service over the same database, emits native
+offline/online events, requires a labelled cached mobile projection while the
+service is absent and requires all surfaces to recover afterward. It replays the
+same ingress after restart and observes a durable duplicate without a generation
+advance, revokes the shared reader and requires web, Pi and mobile requests to
+fail unauthorized, purges mobile credential custody, and verifies retained Thing
+history. The Rust peer independently checks the final generation, Property,
+history, one observation, revoked credential and zero retained Action intents.
+The emitted `wtr.integrated-product-development.v1` report records one accepted
+capture, two duplicate dispositions, one generation advance, every recovery as
+`pass`, and `physical_actions.configured: false`.
+
+The complete shared-UI gate passed 194 tests at 95.0% production line coverage
+on both supported runtime lanes. The complete mobile-host gate passed 89 tests
+at 95.4% and includes locked Rust format/build plus the integrated scenario. The
+complete root gate passed 204 tests, 19 generated properties and one doctest at
+95.1%; documentation catalogue, delivery graph, evidence and link validation
+passed. This is local simulator evidence for the full software composition.
+Physical tracker/radio qualification, Pi display/touch, signed-iPhone behavior,
+live provider exchange and distribution retain their separate acceptance
+records.

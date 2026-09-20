@@ -168,6 +168,23 @@ not stored credentials, provider tokens or shared JSON. This is simulator-class
 software evidence; it makes no iOS permission, Keychain, radio, APNs delivery,
 share-sheet or suspension claim.
 
+The same host also owns the integrated local product scenario. It starts the
+real durable service, finite passive-ingress simulator and native-capability
+peer, then drives one Thing through remote web, local Pi, mobile cache and an
+independent Rust HTTP consumer. The run restarts the service, disconnects and
+restores the native network, revokes the common reader, replays ingress across
+restart and verifies durable history without a physical Action:
+
+```sh
+cargo build --release --locked \
+  --manifest-path ../../native/protocol_consumer/Cargo.toml
+WOTEX_PATH_DEPS=1 MIX_ENV=test mise exec -- \
+  mix run --no-start scripts/integrated_product.exs
+```
+
+Its final JSON report is explicitly `evidence_class: "simulator"`; the command
+does not substitute for physical Pi, radio, iPhone or provider acceptance.
+
 Run the software gate with the host-pinned toolchain:
 
 ```sh
