@@ -49,6 +49,10 @@ defmodule Wotex.Tracker.Service.Schema do
   end
 
   @doc false
+  @spec current_version() :: pos_integer()
+  def current_version, do: @current_version
+
+  @doc false
   @spec validate_current(term()) :: :ok | {:error, atom()}
   def validate_current(db), do: SQL.boundary(fn -> validate_current!(db) end)
 

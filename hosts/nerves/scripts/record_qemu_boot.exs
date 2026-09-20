@@ -41,10 +41,33 @@ defmodule Wotex.Tracker.Nerves.QemuBootRecord do
       )
 
     true = File.regular?(fixture_beam)
+
+    application_beam =
+      Path.join(
+        release_root,
+        "lib/wotex_tracker_nerves-0.1.0/ebin/Elixir.Wotex.Tracker.Nerves.Application.beam"
+      )
+
+    firmware_health_beam =
+      Path.join(
+        release_root,
+        "lib/wotex_tracker_nerves-0.1.0/ebin/Elixir.Wotex.Tracker.Nerves.FirmwareHealth.beam"
+      )
+
+    true = File.regular?(firmware_health_beam)
+
+    {:ok, {Wotex.Tracker.Nerves.Application, [imports: application_imports]}} =
+      :beam_lib.chunks(String.to_charlist(application_beam), [:imports])
+
+    true = {Wotex.Tracker.Nerves.FirmwareHealth, :check, 4} in application_imports
+
     vm_args = File.read!(Path.join(release_root, "releases/0.1.0/vm.args"))
     true = String.contains?(vm_args, "-noshell")
     false = Regex.match?(~r/^\s*-(?:name|sname|setcookie|user)\b/m, vm_args)
+    true = Regex.match?(~r/^\s*-heart\s*$/m, vm_args)
+    true = Regex.match?(~r/^\s*-env\s+HEART_INIT_TIMEOUT\s+600\s*$/m, vm_args)
     sys_config = File.read!(Path.join(release_root, "releases/0.1.0/sys.config"))
+    true = String.contains?(sys_config, "{startup_guard_enabled,true}")
     false = String.contains?(sys_config, "secret_key")
     false = String.contains?(sys_config, "token_sha256")
 
@@ -128,6 +151,8 @@ defmodule Wotex.Tracker.Nerves.QemuBootRecord do
         "no_ui_or_ssh_applications" => true,
         "no_active_iex_or_distribution" => true,
         "no_credentials_in_runtime_config" => true,
+        "core_health_before_firmware_validation" => true,
+        "firmware_startup_guard_with_finite_heart_timeout" => true,
         "sqlite_nif_aarch64" => true
       },
       "boot_log_sha256" => %{"first" => digest(first_log), "reboot" => digest(reboot_log)},

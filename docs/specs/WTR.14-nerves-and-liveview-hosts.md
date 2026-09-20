@@ -26,7 +26,13 @@ makes later missing, unsafe, corrupt or unsupported stores an explicit
 acceptance exists yet. A read-only offline validator now admits only a restored
 private tree whose initialized marker, service instance, runtime path, supported
 SQLite schema/table contract and integrity check agree, without migrating or
-repairing it.
+repairing it. The application withholds its OTP started state until that
+initialized storage identity, the actual bound service listener and a writable
+current-schema store pass one synchronous core-health check. The enabled Nerves
+Runtime startup guard can therefore validate pending firmware only after those
+criteria pass; the ten-minute heart handshake and guard's 15-minute callback
+bound failure before the system reverts. Bad-image validation and revert still
+require physical target evidence.
 Bootable headless and local-display profiles remain required product deliverables
 and optional installations. They consume the pure library without changing its
 startup or dependency contract. WTR.13 governs the root.
@@ -177,6 +183,21 @@ with documented health criteria and a finite startup budget. Test bad images,
 failed validation, interrupted update and restart, and preserve evidence of which
 image/data generation actually ran. Operator recovery procedures must identify
 destructive steps; documentation is not authority to flash or erase a device.
+
+The source profiles enable the pinned Nerves Runtime startup guard and a
+600-second heart initialization-handshake timeout; after registration the pinned
+guard's callback fails at 15 minutes if startup and validation do not complete.
+Tracker application startup returns only after its private initialized marker
+still matches the service identity and data path, its configured listener
+reports an actual bound address and port, and the live store successfully
+completes a rolled-back write probe while reporting the application's exact
+current schema. The check has no retry loop and collapses exceptions, exits and
+malformed results to `firmware_health_failed`; the application supervisor is
+stopped and its OTP started state is withheld. Because the runtime guard waits
+for all expected applications before it invokes firmware validation, a pending
+image cannot be accepted merely because BEAM or the UI started. This is
+executable source and virtual-boot evidence of the validation policy, not proof
+of a slot transition, bad-image revert or either physical deadline on a Pi.
 
 ## Acceptance matrix
 

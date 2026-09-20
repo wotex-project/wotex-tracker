@@ -378,6 +378,14 @@ schema/table contract matching the current image and a passing integrity check.
 It performs no copy, migration or repair. Physical backup media and restore
 trials remain required.
 
+The Pi profiles also enable the pinned Nerves Runtime startup guard with a
+600-second heart initialization timeout. Tracker withholds its OTP application
+started state until the initialized storage identity, actual bound listener and
+writable exact-current-schema store pass one synchronous core-health check. Thus
+runtime firmware validation cannot accept a pending image on a UI-only or
+storage-broken boot. Physical bad-image, interrupted-update and revert trials
+remain required.
+
 Complete both product profiles: durable headless service on `nerves_system_rpi5`
 and shared LiveView on `kiosk_system_rpi5` with local Cog display. Physical touch
 acceptance covers setup, map/history, graph gestures, keyboard/focus/scaling,

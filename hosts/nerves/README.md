@@ -154,6 +154,33 @@ The source tests cover missing, corrupt, unsafe, unsupported and interrupted
 states; physical power-loss, full-media, unmountable-partition and restore trials
 remain required.
 
+## Firmware validation health
+
+Both Pi profiles enable the pinned Nerves Runtime startup guard. The release runs
+Erlang heart with `HEART_INIT_TIMEOUT=600`, requiring the guard's initialization
+handshake within ten minutes. After the guard registers, its pinned runtime
+callback fails at 15 minutes if application startup and firmware validation do
+not complete. Tracker reports its OTP application as started only after one
+synchronous health check confirms all of the following:
+
+- the initialized private storage marker still matches the service instance and
+  runtime data path;
+- the supervised service listener reports an actual bound address and port; and
+- the live store completes its rolled-back write probe and reports this image's
+  exact current schema.
+
+The health check does not retry. An exception, exit, missing child, malformed
+result or failed criterion becomes `firmware_health_failed`, stops the Tracker
+supervisor and withholds the application started state. Nerves Runtime waits for
+all expected applications before validating pending firmware, so a boot that has
+only reached BEAM or the kiosk cannot be accepted while core storage or service
+health is broken.
+
+This source policy and the virtual boot lane do not exercise a Pi firmware-slot
+transition or prove revert timing. Product acceptance still requires an actual
+update, a deliberately unhealthy candidate, interrupted update/restart and proof
+that the expected old image and data generation returned.
+
 ## Current limits
 
 The development cross-build is software evidence only. No Pi 5, display,

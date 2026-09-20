@@ -17,7 +17,6 @@ defmodule Wotex.Tracker.Nerves.RecoveryValidation do
 
   @runtime_root "/root/tracker"
   @marker_fields ~w(schema state instance_id storage_id data_directory database)
-  @current_schema 8
 
   @doc "Parses one absolute offline recovery-tree argument."
   @spec run([String.t()]) :: {:ok, map()} | {:error, atom()}
@@ -155,7 +154,7 @@ defmodule Wotex.Tracker.Nerves.RecoveryValidation do
       {:ok, database} ->
         try do
           case Schema.validate_current(database) do
-            :ok -> {:ok, @current_schema}
+            :ok -> {:ok, Schema.current_version()}
             _ -> {:error, :recovery_required}
           end
         after

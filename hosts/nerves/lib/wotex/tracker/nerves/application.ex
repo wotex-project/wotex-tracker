@@ -10,7 +10,7 @@ defmodule Wotex.Tracker.Nerves.Application do
   """
 
   use Application
-  alias Wotex.Tracker.Nerves.{ClockPolicy, Config, StoragePolicy}
+  alias Wotex.Tracker.Nerves.{ClockPolicy, Config, FirmwareHealth, StoragePolicy}
   alias Wotex.Tracker.Nerves.Supervisor, as: HostSupervisor
   alias Wotex.Tracker.Service.Credentials
 
@@ -39,12 +39,11 @@ defmodule Wotex.Tracker.Nerves.Application do
   end
 
   defp finalize_host(host, instance_id, directory) do
-    case StoragePolicy.mark_initialized(data_root(), instance_id, directory) do
-      :ok ->
-        target_ready()
-        {:ok, host}
-
-      {:error, :recovery_required} = error ->
+    with :ok <- StoragePolicy.mark_initialized(data_root(), instance_id, directory),
+         :ok <- target_ready(host, instance_id, directory) do
+      {:ok, host}
+    else
+      {:error, _} = error ->
         Supervisor.stop(host)
         error
     end
@@ -60,10 +59,16 @@ defmodule Wotex.Tracker.Nerves.Application do
 
   if Mix.target() == :qemu_aarch64 do
     defp prepare_target, do: Wotex.Tracker.Nerves.QemuFixture.prepare()
-    defp target_ready, do: Wotex.Tracker.Nerves.QemuFixture.verify()
+
+    defp target_ready(host, instance_id, directory) do
+      with :ok <- FirmwareHealth.check(host, data_root(), instance_id, directory),
+           do: Wotex.Tracker.Nerves.QemuFixture.verify()
+    end
   else
     defp prepare_target, do: :ok
-    defp target_ready, do: :ok
+
+    defp target_ready(host, instance_id, directory),
+      do: FirmwareHealth.check(host, data_root(), instance_id, directory)
   end
 
   if Mix.target() == :host do

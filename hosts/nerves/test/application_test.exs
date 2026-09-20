@@ -2,6 +2,7 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
   use ExUnit.Case, async: false
   alias Wotex.Tracker.Nerves.Application, as: HostApplication
   alias Wotex.Tracker.Nerves.Config
+  alias Wotex.Tracker.Nerves.FirmwareHealth
   alias Wotex.Tracker.Nerves.NativeResourceSampler
   alias Wotex.Tracker.Nerves.StoragePolicy
   alias Wotex.Tracker.Service.{Codec, Credentials}
@@ -75,6 +76,7 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
     assert port > 0
     assert {:ok, store} = Server.child(server, :store)
     assert Process.alive?(store)
+    assert :ok = FirmwareHealth.check(host, c.root, "pi-test", c.data)
 
     assert {:ok, %{"state" => "initialized"}} =
              c.marker |> File.read!() |> Codec.decode()
@@ -96,6 +98,28 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
     Supervisor.stop(host)
     refute Process.alive?(server)
     refute Process.alive?(store)
+  end
+
+  test "firmware health fails closed for invalid runtime state", c do
+    Application.put_env(:wotex_tracker_nerves, :config_path, c.path)
+    Application.put_env(:wotex_tracker_nerves, :data_root, c.root)
+
+    assert {:ok, host} = HostApplication.start(:normal, [])
+    assert {:error, :firmware_health_failed} = FirmwareHealth.check(host, c.root, "other", c.data)
+
+    database = Path.join(c.data, "tracker.db")
+    File.chmod!(database, 0o644)
+
+    assert {:error, :firmware_health_failed} =
+             FirmwareHealth.check(host, c.root, "pi-test", c.data)
+
+    File.chmod!(database, 0o600)
+    assert :ok = FirmwareHealth.check(host, c.root, "pi-test", c.data)
+
+    assert {:error, :firmware_health_failed} =
+             FirmwareHealth.check(self(), c.root, "pi-test", c.data)
+
+    assert :ok = Supervisor.stop(host)
   end
 
   test "unprovisioned, public and out-of-root material fails closed", c do
