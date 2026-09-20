@@ -8,9 +8,11 @@ measurements, positions and identity evidence. Ruuvi RAWv2 has documentation
 fixtures but no real-device qualification. A pure bounded Codec 8 Extended TCP
 framer now validates the manufacturer documentation vector, arbitrary split and
 coalesced frames, record/IO counts and CRC while preserving unknown IO bytes.
-It is not a TAT140 profile or listener. IMEI admission, device-specific mapping,
-live discovery, cellular/LoRaWAN adapters and lifecycle acceptance remain
-unfinished.
+The pure TCP session seam also bounds split/coalesced 15-digit IMEI negotiation,
+keyed private identity lookup and commit-dependent ACK-or-close decisions. It is
+not a TAT140 profile or listener. Configured device admission, socket ownership,
+device-specific mapping, live discovery, cellular/LoRaWAN adapters and lifecycle
+acceptance remain unfinished.
 
 ## Device profile
 

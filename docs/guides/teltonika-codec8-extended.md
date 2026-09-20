@@ -29,12 +29,21 @@ coordinates but exposes no normalized coordinate and is marked unavailable, as
 required by the protocol's no-fix rule. Available out-of-range coordinates or
 angles are suspect and likewise have no normalized coordinate.
 
-After durable admission, `acknowledgement/1` creates the protocol's four-byte
-accepted-record count. Decoding success alone is not permission to send it. The
-host session must first admit the 15-digit IMEI against private configuration,
-serialize per-device commits and choose the count from the actual commit result.
-CRC detects accidental corruption; it is not device authentication.
+`Wotex.Tracker.Protocols.Teltonika.TCPSession` separately parses the documented
+two-byte length and 15 ASCII IMEI digits. It retains at most one 17-byte partial
+login and returns any coalesced AVL bytes without decoding them, allowing the
+host to admit the login before processing telemetry. A keyed HMAC lookup avoids
+retaining a raw IMEI in configuration, but neither the IMEI nor CRC is device
+authentication.
 
-This slice covers TCP data framing only. IMEI negotiation, socket ownership,
-timeouts, retransmission, command codecs, UDP, TAT140 IO semantics, a device
-profile and live hardware evidence remain separate acceptance work.
+After durable admission, the session seam maps accepted and duplicate commits
+to the complete four-byte record-count ACK, a known rejection to a zero ACK and
+an unknown commit outcome to connection close without an ACK. Decoding success
+alone is never permission to reply. The host must still admit the private login,
+serialize per-device commits and reconcile retransmission after an unknown
+outcome.
+
+These pure slices cover TCP login, data framing and ACK decisions only.
+Configured device admission, socket ownership, deadlines, retransmission,
+command codecs, UDP, TAT140 IO semantics, a device profile and live hardware
+evidence remain separate acceptance work.
