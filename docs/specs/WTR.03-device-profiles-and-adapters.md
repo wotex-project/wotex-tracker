@@ -5,8 +5,12 @@
 Accepted target contract. The pure library implements immutable profile and
 catalogue values, deterministic resolution and a bounded trusted-decoder seam for
 measurements, positions and identity evidence. Ruuvi RAWv2 has documentation
-fixtures but no real-device qualification. Live discovery, cellular/LoRaWAN
-adapters and lifecycle acceptance remain unfinished.
+fixtures but no real-device qualification. A pure bounded Codec 8 Extended TCP
+framer now validates the manufacturer documentation vector, arbitrary split and
+coalesced frames, record/IO counts and CRC while preserving unknown IO bytes.
+It is not a TAT140 profile or listener. IMEI admission, device-specific mapping,
+live discovery, cellular/LoRaWAN adapters and lifecycle acceptance remain
+unfinished.
 
 ## Device profile
 

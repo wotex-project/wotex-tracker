@@ -189,6 +189,14 @@ admission. Use OTP sockets or one justified host listener library, not a duplica
 WoT stack. IMEI/CRC is not authentication. Login/heartbeat/command messages need
 not contain positions; a data frame may contain multiple records.
 
+The first pure protocol slice now validates bounded Codec 8 Extended TCP data
+frames against the manufacturer's documentation vector. It retains one bounded
+incomplete frame, handles every split boundary and concatenated frames, checks
+both record counts and CRC-16/IBM, and preserves unknown fixed and variable IO
+values without device semantics. IMEI negotiation, authenticated configuration,
+socket/session ownership, durable admission, commit-dependent acknowledgement,
+the TAT140 profile and all real-device evidence remain subsequent work.
+
 Acceptance: independent fixtures and software-peer tests for every split boundary,
 coalescing/truncation, counts, unknown fields, ACK outcomes, reconnect, duplicates
 and unknown commits; then real direct-to-operator evidence with exact firmware/

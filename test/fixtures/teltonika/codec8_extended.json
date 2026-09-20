@@ -1,0 +1,22 @@
+{
+  "schema": "wtr.teltonika-codec8e-fixtures.v1",
+  "source": "https://wiki.teltonika-gps.com/view/Teltonika_AVL_Protocols",
+  "read_at": "2026-09-20",
+  "transformation": "Removed presentation spacing from the official one-record Codec 8 Extended TCP hexadecimal example.",
+  "vectors": [
+    {
+      "name": "official_one_record_all_fixed_width_groups",
+      "hex": "000000000000004A8E010000016B412CEE000100000000000000000000000000000000010005000100010100010011001D00010010015E2C880002000B000000003544C87A000E000000001DD7E06A00000100002994",
+      "crc16": 10644,
+      "timestamp_ms": 1560166592000,
+      "event_io_id": 1,
+      "io": [
+        {"id": 1, "width": 1, "unsigned": 1},
+        {"id": 17, "width": 2, "unsigned": 29},
+        {"id": 16, "width": 4, "unsigned": 22949000},
+        {"id": 11, "width": 8, "unsigned": 893700218},
+        {"id": 14, "width": 8, "unsigned": 500686954}
+      ]
+    }
+  ]
+}

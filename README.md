@@ -46,6 +46,12 @@ the decoder wrapper binds each claim to its exact observation, catalogue,
 profile and decoder revisions. The built-in Ruuvi RAWv2 profile remains
 explicitly positionless.
 
+The pure library also contains bounded Teltonika Codec 8 Extended TCP framing
+and record decoding. It validates the complete documented frame and preserves
+unknown IO values without assigning device semantics. This is an imported
+documentation-fixture boundary, not a TAT140 profile, listener or hardware
+qualification. See the [Codec 8 Extended guide](docs/guides/teltonika-codec8-extended.md).
+
 The service accepts an exact host-configured catalogue/model/decoder set as an
 alternative to its packaged Ruuvi defaults. Position-capable decoder output is
 committed with private evidence and a closed redacted public-state projection;
