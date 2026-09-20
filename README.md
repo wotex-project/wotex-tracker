@@ -83,8 +83,9 @@ intents, with restart recovery and retry deduplication. The
 standalone CLI and bundled Darwin/Linux ARM64 service artifacts pass local probes.
 The standalone and Nerves hosts can also admit a separate private APNs provider/
 dispatcher document, supervise that delivery worker and report the composition
-explicitly as configured or unconfigured. Provider acceptance, OS delivery and
-a user tap remain separate unpassed gates.
+explicitly as configured or unconfigured. The bundled-release probe requires
+that configured capability and rejects provider-key log disclosure. Provider
+acceptance, OS delivery and a user tap remain separate unpassed gates.
 See the [service contract](docs/contracts/service-v1.md). The first shared browser
 workflow now covers sign-in, bounded JSON capture import, evidence review,
 enrollment, later observation association, provisioning, retained measurements

@@ -410,5 +410,9 @@ recovery and SQLite's real page ceiling. Linux additionally runs as a non-root
 user on a read-only container root, checks an unwritable data destination and,
 for the browser artifact, requires the authenticated operational view to expose
 the exact `native.sample` measurement set with `service`/`linux_procfs` metadata.
+Each probe instance also creates a private APNs host document, requires the
+authenticated capability response to report `notification_delivery` as
+`configured`, and rejects release logs containing the provider key. The probe
+does not contact APNs or claim device delivery.
 The probe imports no BEAM source and runs without external BEAM tools in PATH.
 This is software artifact evidence, not physical power-loss or device qualification.

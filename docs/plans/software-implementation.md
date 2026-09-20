@@ -125,7 +125,8 @@ The bounded HTTP/OpenAPI/SSE foundation, public resource history and Runtime
 Property reads and committed-value subscriptions are implemented. The standalone host startup and HTTP CLI are
 implemented and tested from source and bundled artifacts. Darwin ARM64 releases
 and Linux ARM64 OCI pass their local lifecycle probes, including CLI Property
-resume and actual Runtime HTTP-binding subscriptions from production archives.
+resume, actual Runtime HTTP-binding subscriptions and configured, key-redacted
+notification-delivery composition from production archives.
 The optional UI composition now supports source-tested enrollment and asset
 inspection. Its local UI package consumers and Darwin/Linux bundled artifacts
 pass the first browser lifecycle probe. Later rule/analytics workflows remain

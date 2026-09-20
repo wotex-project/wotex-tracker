@@ -5137,3 +5137,35 @@ composition and clock-policy commits are
 This is source-level appliance composition evidence. No firmware artifact was
 built or booted, and no physical Pi, provider exchange, signed mobile
 entitlement, OS delivery or notification tap was exercised.
+
+### Bundled APNs composition probe — 2026-09-20
+
+The standalone release probe now provisions each isolated instance with its own
+private P-256 APNs provider identity and admitted `wtr.apns-host.v1` document. It
+starts the packaged host with that document, authenticates through the public
+HTTP boundary and requires the capability response to report
+`notification_delivery: configured`. The same run scans release output and
+fails if the provider key is disclosed. Ambient cellular, notification and UI
+configuration variables are removed before the release starts, so a caller's
+shell cannot supply an unrecorded composition.
+
+A current Darwin ARM64 development release was assembled from the monorepo path
+cohort with its own bundled ERTS and exercised through the complete black-box
+probe. HTTP/OpenAPI/SSE, history, CLI Property resume, exact receipt replay,
+restart, retained revocation, SIGKILL recovery, SIGTERM shutdown, real SQLite
+page-ceiling behavior and the configured notification-delivery check all passed.
+The process exited in 1.036 seconds after SIGTERM. The probe ran without external
+BEAM tools in `PATH`; executable containment compares physical parent paths and
+follows only a bounded symlink chain, avoiding a false escape report when the
+workspace itself is reached through a filesystem alias.
+
+Both root runtime lanes passed one doctest, 19 generated properties and 187
+tests at 95.2% production line coverage. Every configured compiler, dependency,
+formatter, vulnerability audit, strict Credo, ExDoc, Dialyzer, boundary,
+stack-language, archive and licence check passed. The implementation commit is
+`cd87ae75aa8eb1f70682a630aa3ab613d7fa5683`.
+
+This is a local path-dependency development-release qualification. It did not
+rebuild or publish the ordinary production artifact cohort, rerun the Linux
+read-only container gate, contact APNs, deliver to an operating system or prove
+a notification tap.
