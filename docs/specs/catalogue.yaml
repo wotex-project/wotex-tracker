@@ -113,8 +113,8 @@ delivery_targets:
     required_for_product: true
     contracts: [WTR.03, WTR.05, WTR.06, WTR.09, WTR.12]
     requires: [headless_service]
-    implementation_status: not-started
-    evidence_refs: []
+    implementation_status: in-progress
+    evidence_refs: [docs/evidence/implementation.md]
     acceptance: real passive BLE, finished direct cellular tracker and complete smart-bike capability coverage
   - id: shared_application
     required_for_product: true
@@ -134,22 +134,22 @@ delivery_targets:
     required_for_product: true
     contracts: [WTR.06, WTR.07, WTR.09, WTR.14]
     requires: [headless_service]
-    implementation_status: not-started
-    evidence_refs: []
+    implementation_status: in-progress
+    evidence_refs: [docs/evidence/implementation.md]
     acceptance: physical boot, target-runtime proof, durable storage and firmware/data recovery without UI
   - id: pi5_panel
     required_for_product: true
     contracts: [WTR.08, WTR.14, WTR.15, WTR.16]
     requires: [pi5_headless, shared_application, analytics]
-    implementation_status: not-started
-    evidence_refs: []
+    implementation_status: in-progress
+    evidence_refs: [docs/evidence/implementation.md]
     acceptance: physical display/touch, complete shared workflows, offline use and isolated browser failure
   - id: ios_companion
     required_for_product: true
     contracts: [WTR.08, WTR.09, WTR.15, WTR.16]
     requires: [tracking_hardware, shared_application, analytics]
-    implementation_status: not-started
-    evidence_refs: []
+    implementation_status: in-progress
+    evidence_refs: [docs/evidence/implementation.md]
     acceptance: real iPhone, native secure storage/BLE/push/lifecycle, signed install and distribution evidence
   - id: integrated_product
     required_for_product: true
