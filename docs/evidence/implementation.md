@@ -4768,3 +4768,28 @@ checks passed. The implementation commit is
 This establishes durable configured-profile lineage only. The service still
 does not persist the mapped per-record measurements and positions, and no
 cellular Thing Model or hardware qualification follows.
+
+### Cellular asset-tracker Thing Model — 2026-09-20
+
+The packaged `urn:wotex:tm:tracker:cellular-asset-tracker` model revision 1.0.0
+now closes the TAT140 profile's model reference without embedding Teltonika or
+TAT140 names in its semantic surface. Its mandatory read-only Properties are
+the profile's exact mapping destinations: aggregate WGS84 position, boolean
+motion and battery voltage. Nested coordinate, altitude, speed and accuracy
+bounds match Tracker's normalized position contract; every unit remains
+explicit. Missing samples do not add or remove affordances.
+
+Tests load the packaged JSON, admit it through `Model.new/3` and therefore
+upstream `Wotex.ThingModel.from_map/2`, verify its exact revision and profile
+mapping destinations, assert the normalized units and bounds, and reject vendor
+identifiers in the generic document. Both supported runtime lanes passed the
+complete repository gate with 183 tests and 19 generated properties. Elixir
+1.18.4 on Erlang/OTP 27.3.4.15 reached 95.4% production line coverage; Elixir
+1.20.4 on Erlang/OTP 29.0.4 reached 95.5%. Compiler, dependency, formatter,
+vulnerability audit, strict Credo, ExDoc, Dialyzer, stack-language,
+documentation-contract, archive and licence checks passed. The implementation
+commit is `aafa0dd9cf5921f2afb04016631c5740cfb67bdb`.
+
+This proves a self-contained semantic model and its immutable profile reference.
+It does not yet create position capability evidence, persist mapped AVL records,
+materialise a cellular Thing instance or qualify physical hardware.

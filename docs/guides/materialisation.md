@@ -9,20 +9,30 @@ input. Resolution, validation and materialisation do not confer authorization.
 
 ## Model and identity inputs
 
-The archive contains
-`priv/thing_models/environmental-sensor-1.0.0.tm.json`. The caller loads that file
-explicitly, admits its native JSON through `Model.new/3` and supplies the exact
-ID/version pair referenced by the profile. Model construction calls upstream
-`Wotex.ThingModel.from_map/2` with validation enabled and records full content
-identity. No resolver, network fetch, inheritance engine or templating language
-is included. `tm:ref`, composition links, placeholders, nested TM directives and
-nonempty Action/Event sections return `unsupported_model_feature` in this slice.
+The archive contains the self-contained environmental-sensor and cellular
+asset-tracker models under `priv/thing_models/`. The caller loads the applicable
+file explicitly, admits its native JSON through `Model.new/3` and supplies the
+exact ID/version pair referenced by the profile. Model construction calls
+upstream `Wotex.ThingModel.from_map/2` with validation enabled and records full
+content identity. No resolver, network fetch, inheritance engine or templating
+language is included. `tm:ref`, composition links, placeholders, nested TM
+directives and nonempty Action/Event sections return
+`unsupported_model_feature` in this slice.
 
 The model requires temperature and makes the other nine Properties optional.
 A missing current sample does not remove a supported affordance. All Properties
 are readable and have explicit units. Writable Properties and physical device
 Events remain unsupported. Host delivery of committed Property values requires
 the separate declaration below.
+
+The generic cellular asset-tracker model is selected by the configured TAT140
+profile but contains no vendor or model names. Its mandatory readable Properties
+are `position`, `motion` and `batteryVoltage`. The aggregate position capability
+uses `WGS84`; nested latitude/longitude use degrees, altitude and horizontal
+accuracy use metres, and speed uses metres per second. Motion is dimensionless
+and battery voltage uses volts. Latitude/longitude are required whenever a
+position value is delivered; the other position members may be absent. A frame
+without a fix does not change the model or imply a null coordinate pair.
 
 Create explicit association evidence for the same observation and profile/decoder
 revision, append it to the decoder's evidence through `EvidenceBundle.new/3`,
