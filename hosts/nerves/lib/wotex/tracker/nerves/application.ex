@@ -10,7 +10,7 @@ defmodule Wotex.Tracker.Nerves.Application do
   """
 
   use Application
-  alias Wotex.Tracker.Nerves.{Config, StoragePolicy}
+  alias Wotex.Tracker.Nerves.{ClockPolicy, Config, StoragePolicy}
   alias Wotex.Tracker.Nerves.Supervisor, as: HostSupervisor
   alias Wotex.Tracker.Service.Credentials
 
@@ -23,6 +23,7 @@ defmodule Wotex.Tracker.Nerves.Application do
              Application.get_env(:wotex_tracker_nerves, :config_path),
              Application.get_env(:wotex_tracker_nerves, :data_root)
            ),
+         :ok <- ClockPolicy.admit(options, &synchronized_clock?/0),
          instance_id = Credentials.instance_id(options[:credentials]),
          :ok <- StoragePolicy.admit(data_root(), instance_id, options[:directory]),
          {:ok, browser} <- browser_config(options) do
@@ -63,6 +64,17 @@ defmodule Wotex.Tracker.Nerves.Application do
   else
     defp prepare_target, do: :ok
     defp target_ready, do: :ok
+  end
+
+  if Mix.target() == :host do
+    defp synchronized_clock? do
+      case Application.get_env(:wotex_tracker_nerves, :clock_synchronized) do
+        provider when is_function(provider, 0) -> provider.()
+        _ -> false
+      end
+    end
+  else
+    defp synchronized_clock?, do: NervesTime.synchronized?()
   end
 
   defp browser_config(options) do

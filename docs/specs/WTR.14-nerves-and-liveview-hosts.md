@@ -72,6 +72,13 @@ time/monotonic deadline distinction. Firmware/device serial numbers are private
 host identifiers, not public Thing IDs. Cloud management and NervesHub are
 optional; boot, local ingestion and local inspection must work without them.
 
+The source host admits loopback startup without NTP so the provisioned local
+workflow remains available offline. Direct TLS exposure instead requires
+`NervesTime` to confirm synchronization in the current boot before the store or
+listener starts. A persisted estimate, plausible wall time, exception or unknown
+status cannot satisfy that gate. This is a conservative exposure policy, not a
+hardware-RTC, long-duration drift or physical-network qualification.
+
 ## Local control panel and remote UI
 
 The application UI uses shared Phoenix LiveView, HEEx and Phoenix components.

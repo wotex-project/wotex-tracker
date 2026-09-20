@@ -44,6 +44,15 @@ HTTPS public origin and provision certificates and operator tokens outside the
 firmware. The local host test exercises this configuration policy and the
 service/store supervision.
 
+Direct TLS exposure additionally requires `NervesTime.synchronized?/0` to be
+true in the current boot before the store or listener starts. A last-known time
+file or merely plausible wall clock is not synchronization. Failure, exception
+or malformed clock status stops with `clock_unsynchronized` and leaves the
+prepared store untouched. Loopback service deliberately does not wait for NTP,
+so provisioned local tracking and the attached panel can start offline using the
+explicit last-known clock estimate. That estimate is not a remote-exposure or
+hardware-RTC claim.
+
 ### Offline first provisioning
 
 The host profile includes a create-only provisioning command for preparing a
@@ -115,10 +124,10 @@ touch controller, Bluetooth controller, SD recovery trial or firmware update
 trial has been exercised. The default Nerves data-partition initialization can
 reformat unreadable storage; losing the provisioned marker then fails closed but
 does not recover history. Durable product acceptance still needs the physical
-recovery matrix and a proven backup/restore path. Offline clock estimates are not
-trusted NTP synchronization, so credential expiry under an unsynchronized clock
-needs a device policy before exposed use. Local authenticated bootstrap setup and
-hardware gates remain open.
+recovery matrix and a proven backup/restore path. The startup clock gate covers
+direct TLS exposure only; long-duration drift, NTP-server selection and an
+optional hardware RTC still need deployment and physical acceptance. Local
+authenticated bootstrap setup and hardware gates remain open.
 
 The build record in `../../verification/nerves-headless-build.json` contains
 the local firmware digest and resolved target components when generated. The

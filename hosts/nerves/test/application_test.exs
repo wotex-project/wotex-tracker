@@ -41,12 +41,17 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
     File.write!(path, Codec.encode!(document))
     File.chmod!(path, 0o600)
     {:ok, marker} = StoragePolicy.provision(root, root, "pi-test")
-    previous_path = Application.get_env(:wotex_tracker_nerves, :config_path)
-    previous_root = Application.get_env(:wotex_tracker_nerves, :data_root)
+
+    previous =
+      Map.new([:config_path, :data_root, :clock_synchronized], fn key ->
+        {key, Application.get_env(:wotex_tracker_nerves, key)}
+      end)
 
     on_exit(fn ->
-      Application.put_env(:wotex_tracker_nerves, :config_path, previous_path)
-      Application.put_env(:wotex_tracker_nerves, :data_root, previous_root)
+      Enum.each(previous, fn {key, value} ->
+        Application.put_env(:wotex_tracker_nerves, key, value)
+      end)
+
       File.rm_rf!(root)
     end)
 
@@ -127,6 +132,31 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
 
     File.rm!(Path.join(c.data, "tracker.db"))
     assert {:error, :recovery_required} = HostApplication.start(:normal, [])
+  end
+
+  test "direct TLS exposure fails before startup while this boot is unsynchronized", c do
+    cert = Path.join(c.root, "cert.pem")
+    key = Path.join(c.root, "key.pem")
+    File.write!(cert, "cert")
+    File.write!(key, "key")
+    File.chmod!(cert, 0o600)
+    File.chmod!(key, 0o600)
+
+    document = %{
+      c.document
+      | "listen" => %{"ip" => "0.0.0.0", "port" => 443},
+        "exposure" => "tls",
+        "public_origin" => "https://tracker.example"
+    }
+
+    document = Map.put(document, "tls", %{"certfile" => cert, "keyfile" => key})
+    File.write!(c.path, Codec.encode!(document))
+    Application.put_env(:wotex_tracker_nerves, :config_path, c.path)
+    Application.put_env(:wotex_tracker_nerves, :data_root, c.root)
+    Application.put_env(:wotex_tracker_nerves, :clock_synchronized, fn -> false end)
+
+    assert {:error, :clock_unsynchronized} = HostApplication.start(:normal, [])
+    refute File.exists?(Path.join(c.data, "tracker.db"))
   end
 
   test "TLS key and certificate must be private files under the provisioned root", c do

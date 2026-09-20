@@ -361,6 +361,10 @@ unsafe, corrupt or unsupported storage fails with `recovery_required` instead
 of becoming an empty store. Provisioning never replaces an occupied path or
 emits the bearer. Authenticated on-device setup, browser/TLS provisioning and
 the exact physical media installation path remain required acceptance work.
+Loopback startup remains available without NTP; direct TLS startup requires a
+positive synchronization result from the current NervesTime runtime before any
+store or listener starts. Hardware RTC and drift qualification remain physical
+deployment work.
 
 Complete both product profiles: durable headless service on `nerves_system_rpi5`
 and shared LiveView on `kiosk_system_rpi5` with local Cog display. Physical touch
