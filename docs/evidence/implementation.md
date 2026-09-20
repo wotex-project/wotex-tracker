@@ -5790,3 +5790,37 @@ simulator execution, physical BLE and notification behavior and installation
 therefore remain open physical-platform evidence. The finalizer has not run
 against a real distribution identity/profile because none is available, so no
 TestFlight artifact or production push entitlement is claimed.
+
+### Deterministic passive BLE development ingress — 2026-09-20
+
+The service now owns a bounded passive-advertisement boundary, serialized
+scanner lifecycle and bearer-authorized ingress. Each admitted capture carries
+an explicit receiver, observed time, address kind, manufacturer identifier,
+payload, signal strength and provenance. The transient radio address remains
+evidence only and is never promoted to Thing identity. Deterministic operation
+identities make repeated delivery reconcile as a duplicate, while generation
+conflicts retry and indeterminate post-commit failures reconcile through the
+ordinary operation receipt.
+
+Scanner calls execute one at a time behind deadlines and monitored worker
+isolation. Adapter errors, exceptions, exits and timeouts update bounded status
+without taking down the service. Stop and termination behavior are explicit.
+The standalone host can compose a finite passive peer from a private, closed
+`wtr.passive-ble-simulator.v1` document in development and test builds. That
+module is absent from production compilation, requires an already configured
+`ingest` credential and rejects unknown keys, malformed payloads, unbounded
+capture sets and unsupported address kinds.
+
+On both required runtime lanes, the complete root gate passed 204 tests, 19
+generated properties and one doctest at 95.1% production line coverage. The
+complete service gate passed 392 tests and two generated properties at 95.1%.
+The headless standalone-host gate passed 30 tests at 96.6%, and the UI-enabled
+host gate passed 41 tests at 96.1%. Their configured compiler,
+unused-dependency, formatter, vulnerability audit, strict Credo, ExDoc,
+Dialyzer, OpenAPI, boundary, stack-language, archive, native consumer and
+licence checks passed where applicable.
+
+This is deterministic simulator evidence for service admission, privacy,
+reconciliation, supervision and host composition. It does not claim live radio
+capture, antenna behavior, platform Bluetooth permissions, background scanning
+or physical-device interoperability.

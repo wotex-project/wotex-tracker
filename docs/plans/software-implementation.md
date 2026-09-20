@@ -184,6 +184,17 @@ The existing `wotex_ble` owns generic BLE/GATT. GATT discovery is not a passive
 scanner, and its accepted native backend target is not assumed finished. Missing
 upstream work remains explicit and must pass its own acceptance.
 
+The public passive-advertisement software boundary is now fixed independently
+of an OS backend. A serialized ingress admits a closed capture carrying receiver,
+address type, bytes, manufacturer ID, RSSI and simulator/integration provenance;
+it never treats the observed address as identity. An explicitly started scanner
+pulls at most one capture from its configured adapter, isolates adapter calls
+behind finite deadlines and gives the ingress backpressure without an unbounded
+mailbox. Exact retransmissions reconcile through deterministic operation IDs.
+The standalone host can compose a finite Ruuvi simulator only in dev/test builds
+from a separate private configuration. This is simulator-class evidence, not a
+live scanner or hardware qualification.
+
 The read-only active-probe software boundary is now implemented independently of
 passive scanning. An explicitly started service owner admits a finite host
 allowlist of exact profile/probe revisions, GATT targets, deadlines and byte

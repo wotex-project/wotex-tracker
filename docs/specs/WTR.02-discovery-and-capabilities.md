@@ -11,7 +11,13 @@ session after current `interact` authorization, with finite concurrency,
 deadline and value bounds plus caller-loss cancellation. Profile-owned closed
 probe contracts and `resolve_with_probe/4` now admit the exact private result and
 recompute only its passive candidate as strengthened, rejected or unchanged.
-Live BLE scanning and physical capability qualification remain open. See the
+An explicitly started passive scanner owner now pulls one bounded capture at a
+time from a fixed host adapter, isolates initialization and reads behind finite
+deadlines, and serializes authorized service admission with deterministic
+retransmission reconciliation. A finite Ruuvi peer is available only in dev and
+test builds; it proves the simulator evidence class without powering a radio or
+claiming an OS scanner. Live BLE adapter integration and physical capability
+qualification remain open. See the
 [profile guide](../guides/profiles.md) and
 [executed evidence](../evidence/implementation.md#deterministic-active-probe-re-resolution--2026-09-20).
 

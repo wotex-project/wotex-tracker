@@ -56,6 +56,14 @@ admit the resulting private evidence and recompute only the nominated passive
 candidate under closed byte predicates. This is not passive scanning, peer
 identity, enrollment or hardware qualification.
 
+The service now also owns an explicitly started passive-advertisement boundary:
+a host adapter returns one bounded capture at a time, monitored deadlines and
+serialized admission prevent an unbounded scanner backlog, and deterministic
+operation identities reconcile exact retransmissions. The standalone host has
+a dev/test-only finite Ruuvi simulator composition that exercises private-address
+changes through durable service state. The simulator is excluded from production
+builds and is never promoted to live-radio or hardware evidence.
+
 The pure library also contains bounded Teltonika TCP IMEI negotiation, Codec 8
 Extended framing and record decoding. It validates the complete documented
 frame, preserves unknown IO values and maps durable commit dispositions to

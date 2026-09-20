@@ -8,7 +8,7 @@ defmodule WotexTrackerService.MixProject do
       elixir: "~> 1.18",
       deps: deps(),
       description: "Explicitly started durable service components for WoTEx Tracker",
-      elixirc_paths: if(Mix.env() == :test, do: ["lib", "test/support"], else: ["lib"]),
+      elixirc_paths: elixirc_paths(Mix.env()),
       test_coverage: [tool: ExCoveralls],
       dialyzer: [plt_add_apps: [:mix, :ex_unit]],
       docs: [main: "readme", extras: ["README.md"]],
@@ -22,6 +22,10 @@ defmodule WotexTrackerService.MixProject do
 
   def application, do: [extra_applications: [:crypto]]
   def cli, do: [preferred_envs: [check: :test, coveralls: :test]]
+
+  defp elixirc_paths(:dev), do: ["lib", "dev"]
+  defp elixirc_paths(:test), do: ["lib", "dev", "test/support"]
+  defp elixirc_paths(_), do: ["lib"]
 
   defp deps do
     [

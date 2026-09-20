@@ -82,6 +82,50 @@ for this composed listener host; otherwise it reports `unconfigured`. That value
 describes admitted supervision, not socket liveness, carrier reachability,
 authentication, encryption or hardware qualification.
 
+## Dev-only passive BLE simulator
+
+In `dev` and `test` builds only, set
+`WOTEX_TRACKER_PASSIVE_SIMULATOR_CONFIG` to a separate private 0600 JSON file in
+a 0700 directory. The main host credential must already grant `ingest` in the
+selected scope. The closed document names the simulator explicitly and carries
+one to 1,024 finite captures:
+
+```json
+{
+  "schema": "wtr.passive-ble-simulator.v1",
+  "adapter": "development-passive-simulator",
+  "token": "<configured 256-bit service bearer>",
+  "scope": "workshop",
+  "interval_ms": 100,
+  "timeout_ms": 5000,
+  "advertisements": [
+    {
+      "id": "simulated-ruuvi-one",
+      "observed_at": 1700000000000,
+      "receiver": "development-macos",
+      "address": "private-address-one",
+      "address_type": "random_private_resolvable",
+      "manufacturer_id": 1177,
+      "payload_hex": "0512FC5394C37C0004FFFC040CAC364200CDCBB8334C884F",
+      "rssi": -42,
+      "provenance": {
+        "evidence_class": "simulator",
+        "scenario": "ruuvi-raw-v2"
+      }
+    }
+  ]
+}
+```
+
+Start the ordinary source host with both configuration variables. The scanner
+pulls and admits each capture once, then remains stopped under the host
+supervisor. Its adapter and configuration module are absent from production
+builds, so setting this variable in production fails startup instead of silently
+substituting simulated data. The scenario exercises private-address changes,
+profile resolution, decoding and durable public state through the real service;
+it is labelled simulator evidence and does not change the authenticated
+capabilities response or claim live scanning.
+
 ## Optional APNs delivery
 
 Set `WOTEX_TRACKER_APNS_CONFIG` to a separate absolute, regular 0600 JSON file

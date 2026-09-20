@@ -72,6 +72,23 @@ does not open, pair, retry or close that session. `wotex_ble` is an optional
 package dependency; an absent package or adapter reports unavailable without
 preventing the service from starting. Loading the service starts no BLE work.
 
+`Wotex.Tracker.Service.PassiveScanner` is the explicitly started pull owner for
+a host-selected passive BLE adapter. Adapter initialization and each `next/1`
+call run in isolated monitored workers with finite deadlines, and only one
+capture can be in flight. `PassiveAdvertisement` bounds the receiver, address
+type, advertisement bytes, manufacturer ID, RSSI and provenance without
+promoting an observed address to identity. `PassiveIngress` serializes current
+`ingest` authorization and durable admission, derives an exact deterministic
+operation identity and retries only generation conflicts. Repeating the same
+capture therefore resolves its retained operation rather than creating another
+observation. The package starts neither owner automatically.
+
+`Wotex.Tracker.Service.Development.PassiveSimulator` implements the same adapter
+contract with a finite caller-supplied capture list. It is compiled only in dev
+and test, never into a production package or release. It establishes deterministic
+simulator evidence only; it is not a fallback for an absent OS scanner and does
+not qualify a radio, controller, backend or physical device.
+
 `Service.access/4` and `GET …/access` return the current credential's non-secret
 ID, principal, exact scope permissions and expiry after the ordinary durable
 revocation check. Bearer material, its digest, the internal access proof and

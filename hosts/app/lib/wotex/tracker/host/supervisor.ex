@@ -3,9 +3,11 @@ defmodule Wotex.Tracker.Host.Supervisor do
 
   use Supervisor
   alias Wotex.Tracker.Host.NativeResourceSampler
-  alias Wotex.Tracker.Service.{APNsHostConfig, Cellular.HostConfig}
+  alias Wotex.Tracker.Service.APNsHostConfig
+  alias Wotex.Tracker.Service.Cellular.HostConfig
   alias Wotex.Tracker.Service.Cellular.Server, as: CellularServer
   alias Wotex.Tracker.Service.HTTP.{Config, Server}
+  alias Wotex.Tracker.Service.{PassiveIngress, PassiveScanner}
 
   def start_link(options), do: Supervisor.start_link(__MODULE__, options)
 
@@ -30,6 +32,7 @@ defmodule Wotex.Tracker.Host.Supervisor do
     server_provider = fn -> Server.child(parent, Server) end
 
     cellular = cellular_children(options[:cellular], provider)
+    passive = passive_children(options[:passive], provider)
 
     browser =
       if options[:browser],
@@ -45,7 +48,7 @@ defmodule Wotex.Tracker.Host.Supervisor do
       end
 
     Supervisor.init(
-      [{Server, service}] ++ cellular ++ browser ++ native,
+      [{Server, service}] ++ cellular ++ passive ++ browser ++ native,
       strategy: :rest_for_one
     )
   end
@@ -54,6 +57,18 @@ defmodule Wotex.Tracker.Host.Supervisor do
 
   defp cellular_children(%HostConfig{} = config, provider),
     do: [{CellularServer, HostConfig.server_options(config, provider)}]
+
+  defp passive_children(nil, _provider), do: []
+
+  defp passive_children(%{ingress: ingress, scanner: scanner}, provider)
+       when is_list(ingress) and is_list(scanner) do
+    ingress_name = Wotex.Tracker.Host.Development.PassiveIngress
+
+    [
+      {PassiveIngress, Keyword.merge(ingress, service: provider, name: ingress_name)},
+      {PassiveScanner, Keyword.merge(scanner, ingress: ingress_name)}
+    ]
+  end
 
   defp notification_dispatcher(options, nil), do: options
 

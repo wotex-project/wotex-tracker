@@ -2,12 +2,13 @@ defmodule Wotex.Tracker.Host.ConfigTest do
   @moduledoc false
   use ExUnit.Case, async: false
   alias Wotex.Tracker.Host.{Application, Config, NativeResourceSampler}
+  alias Wotex.Tracker.Host.Development.PassiveSimulatorConfig
   alias Wotex.Tracker.Host.Supervisor, as: HostSupervisor
   alias Wotex.Tracker.Protocols.Teltonika.{TAT140, TCPSession}
   alias Wotex.Tracker.Service
   alias Wotex.Tracker.Service.APNsHostConfig
   alias Wotex.Tracker.Service.Cellular.Server, as: CellularServer
-  alias Wotex.Tracker.Service.{Codec, Credentials}
+  alias Wotex.Tracker.Service.{Codec, Credentials, PassiveScanner}
   alias Wotex.Tracker.Service.HTTP.Config, as: ServerConfig
   alias Wotex.Tracker.Service.HTTP.Server
 
@@ -50,9 +51,11 @@ defmodule Wotex.Tracker.Host.ConfigTest do
     previous_browser = System.get_env("WOTEX_TRACKER_UI_CONFIG")
     previous_cellular = System.get_env("WOTEX_TRACKER_CELLULAR_CONFIG")
     previous_apns = System.get_env("WOTEX_TRACKER_APNS_CONFIG")
+    previous_passive = System.get_env("WOTEX_TRACKER_PASSIVE_SIMULATOR_CONFIG")
     System.delete_env("WOTEX_TRACKER_UI_CONFIG")
     System.delete_env("WOTEX_TRACKER_CELLULAR_CONFIG")
     System.delete_env("WOTEX_TRACKER_APNS_CONFIG")
+    System.delete_env("WOTEX_TRACKER_PASSIVE_SIMULATOR_CONFIG")
 
     on_exit(fn ->
       if previous,
@@ -70,6 +73,10 @@ defmodule Wotex.Tracker.Host.ConfigTest do
       if previous_apns,
         do: System.put_env("WOTEX_TRACKER_APNS_CONFIG", previous_apns),
         else: System.delete_env("WOTEX_TRACKER_APNS_CONFIG")
+
+      if previous_passive,
+        do: System.put_env("WOTEX_TRACKER_PASSIVE_SIMULATOR_CONFIG", previous_passive),
+        else: System.delete_env("WOTEX_TRACKER_PASSIVE_SIMULATOR_CONFIG")
 
       File.rm_rf!(directory)
     end)
@@ -342,6 +349,111 @@ defmodule Wotex.Tracker.Host.ConfigTest do
     assert {:error, :invalid_configuration} = Config.load_cellular(path, :invalid)
   end
 
+  test "an explicit dev simulator admits finite passive advertisements", c do
+    path = Path.join(c.directory, "passive-simulator.json")
+    document = passive_simulator_document(c.token)
+    write(path, document)
+
+    assert {:ok, service_options} = Config.load(c.path)
+    assert {:ok, simulator} = Config.load_passive_simulator(path, service_options)
+    assert simulator.advertisement_count == 2
+    assert simulator.adapter == "development-passive-simulator"
+    refute inspect(simulator) =~ c.token
+
+    private_address = document["advertisements"] |> hd() |> Map.fetch!("address")
+    refute inspect(simulator) =~ private_address
+
+    System.put_env("WOTEX_TRACKER_CONFIG", c.path)
+    System.put_env("WOTEX_TRACKER_PASSIVE_SIMULATOR_CONFIG", path)
+    assert {:ok, host} = Application.start(:normal, [])
+
+    assert {Server, api, :supervisor, _} =
+             List.keyfind(Supervisor.which_children(host), Server, 0)
+
+    assert {Wotex.Tracker.Service.PassiveScanner, scanner, :worker, _} =
+             List.keyfind(
+               Supervisor.which_children(host),
+               Wotex.Tracker.Service.PassiveScanner,
+               0
+             )
+
+    eventually(fn ->
+      PassiveScanner.status(scanner).lifecycle == :stopped
+    end)
+
+    assert {:ok, server_config} = ServerConfig.new(service_options)
+    assert {:ok, service} = Server.context(api, server_config)
+
+    assert {:ok, %{"generation" => "2", "items" => observations}} =
+             Service.list(
+               service,
+               c.token,
+               "workshop",
+               "observations",
+               %{"limit" => 10},
+               System.system_time(:millisecond)
+             )
+
+    assert length(observations) == 2
+    assert Enum.all?(observations, &(&1["value"]["ingress"] == "ble"))
+    assert :ok = Supervisor.stop(host)
+  end
+
+  test "passive simulator configuration is optional, private and dev-only", c do
+    assert {:ok, service_options} = Config.load(c.path)
+    assert {:ok, nil} = Config.load_passive_simulator(nil, service_options)
+
+    assert {:error, :invalid_configuration} =
+             Config.load_passive_simulator("relative", service_options)
+
+    path = Path.join(c.directory, "passive-simulator.json")
+    valid = passive_simulator_document(c.token)
+
+    advertisements =
+      ~w(public random_private_resolvable random_private_non_resolvable unknown)
+      |> Enum.with_index()
+      |> Enum.map(fn {address_type, index} ->
+        valid["advertisements"]
+        |> hd()
+        |> Map.put("id", "address-kind-#{index}")
+        |> Map.put("address_type", address_type)
+      end)
+
+    write(path, Map.put(valid, "advertisements", advertisements))
+    assert {:ok, %{advertisement_count: 4}} = Config.load_passive_simulator(path, service_options)
+
+    invalid = [
+      %{},
+      Map.put(valid, "schema", "other"),
+      Map.put(valid, "adapter", "physical"),
+      Map.put(valid, "token", Credentials.generate_token()),
+      Map.put(valid, "scope", "other"),
+      Map.put(valid, "interval_ms", -1),
+      Map.put(valid, "timeout_ms", 30_001),
+      Map.put(valid, "advertisements", []),
+      Map.put(valid, "advertisements", [
+        Map.put(hd(valid["advertisements"]), "address_type", "forged")
+      ]),
+      Map.put(valid, "advertisements", [nil]),
+      Map.put(valid, "advertisements", [Map.put(hd(valid["advertisements"]), "payload_hex", 1)]),
+      Map.put(valid, "advertisements", [Map.put(hd(valid["advertisements"]), "payload_hex", "aa")]),
+      Map.put(valid, "unknown", true)
+    ]
+
+    for document <- invalid do
+      write(path, document)
+
+      assert {:error, :invalid_configuration} =
+               Config.load_passive_simulator(path, service_options)
+    end
+
+    write(path, valid)
+    File.chmod!(path, 0o644)
+    assert {:error, :invalid_configuration} = Config.load_passive_simulator(path, service_options)
+    assert {:error, :invalid_configuration} = Config.load_passive_simulator(path, :invalid)
+    assert {:error, :invalid_configuration} = PassiveSimulatorConfig.load(path, :invalid)
+  end
+
   test "an optional private APNs configuration supervises provider delivery", c do
     apns = apns_document()
     path = Path.join(c.directory, "apns.json")
@@ -574,6 +686,55 @@ defmodule Wotex.Tracker.Host.ConfigTest do
 
     [vector] = fixture["vectors"]
     Base.decode16!(vector["hex"])
+  end
+
+  defp passive_simulator_document(token) do
+    now = System.system_time(:millisecond)
+
+    advertisement = %{
+      "id" => "simulated-ruuvi-one",
+      "observed_at" => now,
+      "receiver" => "development-macos",
+      "address" => "private-address-one",
+      "address_type" => "random_private_resolvable",
+      "manufacturer_id" => 1_177,
+      "payload_hex" => "0512FC5394C37C0004FFFC040CAC364200CDCBB8334C884F",
+      "rssi" => -42,
+      "provenance" => %{
+        "evidence_class" => "simulator",
+        "scenario" => "ruuvi-raw-v2"
+      }
+    }
+
+    %{
+      "schema" => "wtr.passive-ble-simulator.v1",
+      "adapter" => "development-passive-simulator",
+      "token" => token,
+      "scope" => "workshop",
+      "interval_ms" => 0,
+      "timeout_ms" => 1_000,
+      "advertisements" => [
+        advertisement,
+        %{
+          advertisement
+          | "id" => "simulated-ruuvi-two",
+            "observed_at" => now + 1,
+            "address" => "private-address-two"
+        }
+      ]
+    }
+  end
+
+  defp eventually(function, attempts \\ 100)
+  defp eventually(function, 0), do: assert(function.())
+
+  defp eventually(function, attempts) do
+    if function.() do
+      :ok
+    else
+      Process.sleep(10)
+      eventually(function, attempts - 1)
+    end
   end
 
   defp apns_document do

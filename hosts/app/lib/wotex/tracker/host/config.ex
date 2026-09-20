@@ -56,6 +56,21 @@ defmodule Wotex.Tracker.Host.Config do
 
   def load_apns(_, _), do: {:error, :invalid_configuration}
 
+  @doc "Loads an optional dev/test-only deterministic passive BLE simulator."
+  @spec load_passive_simulator(term(), keyword()) ::
+          {:ok, struct() | nil} | {:error, :invalid_configuration}
+  def load_passive_simulator(nil, _service_options), do: {:ok, nil}
+
+  def load_passive_simulator(path, service_options) when is_list(service_options) do
+    module = Wotex.Tracker.Host.Development.PassiveSimulatorConfig
+
+    if Code.ensure_loaded?(module) and function_exported?(module, :load, 2),
+      do: module.load(path, service_options),
+      else: {:error, :invalid_configuration}
+  end
+
+  def load_passive_simulator(_, _), do: {:error, :invalid_configuration}
+
   @doc "Loads an optional, separately private browser listener configuration."
   @spec load_browser(term(), keyword()) ::
           {:ok, BrowserConfig.t() | nil} | {:error, :invalid_configuration}

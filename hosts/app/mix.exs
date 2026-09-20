@@ -7,7 +7,7 @@ defmodule WotexTrackerHost.MixProject do
       version: "0.1.0",
       elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
-      elixirc_paths: if(ui?(), do: ["lib", "ui"], else: ["lib"]),
+      elixirc_paths: elixirc_paths(Mix.env()),
       test_paths: if(ui?(), do: ["test", "ui_test"], else: ["test"]),
       lockfile: if(ui?(), do: "mix.ui.lock", else: "mix.lock"),
       build_path: if(ui?(), do: "_build/ui", else: "_build"),
@@ -33,6 +33,12 @@ defmodule WotexTrackerHost.MixProject do
     ]
 
   def cli, do: [preferred_envs: [check: :test, coveralls: :test]]
+
+  defp elixirc_paths(environment) do
+    ["lib"] ++
+      if(environment in [:dev, :test], do: ["dev"], else: []) ++
+      if(ui?(), do: ["ui"], else: [])
+  end
 
   defp deps do
     [

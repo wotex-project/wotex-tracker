@@ -17,6 +17,11 @@ defmodule Wotex.Tracker.Host.Application do
          {:ok, cellular} <-
            Config.load_cellular(System.get_env("WOTEX_TRACKER_CELLULAR_CONFIG"), options),
          {:ok, apns} <- Config.load_apns(System.get_env("WOTEX_TRACKER_APNS_CONFIG"), options),
+         {:ok, passive} <-
+           Config.load_passive_simulator(
+             System.get_env("WOTEX_TRACKER_PASSIVE_SIMULATOR_CONFIG"),
+             options
+           ),
          {:ok, browser} <-
            Config.load_browser(System.get_env("WOTEX_TRACKER_UI_CONFIG"), options),
          true <- is_nil(browser) or Code.ensure_loaded?(Wotex.Tracker.Host.Browser) do
@@ -24,7 +29,8 @@ defmodule Wotex.Tracker.Host.Application do
         service: options,
         browser: browser,
         cellular: cellular,
-        apns: apns
+        apns: apns,
+        passive: passive
       )
     else
       false -> {:error, :ui_not_in_artifact}
