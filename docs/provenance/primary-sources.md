@@ -54,6 +54,13 @@ All 15 sibling libraries excluding Lab have no first-party `mod:` application ca
 
 ## Monorepo topology follow-up
 
+A current topology check on 2026-09-20 pinned the clean remote monorepo tree at
+[`cd73c5493d3453ae9ecd203c63b589676c9b9fd6`](https://github.com/wotex-project/wotex/tree/cd73c5493d3453ae9ecd203c63b589676c9b9fd6/packages).
+That one tree contains the `wotex`, `wotex-runtime`, `wotex-binding-http` and
+`wotex-ble` packages consumed by Tracker. CI checks out that one repository next
+to Tracker and resolves every development path below `wotex/packages/`; it no
+longer checks out the retired split Runtime or HTTP-binding repositories.
+
 A read-only follow-up on 2026-09-20 inspected committed `wotex_ble` source at
 [`1793303ffcdfd92e325856b2f44562448046f76a`](https://github.com/wotex-project/wotex/tree/1793303ffcdfd92e325856b2f44562448046f76a/packages/wotex-ble).
 That source uses the accepted first-party C++17/libdbus Port and runtime guardian;

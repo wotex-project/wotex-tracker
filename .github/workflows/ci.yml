@@ -38,7 +38,7 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           repository: wotex-project/wotex
-          ref: eadc6c9f9c285faf9324b8a7396a001381098b6c
+          ref: cd73c5493d3453ae9ecd203c63b589676c9b9fd6
           path: wotex
           persist-credentials: false
       - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
@@ -107,20 +107,8 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           repository: wotex-project/wotex
-          ref: eadc6c9f9c285faf9324b8a7396a001381098b6c
+          ref: cd73c5493d3453ae9ecd203c63b589676c9b9fd6
           path: wotex
-          persist-credentials: false
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
-        with:
-          repository: wotex-project/wotex-runtime
-          ref: 65d0b521ccb6b7838fe37bf26bf9dac65b40cc68
-          path: wotex-runtime
-          persist-credentials: false
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
-        with:
-          repository: wotex-project/wotex-binding-http
-          ref: 4c0d9104e81079bfdef610c003a9c700549bdbd9
-          path: wotex-binding-http
           persist-credentials: false
       - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
