@@ -4211,3 +4211,41 @@ This proves the source policy, both cross-builds and one virtual F2FS
 interruption/reboot. It is not a Pi 5 boot, actual power-loss/full-media/
 unmountable-partition trial, restored-backup proof, firmware-update validation or
 physical durability acceptance.
+
+### Nerves exposure clock gate — 2026-09-20
+
+The appliance now treats clock trust as host policy. Loopback configuration is
+admitted without consulting a synchronization provider, preserving provisioned
+offline tracking and the attached panel. Direct TLS configuration requires the
+current NervesTime runtime to report `synchronized? == true` before either the
+store or listener starts. False, nil, exceptions, exits and throws all collapse
+to the fixed `clock_unsynchronized` startup result. A persisted NervesTime file
+or plausible wall clock is not promoted to synchronization.
+
+Pure policy tests prove that loopback never calls the provider and direct TLS
+admits only an exact positive result. The composed application test supplies a
+valid private TLS configuration with an unsynchronized runtime and verifies that
+startup returns `clock_unsynchronized` without creating `tracker.db`. Headless
+host verification passed 23 tests; the kiosk composition passed 26. Both also
+passed warnings-as-errors compilation and formatter checks. The repository gate
+again passed 164 tests and 19 generated properties at 95.4% production line
+coverage with all configured static, archive, audit, documentation and licence
+checks.
+
+All three target profiles rebuilt from Tracker commit
+`a8cd3a7d73e7f852eec18098a8b54312156fb5e5`. The headless Pi 5 firmware SHA-256
+is `2a286898586b634ebeac42d9bb8b279080845a5e6caf6799958ebed070e53f90`;
+the kiosk SHA-256 is
+`dc369b7c755ae7d23252a9b72589512b93d110e97ed727f62f0d77db2ba807e5`.
+The fresh ARM64 QEMU boot log first reports that FileTime was unset, starts ntpd,
+then passes the loopback service probe 139 ms later without a clock-wait gate. A
+second boot of the same virtual disk again passes the storage/HTTP/resource
+probe without formatting. Its firmware SHA-256 is
+`5fbdfb0fb3c3f17dd2378c12414af5b0006b7d023191f1898274e541a7da8851`.
+Updated manifests and complete boot-log digests are retained in the three Nerves
+verification receipts.
+
+This is a startup exposure policy, not a hardware-RTC, NTP-server provenance,
+long-duration drift, synchronization-loss, physical-network or credential-
+recovery qualification. Loopback operation labels the retained time only as an
+estimate; it does not claim synchronized expiry semantics.

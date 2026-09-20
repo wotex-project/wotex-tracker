@@ -1,7 +1,7 @@
 {
   "boot_log_sha256": {
-    "first": "710eea2980ca55059620f6215b2dc8d2eeb95ca969881e97ac669ab10964920e",
-    "reboot": "47626762236e8662c3767effa721a2f41449b966bb66e803411ab347b6ccac2a"
+    "first": "c552b1cfd6b5348c3551b5b56fed4f7a0d6270b04e65d5e3f5abde9046285b42",
+    "reboot": "f72ab3c880ccc2276247eaf1701cc44d26beeb5d8396030804d34d7fa587e997"
   },
   "checks": {
     "first_boot_formatted_fresh_partition": true,
@@ -18,18 +18,18 @@
     "sqlite_nif_aarch64": true
   },
   "firmware": {
-    "bytes": 31196345,
+    "bytes": 31195174,
     "metadata": {
       "meta-architecture": "arm",
       "meta-author": "The Nerves Team",
-      "meta-creation-date": "2026-09-20T03:46:50Z",
-      "meta-nickname": "chat-pudding",
+      "meta-creation-date": "2026-09-20T03:52:44Z",
+      "meta-nickname": "dilemma-gain",
       "meta-platform": "qemu_aarch64",
       "meta-product": "wotex_tracker_nerves",
-      "meta-uuid": "1abd789d-24aa-59c6-f70a-9d0aa340b43c",
+      "meta-uuid": "4a4cad7a-d923-5952-5e4f-b21d83473d0c",
       "meta-version": "0.1.0"
     },
-    "sha256": "11e7a7261a977de0f6c90582cdf2f24bda30ebbfd626fe5b6fd9978f466be031",
+    "sha256": "5fbdfb0fb3c3f17dd2378c12414af5b0006b7d023191f1898274e541a7da8851",
     "sqlite_nif": "ELF 64-bit LSB shared object, ARM aarch64, version 1 (SYSV), dynamically linked, BuildID[sha1]=a3dc0ce06a84ffe46914bb4a81e11c04c5f811c6, not stripped",
     "target_elixir": "1.20.4",
     "target_erts": "17.0.6"
@@ -103,7 +103,7 @@
       "tracked_paths": []
     },
     "wotex_tracker": {
-      "commit": "3d6765d89ed7bf53fa1a7e1a37dc29d80f8c62ad",
+      "commit": "a8cd3a7d73e7f852eec18098a8b54312156fb5e5",
       "tracked_changes": true,
       "tracked_paths": [
         "docs/specs/WTR.15-product-and-mobile-applications.md"
