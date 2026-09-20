@@ -4365,3 +4365,54 @@ This proves current-image, pre-install, read-only software admission of an exact
 SQLite backup candidate. It does not prove copying or restoration on selected
 media, corrupt/unmountable-media recovery, power interruption, physical Pi boot,
 firmware validation or rollback.
+
+### Firmware health before image validation — 2026-09-20
+
+The Nerves application now withholds its OTP started state until one synchronous
+core-health gate proves that the private initialized marker still matches the
+service instance and data path, the supervised service has an actual bound
+listener, and the live SQLite store completes its rolled-back write probe while
+reporting the exact schema version owned by the service schema module. Failures,
+malformed results, exits and exceptions collapse to `firmware_health_failed` and
+the host supervisor is stopped. The health gate itself has no retry loop.
+
+This ordering is the seam used by the pinned Nerves Runtime 0.13.13 startup
+guard: the release enables `startup_guard_enabled`, requires the heart
+initialization handshake within 600 seconds, and configures a 30-second heart
+beat timeout. The guard registers its 15-minute failure callback, waits for all
+expected OTP applications, and only then accepts an already-valid image or calls
+firmware validation for an unvalidated image. Consequently, reaching BEAM or the
+kiosk cannot validate a pending image while Tracker storage, listener or write
+readiness is broken.
+
+The build-record consumers now inspect the target release rather than trusting
+source configuration alone. They require the health module BEAM, the compiled
+application import of `FirmwareHealth.check/4`, the exact startup-guard setting,
+the heart initialization and beat arguments, ARM64 SQLite NIF and the existing
+secret/UI/SSH exclusions. The QEMU receipt additionally requires both serial
+boots to reach the startup guard's all-applications-started completion after the
+private-store, loopback-HTTP, native-resource and initialized-marker probe.
+
+Headless Nerves verification passed 33 tests and the kiosk composition passed 36
+with warnings-as-errors and formatter checks. The service gate passed 309 tests
+and two generated properties at 95.0% production line coverage with all compiler,
+dependency, formatter, audit, strict Credo, ExDoc, Dialyzer, OpenAPI, archive,
+licence, boundary and stack-language checks. The repository gate passed 164 tests
+and 19 generated properties at 95.4% with all configured checks.
+
+The Pi and QEMU artifacts contain the firmware-health implementation from commit
+`16b7abbee1dd38559b0e379b70481d2d0e1fb5a9`; receipt assertions were completed at
+`825465ae3272e06910e44b2f60a70cdb02feaf8d`. The headless Pi 5 firmware SHA-256
+is `99a5c95d164b0504e437a3777637aae6640d05532bbc9157931176616acf3ea7`;
+the kiosk SHA-256 is
+`c5fd0620d3dde1f0cb4e53298a3ae23cc6c06fd5dd67d3b70b0e325554ecd263`;
+and the QEMU SHA-256 is
+`215c59f81e51c46da8041b565114aa0122622874900829dc4b33db4a753eb992`.
+A fresh virtual partition and reboot of the same disk both passed; the first
+formatted the partition and the reboot did not. The recorded source-change path
+is only the concurrent WTR.15 documentation edit, which was never staged here.
+
+This proves the source ordering, packaged configuration and successful virtual
+completion of the health-dependent startup guard. It does not exercise an
+unvalidated firmware slot, bad-image failure, physical timeout, interrupted
+update or revert on a Pi 5; those remain hardware acceptance gates.

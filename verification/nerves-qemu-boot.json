@@ -1,13 +1,16 @@
 {
   "boot_log_sha256": {
-    "first": "ab28e8570434acf5577183aa0b1324715cbf893e6d9238bb6d9b83655c3be839",
-    "reboot": "17780161db6e00f477d401977d3cf04e3c0cb01a2b0fccdb5e751baae0753bc1"
+    "first": "c5c1af2c1b52c0e9da2f5152a6a6caa15a39186e01470808c2b6d83eaa079bfe",
+    "reboot": "112fba6db3a16191c38dc8fcf5eeb4b101a69639dbfb5af24df90d7c9f084f91"
   },
   "checks": {
+    "core_health_before_firmware_validation": true,
+    "firmware_startup_guard_with_finite_heart_timeout": true,
     "first_boot_formatted_fresh_partition": true,
     "first_boot_initialized_storage_marker": true,
     "first_boot_native_resource_sample": true,
     "first_boot_private_store_and_loopback_http": true,
+    "first_boot_startup_guard_completed": true,
     "no_active_iex_or_distribution": true,
     "no_credentials_in_runtime_config": true,
     "no_ui_or_ssh_applications": true,
@@ -15,21 +18,22 @@
     "reboot_kept_existing_partition": true,
     "reboot_native_resource_sample": true,
     "reboot_private_store_and_loopback_http": true,
+    "reboot_startup_guard_completed": true,
     "sqlite_nif_aarch64": true
   },
   "firmware": {
-    "bytes": 31199339,
+    "bytes": 31201939,
     "metadata": {
       "meta-architecture": "arm",
       "meta-author": "The Nerves Team",
-      "meta-creation-date": "2026-09-20T04:14:14Z",
-      "meta-nickname": "forward-maple",
+      "meta-creation-date": "2026-09-20T04:25:16Z",
+      "meta-nickname": "select-jump",
       "meta-platform": "qemu_aarch64",
       "meta-product": "wotex_tracker_nerves",
-      "meta-uuid": "6884d0f2-7ca1-5012-5168-e1cb964533cd",
+      "meta-uuid": "d06a7105-62db-55f8-42af-ba1f1fa803b9",
       "meta-version": "0.1.0"
     },
-    "sha256": "69c0434e37bd4bf3a72331b0da42112caa67ff88b51e2d21d8affa333d5f1135",
+    "sha256": "215c59f81e51c46da8041b565114aa0122622874900829dc4b33db4a753eb992",
     "sqlite_nif": "ELF 64-bit LSB shared object, ARM aarch64, version 1 (SYSV), dynamically linked, BuildID[sha1]=a3dc0ce06a84ffe46914bb4a81e11c04c5f811c6, not stripped",
     "target_elixir": "1.20.4",
     "target_erts": "17.0.6"
@@ -103,7 +107,7 @@
       "tracked_paths": []
     },
     "wotex_tracker": {
-      "commit": "bafb2e0ea128bb262f2011fbec3e9f0124b6df94",
+      "commit": "825465ae3272e06910e44b2f60a70cdb02feaf8d",
       "tracked_changes": true,
       "tracked_paths": [
         "docs/specs/WTR.15-product-and-mobile-applications.md"

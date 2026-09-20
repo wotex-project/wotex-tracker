@@ -1,5 +1,7 @@
 {
   "checks": {
+    "core_health_before_firmware_validation": true,
+    "firmware_startup_guard_with_finite_heart_timeout": true,
     "myelin_web_extension_aarch64": true,
     "no_active_iex_or_distribution": true,
     "no_credentials_in_runtime_config": true,
@@ -9,19 +11,19 @@
     "sqlite_nif_aarch64": true
   },
   "firmware": {
-    "bytes": 145963427,
+    "bytes": 145965861,
     "metadata": {
       "meta-architecture": "aarch64",
       "meta-author": "The Nerves Team",
-      "meta-creation-date": "2026-09-20T04:13:57Z",
-      "meta-nickname": "initial-release",
+      "meta-creation-date": "2026-09-20T04:25:28Z",
+      "meta-nickname": "peasant-capital",
       "meta-platform": "rpi5",
       "meta-product": "wotex_tracker_nerves",
-      "meta-uuid": "7cc72ff1-2880-5174-61bf-ea1c0b06fc62",
+      "meta-uuid": "a9279da8-9867-55ab-e955-effa432570ed",
       "meta-version": "0.1.0"
     },
     "myelin_web_extension": "ELF 64-bit LSB shared object, ARM aarch64, version 1 (SYSV), dynamically linked, BuildID[sha1]=18e52db95084d0f4aa91bc027116b55545819727, with debug_info, not stripped",
-    "sha256": "a0f1edf2214c236f69d1fd454facbe1807fb02d8f85bb3c3732405a01c3f17f2",
+    "sha256": "c5fd0620d3dde1f0cb4e53298a3ae23cc6c06fd5dd67d3b70b0e325554ecd263",
     "sqlite_nif": "ELF 64-bit LSB shared object, ARM aarch64, version 1 (SYSV), dynamically linked, BuildID[sha1]=a3dc0ce06a84ffe46914bb4a81e11c04c5f811c6, not stripped",
     "target_elixir": "1.20.4",
     "target_erts": "17.0.6"
@@ -113,7 +115,7 @@
       "tracked_changes": false
     },
     "wotex_tracker": {
-      "commit": "bafb2e0ea128bb262f2011fbec3e9f0124b6df94",
+      "commit": "825465ae3272e06910e44b2f60a70cdb02feaf8d",
       "tracked_changes": true
     }
   }
