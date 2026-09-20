@@ -133,6 +133,36 @@ defmodule Wotex.Tracker.Service.ActionInteractionTest do
     end
   end
 
+  test "Action admission respects retained-operation capacity and expiry atomically" do
+    c = action_thing()
+    c = reopen(c, max_rows: 4)
+    operation = Identifier.uuid()
+
+    assert {:error, %{"code" => "capacity_exceeded", "outcome" => "not_committed"}} =
+             invoke(c, operation, request(c))
+
+    assert {:error, %{"code" => "not_found"}} = status(c, operation)
+
+    c = reopen(c)
+    assert {:ok, %{"disposition" => "queued"}} = invoke(c, operation, request(c))
+    expires_at = c.now + 604_800_000
+
+    assert {:error, %{"code" => "operation_expired", "outcome" => "not_committed"}} =
+             Service.invoke_action(
+               c.service,
+               c.admin,
+               c.scope,
+               operation,
+               c.thing,
+               "refresh",
+               request(c),
+               expires_at
+             )
+
+    assert {:ok, %{"status" => "queued"}} =
+             Service.action_status(c.service, c.admin, c.scope, operation, expires_at)
+  end
+
   test "Runtime acceptance settles once without claiming a physical effect" do
     c = action_thing()
     operation = Identifier.uuid()
@@ -185,6 +215,29 @@ defmodule Wotex.Tracker.Service.ActionInteractionTest do
       assert :ok = ActionDispatcher.dispatch(dispatcher)
       refute_receive {:action_request, _, _, _}, 100
     end
+  end
+
+  test "independent dispatchers cannot claim the same Action twice" do
+    c = action_thing()
+    operation = Identifier.uuid()
+    assert {:ok, _} = invoke(c, operation, request(c))
+
+    _blocked = start_dispatcher(c, :block, timeout_ms: 500)
+    assert_receive {:action_request, :invokeaction, 5, "private-device-secret"}, 1_000
+
+    {other_store, _} = store(directory: c.directory, credentials: c.credentials)
+    other = %{c | store: other_store}
+    second = start_dispatcher(other, :ok)
+
+    eventually(fn ->
+      match?(
+        {:ok, %{"running" => false, "last_result" => %{"claimed" => 0}}},
+        ActionDispatcher.snapshot(second)
+      )
+    end)
+
+    refute_receive {:action_request, :invokeaction, 5, "private-device-secret"}, 100
+    eventually(fn -> match?({:ok, %{"status" => "unknown"}}, status(c, operation)) end)
   end
 
   test "Runtime construction, selection and credential failures are terminal before transport" do
@@ -704,6 +757,27 @@ defmodule Wotex.Tracker.Service.ActionInteractionTest do
     do: Service.action_status(c.service, c.admin, c.scope, operation, c.now)
 
   defp request(c), do: %{"expected_generation" => c.generation, "input" => 5}
+
+  defp reopen(c, options \\ []) do
+    GenServer.stop(c.store.pid)
+
+    {store, _} =
+      store(
+        Keyword.merge(
+          [directory: c.directory, credentials: c.credentials],
+          options
+        )
+      )
+
+    {:ok, service} =
+      Service.new(%{
+        store: store,
+        credentials: c.credentials,
+        base_url: c.service.base_url
+      })
+
+    %{c | store: store, service: %{service | action_delivery: :configured}}
+  end
 
   defp start_dispatcher(c, mode, options \\ []) do
     runtime = if is_map(mode), do: mode, else: runtime(mode)

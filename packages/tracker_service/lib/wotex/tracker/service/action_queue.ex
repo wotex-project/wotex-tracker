@@ -101,7 +101,8 @@ defmodule Wotex.Tracker.Service.ActionQueue do
   end
 
   defp insert(db, intent, digest, now, options) do
-    table_capacity!(db, options)
+    table_capacity!(db, "operations", options)
+    table_capacity!(db, "action_intents", options)
     document = Codec.encode!(ActionIntent.document(intent))
 
     SQL.rows!(
@@ -367,8 +368,9 @@ defmodule Wotex.Tracker.Service.ActionQueue do
   defp completion_shape?(%{status: :unknown, classification: classification}),
     do: classification in ~w(transport_unknown dispatch_unknown)
 
-  defp table_capacity!(db, options) do
-    [[count]] = SQL.rows!(db, "SELECT count(*) FROM action_intents")
+  defp table_capacity!(db, table, options) do
+    # `table` is a compile-time call-site literal, never caller SQL.
+    [[count]] = SQL.rows!(db, "SELECT count(*) FROM #{table}")
     if count + 1 > options.max_rows, do: throw({:storage, :capacity_exceeded})
   end
 

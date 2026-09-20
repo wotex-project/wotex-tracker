@@ -235,8 +235,12 @@ exact-generation intent after `interact` authorization and exposes a
 caller-owned status. Dispatch rechecks authority and revision, marks the intent
 unknown before exactly one `Wotex.Runtime.ConsumedThing.invoke_action/4` call,
 and never retries it after timeout, crash or ambiguous transport completion.
-Runtime acceptance remains protocol evidence with unknown physical effect. No
-Directory destination or publication effect is implicit.
+Action admission reserves both its intent row and the same retained-operation
+row budget used by ordinary mutations before writing either one. Capacity
+failure is atomic. An expired operation remains a non-reusable tombstone while
+its durable Action status stays available until the scope is deleted. Runtime
+acceptance remains protocol evidence with unknown physical effect. No Directory
+destination or publication effect is implicit.
 
 An `enroll` grant can derive initial state/evidence for the same Thing in its
 materialisation transaction. It cannot import observations or export raw data.

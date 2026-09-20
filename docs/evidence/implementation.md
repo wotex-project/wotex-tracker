@@ -5447,7 +5447,10 @@ primitive input schema. Admission reuses the current `interact` authorization
 boundary, retains the access proof privately and writes the intent plus
 idempotent operation result in one SQLite transaction. Schema revision 9 adds
 the bounded Action-intent table and a direct revision-8 migration. Domain-data
-deletion includes the retained intents.
+deletion includes the retained intents. Admission reserves capacity in both the
+Action-intent and retained-operation tables before inserting either row, so the
+configured operation ceiling cannot be bypassed and capacity failure leaves no
+pollable intent.
 
 The explicitly supervised dispatcher rechecks durable authorization and the
 exact Thing identity before claim. A claim changes `pending` to `unknown` in a
@@ -5466,6 +5469,10 @@ metadata. Tests exercise exact replay after a Thing revision, conflicting
 replay, malformed input, dispatch-time revocation, pre/post-commit faults,
 settlement conflict, worker death, timeout, transport ambiguity, unavailable
 supervision and the real HTTP router through the supervised Runtime boundary.
+They also fill the operation table at its configured ceiling, retain an expired
+Action key as a non-reusable tombstone with separately readable status, and run
+two independent SQLite-backed dispatchers against one queued intent while the
+first transport call is blocked. Only the committed claimant reaches Runtime.
 
 The complete service gate passed on Elixir 1.18.4/Erlang/OTP 27.3.4.15 with
 382 tests and two generated properties at 95.0% production line coverage. The
@@ -5473,6 +5480,11 @@ same gate passed on Elixir 1.20.4/Erlang/OTP 29.0.4 with 382 tests and two
 generated properties at 95.1%. Compiler, unused-dependency, formatter,
 vulnerability audit, strict Credo, ExDoc, Dialyzer, boundary, stack-language,
 archive, OpenAPI and licence checks passed in both lanes.
+
+The capacity and competing-dispatcher hardening reran that complete gate on both
+runtime lanes with 384 tests and two generated properties. The floor lane held
+the 95.0% production-line threshold and the upper lane reported 95.1%; every
+configured check above passed again.
 
 No packaged profile declares an Action and no physical Action adapter or device
 was exercised. The synthetic transport proves the software boundary and
