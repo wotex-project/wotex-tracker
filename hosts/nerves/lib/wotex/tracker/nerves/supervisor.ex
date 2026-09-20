@@ -11,7 +11,7 @@ defmodule Wotex.Tracker.Nerves.Supervisor do
 
   use Supervisor
   alias Wotex.Tracker.Nerves.NativeResourceSampler
-  alias Wotex.Tracker.Service.{APNsHostConfig, Cellular.HostConfig}
+  alias Wotex.Tracker.Service.{APNsHostConfig, Cellular.HostConfig, PassiveHostConfig}
   alias Wotex.Tracker.Service.Cellular.Server, as: CellularServer
   alias Wotex.Tracker.Service.HTTP.{Config, Server}
   @kiosk_target Mix.target() == :rpi5
@@ -28,6 +28,7 @@ defmodule Wotex.Tracker.Nerves.Supervisor do
         :cellular_ingress,
         if(options[:cellular], do: :configured, else: :unconfigured)
       )
+      |> Keyword.put(:ble_scan, if(options[:passive], do: :configured, else: :unconfigured))
       |> notification_dispatcher(options[:apns])
 
     {:ok, config} = Config.new(service)
@@ -38,6 +39,7 @@ defmodule Wotex.Tracker.Nerves.Supervisor do
 
     server_provider = fn -> Server.child(parent, Server) end
     cellular = cellular_children(options[:cellular], provider)
+    passive = passive_children(options[:passive], provider)
 
     browser =
       if options[:browser] do
@@ -52,7 +54,7 @@ defmodule Wotex.Tracker.Nerves.Supervisor do
 
     Supervisor.init(
       [{Server, service}] ++
-        cellular ++ [{NativeResourceSampler, []}] ++ browser ++ kiosk,
+        cellular ++ passive ++ [{NativeResourceSampler, []}] ++ browser ++ kiosk,
       strategy: :one_for_one
     )
   end
@@ -61,6 +63,16 @@ defmodule Wotex.Tracker.Nerves.Supervisor do
 
   defp cellular_children(%HostConfig{} = config, provider),
     do: [{CellularServer, HostConfig.server_options(config, provider)}]
+
+  defp passive_children(nil, _provider), do: []
+
+  defp passive_children(%PassiveHostConfig{} = config, provider),
+    do:
+      PassiveHostConfig.child_specs(
+        config,
+        provider,
+        Wotex.Tracker.Nerves.PassiveIngress
+      )
 
   defp notification_dispatcher(options, nil), do: options
 

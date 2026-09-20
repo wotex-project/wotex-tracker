@@ -19,9 +19,13 @@ An explicitly started passive scanner owner now pulls one bounded capture at a
 time from a fixed host adapter, isolates initialization and reads behind finite
 deadlines, and serializes authorized service admission with deterministic
 retransmission reconciliation. A finite Ruuvi peer is available only in dev and
-test builds; it proves the simulator evidence class without powering a radio or
-claiming an OS scanner. Live BLE adapter integration and physical capability
-qualification remain open. See the
+test builds. The service, standalone host and Nerves host now share a closed
+production composition document that binds an existing ingest credential,
+scope, stable adapter identifier and finite budgets while requiring the caller
+to supply executable adapter code. Configuration data cannot select a module.
+The peer exercises that same composition without powering a radio or claiming an
+OS scanner. Selection and qualification of an actual OS/controller adapter
+remain external qualification work. See the
 [profile guide](../guides/profiles.md) and
 [executed evidence](../evidence/implementation.md#deterministic-active-probe-re-resolution--2026-09-20).
 

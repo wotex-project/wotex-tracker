@@ -49,7 +49,8 @@ defmodule Wotex.Tracker.Service.RuleStatusTest do
                "value" => %{"type" => "number", "value" => 2.5},
                "unit" => "V",
                "availability" => "available",
-               "quality" => "valid"
+               "quality" => "valid",
+               "reason" => "fixture"
              },
              "low_threshold" => %{"type" => "number", "value" => 2.5},
              "clear_threshold" => %{"type" => "number", "value" => 2.8},

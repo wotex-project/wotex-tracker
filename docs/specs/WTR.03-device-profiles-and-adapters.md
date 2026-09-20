@@ -22,7 +22,13 @@ independent Erlang peer across every fixture split. A documentation-qualified
 TAT140 and ATC700 profiles now share a closed record engine while retaining
 distinct immutable revisions. Both preserve multi-record messages while mapping
 AVL 240 movement, AVL 67 battery voltage and valid GNSS fixes; ATC700 also maps
-its documented AVL 113 battery level. Cellular admission now
+its documented AVL 113 battery level. TAT140 revision 2 additionally maps the
+documented EYE Sensor slot-one AVL temperature, battery, humidity and movement
+counter fields, preserving documented not-found and lost-sensor sentinels as
+unavailable values. A closed TAT140 configuration plan renders only the
+documented APN/server SMS parameters and represents Codec 8 Extended plus EYE
+Sensor setup as Teltonika Configurator USB selections; it invents neither hidden
+parameter IDs nor an iPhone provisioning protocol. Cellular admission now
 binds an optional configured profile ID into the durable raw observation. The
 record-aware import retains exact per-record evidence and the service atomically
 persists its ordered public projections and private bundle. The generic cellular
@@ -37,7 +43,9 @@ owner reconciles every enabled host plan with its profile-owned probe contract,
 then binds that revision to one host-allowlisted, read-only GATT target and
 delegates the byte read to an explicitly supplied `Wotex.BLE` session without
 owning or selecting the peer. The pure resolver admits canonical results and
-recomputes only nominated passive candidates. Live passive discovery,
+recomputes only nominated passive candidates. Both hosts compose a
+caller-selected passive adapter through a private, closed document and a
+deterministic local peer exercises it end to end. OS/radio backend qualification,
 operator-network qualification, LoRaWAN and physical lifecycle acceptance remain
 unfinished.
 

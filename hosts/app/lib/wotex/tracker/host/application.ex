@@ -18,7 +18,14 @@ defmodule Wotex.Tracker.Host.Application do
            Config.load_cellular(System.get_env("WOTEX_TRACKER_CELLULAR_CONFIG"), options),
          {:ok, apns} <- Config.load_apns(System.get_env("WOTEX_TRACKER_APNS_CONFIG"), options),
          {:ok, passive} <-
-           Config.load_passive_simulator(
+           Config.load_passive(
+             System.get_env("WOTEX_TRACKER_PASSIVE_CONFIG"),
+             options,
+             Application.get_env(:wotex_tracker_host, :passive_adapter)
+           ),
+         {:ok, selected_passive} <-
+           passive_config(
+             passive,
              System.get_env("WOTEX_TRACKER_PASSIVE_SIMULATOR_CONFIG"),
              options
            ),
@@ -30,11 +37,20 @@ defmodule Wotex.Tracker.Host.Application do
         browser: browser,
         cellular: cellular,
         apns: apns,
-        passive: passive
+        passive: selected_passive
       )
     else
       false -> {:error, :ui_not_in_artifact}
       error -> error
+    end
+  end
+
+  defp passive_config(passive, simulator_path, options) do
+    with {:ok, simulator} <- Config.load_passive_simulator(simulator_path, options),
+         true <- is_nil(passive) or is_nil(simulator) do
+      {:ok, passive || simulator}
+    else
+      _ -> {:error, :invalid_configuration}
     end
   end
 end

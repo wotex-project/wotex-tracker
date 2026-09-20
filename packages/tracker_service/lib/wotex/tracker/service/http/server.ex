@@ -74,6 +74,7 @@ defmodule Wotex.Tracker.Service.HTTP.Server do
         credentials: config.credentials,
         base_url: origin,
         contract: config.contract,
+        ble_scan: config.ble_scan,
         cellular_ingress: config.cellular_ingress,
         notification_delivery:
           if(config.notification_dispatcher, do: :configured, else: :unconfigured),

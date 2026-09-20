@@ -17,7 +17,8 @@ defmodule Wotex.Tracker.Host.ConfigTest do
   end
 
   setup do
-    directory = Path.expand("_build/test/host/#{System.unique_integer([:positive])}")
+    identifier = Base.url_encode64(:crypto.strong_rand_bytes(12), padding: false)
+    directory = Path.expand("_build/test/host/#{identifier}")
     File.mkdir_p!(directory)
     File.chmod!(directory, 0o700)
     data = Path.join(directory, "data")
@@ -51,11 +52,18 @@ defmodule Wotex.Tracker.Host.ConfigTest do
     previous_browser = System.get_env("WOTEX_TRACKER_UI_CONFIG")
     previous_cellular = System.get_env("WOTEX_TRACKER_CELLULAR_CONFIG")
     previous_apns = System.get_env("WOTEX_TRACKER_APNS_CONFIG")
+    previous_passive_host = System.get_env("WOTEX_TRACKER_PASSIVE_CONFIG")
     previous_passive = System.get_env("WOTEX_TRACKER_PASSIVE_SIMULATOR_CONFIG")
+
+    previous_passive_adapter =
+      Elixir.Application.get_env(:wotex_tracker_host, :passive_adapter)
+
     System.delete_env("WOTEX_TRACKER_UI_CONFIG")
     System.delete_env("WOTEX_TRACKER_CELLULAR_CONFIG")
     System.delete_env("WOTEX_TRACKER_APNS_CONFIG")
+    System.delete_env("WOTEX_TRACKER_PASSIVE_CONFIG")
     System.delete_env("WOTEX_TRACKER_PASSIVE_SIMULATOR_CONFIG")
+    Elixir.Application.delete_env(:wotex_tracker_host, :passive_adapter)
 
     on_exit(fn ->
       if previous,
@@ -74,9 +82,22 @@ defmodule Wotex.Tracker.Host.ConfigTest do
         do: System.put_env("WOTEX_TRACKER_APNS_CONFIG", previous_apns),
         else: System.delete_env("WOTEX_TRACKER_APNS_CONFIG")
 
+      if previous_passive_host,
+        do: System.put_env("WOTEX_TRACKER_PASSIVE_CONFIG", previous_passive_host),
+        else: System.delete_env("WOTEX_TRACKER_PASSIVE_CONFIG")
+
       if previous_passive,
         do: System.put_env("WOTEX_TRACKER_PASSIVE_SIMULATOR_CONFIG", previous_passive),
         else: System.delete_env("WOTEX_TRACKER_PASSIVE_SIMULATOR_CONFIG")
+
+      if previous_passive_adapter,
+        do:
+          Elixir.Application.put_env(
+            :wotex_tracker_host,
+            :passive_adapter,
+            previous_passive_adapter
+          ),
+        else: Elixir.Application.delete_env(:wotex_tracker_host, :passive_adapter)
 
       File.rm_rf!(directory)
     end)
@@ -397,6 +418,89 @@ defmodule Wotex.Tracker.Host.ConfigTest do
     assert length(observations) == 2
     assert Enum.all?(observations, &(&1["value"]["ingress"] == "ble"))
     assert :ok = Supervisor.stop(host)
+  end
+
+  test "a private production scanner document composes a host-selected adapter", c do
+    simulator_path = Path.join(c.directory, "passive-peer.json")
+    write(simulator_path, passive_simulator_document(c.token))
+    assert {:ok, service_options} = Config.load(c.path)
+    assert {:ok, simulator} = Config.load_passive_simulator(simulator_path, service_options)
+
+    passive_path = Path.join(c.directory, "passive.json")
+    document = passive_host_document(c.token)
+    write(passive_path, document)
+    adapter = simulator.scanner[:adapter]
+
+    assert {:ok, config} = Config.load_passive(passive_path, service_options, adapter)
+    assert config.adapter_id == "bluez-hci0"
+    assert config.adapter == adapter
+    refute inspect(config) =~ c.token
+
+    System.put_env("WOTEX_TRACKER_CONFIG", c.path)
+    System.put_env("WOTEX_TRACKER_PASSIVE_CONFIG", passive_path)
+    Elixir.Application.put_env(:wotex_tracker_host, :passive_adapter, adapter)
+    assert {:ok, host} = Application.start(:normal, [])
+
+    children = Supervisor.which_children(host)
+    assert {Server, api, :supervisor, _} = List.keyfind(children, Server, 0)
+    assert {PassiveScanner, scanner, :worker, _} = List.keyfind(children, PassiveScanner, 0)
+    eventually(fn -> PassiveScanner.status(scanner).lifecycle == :stopped end)
+
+    assert {:ok, %{"generation" => "2", "items" => observations}} =
+             service_options
+             |> ServerConfig.new()
+             |> then(fn {:ok, server_config} -> Server.context(api, server_config) end)
+             |> then(fn {:ok, service} ->
+               Service.list(
+                 service,
+                 c.token,
+                 "workshop",
+                 "observations",
+                 %{"limit" => 10},
+                 System.system_time(:millisecond)
+               )
+             end)
+
+    assert length(observations) == 2
+    assert {:ok, {{127, 0, 0, 1}, api_port}} = Server.listener_info(api)
+    url = ~c"http://127.0.0.1:#{api_port}/api/v1/scopes/workshop/capabilities"
+    headers = [{~c"authorization", ~c"Bearer #{c.token}"}]
+
+    assert {:ok, {{_, 200, _}, _, body}} =
+             :httpc.request(:get, {url, headers}, [timeout: 1_000], body_format: :binary)
+
+    assert {:ok, %{"data" => %{"ble_scan" => "configured"}}} = Codec.decode(body)
+    assert :ok = Supervisor.stop(host)
+  end
+
+  test "production scanner configuration is private, adapter-bound and exclusive", c do
+    assert {:ok, service_options} = Config.load(c.path)
+    assert {:ok, nil} = Config.load_passive(nil, service_options, nil)
+
+    assert {:error, :invalid_configuration} =
+             Config.load_passive("relative", service_options, nil)
+
+    path = Path.join(c.directory, "passive.json")
+    write(path, passive_host_document(c.token))
+
+    assert {:error, :invalid_configuration} = Config.load_passive(path, service_options, nil)
+    assert {:error, :invalid_configuration} = Config.load_passive(path, :invalid, nil)
+
+    simulator_path = Path.join(c.directory, "passive-simulator.json")
+    write(simulator_path, passive_simulator_document(c.token))
+    assert {:ok, simulator} = Config.load_passive_simulator(simulator_path, service_options)
+    adapter = simulator.scanner[:adapter]
+    assert {:ok, _} = Config.load_passive(path, service_options, adapter)
+
+    File.chmod!(path, 0o644)
+    assert {:error, :invalid_configuration} = Config.load_passive(path, service_options, adapter)
+    File.chmod!(path, 0o600)
+
+    System.put_env("WOTEX_TRACKER_CONFIG", c.path)
+    System.put_env("WOTEX_TRACKER_PASSIVE_CONFIG", path)
+    System.put_env("WOTEX_TRACKER_PASSIVE_SIMULATOR_CONFIG", simulator_path)
+    Elixir.Application.put_env(:wotex_tracker_host, :passive_adapter, adapter)
+    assert {:error, :invalid_configuration} = Application.start(:normal, [])
   end
 
   test "passive simulator configuration is optional, private and dev-only", c do
@@ -722,6 +826,17 @@ defmodule Wotex.Tracker.Host.ConfigTest do
             "address" => "private-address-two"
         }
       ]
+    }
+  end
+
+  defp passive_host_document(token) do
+    %{
+      "schema" => "wtr.passive-ble-host.v1",
+      "adapter" => "bluez-hci0",
+      "token" => token,
+      "scope" => "workshop",
+      "interval_ms" => 0,
+      "timeout_ms" => 1_000
     }
   end
 

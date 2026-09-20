@@ -11,7 +11,7 @@ defmodule Wotex.Tracker.Host.Config do
   """
 
   alias Wotex.Tracker.Host.{BrowserConfig, PromptConfig}
-  alias Wotex.Tracker.Service.{APNsHostConfig, Cellular.HostConfig}
+  alias Wotex.Tracker.Service.{APNsHostConfig, Cellular.HostConfig, PassiveHostConfig}
   alias Wotex.Tracker.Service.HTTP.Config, as: ServerConfig
   alias Wotex.Tracker.Service.HTTP.FileConfig
   import Wotex.Tracker.Service.HTTP.FileConfig, only: [listen: 1, exposure: 1, tls: 1]
@@ -55,6 +55,22 @@ defmodule Wotex.Tracker.Host.Config do
   end
 
   def load_apns(_, _), do: {:error, :invalid_configuration}
+
+  @doc "Loads an optional private passive-BLE configuration for a host-selected adapter."
+  @spec load_passive(term(), keyword(), term()) ::
+          {:ok, PassiveHostConfig.t() | nil} | {:error, :invalid_configuration}
+  def load_passive(nil, _service_options, _adapter), do: {:ok, nil}
+
+  def load_passive(path, service_options, adapter) when is_list(service_options) do
+    with {:ok, document} <- FileConfig.read_document(path),
+         credentials when not is_nil(credentials) <- service_options[:credentials] do
+      PassiveHostConfig.new(document, credentials, adapter)
+    else
+      _ -> {:error, :invalid_configuration}
+    end
+  end
+
+  def load_passive(_, _, _), do: {:error, :invalid_configuration}
 
   @doc "Loads an optional dev/test-only deterministic passive BLE simulator."
   @spec load_passive_simulator(term(), keyword()) ::

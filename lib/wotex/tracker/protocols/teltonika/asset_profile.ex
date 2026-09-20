@@ -148,6 +148,47 @@ defmodule Wotex.Tracker.Protocols.Teltonika.AssetProfile do
   defp convert(%{width: 2, unsigned: value} = element, %{conversion: :millivolts} = definition),
     do: available(definition, value / 1000, element)
 
+  defp convert(
+         %{width: 2, unsigned: sentinel} = element,
+         %{conversion: :signed_tenths, sentinel: sentinel} = definition
+       ),
+       do: unavailable(definition, element, "sensor_not_found")
+
+  defp convert(
+         %{width: 2, raw: raw} = element,
+         %{conversion: :signed_tenths, range: range} = definition
+       ) do
+    <<value::signed-big-16>> = raw
+
+    if value in range,
+      do: available(definition, value / 10, element),
+      else: unavailable(definition, element, "wire_value_out_of_range")
+  end
+
+  defp convert(
+         %{width: 2, unsigned: sentinel} = element,
+         %{conversion: :unsigned_tenths, sentinel: sentinel} = definition
+       ),
+       do: unavailable(definition, element, "sensor_not_found")
+
+  defp convert(
+         %{width: 2, unsigned: value} = element,
+         %{conversion: :unsigned_tenths, range: range} = definition
+       ) do
+    if value in range,
+      do: available(definition, value / 10, element),
+      else: unavailable(definition, element, "wire_value_out_of_range")
+  end
+
+  defp convert(
+         %{width: 2, unsigned: sentinel} = element,
+         %{conversion: :counter, sentinel: sentinel} = definition
+       ),
+       do: unavailable(definition, element, "sensor_lost")
+
+  defp convert(%{width: 2, unsigned: value} = element, %{conversion: :counter} = definition),
+    do: available(definition, value, element)
+
   defp convert(%{width: width} = element, %{width: width} = definition),
     do: unavailable(definition, element, "wire_value_out_of_range")
 

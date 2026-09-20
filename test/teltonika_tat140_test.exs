@@ -18,7 +18,7 @@ defmodule Wotex.Tracker.TeltonikaTAT140Test do
 
     assert profile.decoder == TAT140.revision()
     assert profile.confidence == :strong
-    assert profile.model == {"urn:wotex:tm:tracker:cellular-asset-tracker", "1.0.0"}
+    assert profile.model == {"urn:wotex:tm:tracker:cellular-asset-tracker", "1.2.0"}
     assert profile.mapping["motion"] == "/properties/motion"
     assert profile.source_provenance["qualification"] == "documentation-fixture"
 
@@ -31,6 +31,42 @@ defmodule Wotex.Tracker.TeltonikaTAT140Test do
     }
 
     assert {:ok, %{status: :unknown, selected: nil}} = Resolution.resolve(unknown, catalogue)
+  end
+
+  test "documented EYE sensor values and lost sentinels remain distinct" do
+    {:ok, fixture} =
+      Wotex.JSON.decode(File.read!("test/fixtures/teltonika/tat140_ble_sensor.json"))
+
+    [vector] = fixture["vectors"]
+    frame = Base.decode16!(vector["hex"])
+
+    assert Base.encode16(:crypto.hash(:sha256, frame), case: :lower) == vector["sha256"]
+    assert {:ok, %{records: [observed, lost]}} = frame |> observation() |> TAT140.decode()
+
+    assert Enum.map(observed.measurements, &{&1.kind, &1.value, &1.availability}) == [
+             {"motion", true, :available},
+             {"batteryVoltage", 3.58, :available},
+             {"bleSensorTemperature", 24.3, :available},
+             {"bleSensorBatteryLevel", 87, :available},
+             {"bleSensorHumidity", 45.6, :available},
+             {"bleSensorMovementCount", 42, :available}
+           ]
+
+    assert Enum.map(lost.measurements, &{&1.kind, &1.value, &1.availability, &1.reason}) == [
+             {"motion", false, :available, "wire_value"},
+             {"batteryVoltage", 3.57, :available, "wire_value"},
+             {"bleSensorTemperature", nil, :unavailable, "sensor_not_found"},
+             {"bleSensorHumidity", nil, :unavailable, "sensor_not_found"},
+             {"bleSensorMovementCount", nil, :unavailable, "sensor_lost"}
+           ]
+
+    negative = frame([record(two_byte: [{25, 65_413}])])
+
+    assert {:ok, %{records: [%{measurements: [temperature]}]}} =
+             negative |> observation() |> TAT140.decode()
+
+    assert {temperature.kind, temperature.value, temperature.unit} ==
+             {"bleSensorTemperature", -12.3, "Cel"}
   end
 
   test "every AVL record remains ordered with mapped fields and complete IO", context do

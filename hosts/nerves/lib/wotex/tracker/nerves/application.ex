@@ -28,16 +28,18 @@ defmodule Wotex.Tracker.Nerves.Application do
          instance_id = Credentials.instance_id(options[:credentials]),
          :ok <- StoragePolicy.admit(data_root(), instance_id, options[:directory]),
          {:ok, cellular} <- cellular_config(options),
+         {:ok, passive} <- passive_config(options),
          {:ok, browser} <- browser_config(options) do
-      start_host(options, browser, cellular, apns, instance_id)
+      start_host(options, browser, cellular, passive, apns, instance_id)
     end
   end
 
-  defp start_host(options, browser, cellular, apns, instance_id) do
+  defp start_host(options, browser, cellular, passive, apns, instance_id) do
     case HostSupervisor.start_link(
            service: options,
            browser: browser,
            cellular: cellular,
+           passive: passive,
            apns: apns
          ) do
       {:ok, host} -> finalize_host(host, instance_id, options[:directory])
@@ -124,6 +126,15 @@ defmodule Wotex.Tracker.Nerves.Application do
       Application.get_env(:wotex_tracker_nerves, :apns_config_path),
       data_root(),
       options
+    )
+  end
+
+  defp passive_config(options) do
+    Config.load_passive(
+      Application.get_env(:wotex_tracker_nerves, :passive_config_path),
+      data_root(),
+      options,
+      Application.get_env(:wotex_tracker_nerves, :passive_adapter)
     )
   end
 end

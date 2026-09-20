@@ -385,7 +385,7 @@ defmodule Wotex.Tracker.HTTPConsumer do
     %{"status" => "live"} = data(context, "liveness", "/health/live", who: nil)
     request(context, "capabilities", prefix <> "/capabilities", who: nil, status: 401)
 
-    %{"ble_scan" => "unsupported"} =
+    %{"ble_scan" => "unconfigured"} =
       data(context, "capabilities", prefix <> "/capabilities")
 
     request(context, "capabilities", prefix <> "/capabilities",

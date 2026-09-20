@@ -82,6 +82,34 @@ for this composed listener host; otherwise it reports `unconfigured`. That value
 describes admitted supervision, not socket liveness, carrier reachability,
 authentication, encryption or hardware qualification.
 
+## Optional production passive BLE ingress
+
+Set `WOTEX_TRACKER_PASSIVE_CONFIG` to a separate private 0600 JSON file in a
+0700 directory. The host application must also be composed with a fixed
+`:wotex_tracker_host, :passive_adapter` value implementing the service's bounded
+passive-scan adapter contract. The document cannot select executable code:
+
+```json
+{
+  "schema": "wtr.passive-ble-host.v1",
+  "adapter": "bluez-hci0",
+  "token": "<configured 256-bit service bearer>",
+  "scope": "workshop",
+  "interval_ms": 100,
+  "timeout_ms": 5000
+}
+```
+
+The bearer must already have `ingest` authority in the selected scope. The
+scanner admits at most one capture at a time, applies finite adapter deadlines
+and reconciles duplicate captures through deterministic operation identities.
+A missing host adapter or malformed/unsafe enabled document fails startup; an
+absent document starts no scanner. Production and development-simulator
+documents are mutually exclusive. Authenticated capabilities report
+`ble_scan: configured` only for the supervised composition. This status does
+not claim controller availability, radio reception, a specific OS backend or
+physical qualification.
+
 ## Dev-only passive BLE simulator
 
 In `dev` and `test` builds only, set
@@ -123,8 +151,8 @@ supervisor. Its adapter and configuration module are absent from production
 builds, so setting this variable in production fails startup instead of silently
 substituting simulated data. The scenario exercises private-address changes,
 profile resolution, decoding and durable public state through the real service;
-it is labelled simulator evidence and does not change the authenticated
-capabilities response or claim live scanning.
+it is labelled simulator evidence and reports the supervised
+`ble_scan: configured` composition without claiming live radio scanning.
 
 ## Optional APNs delivery
 
@@ -253,8 +281,9 @@ that sample. Replayed metadata stays stable even when encrypted cursors differ.
 There is no automatic reconnect. Unavailable samples close the stream; after
 recovery, start a fresh snapshot without a cursor. This is observation of committed
 Thing state; imports require explicit association and materialisation first.
-Passive scanning remains unsupported. Action invocation is available only when
-the host reports `runtime.invokeaction` as `configured` and the current Thing
+Passive scanning is `unconfigured` unless the host explicitly supervises the
+production adapter or development peer described above. Action invocation is
+available only when the host reports `runtime.invokeaction` as `configured` and the current Thing
 declares that Action. The CLI reads one JSON value from a file capped at 16 KiB,
 uses one idempotency key and never retries. A timeout or disconnected attempt
 must be resolved with `action status UUID`; `accepted` is protocol acceptance,

@@ -3,9 +3,12 @@ defmodule Wotex.Tracker.Protocols.Teltonika.TAT140 do
   Pure TAT140 profile and record-aware Codec 8 Extended semantic mapping.
 
   The mapper consumes one admitted cellular observation and preserves every AVL
-  record in order. It maps only the documented TAT140 movement (AVL 240) and
-  battery-voltage (AVL 67) elements, plus valid Codec GPS fields. All IO bytes
-  remain in the result, including unsupported identifiers. A frame is an
+  record in order. It maps the documented TAT140 movement (AVL 240), battery
+  voltage (AVL 67), and configured EYE sensor-slot 1 temperature, battery,
+  humidity and movement counter (AVL 25/29/86/463), plus valid Codec GPS fields.
+  The documented sensor-not-found and lost-sensor values stay unavailable rather
+  than becoming measurements. All IO bytes remain in the result, including
+  unsupported identifiers. A frame is an
   `:avl_data` message even when none of its records contains a usable position or
   mapped measurement.
 
@@ -18,31 +21,63 @@ defmodule Wotex.Tracker.Protocols.Teltonika.TAT140 do
   alias Wotex.Tracker.{DeviceProfile, Error, Measurement}
   alias Wotex.Tracker.Protocols.Teltonika.AssetProfile
 
-  @revision {"teltonika.tat140.codec8e", "1.0.0"}
+  @revision {"teltonika.tat140.codec8e", "2.0.0"}
   @profile "teltonika.tat140.codec8e"
   @contract :teltonika_tat140_codec8e
   @config %{
     profile: @profile,
     revision: @revision,
-    model: {"urn:wotex:tm:tracker:cellular-asset-tracker", "1.0.0"},
-    mapping_revision: "1.0.0",
+    model: {"urn:wotex:tm:tracker:cellular-asset-tracker", "1.2.0"},
+    mapping_revision: "2.0.0",
     mapping: %{
       "position" => "/properties/position",
       "motion" => "/properties/motion",
-      "batteryVoltage" => "/properties/batteryVoltage"
+      "batteryVoltage" => "/properties/batteryVoltage",
+      "bleSensorTemperature" => "/properties/bleSensorTemperature",
+      "bleSensorBatteryLevel" => "/properties/bleSensorBatteryLevel",
+      "bleSensorHumidity" => "/properties/bleSensorHumidity",
+      "bleSensorMovementCount" => "/properties/bleSensorMovementCount"
     },
     measurements: [
       %{id: 240, kind: "motion", unit: "1", width: 1, conversion: :boolean},
-      %{id: 67, kind: "batteryVoltage", unit: "V", width: 2, conversion: :millivolts}
+      %{id: 67, kind: "batteryVoltage", unit: "V", width: 2, conversion: :millivolts},
+      %{
+        id: 25,
+        kind: "bleSensorTemperature",
+        unit: "Cel",
+        width: 2,
+        conversion: :signed_tenths,
+        range: -400..1_250,
+        sentinel: 32_767
+      },
+      %{id: 29, kind: "bleSensorBatteryLevel", unit: "%", width: 1, conversion: :percent},
+      %{
+        id: 86,
+        kind: "bleSensorHumidity",
+        unit: "%RH",
+        width: 2,
+        conversion: :unsigned_tenths,
+        range: 0..1_000,
+        sentinel: 65_535
+      },
+      %{
+        id: 463,
+        kind: "bleSensorMovementCount",
+        unit: "1",
+        width: 2,
+        conversion: :counter,
+        sentinel: 0xBEEF
+      }
     ],
     position_revision: "teltonika.tat140.position.v1",
     source_provenance: %{
       "kind" => "documentation",
-      "read_at" => "2026-09-20",
+      "read_at" => "2026-09-21",
       "qualification" => "documentation-fixture",
       "sources" => [
         "https://wiki.teltonika-gps.com/view/TAT100_AVL_ID_List",
-        "https://wiki.teltonika-gps.com/view/TAT140_System_settings"
+        "https://wiki.teltonika-gps.com/view/TAT140_System_settings",
+        "https://wiki.teltonika-gps.com/view/TAT140_Bluetooth%C2%AE_settings"
       ]
     }
   }
@@ -80,7 +115,15 @@ defmodule Wotex.Tracker.Protocols.Teltonika.TAT140 do
   @doc false
   @spec capability_units() :: map()
   def capability_units,
-    do: %{"batteryVoltage" => "V", "motion" => "1", "position" => "WGS84"}
+    do: %{
+      "batteryVoltage" => "V",
+      "bleSensorBatteryLevel" => "%",
+      "bleSensorHumidity" => "%RH",
+      "bleSensorMovementCount" => "1",
+      "bleSensorTemperature" => "Cel",
+      "motion" => "1",
+      "position" => "WGS84"
+    }
 
   @doc "Builds the documentation-qualified TAT140 Codec 8 Extended profile."
   @spec profile() :: {:ok, DeviceProfile.t()} | {:error, Error.t()}

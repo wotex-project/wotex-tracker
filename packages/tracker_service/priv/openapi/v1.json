@@ -384,7 +384,11 @@
                           "const": "available"
                         },
                         "ble_scan": {
-                          "const": "unsupported"
+                          "type": "string",
+                          "enum": [
+                            "unconfigured",
+                            "configured"
+                          ]
                         },
                         "cellular": {
                           "type": "string",
@@ -8349,6 +8353,12 @@
                     "suspect",
                     "unavailable"
                   ]
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256,
+                  "x-max-utf8-bytes": 256
                 }
               },
               "required": [
@@ -8356,7 +8366,8 @@
                 "unit",
                 "value",
                 "availability",
-                "quality"
+                "quality",
+                "reason"
               ],
               "additionalProperties": false
             },
@@ -10595,6 +10606,12 @@
                           "suspect",
                           "unavailable"
                         ]
+                      },
+                      "reason": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256,
+                        "x-max-utf8-bytes": 256
                       }
                     },
                     "required": [
@@ -10602,7 +10619,8 @@
                       "unit",
                       "value",
                       "availability",
-                      "quality"
+                      "quality",
+                      "reason"
                     ],
                     "additionalProperties": false
                   },

@@ -31,6 +31,7 @@ defmodule Wotex.Tracker.HTTPLifecycleTest do
         exposure: :tls,
         public_origin: "https://localhost",
         tls: %{certfile: cert, keyfile: key},
+        ble_scan: :configured,
         cellular_ingress: :configured
       )
 
@@ -49,6 +50,7 @@ defmodule Wotex.Tracker.HTTPLifecycleTest do
              :httpc.request(:get, {url, headers}, [timeout: 5000, ssl: ssl], body_format: :binary)
 
     assert body =~ ~s("import":"available")
+    assert body =~ ~s("ble_scan":"configured")
     assert body =~ ~s("cellular":"configured")
     assert {:ok, config} = Config.new(options)
     assert {:ok, service} = Server.context(server, config)
@@ -118,6 +120,7 @@ defmodule Wotex.Tracker.HTTPLifecycleTest do
           [public_origin: "http://127.0.0.1:43210/"],
           [exposure: :proxy, public_origin: "https://tracker.example.test"],
           [rule_scheduler: [max_rules: 32, refresh_interval: 100]],
+          [ble_scan: :configured],
           [cellular_ingress: :configured]
         ] do
       assert {:ok, _} = Config.new(Keyword.merge(options(context), change))
@@ -137,6 +140,7 @@ defmodule Wotex.Tracker.HTTPLifecycleTest do
           [exposure: :proxy, public_origin: "https://user:secret@example.test"],
           [rule_scheduler: [max_rules: 0]],
           [rule_scheduler: [unknown: true]],
+          [ble_scan: :available],
           [cellular_ingress: :available],
           [notification_dispatcher: []],
           [notification_dispatcher: [adapter: {String, nil}]],

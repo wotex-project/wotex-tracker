@@ -7,8 +7,10 @@ greenfield Zig policy. Missing external prerequisites never block locally
 executable implementation.
 
 Accepted target contract. The Teltonika TAT140 is the baseline physical tracker
-target. Documentation-fixture software profiles exist for TAT140 and ATC700, but
-no listed hardware is qualified and no physical implementation claim follows.
+target. Documentation-fixture software profiles, an exact direct-endpoint SMS
+plan, an honest Configurator/USB BLE-sensor manifest and deterministic local
+peers exist for TAT140; ATC700 retains its comparison profile. No listed hardware
+is qualified and no physical implementation claim follows.
 Ruuvi RAWv2 is retained only as software regression data and is not a product,
 purchase, hardware-test or qualification target.
 
@@ -53,6 +55,15 @@ a candidate capability, not qualification and not an iPhone provisioning
 protocol. Phone-to-tracker provisioning MUST use an exact documented interface
 proven on the selected TAT140 firmware, or the application must honestly present
 the actual supported provisioning path.
+
+The development adapter follows the latter path. It renders only the documented
+SMS parameters 2001–2006 for APN and a TCP endpoint, with explicit SMS
+authentication and 160-byte limits. Data Protocol and EYE Sensor slot-one setup
+are emitted as named Teltonika Configurator selections over USB because the
+current TAT140 pages do not publish a complete numeric SMS contract for those
+fields. The manifest selects Codec 8 Extended, Sensors mode, the exact EYE Sensor
+MAC, update frequency and lost-sensor alarm. It is not a wireless iPhone
+provisioning claim.
 
 ### Ruuvi RAWv2 — software fixture only
 

@@ -601,10 +601,13 @@ defmodule Wotex.Tracker.ServiceTest do
                credentials: context.credentials,
                base_url: "https://example.test/",
                contract: :teltonika_tat140_codec8e,
+               ble_scan: :configured,
                cellular_ingress: :configured,
-               notification_delivery: :configured
+               notification_delivery: :configured,
+               action_delivery: :unconfigured
              })
 
+    assert composed.ble_scan == :configured
     assert composed.cellular_ingress == :configured
     assert composed.notification_delivery == :configured
 

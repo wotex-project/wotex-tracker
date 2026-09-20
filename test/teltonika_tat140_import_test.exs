@@ -58,7 +58,7 @@ defmodule Wotex.Tracker.TeltonikaTAT140ImportTest do
     assert length(stopped.measurement_evidence_ids) == 2
 
     assert {:ok, _} = EvidenceBundle.validate(imported.bundle)
-    assert map_size(imported.bundle.evidence) == 10
+    assert map_size(imported.bundle.evidence) == 14
 
     transport = imported.bundle.evidence[moving.transport_evidence_id]
     assert transport.kind == :transport
@@ -76,6 +76,10 @@ defmodule Wotex.Tracker.TeltonikaTAT140ImportTest do
 
     assert Enum.map(imported.capabilities, &{&1.id, &1.unit}) == [
              {"batteryVoltage", "V"},
+             {"bleSensorBatteryLevel", "%"},
+             {"bleSensorHumidity", "%RH"},
+             {"bleSensorMovementCount", "1"},
+             {"bleSensorTemperature", "Cel"},
              {"motion", "1"},
              {"position", "WGS84"}
            ]
@@ -161,7 +165,7 @@ defmodule Wotex.Tracker.TeltonikaTAT140ImportTest do
       )
 
     {:ok, document} =
-      "priv/thing_models/cellular-asset-tracker-1.0.0.tm.json"
+      "priv/thing_models/cellular-asset-tracker-1.2.0.tm.json"
       |> File.read!()
       |> Wotex.JSON.decode()
 
@@ -203,10 +207,15 @@ defmodule Wotex.Tracker.TeltonikaTAT140ImportTest do
              })
 
     td = Wotex.ThingDescription.to_map(materialised.td)
-    assert Map.keys(td["properties"]) |> Enum.sort() == ~w(batteryVoltage motion position)
+
+    assert Map.keys(td["properties"]) |> Enum.sort() ==
+             ~w(batteryVoltage bleSensorBatteryLevel bleSensorHumidity bleSensorMovementCount bleSensorTemperature motion position)
+
     assert td["properties"]["position"]["unit"] == "WGS84"
     assert td["properties"]["motion"]["type"] == "boolean"
     assert td["properties"]["batteryVoltage"]["unit"] == "V"
+    assert td["properties"]["bleSensorTemperature"]["unit"] == "Cel"
+    assert td["properties"]["bleSensorHumidity"]["unit"] == "%RH"
     assert materialised.bundle === bundle
   end
 

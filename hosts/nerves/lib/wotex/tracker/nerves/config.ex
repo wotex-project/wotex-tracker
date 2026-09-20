@@ -8,7 +8,7 @@ defmodule Wotex.Tracker.Nerves.Config do
   """
 
   import Bitwise
-  alias Wotex.Tracker.Service.{APNsHostConfig, Cellular.HostConfig}
+  alias Wotex.Tracker.Service.{APNsHostConfig, Cellular.HostConfig, PassiveHostConfig}
   alias Wotex.Tracker.Service.HTTP.Config, as: ServerConfig
   alias Wotex.Tracker.Service.HTTP.FileConfig
   alias Wotex.Tracker.Service.StorePath
@@ -69,6 +69,25 @@ defmodule Wotex.Tracker.Nerves.Config do
   end
 
   def load_apns(_, _, _), do: {:error, :invalid_configuration}
+
+  @doc "Loads an optional private passive-BLE document from the fixed appliance root."
+  @spec load_passive(term(), term(), keyword(), term()) ::
+          {:ok, PassiveHostConfig.t() | nil} | {:error, :invalid_configuration}
+  def load_passive(nil, _root, _service_options, _adapter), do: {:ok, nil}
+
+  def load_passive(path, root, service_options, adapter)
+      when is_binary(root) and is_list(service_options) do
+    with true <- private_root?(root),
+         true <- path == Path.join(root, "passive-ble.json"),
+         {:ok, document} <- FileConfig.read_document(path),
+         credentials when not is_nil(credentials) <- service_options[:credentials] do
+      PassiveHostConfig.new(document, credentials, adapter)
+    else
+      _ -> {:error, :invalid_configuration}
+    end
+  end
+
+  def load_passive(_, _, _, _), do: {:error, :invalid_configuration}
 
   defp private_root?(root) when is_binary(root),
     do: StorePath.private_directory(root) == :ok

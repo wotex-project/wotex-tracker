@@ -7,7 +7,7 @@ defmodule Wotex.Tracker.Host.Supervisor do
   alias Wotex.Tracker.Service.Cellular.HostConfig
   alias Wotex.Tracker.Service.Cellular.Server, as: CellularServer
   alias Wotex.Tracker.Service.HTTP.{Config, Server}
-  alias Wotex.Tracker.Service.{PassiveIngress, PassiveScanner}
+  alias Wotex.Tracker.Service.{PassiveHostConfig, PassiveIngress, PassiveScanner}
 
   def start_link(options), do: Supervisor.start_link(__MODULE__, options)
 
@@ -21,6 +21,7 @@ defmodule Wotex.Tracker.Host.Supervisor do
         :cellular_ingress,
         if(options[:cellular], do: :configured, else: :unconfigured)
       )
+      |> Keyword.put(:ble_scan, if(options[:passive], do: :configured, else: :unconfigured))
       |> notification_dispatcher(options[:apns])
 
     {:ok, config} = Config.new(service)
@@ -59,6 +60,10 @@ defmodule Wotex.Tracker.Host.Supervisor do
     do: [{CellularServer, HostConfig.server_options(config, provider)}]
 
   defp passive_children(nil, _provider), do: []
+
+  defp passive_children(%PassiveHostConfig{} = config, provider) do
+    PassiveHostConfig.child_specs(config, provider, Wotex.Tracker.Host.PassiveIngress)
+  end
 
   defp passive_children(%{ingress: ingress, scanner: scanner}, provider)
        when is_list(ingress) and is_list(scanner) do

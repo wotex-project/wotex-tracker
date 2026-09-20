@@ -1,0 +1,90 @@
+{
+  "@context": "https://www.w3.org/2022/wot/td/v1.1",
+  "@type": "tm:ThingModel",
+  "id": "urn:wotex:tm:tracker:cellular-asset-tracker",
+  "title": "Cellular asset tracker with associated BLE sensor",
+  "version": {
+    "model": "1.2.0"
+  },
+  "properties": {
+    "position": {
+      "type": "object",
+      "unit": "WGS84",
+      "readOnly": true,
+      "properties": {
+        "latitude": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90,
+          "unit": "deg"
+        },
+        "longitude": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180,
+          "unit": "deg"
+        },
+        "altitude": {
+          "type": "number",
+          "minimum": -100000000,
+          "maximum": 100000000,
+          "unit": "m"
+        },
+        "speed": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100000,
+          "unit": "m/s"
+        },
+        "horizontalAccuracy": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 40100000,
+          "unit": "m"
+        }
+      },
+      "required": [
+        "latitude",
+        "longitude"
+      ]
+    },
+    "motion": {
+      "type": "boolean",
+      "unit": "1",
+      "readOnly": true
+    },
+    "batteryVoltage": {
+      "type": "number",
+      "minimum": 0,
+      "unit": "V",
+      "readOnly": true
+    },
+    "bleSensorTemperature": {
+      "type": "number",
+      "minimum": -40,
+      "maximum": 125,
+      "unit": "Cel",
+      "readOnly": true
+    },
+    "bleSensorBatteryLevel": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "unit": "%",
+      "readOnly": true
+    },
+    "bleSensorHumidity": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "unit": "%RH",
+      "readOnly": true
+    },
+    "bleSensorMovementCount": {
+      "type": "integer",
+      "minimum": 0,
+      "unit": "1",
+      "readOnly": true
+    }
+  }
+}

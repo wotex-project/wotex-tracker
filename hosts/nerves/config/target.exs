@@ -1,10 +1,14 @@
 import Config
 
 cellular_config_path =
-  case System.get_env("WOTEX_TRACKER_CELLULAR") do
-    nil -> nil
-    "1" -> "/root/tracker/cellular.json"
-    _ -> raise "WOTEX_TRACKER_CELLULAR accepts only 1 when building cellular ingress"
+  if Mix.target() == :qemu_aarch64 do
+    "/root/tracker/cellular.json"
+  else
+    case System.get_env("WOTEX_TRACKER_CELLULAR") do
+      nil -> nil
+      "1" -> "/root/tracker/cellular.json"
+      _ -> raise "WOTEX_TRACKER_CELLULAR accepts only 1 when building cellular ingress"
+    end
   end
 
 apns_config_path =
@@ -12,6 +16,13 @@ apns_config_path =
     nil -> nil
     "1" -> "/root/tracker/apns.json"
     _ -> raise "WOTEX_TRACKER_APNS accepts only 1 when building notification delivery"
+  end
+
+passive_config_path =
+  case System.get_env("WOTEX_TRACKER_PASSIVE_BLE") do
+    nil -> nil
+    "1" -> "/root/tracker/passive-ble.json"
+    _ -> raise "WOTEX_TRACKER_PASSIVE_BLE accepts only 1 when building passive BLE ingress"
   end
 
 config :logger,
@@ -31,5 +42,6 @@ config :wotex_tracker_nerves,
   data_root: "/root/tracker",
   cellular_config_path: cellular_config_path,
   apns_config_path: apns_config_path,
+  passive_config_path: passive_config_path,
   browser_config_path:
     if(System.get_env("WOTEX_TRACKER_UI") == "1", do: "/root/tracker/browser.json", else: nil)

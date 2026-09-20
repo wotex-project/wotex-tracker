@@ -10,7 +10,8 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
   alias Wotex.Tracker.Protocols.Teltonika.{TAT140, TCPSession}
   alias Wotex.Tracker.Service
   alias Wotex.Tracker.Service.Cellular.Server, as: CellularServer
-  alias Wotex.Tracker.Service.{Codec, Credentials, Schema}
+  alias Wotex.Tracker.Service.Development.PassiveSimulator
+  alias Wotex.Tracker.Service.{Codec, Credentials, PassiveAdvertisement, PassiveScanner, Schema}
   alias Wotex.Tracker.Service.HTTP.Config, as: ServerConfig
   alias Wotex.Tracker.Service.HTTP.Server
 
@@ -51,12 +52,22 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
 
     previous =
       Map.new(
-        [:config_path, :data_root, :clock_synchronized, :cellular_config_path, :apns_config_path],
+        [
+          :config_path,
+          :data_root,
+          :clock_synchronized,
+          :cellular_config_path,
+          :apns_config_path,
+          :passive_config_path,
+          :passive_adapter
+        ],
         fn key -> {key, Application.get_env(:wotex_tracker_nerves, key)} end
       )
 
     Application.put_env(:wotex_tracker_nerves, :cellular_config_path, nil)
     Application.put_env(:wotex_tracker_nerves, :apns_config_path, nil)
+    Application.put_env(:wotex_tracker_nerves, :passive_config_path, nil)
+    Application.put_env(:wotex_tracker_nerves, :passive_adapter, nil)
 
     on_exit(fn ->
       Enum.each(previous, fn {key, value} ->
@@ -203,6 +214,76 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
     assert {:error, :invalid_configuration} = Config.load_cellular("invalid", nil, :invalid)
   end
 
+  test "the appliance composes a private passive scanner with a host-selected adapter", c do
+    assert {:ok, advertisement} =
+             PassiveAdvertisement.new(%{
+               id: "nerves-passive-peer",
+               observed_at: System.system_time(:millisecond),
+               receiver: "hci0",
+               address: "private-address",
+               address_type: :random_private_resolvable,
+               manufacturer_id: 1_177,
+               payload: Base.decode16!("0512FC5394C37C0004FFFC040CAC364200CDCBB8334C884F"),
+               rssi: -42,
+               provenance: %{"evidence_class" => "simulator", "scenario" => "nerves-passive"}
+             })
+
+    adapter = {PassiveSimulator, [advertisement]}
+    passive_path = Path.join(c.root, "passive-ble.json")
+    write_private(passive_path, Codec.encode!(passive_document(c.token)))
+    assert {:ok, options} = Config.load(c.path, c.root)
+    assert {:ok, configured} = Config.load_passive(passive_path, c.root, options, adapter)
+    assert configured.adapter_id == "linux-hci0"
+    refute inspect(configured) =~ c.token
+
+    Application.put_env(:wotex_tracker_nerves, :config_path, c.path)
+    Application.put_env(:wotex_tracker_nerves, :data_root, c.root)
+    Application.put_env(:wotex_tracker_nerves, :passive_config_path, passive_path)
+    Application.put_env(:wotex_tracker_nerves, :passive_adapter, adapter)
+    assert {:ok, host} = HostApplication.start(:normal, [])
+
+    children = Supervisor.which_children(host)
+    assert {Server, api, :supervisor, _} = List.keyfind(children, Server, 0)
+    assert {PassiveScanner, scanner, :worker, _} = List.keyfind(children, PassiveScanner, 0)
+    eventually(fn -> PassiveScanner.status(scanner).lifecycle == :stopped end)
+    assert {:ok, %{"ble_scan" => "configured"}} = capabilities(api, c.token)
+
+    assert {:ok, config} = ServerConfig.new(Keyword.put(options, :ble_scan, :configured))
+    assert {:ok, service} = Server.context(api, config)
+
+    assert {:ok, %{"generation" => "1", "items" => [observation]}} =
+             Service.list(
+               service,
+               c.token,
+               "workshop",
+               "observations",
+               %{"limit" => 10},
+               System.system_time(:millisecond)
+             )
+
+    assert observation["value"]["ingress"] == "ble"
+    assert :ok = Supervisor.stop(host)
+  end
+
+  test "passive scanner appliance configuration is optional, root-bound and adapter-bound", c do
+    assert {:ok, options} = Config.load(c.path, c.root)
+    assert {:ok, nil} = Config.load_passive(nil, c.root, options, nil)
+    adapter = {PassiveSimulator, []}
+    outside = Path.expand("../passive-ble.json", c.root)
+
+    assert {:error, :invalid_configuration} =
+             Config.load_passive(outside, c.root, options, adapter)
+
+    assert {:error, :invalid_configuration} =
+             Config.load_passive(c.path, c.root, options, adapter)
+
+    assert {:error, :invalid_configuration} = Config.load_passive("invalid", nil, :invalid, nil)
+
+    path = Path.join(c.root, "passive-ble.json")
+    write_private(path, Codec.encode!(passive_document(c.token)))
+    assert {:error, :invalid_configuration} = Config.load_passive(path, c.root, options, nil)
+  end
+
   test "the appliance supervises explicitly configured APNs delivery", c do
     apns_path = Path.join(c.root, "apns.json")
     apns = apns_document()
@@ -301,6 +382,28 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
 
     assert_raise RuntimeError,
                  "WOTEX_TRACKER_APNS accepts only 1 when building notification delivery",
+                 &target_config/0
+  end
+
+  test "the target passive BLE build flag fails closed" do
+    previous = System.get_env("WOTEX_TRACKER_PASSIVE_BLE")
+
+    on_exit(fn ->
+      if previous,
+        do: System.put_env("WOTEX_TRACKER_PASSIVE_BLE", previous),
+        else: System.delete_env("WOTEX_TRACKER_PASSIVE_BLE")
+    end)
+
+    System.delete_env("WOTEX_TRACKER_PASSIVE_BLE")
+    assert target_config()[:passive_config_path] == nil
+
+    System.put_env("WOTEX_TRACKER_PASSIVE_BLE", "1")
+    assert target_config()[:passive_config_path] == "/root/tracker/passive-ble.json"
+
+    System.put_env("WOTEX_TRACKER_PASSIVE_BLE", "invalid")
+
+    assert_raise RuntimeError,
+                 "WOTEX_TRACKER_PASSIVE_BLE accepts only 1 when building passive BLE ingress",
                  &target_config/0
   end
 
@@ -530,6 +633,29 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
       "max_batch" => 8,
       "dispatch_timeout_ms" => 6_000
     }
+  end
+
+  defp passive_document(token) do
+    %{
+      "schema" => "wtr.passive-ble-host.v1",
+      "adapter" => "linux-hci0",
+      "token" => token,
+      "scope" => "workshop",
+      "interval_ms" => 0,
+      "timeout_ms" => 1_000
+    }
+  end
+
+  defp eventually(function, attempts \\ 100)
+  defp eventually(function, 0), do: assert(function.())
+
+  defp eventually(function, attempts) do
+    if function.() do
+      :ok
+    else
+      Process.sleep(10)
+      eventually(function, attempts - 1)
+    end
   end
 
   defp capabilities(server, token) do

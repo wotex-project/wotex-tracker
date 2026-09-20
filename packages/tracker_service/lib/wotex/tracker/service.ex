@@ -53,6 +53,7 @@ defmodule Wotex.Tracker.Service do
   @enforce_keys [:store, :credentials, :catalogue, :model, :decoders, :base_url]
   defstruct @enforce_keys ++
               [
+                ble_scan: :unconfigured,
                 cellular_ingress: :unconfigured,
                 notification_delivery: :unconfigured,
                 action_delivery: :unconfigured
@@ -65,6 +66,7 @@ defmodule Wotex.Tracker.Service do
           model: Model.t(),
           decoders: map(),
           base_url: String.t(),
+          ble_scan: :unconfigured | :configured,
           cellular_ingress: :unconfigured | :configured,
           notification_delivery: :unconfigured | :configured,
           action_delivery: :unconfigured | :configured
@@ -75,6 +77,36 @@ defmodule Wotex.Tracker.Service do
   def new(%{store: %Store{} = store, credentials: credentials, base_url: base} = input)
       when map_size(input) == 3,
       do: packaged(store, credentials, base, :ruuvi_raw_v2)
+
+  def new(
+        %{
+          store: %Store{} = store,
+          credentials: credentials,
+          base_url: base,
+          contract: contract,
+          ble_scan: ble_scan,
+          cellular_ingress: cellular_ingress,
+          notification_delivery: notification_delivery,
+          action_delivery: action_delivery
+        } = input
+      )
+      when map_size(input) == 8 and
+             contract in @packaged_contracts and
+             ble_scan in [:unconfigured, :configured] and
+             cellular_ingress in [:unconfigured, :configured] and
+             notification_delivery in [:unconfigured, :configured] and
+             action_delivery in [:unconfigured, :configured] do
+    with {:ok, service} <- packaged(store, credentials, base, contract) do
+      {:ok,
+       %{
+         service
+         | ble_scan: ble_scan,
+           cellular_ingress: cellular_ingress,
+           notification_delivery: notification_delivery,
+           action_delivery: action_delivery
+       }}
+    end
+  end
 
   def new(
         %{
@@ -186,7 +218,7 @@ defmodule Wotex.Tracker.Service do
       credentials,
       base,
       TAT140.profile(),
-      "cellular-asset-tracker-1.0.0.tm.json",
+      "cellular-asset-tracker-1.2.0.tm.json",
       [{TAT140.revision(), {:records, &TAT140Import.run/2}}]
     )
   end

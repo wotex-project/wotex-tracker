@@ -15,23 +15,37 @@ defmodule Wotex.Tracker.Nerves.QemuFixtureTest do
     assert {:ok, options} = Config.load(Path.join(root, "config.json"), root)
     assert options[:directory] == Path.join(root, "data")
     assert options[:exposure] == :loopback
+    assert options[:contract] == :teltonika_tat140_codec8e
     assert :ok = StoragePolicy.admit(root, "qemu-smoke", Path.join(root, "data"))
     assert File.stat!(root).mode |> Bitwise.band(0o777) == 0o700
     assert File.stat!(Path.join(root, "config.json")).mode |> Bitwise.band(0o777) == 0o600
     token_path = Path.join(root, "qemu-probe.token")
     assert File.stat!(token_path).mode |> Bitwise.band(0o777) == 0o600
+    cellular_path = Path.join(root, "cellular.json")
+    assert File.stat!(cellular_path).mode |> Bitwise.band(0o777) == 0o600
     token = token_path |> File.read!() |> String.trim_trailing("\n")
     document = Path.join(root, "config.json") |> File.read!() |> Codec.decode!()
     assert hd(document["credentials"])["grants"] == %{"smoke" => ["read", "ingest"]}
+
+    cellular = cellular_path |> File.read!() |> Codec.decode!()
+    assert cellular["schema"] == "wtr.cellular-host.v1"
+    assert cellular["listen"] == %{"ip" => "127.0.0.1", "port" => 0}
+
+    assert get_in(cellular, ["devices", Access.at(0), "profile"]) ==
+             "teltonika.tat140.codec8e"
+
+    assert get_in(cellular, ["devices", Access.at(0), "token"]) == token
 
     assert {:ok, hd(document["credentials"])["token_sha256"]} ==
              Credentials.token_digest(token)
 
     original = File.read!(Path.join(root, "config.json"))
     original_token = File.read!(token_path)
+    original_cellular = File.read!(cellular_path)
     assert :ok = QemuFixture.prepare(root)
     assert File.read!(Path.join(root, "config.json")) == original
     assert File.read!(token_path) == original_token
+    assert File.read!(cellular_path) == original_cellular
   end
 
   test "the boot probe requires store, health and a retained native sample" do

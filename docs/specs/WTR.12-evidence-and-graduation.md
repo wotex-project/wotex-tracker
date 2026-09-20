@@ -109,6 +109,15 @@ This proves the selected tracker can bridge a documented local sensor radio to
 the long-range path. It does not prove an iPhone provisioning protocol; that
 separate WTR.15 interaction must be verified against its exact interface.
 
+The local-acceptance lane uses a constructed two-record Codec 8 Extended peer
+frame with EYE Sensor slot-one AVL 25/29/86/463 values and the documented
+not-found/lost sentinels. It crosses the real IMEI/TCP listener, durable service
+and public-state projection in host tests and ARM64 QEMU. The closed
+configuration adapter separately exercises documented endpoint SMS commands and
+an explicit Configurator/USB manifest. These complete executable development
+coverage while remaining fixture/simulator evidence rather than radio or device
+qualification.
+
 ## Optional LoRaWAN path
 
 A LoRaWAN hardware profile graduates only after direct control of LoRaWAN credentials/network-server integration and real EU868 hardware evidence. It should demonstrate transport policy/fallback but is not required for baseline Tracker viability.

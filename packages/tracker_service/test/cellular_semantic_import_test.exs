@@ -93,7 +93,7 @@ defmodule Wotex.Tracker.Service.CellularSemanticImportTest do
              )
 
     claims = Codec.decode!(private)
-    assert length(claims) == 10
+    assert length(claims) == 14
 
     records =
       claims
@@ -140,8 +140,10 @@ defmodule Wotex.Tracker.Service.CellularSemanticImportTest do
                context.context.now
              )
 
-    assert td["version"]["model"] == "1.0.0"
-    assert Map.keys(td["properties"]) |> Enum.sort() == ~w(batteryVoltage motion position)
+    assert td["version"]["model"] == "1.2.0"
+
+    assert Map.keys(td["properties"]) |> Enum.sort() ==
+             ~w(batteryVoltage bleSensorBatteryLevel bleSensorHumidity bleSensorMovementCount bleSensorTemperature motion position)
 
     assert {:ok, %{"value" => thing_state}} =
              Service.get(
@@ -154,6 +156,52 @@ defmodule Wotex.Tracker.Service.CellularSemanticImportTest do
              )
 
     assert thing_state["records"] == state["records"]
+  end
+
+  test "public state distinguishes documented BLE sensor values from loss sentinels", context do
+    assert {:ok, session} = Ingress.login(context.ingress, @imei)
+
+    assert {:ok, %{disposition: :accepted, record_count: 2}} =
+             Ingress.submit(context.ingress, session, packet("tat140_ble_sensor.json"))
+
+    assert {:ok, %{"items" => [%{"id" => id}]}} =
+             Service.list(
+               context.context.service,
+               context.context.admin,
+               context.context.scope,
+               "observations",
+               %{"limit" => 10},
+               context.context.now
+             )
+
+    assert {:ok, %{"value" => %{"records" => [observed, lost]} = state}} =
+             Service.get(
+               context.context.service,
+               context.context.reader,
+               context.context.scope,
+               "state",
+               id,
+               context.context.now
+             )
+
+    assert public_measurement(observed, "bleSensorTemperature") == %{
+             "value" => %{"type" => "number", "value" => 24.3},
+             "availability" => "available",
+             "quality" => "valid",
+             "reason" => "wire_value"
+           }
+
+    assert public_measurement(observed, "bleSensorMovementCount")["value"]["value"] == 42
+
+    assert public_measurement(lost, "bleSensorTemperature") == %{
+             "value" => %{"type" => "null", "value" => nil},
+             "availability" => "unavailable",
+             "quality" => "unavailable",
+             "reason" => "sensor_not_found"
+           }
+
+    assert public_measurement(lost, "bleSensorMovementCount")["reason"] == "sensor_lost"
+    assert state["measurements"] == lost["measurements"]
   end
 
   test "record decoder configuration and callback results stay explicit", context do
@@ -333,7 +381,7 @@ defmodule Wotex.Tracker.Service.CellularSemanticImportTest do
     path =
       Application.app_dir(
         :wotex_tracker,
-        "priv/thing_models/cellular-asset-tracker-1.0.0.tm.json"
+        "priv/thing_models/cellular-asset-tracker-1.2.0.tm.json"
       )
 
     {:ok, document} = path |> File.read!() |> Wotex.JSON.decode()
@@ -382,12 +430,18 @@ defmodule Wotex.Tracker.Service.CellularSemanticImportTest do
     |> Evidence.new()
   end
 
-  defp packet do
+  defp packet(file \\ "tat140.json") do
     {:ok, fixture} =
-      Wotex.JSON.decode(File.read!("../../test/fixtures/teltonika/tat140.json"))
+      Wotex.JSON.decode(File.read!("../../test/fixtures/teltonika/#{file}"))
 
     [vector] = fixture["vectors"]
     {:ok, packet} = vector["hex"] |> Base.decode16!() |> Codec8Extended.decode_frame()
     packet
+  end
+
+  defp public_measurement(record, kind) do
+    record["measurements"]
+    |> Enum.find(&(&1["kind"] == kind))
+    |> Map.take(~w(value availability quality reason))
   end
 end

@@ -66,7 +66,8 @@ defmodule Wotex.Tracker.Service.Projection do
       "value" => scalar(measurement.value),
       "unit" => measurement.unit,
       "availability" => Atom.to_string(measurement.availability),
-      "quality" => Atom.to_string(measurement.quality)
+      "quality" => Atom.to_string(measurement.quality),
+      "reason" => measurement.reason
     }
   end
 

@@ -54,6 +54,19 @@ The build flag is closed: omit it to disable cellular ingress or set it to the
 exact value `1`; any other supplied value aborts configuration instead of
 silently producing a headless image without the requested listener.
 
+Passive BLE ingress is independently opt-in at build time with
+`WOTEX_TRACKER_PASSIVE_BLE=1`. The resulting image requires the fixed private
+`/root/tracker/passive-ble.json` document in the standalone host's
+`wtr.passive-ble-host.v1` format and a product-layer
+`:wotex_tracker_nerves, :passive_adapter` application configuration. The JSON
+document can bind only an existing ingest credential, scope, stable adapter ID
+and finite polling budgets; it cannot select executable code. A selected but
+missing adapter or unsafe/malformed document fails startup. The host test uses
+the deterministic finite peer through this production composition and proves
+admission plus `ble_scan: configured`; it is not radio evidence. The closed
+build flag accepts only `1`. Actual Pi controller, firmware, bus, permissions
+and scanning backend remain physical qualification inputs.
+
 Notification delivery is independently opt-in at build time. Add
 `WOTEX_TRACKER_APNS=1` to the selected target's dependency and firmware commands
 to require a private singly linked 0600 `/root/tracker/apns.json`. It uses the
@@ -66,8 +79,9 @@ image built without the flag contains no configured dispatcher. Omit the flag or
 set it to the exact value `1`; every other supplied value aborts configuration.
 The flag can be combined with the independent cellular and kiosk choices.
 
-Authenticated capabilities report `cellular` and `notification_delivery` as
-`configured` only for their actually supervised appliance compositions. These
+Authenticated capabilities report `ble_scan`, `cellular` and
+`notification_delivery` as `configured` only for their actually supervised
+appliance compositions. These
 values do not establish socket reachability, provider acceptance, OS delivery,
 notification presentation or a user tap. APNs still requires provisioned Apple
 credentials, an entitled signed application and physical-device evidence. It
@@ -353,11 +367,16 @@ first boot under the private `/root/tracker` mount together with the same prepar
 storage marker. The private credential is retained only on the virtual disk for
 the probe and never enters runtime configuration or serial output. Successful
 SQLite startup advances the marker before the probe. The listener remains guest
-loopback-only. The probe submits one deterministic Ruuvi RAWv2 observation over
-the authenticated HTTP interface with a fixed idempotency key, requires the
-decoded public state to report 24.3 °C, and receives the same durable operation
-replay after reboot. It also checks the private SQLite file, `/health/live` and
-one native resource sample, reporting only pass or fail to the serial console.
+loopback-only. A private QEMU-only cellular document binds a fixed test IMEI to
+the TAT140 profile. The probe opens the real Teltonika TCP listener, completes
+IMEI negotiation, sends a deterministic two-record Codec 8 Extended frame and
+requires the four-byte record-count acknowledgement. It then inspects the
+authenticated public state for GNSS, movement, battery voltage and documented
+EYE Sensor slot-one temperature, battery, humidity and movement-counter values,
+including the not-found/lost sentinels. Reboot sends the identical frame and
+must retain generation one, proving durable replay instead of a second commit.
+It also checks the private SQLite file, `/health/live` and one native resource
+sample, reporting only pass or fail to the serial console.
 The Pi profiles never compile this fixture or turn on a serial logger.
 
 ```sh
@@ -371,7 +390,7 @@ WOTEX_PATH_DEPS=1 MIX_TARGET=qemu_aarch64 MIX_ENV=dev \
 
 The last task creates the ignored `virtual-disk.img` and prints a QEMU command
 for the current host. Run it, wait for the probe to report the private store,
-loopback HTTP, authenticated fixture ingress and native resources, stop QEMU,
+loopback HTTP, TAT140 cellular peer, durable replay and native resources, stop QEMU,
 and run the same command again without regenerating the disk. The second boot
 must pass without formatting the application partition and must replay rather
 than recommit the fixture operation. `record_qemu_boot.exs`

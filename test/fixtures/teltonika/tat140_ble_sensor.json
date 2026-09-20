@@ -1,0 +1,37 @@
+{
+  "schema": "wtr.teltonika-tat140-ble-sensor-fixtures.v1",
+  "sources": [
+    "https://wiki.teltonika-gps.com/view/TAT100_AVL_ID_List",
+    "https://wiki.teltonika-gps.com/view/TAT140_Bluetooth%C2%AE_settings"
+  ],
+  "read_at": "2026-09-21",
+  "qualification": "documentation-fixture",
+  "transformation": "Constructed a two-record Codec 8 Extended frame using documented TAT140 EYE sensor-slot 1 AVL IDs. The first record carries temperature, battery, humidity and movement count. The second carries the documented sensor-not-found and lost-sensor sentinels. This is not a hardware capture.",
+  "vectors": [
+    {
+      "name": "eye_sensor_slot_one_and_lost_sentinels",
+      "hex": "00000000000000788E020000018BCFE73CC0010ABA9500232AAF80002A005A08002400190006000200F001001D570004001900F300430DFC005601C801CF002A0000000000000000018BCFE82720010ABA9500232AAF80002A005A08002401CF0005000100F000000400197FFF00430DF20056FFFF01CFBEEF000000000000020000F6CD",
+      "sha256": "be3440392f5dbe56365b719f77fcaa111ea8f40662009c951e26c46435cc2f92",
+      "record_count": 2,
+      "records": [
+        {
+          "timestamp_ms": 1700000120000,
+          "motion": true,
+          "battery_voltage_v": 3.58,
+          "ble_sensor_temperature_c": 24.3,
+          "ble_sensor_battery_level_percent": 87,
+          "ble_sensor_humidity_percent_rh": 45.6,
+          "ble_sensor_movement_count": 42
+        },
+        {
+          "timestamp_ms": 1700000180000,
+          "motion": false,
+          "battery_voltage_v": 3.57,
+          "ble_sensor_temperature": "sensor_not_found",
+          "ble_sensor_humidity": "sensor_not_found",
+          "ble_sensor_movement_count": "sensor_lost"
+        }
+      ]
+    }
+  ]
+}

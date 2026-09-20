@@ -4,7 +4,7 @@ defmodule Wotex.Tracker.CellularAssetTrackerModelTest do
   alias Wotex.Tracker.Model
   alias Wotex.Tracker.Protocols.Teltonika.TAT140
 
-  @path "priv/thing_models/cellular-asset-tracker-1.0.0.tm.json"
+  @path "priv/thing_models/cellular-asset-tracker-1.2.0.tm.json"
 
   test "the TAT140 profile resolves to one self-contained vendor-neutral model" do
     assert {:ok, document} = @path |> File.read!() |> Wotex.JSON.decode()
@@ -12,7 +12,7 @@ defmodule Wotex.Tracker.CellularAssetTrackerModelTest do
     assert {:ok, model} = Model.new(document, profile.model)
 
     assert model.revision ==
-             {"urn:wotex:tm:tracker:cellular-asset-tracker", "1.0.0"}
+             {"urn:wotex:tm:tracker:cellular-asset-tracker", "1.2.0"}
 
     assert document["@type"] == "tm:ThingModel"
     refute Map.has_key?(document, "tm:optional")
@@ -22,10 +22,50 @@ defmodule Wotex.Tracker.CellularAssetTrackerModelTest do
              MapSet.new([
                "/properties/position",
                "/properties/motion",
-               "/properties/batteryVoltage"
+               "/properties/batteryVoltage",
+               "/properties/bleSensorTemperature",
+               "/properties/bleSensorBatteryLevel",
+               "/properties/bleSensorHumidity",
+               "/properties/bleSensorMovementCount"
              ])
 
     assert Enum.all?(Map.values(profile.mapping), &property_pointer?(document, &1))
+  end
+
+  test "associated BLE sensor schemas retain physical units and sentinel-free bounds" do
+    assert {:ok, document} = @path |> File.read!() |> Wotex.JSON.decode()
+    properties = document["properties"]
+
+    assert properties["bleSensorTemperature"] == %{
+             "type" => "number",
+             "minimum" => -40,
+             "maximum" => 125,
+             "unit" => "Cel",
+             "readOnly" => true
+           }
+
+    assert properties["bleSensorBatteryLevel"] == %{
+             "type" => "integer",
+             "minimum" => 0,
+             "maximum" => 100,
+             "unit" => "%",
+             "readOnly" => true
+           }
+
+    assert properties["bleSensorHumidity"] == %{
+             "type" => "number",
+             "minimum" => 0,
+             "maximum" => 100,
+             "unit" => "%RH",
+             "readOnly" => true
+           }
+
+    assert properties["bleSensorMovementCount"] == %{
+             "type" => "integer",
+             "minimum" => 0,
+             "unit" => "1",
+             "readOnly" => true
+           }
   end
 
   test "position, motion and voltage schemas preserve normalized units and bounds" do

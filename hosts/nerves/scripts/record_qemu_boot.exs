@@ -46,7 +46,11 @@ defmodule Wotex.Tracker.Nerves.QemuBootRecord do
       :beam_lib.chunks(String.to_charlist(fixture_beam), [:imports])
 
     true = {:httpc, :request, 4} in fixture_imports
+    true = {:gen_tcp, :connect, 4} in fixture_imports
+    true = {:gen_tcp, :recv, 3} in fixture_imports
+    true = {:gen_tcp, :send, 2} in fixture_imports
     true = {Wotex.Tracker.Service.Codec, :decode, 1} in fixture_imports
+    true = {Wotex.Tracker.Service.Cellular.Server, :listener_info, 1} in fixture_imports
 
     application_beam =
       Path.join(
@@ -118,8 +122,8 @@ defmodule Wotex.Tracker.Nerves.QemuBootRecord do
     true =
       String.contains?(
         first,
-        "QEMU boot probe passed: private store, loopback HTTP, authenticated fixture ingress, " <>
-          "native resources"
+        "QEMU boot probe passed: private store, loopback HTTP, TAT140 cellular peer " <>
+          "and durable replay, native resources, initialized storage marker"
       )
 
     true = String.contains?(reboot, "Booting from slot a")
@@ -132,8 +136,8 @@ defmodule Wotex.Tracker.Nerves.QemuBootRecord do
     true =
       String.contains?(
         reboot,
-        "QEMU boot probe passed: private store, loopback HTTP, authenticated fixture ingress, " <>
-          "native resources"
+        "QEMU boot probe passed: private store, loopback HTTP, TAT140 cellular peer " <>
+          "and durable replay, native resources, initialized storage marker"
       )
 
     false = String.contains?(first <> reboot, "QEMU boot probe failed")
@@ -170,13 +174,15 @@ defmodule Wotex.Tracker.Nerves.QemuBootRecord do
       "checks" => %{
         "first_boot_formatted_fresh_partition" => true,
         "first_boot_private_store_and_loopback_http" => true,
-        "first_boot_authenticated_fixture_ingress" => true,
+        "first_boot_tat140_imei_codec8e_ingress" => true,
+        "first_boot_tat140_ble_sensor_state" => true,
         "first_boot_native_resource_sample" => true,
         "first_boot_initialized_storage_marker" => true,
         "first_boot_startup_guard_completed" => true,
         "reboot_kept_existing_partition" => true,
         "reboot_private_store_and_loopback_http" => true,
-        "reboot_authenticated_fixture_replay" => true,
+        "reboot_tat140_durable_replay" => true,
+        "reboot_tat140_ble_sensor_state" => true,
         "reboot_native_resource_sample" => true,
         "reboot_initialized_storage_marker" => true,
         "reboot_startup_guard_completed" => true,
