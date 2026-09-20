@@ -249,6 +249,10 @@ elapsed UTC time without joining samples. The collector response pins the epoch,
 window and high-water mark across exact 25-row table pages. The graph is capped
 at 1,000 retained samples and visibly reports any earlier matching samples that
 remain available through those pages.
+The browser adapter marks a socket attempt as a reconnect only after the same
+in-memory LiveSocket has opened once. The host operational bridge stores only
+its duration and closed surface/kind/outcome labels; reloads remain initial
+connections and socket parameters are never retained.
 Saved dashboard pages can follow committed changes while open. They check the
 scope's committed event cursor every 5 seconds and rerun the query only after a
 commit, from a snapshot cursor taken before the run; a rolling window also

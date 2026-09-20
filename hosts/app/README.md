@@ -172,6 +172,10 @@ fresh first page. The page plots one closed measurement as discrete marks spaced
 by elapsed time without joining them. A graph contains at most 1,000 samples and
 reports any omitted earlier samples; the pages remain the source for exact
 values and times.
+The browser host contributes closed render-duration samples and connection
+duration/outcome samples only after its in-memory LiveSocket has opened once.
+A reload is another initial connection, not a reconnect. The host discards
+socket parameters, route data and credentials before collection.
 The route needs no external metrics service and is absent from the headless host.
 
 After creating `_build/local` with the CLI above, create a loopback browser

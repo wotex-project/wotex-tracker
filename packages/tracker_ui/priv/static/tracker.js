@@ -14,15 +14,22 @@ const MobHook = {
     };
   }
 };
+let socketOpened = false;
 const liveSocket = new window.LiveView.LiveSocket("/live", window.Phoenix.Socket, {
-  params: { _csrf_token: csrf },
+  params: () => ({
+    _csrf_token: csrf,
+    wotex_reconnect: socketOpened ? "1" : "0"
+  }),
   hooks: { MobHook }
 });
 const status = document.getElementById("connection-status");
 window.addEventListener("phx:page-loading-start", () => document.body.setAttribute("aria-busy", "true"));
 window.addEventListener("phx:page-loading-stop", () => document.body.removeAttribute("aria-busy"));
 liveSocket.socket.onError(() => { status.hidden = false; });
-liveSocket.socket.onOpen(() => { status.hidden = true; });
+liveSocket.socket.onOpen(() => {
+  status.hidden = true;
+  socketOpened = true;
+});
 const downloadJson = (event, filename) => {
   const content = event.detail && event.detail.content;
   if (typeof content !== "string") return;

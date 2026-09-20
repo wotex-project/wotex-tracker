@@ -13,7 +13,7 @@ defmodule Wotex.Tracker.Service.OperationalHistory do
 
   @default_max_samples 2_048
   @default_retention_ms 900_000
-  @events ~w(request.stop query.stop ingest.stop store.stop queue.stop publication.stop resource.stop runtime.sample render.stop)
+  @events ~w(request.stop query.stop ingest.stop store.stop queue.stop publication.stop resource.stop runtime.sample render.stop connection.stop)
 
   @doc "Starts an isolated collector and attaches only the documented events."
   @spec start_link(keyword()) :: GenServer.on_start()

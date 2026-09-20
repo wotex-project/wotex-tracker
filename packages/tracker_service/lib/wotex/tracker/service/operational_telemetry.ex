@@ -17,6 +17,7 @@ defmodule Wotex.Tracker.Service.OperationalTelemetry do
   @resource [:wotex, :tracker, :service, :resource, :stop]
   @runtime [:wotex, :tracker, :service, :runtime, :sample]
   @browser_render [:wotex, :tracker, :browser, :render, :stop]
+  @browser_connection [:wotex, :tracker, :browser, :connection, :stop]
   @outcomes ~w(ok dropped rejected conflict overloaded deadline unavailable unknown)a
   @request_operations ~w(health contract capabilities mutation resource events stream property analytics saved_query unknown)a
   @aggregations ~w(count min max mean last)a
@@ -90,6 +91,12 @@ defmodule Wotex.Tracker.Service.OperationalTelemetry do
         name: "render.stop",
         measurements: %{duration_us: :microsecond},
         metadata: %{surface: [:browser], outcome: @render_outcomes}
+      },
+      %{
+        event: @browser_connection,
+        name: "connection.stop",
+        measurements: %{duration_us: :microsecond},
+        metadata: %{surface: [:browser], kind: [:reconnect], outcome: @render_outcomes}
       }
     ]
   end
@@ -166,6 +173,16 @@ defmodule Wotex.Tracker.Service.OperationalTelemetry do
     )
   end
 
+  @doc "Records one browser reconnect without forwarding socket or page metadata."
+  def browser_connection(outcome, duration)
+      when outcome in @render_outcomes and is_integer(duration) and duration >= 0 do
+    execute(
+      @browser_connection,
+      %{duration_us: System.convert_time_unit(duration, :native, :microsecond)},
+      %{surface: :browser, kind: :reconnect, outcome: outcome}
+    )
+  end
+
   @doc false
   def event_names,
     do: [
@@ -177,7 +194,8 @@ defmodule Wotex.Tracker.Service.OperationalTelemetry do
       @publication,
       @resource,
       @runtime,
-      @browser_render
+      @browser_render,
+      @browser_connection
     ]
 
   @doc false
@@ -235,6 +253,16 @@ defmodule Wotex.Tracker.Service.OperationalTelemetry do
 
   def sample(@browser_render, measurements, metadata),
     do: sample("render.stop", measurements, metadata, [:duration_us], [:surface, :outcome])
+
+  def sample(@browser_connection, measurements, metadata),
+    do:
+      sample(
+        "connection.stop",
+        measurements,
+        metadata,
+        [:duration_us],
+        [:surface, :kind, :outcome]
+      )
 
   def sample(_, _, _), do: {:error, :invalid_sample}
 
@@ -300,6 +328,11 @@ defmodule Wotex.Tracker.Service.OperationalTelemetry do
 
   defp valid_metadata?("render.stop", metadata),
     do: metadata.surface == :browser and metadata.outcome in @render_outcomes
+
+  defp valid_metadata?("connection.stop", metadata),
+    do:
+      metadata.surface == :browser and metadata.kind == :reconnect and
+        metadata.outcome in @render_outcomes
 
   defp exact?(value, keys),
     do: is_map(value) and not is_struct(value) and Enum.sort(Map.keys(value)) == Enum.sort(keys)

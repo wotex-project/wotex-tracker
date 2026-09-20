@@ -374,6 +374,11 @@ defmodule Wotex.Tracker.Host.BrowserTest do
       assert byte_size(bytes) > 100
     end
 
+    {200, _, tracker_script} = request(:get, origin <> "/assets/tracker.js", [], nil)
+    assert tracker_script =~ ~s(wotex_reconnect: socketOpened ? "1" : "0")
+    refute tracker_script =~ c.token
+    refute tracker_script =~ browser.prompt.api_key
+
     socket_headers = [
       {~c"connection", ~c"Upgrade"},
       {~c"upgrade", ~c"websocket"},

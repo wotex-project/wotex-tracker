@@ -3967,3 +3967,31 @@ inspection and the 527-file stack-language policy. The UI-enabled application-
 host gate passed 22 tests at 95.5% with every configured check. Manual keyboard,
 screen-reader, contrast, zoom, touch and gesture evidence on physical browser,
 Pi and iPhone surfaces remains unpassed.
+
+### Bounded browser reconnect telemetry — 2026-09-20
+
+The shared browser now supplies a fresh connection-parameter function to its
+LiveSocket. Its first successful open flips only an in-memory marker, so later
+attempts by that same socket are marked as reconnects while a reload creates a
+new initial connection. The host bridge accepts only marked Phoenix socket
+events for its exact endpoint and LiveView socket type. Successful and rejected
+attempts become `connection.stop` samples with integer microsecond duration and
+only the closed `browser` surface, `reconnect` kind and `ok`/`unavailable`
+outcome. CSRF values, paths and every other socket parameter are discarded.
+
+The service contract, collector filter and browser operational documentation
+now include this event. Tests reject initial connections, another endpoint,
+negative durations and injected extra metadata; the composed HTTP test also
+checks that the served adapter contains the dynamic reconnect marker without
+containing service or provider credentials. The render bridge allowlist now
+covers every current shared root LiveView without admitting components or
+unrelated views.
+
+JavaScript syntax validation passed. The complete service gate passed 304 tests
+and two generated properties at 95.1% production line coverage. The shared-UI
+gate passed 171 tests at 95.0%, the headless application-host gate passed 12
+tests at 95.7%, and the UI-enabled host gate passed 23 tests at 95.6%. Their
+configured compiler, unused-dependency, formatter, dependency audit, strict
+Credo, ExDoc, Dialyzer, OpenAPI, archive, native CLI, licence and 527-file
+stack-language checks passed. OS-native resource telemetry and physical
+reconnection acceptance remain unpassed.

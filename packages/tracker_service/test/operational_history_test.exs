@@ -15,7 +15,18 @@ defmodule Wotex.Tracker.Service.OperationalHistoryTest do
   }
 
   test "the event vocabulary documents units and closed low-cardinality metadata" do
-    assert [request, query, ingest, store, queue, publication, resource, runtime, render] =
+    assert [
+             request,
+             query,
+             ingest,
+             store,
+             queue,
+             publication,
+             resource,
+             runtime,
+             render,
+             connection
+           ] =
              OperationalTelemetry.contracts()
 
     assert request.event == [:wotex, :tracker, :service, :request, :stop]
@@ -58,6 +69,15 @@ defmodule Wotex.Tracker.Service.OperationalHistoryTest do
     assert render.event == [:wotex, :tracker, :browser, :render, :stop]
     assert render.measurements == %{duration_us: :microsecond}
     assert render.metadata == %{surface: [:browser], outcome: [:ok, :unavailable]}
+
+    assert connection.event == [:wotex, :tracker, :browser, :connection, :stop]
+    assert connection.measurements == %{duration_us: :microsecond}
+
+    assert connection.metadata == %{
+             surface: [:browser],
+             kind: [:reconnect],
+             outcome: [:ok, :unavailable]
+           }
   end
 
   test "browser render samples keep only closed duration and status" do
@@ -88,6 +108,41 @@ defmodule Wotex.Tracker.Service.OperationalHistoryTest do
 
     assert {:ok, %{"samples" => [_]}} =
              OperationalHistory.snapshot(collector, event: "render.stop")
+  end
+
+  test "browser reconnect samples keep only closed duration, kind and status" do
+    collector = start_supervised!({OperationalHistory, []})
+    duration = System.convert_time_unit(1_500, :microsecond, :native)
+    :ok = OperationalTelemetry.browser_connection(:ok, duration)
+
+    eventually(fn ->
+      match?(
+        {:ok, %{"samples" => [_]}},
+        OperationalHistory.snapshot(collector, event: "connection.stop")
+      )
+    end)
+
+    assert {:ok, %{"samples" => [sample]}} =
+             OperationalHistory.snapshot(collector, event: "connection.stop")
+
+    assert sample["measurements"] == %{"duration_us" => 1_500}
+
+    assert sample["metadata"] == %{
+             "surface" => "browser",
+             "kind" => "reconnect",
+             "outcome" => "ok"
+           }
+
+    :telemetry.execute(
+      [:wotex, :tracker, :browser, :connection, :stop],
+      %{duration_us: 1},
+      %{surface: :browser, kind: :reconnect, outcome: :ok, path: "/private"}
+    )
+
+    Process.sleep(10)
+
+    assert {:ok, %{"samples" => [_]}} =
+             OperationalHistory.snapshot(collector, event: "connection.stop")
   end
 
   test "bounded volatile samples expire and malformed external events are ignored" do

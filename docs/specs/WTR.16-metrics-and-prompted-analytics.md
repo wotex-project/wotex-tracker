@@ -14,8 +14,11 @@ queries, import admission/decoding, transactional commits, forward-queue depth
 and overflow, publication reconciliation and store checks through an explicitly
 supervised bounded volatile collector. The explicit HTTP host also samples
 global BEAM memory, process and port counts into that collector. The optional
-browser host records sanitized LiveView render durations there. Reconnect and
-OS-native resource events remain with their owning adapters.
+browser host records sanitized LiveView render durations and marked reconnect
+attempts there. Reconnect samples contain only duration and closed
+surface/kind/outcome labels; initial connections and page reloads are not
+reported as reconnects. OS-native resource events remain with their owning
+adapters.
 Host-only operational pages pin a collector epoch and sequence high-water mark;
 continuations reject restart, altered filters and expired samples.
 The optional browser host now exposes those pages at `/operations` to current

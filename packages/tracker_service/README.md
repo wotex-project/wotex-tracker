@@ -342,8 +342,9 @@ timezones, prompting and graph rendering remain later contracts.
 ## Bounded operational history
 
 `OperationalTelemetry.contracts/0` documents the closed
-`[:wotex, :tracker, :service, …]` request, query, import-stage, store, queue,
-publication and resource event names. Measurements include integer microsecond
+`[:wotex, :tracker, …]` request, query, import-stage, store, queue,
+publication, resource, browser-render and browser-connection event names.
+Measurements include integer microsecond
 durations, query row counts, queue depth/bytes and processed/drop counts. Labels
 contain only closed stage, operation, outcome, aggregation and resource
 categories; they never contain scope, principal, record ID, position, prompt or
@@ -372,8 +373,12 @@ exactly counted retention gap and collector restart with unknowable loss. The
 host adapter owns endpoint credentials, transport and idempotency; its context
 is redacted from exporter inspection. The default server starts no exporter.
 The optional browser host contributes sanitized root LiveView `render.stop`
-durations to this collector. Reconnect and native host-resource coverage remain
-with the adapters that own those operations.
+durations and marked `connection.stop` reconnect attempts to this collector.
+Its browser adapter marks a connection only after the same LiveSocket has
+opened once; a reload starts another initial connection. The host accepts only
+its own endpoint event and retains duration plus closed surface, kind and
+outcome labels. Socket parameters and page data are discarded. Native
+host-resource coverage remains with the adapters that own those operations.
 
 ## Explicit HTTP instance
 
