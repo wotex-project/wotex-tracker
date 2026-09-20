@@ -2,7 +2,13 @@
 
 ## Status
 
-Accepted target contract. No implementation claim.
+Implemented for bounded provider observations, closed declarative predicates,
+immutable catalogues, deterministic unknown/ambiguous/resolved outcomes and
+evidence-backed readable capabilities. Imported captures and the configured
+cellular ingress exercise that boundary. Live BLE scanning, authorized active
+probe adapters and physical capability qualification remain open. See the
+[profile guide](../guides/profiles.md) and
+[executed evidence](../evidence/implementation.md#wtr02-resolution-and-wtr03-profile-values--2026-09-15).
 
 ## Pipeline
 
