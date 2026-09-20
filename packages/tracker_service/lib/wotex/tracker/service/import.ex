@@ -45,16 +45,6 @@ defmodule Wotex.Tracker.Service.Import do
         imported.observation.id
       )
 
-    measurements =
-      if imported.decoded,
-        do: Enum.map(imported.decoded.measurements, &Projection.measurement/1),
-        else: []
-
-    positions =
-      if imported.decoded,
-        do: Enum.map(imported.decoded.positions, &Projection.position/1),
-        else: []
-
     evidence = if imported.decoded, do: evidence(imported.decoded), else: []
 
     public = %{
@@ -68,13 +58,13 @@ defmodule Wotex.Tracker.Service.Import do
       "public" => public
     }
 
-    state = %{
-      "id" => id,
-      "observation_id" => id,
-      "observed_at" => Projection.scalar(imported.observation.observed_at),
-      "measurements" => measurements,
-      "positions" => positions
-    }
+    state =
+      %{
+        "id" => id,
+        "observation_id" => id,
+        "observed_at" => Projection.scalar(imported.observation.observed_at)
+      }
+      |> Map.merge(Projection.decoded(imported.decoded))
 
     Update.new(%{
       principal: access.principal,

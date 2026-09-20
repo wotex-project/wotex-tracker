@@ -174,13 +174,13 @@ defmodule Wotex.Tracker.Service.Materialize do
         map
       end)
 
-    state = %{
-      "id" => id,
-      "observation_id" => enrollment["public"]["observation_id"],
-      "observed_at" => Projection.scalar(imported.observation.observed_at),
-      "measurements" => Enum.map(imported.decoded.measurements, &Projection.measurement/1),
-      "positions" => Enum.map(imported.decoded.positions, &Projection.position/1)
-    }
+    state =
+      %{
+        "id" => id,
+        "observation_id" => enrollment["public"]["observation_id"],
+        "observed_at" => Projection.scalar(imported.observation.observed_at)
+      }
+      |> Map.merge(Projection.decoded(imported.decoded))
 
     Update.new(%{
       principal: access.principal,

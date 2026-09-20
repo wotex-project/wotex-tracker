@@ -1,6 +1,8 @@
 defmodule Wotex.Tracker.Service.Projection do
   @moduledoc false
 
+  alias Wotex.Tracker.Decoder
+  alias Wotex.Tracker.Protocols.Teltonika.TAT140Import
   alias Wotex.Tracker.Service.{Arming, Codec, Credentials, OwnerPresence, RuleStatus}
 
   def public(_, _id, nil), do: {:ok, nil}
@@ -85,6 +87,37 @@ defmodule Wotex.Tracker.Service.Projection do
       "fix_clock" => claim["fix_clock"],
       "availability" => claim["availability"],
       "quality" => claim["quality"]
+    }
+  end
+
+  def decoded(nil), do: %{"measurements" => [], "positions" => []}
+
+  def decoded(%Decoder{} = decoded) do
+    %{
+      "measurements" => Enum.map(decoded.measurements, &measurement/1),
+      "positions" => Enum.map(decoded.positions, &position/1)
+    }
+  end
+
+  def decoded(%TAT140Import{records: records}) do
+    projected = Enum.map(records, &record/1)
+    latest = List.last(projected) || %{"measurements" => [], "positions" => []}
+
+    %{
+      "measurements" => latest["measurements"],
+      "positions" => latest["positions"],
+      "records" => projected
+    }
+  end
+
+  defp record(record) do
+    %{
+      "schema" => "wtr.cellular-record-public.v1",
+      "index" => scalar(record.index),
+      "timestamp_ms" => scalar(record.timestamp_ms),
+      "priority" => Atom.to_string(record.priority),
+      "measurements" => Enum.map(record.measurements, &measurement/1),
+      "positions" => Enum.map(record.positions, &position/1)
     }
   end
 

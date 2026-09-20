@@ -54,9 +54,7 @@ defmodule Wotex.Tracker.Service do
           credentials: Credentials.t(),
           catalogue: Catalogue.t(),
           model: Model.t(),
-          decoders: %{
-            required({String.t(), String.t()}) => (Observation.t() -> term())
-          },
+          decoders: map(),
           base_url: String.t()
         }
 
