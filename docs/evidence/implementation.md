@@ -5169,3 +5169,20 @@ This is a local path-dependency development-release qualification. It did not
 rebuild or publish the ordinary production artifact cohort, rerun the Linux
 read-only container gate, contact APNs, deliver to an operating system or prove
 a notification tap.
+
+### Hermetic source qualification environment — 2026-09-20
+
+The source-cohort qualifier now explicitly unsets every inherited
+`WOTEX_TRACKER_*` variable before it builds package consumers or release hosts,
+including configuration names introduced after this check. It also continues to
+clear path-dependency, build-path, dependency-path and ambient Mix-environment
+overrides, then selects the required production environment itself. A focused
+test supplies service, browser, cellular, APNs and unknown future composition
+variables and proves none can reach a qualification child while an unrelated
+environment value remains intact.
+
+Both root runtime lanes passed one doctest, 19 generated properties and 188
+tests at 95.2% production line coverage. Every configured compiler, dependency,
+formatter, vulnerability audit, strict Credo, ExDoc, Dialyzer, boundary,
+stack-language, archive and licence check passed. The implementation commit is
+`26c530e`.
