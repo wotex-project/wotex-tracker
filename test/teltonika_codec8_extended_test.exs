@@ -59,7 +59,7 @@ defmodule Wotex.Tracker.TeltonikaCodec8ExtendedTest do
     assert {:ok, expected} = Codec8Extended.decode_frame(context.frame)
 
     for split <- 0..(byte_size(context.frame) - 1) do
-      <<first::binary-size(split), second::binary>> = context.frame
+      <<first::binary-size(^split), second::binary>> = context.frame
       assert {:ok, state, []} = Codec8Extended.feed(Codec8Extended.new_stream(), first)
       assert {:ok, state, [^expected]} = Codec8Extended.feed(state, second)
       assert :ok = Codec8Extended.finish(state)
@@ -140,7 +140,7 @@ defmodule Wotex.Tracker.TeltonikaCodec8ExtendedTest do
 
   test "checksum, codec, priority and count failures are typed", context do
     last = byte_size(context.frame) - 1
-    <<prefix::binary-size(last), byte>> = context.frame
+    <<prefix::binary-size(^last), byte>> = context.frame
     damaged_crc = prefix <> <<Bitwise.bxor(byte, 1)>>
 
     assert {:error, %Error{code: :malformed_frame, path: "/crc16"}} =
@@ -246,7 +246,7 @@ defmodule Wotex.Tracker.TeltonikaCodec8ExtendedTest do
 
   defp repair_crc(frame) do
     size = byte_size(frame) - 4
-    <<without_crc::binary-size(size), _::binary-size(4)>> = frame
+    <<without_crc::binary-size(^size), _::binary-size(4)>> = frame
     append_crc(without_crc)
   end
 
@@ -276,7 +276,7 @@ defmodule Wotex.Tracker.TeltonikaCodec8ExtendedTest do
   end
 
   defp replace(bytes, offset, value) do
-    <<prefix::binary-size(offset), _old, suffix::binary>> = bytes
+    <<prefix::binary-size(^offset), _old, suffix::binary>> = bytes
     prefix <> <<value>> <> suffix
   end
 

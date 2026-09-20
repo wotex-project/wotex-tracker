@@ -52,7 +52,7 @@ defmodule Wotex.Tracker.Protocols.Teltonika.Codec8Extended do
           quality: :valid | :suspect | :unavailable,
           reason: String.t()
         }
-  @type record :: %{
+  @type avl_record :: %{
           timestamp_ms: non_neg_integer(),
           priority: :low | :high | :panic,
           gps: gps(),
@@ -63,7 +63,7 @@ defmodule Wotex.Tracker.Protocols.Teltonika.Codec8Extended do
           codec: 0x8E,
           data_length: pos_integer(),
           record_count: pos_integer(),
-          records: [record()],
+          records: [avl_record()],
           crc16: non_neg_integer()
         }
 
@@ -145,7 +145,7 @@ defmodule Wotex.Tracker.Protocols.Teltonika.Codec8Extended do
         :incomplete
 
       true ->
-        <<data::binary-size(length), crc::binary-size(4), tail::binary>> = rest
+        <<data::binary-size(^length), crc::binary-size(4), tail::binary>> = rest
         {:frame, <<0::unsigned-big-32, length::unsigned-big-32, data::binary, crc::binary>>, tail}
     end
   end
@@ -292,7 +292,7 @@ defmodule Wotex.Tracker.Protocols.Teltonika.Codec8Extended do
 
   defp fixed_elements(<<id::unsigned-big-16, rest::binary>>, count, width, acc)
        when byte_size(rest) >= width do
-    <<raw::binary-size(width), rest::binary>> = rest
+    <<raw::binary-size(^width), rest::binary>> = rest
     element = %{id: id, width: width, raw: raw, unsigned: :binary.decode_unsigned(raw)}
     fixed_elements(rest, count - 1, width, [element | acc])
   end
@@ -315,7 +315,7 @@ defmodule Wotex.Tracker.Protocols.Teltonika.Codec8Extended do
          acc
        )
        when byte_size(rest) >= length do
-    <<raw::binary-size(length), rest::binary>> = rest
+    <<raw::binary-size(^length), rest::binary>> = rest
     element = %{id: id, width: :variable, raw: raw, unsigned: nil}
     variable_elements(rest, count - 1, [element | acc])
   end
