@@ -33,15 +33,17 @@ and checkpointed retry. It discloses collector restart and retention gaps.
 Concrete remote-store query adapters and live destination interoperability remain
 host-specific acceptance work.
 Encrypted analytics continuations now bind the exact query and first committed
-generation while reauthorizing every bucket page. General dashboard composition
-and sharing, a live public-provider prompt run and cross-surface graph acceptance remain
-required product deliverables.
+generation while reauthorizing every bucket page. Scope-authorized dashboard
+composition and credential-free link sharing are implemented; opening a link
+and every query run require the recipient's own current read grant. A live
+public-provider prompt run and cross-surface graph acceptance remain required
+product deliverables.
 The shared browser now submits a bounded structured numeric query for one asset
 and renders snapshot-bound line, area and point graphs with separate paths at
 gaps, time-window controls and an exact table with exclusion counts. The browser
 also exposes a closed valid/suspect reading-quality filter that persists in
-saved definitions. Dashboard composition and cross-surface graph acceptance
-remain. Readers can list and rerun saved definitions through the same service
+saved definitions. Cross-surface graph acceptance remains. Readers can list and
+rerun saved definitions through the same service
 facade; administrators can save the current fixed or rolling graph with a
 generation check and stable operation receipt, then edit its title/view or
 delete it with another checked operation. An incident snapshot pins a saved
@@ -64,7 +66,9 @@ The browser can combine two to eight compatible saved definitions with distinct
 series into one generation-checked multi-series exact-table dashboard. The
 stable operation reference permits receipt recovery without a duplicate write.
 Saved multi-series definitions can also render line, area and point graphs on
-one common scale, with per-series gaps and exact tables.
+one common scale, with per-series gaps and exact tables. Each dashboard exposes
+a credential-free relative link; recipients still authenticate to the deployment
+and every definition load and query run uses their current same-scope read grant.
 Readers can switch a currently displayed saved result among those views and a
 table without changing its admitted query, snapshot or stored definition.
 They can also shift or zoom the displayed saved result through a newly

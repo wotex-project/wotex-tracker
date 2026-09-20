@@ -565,6 +565,9 @@ exact-table dashboard with a generation check and recoverable operation receipt.
 This covers compatible series comparison, not arbitrary dashboard composition.
 Saved multi-series queries also support line, area and point views on a shared
 value scale, while keeping per-series gaps and tables visible.
+A credential-free relative link shares any saved definition only with recipients
+who independently hold current read access to the same scope; it is never an
+authorization grant.
 A reader can temporarily switch the current saved result between graph and
 table views without rerunning it or changing the stored definition.
 

@@ -9,7 +9,9 @@ defmodule Wotex.Tracker.UI.DashboardLive do
   retries on each later check. Readers can switch between an exact table and
   gap-preserving chart views without changing the definition.
   Administrators can edit its title or view and delete it with generation and
-  operation checks; a deleted or unauthorized definition is cleared.
+  operation checks; a deleted or unauthorized definition is cleared. Every
+  loaded definition also exposes a credential-free relative link. Opening that
+  link always requires the recipient's own current scope read authority.
   """
 
   use Phoenix.LiveView, log: false
@@ -358,6 +360,21 @@ defmodule Wotex.Tracker.UI.DashboardLive do
           <dt>View</dt><dd>{@definition["visualization"]["type"]}</dd>
         </dl>
         <button phx-click="run" phx-disable-with="Querying…">Run saved query</button>
+      </section>
+      <section :if={@definition} class="panel" aria-labelledby="share-dashboard-title">
+        <h2 id="share-dashboard-title">Share dashboard</h2>
+        <p>
+          This relative link contains no credential and grants no access. A recipient must sign in
+          to this deployment with current read access to the same scope; every definition load and
+          query run is authorized again.
+        </p>
+        <label for="share-dashboard-link">Scope-authorized dashboard link</label>
+        <input
+          id="share-dashboard-link"
+          type="text"
+          value={Presenter.dashboard_path(@id)}
+          readonly
+        />
       </section>
       <.query_result
         :if={@result && length(@result["series"]) == 1}

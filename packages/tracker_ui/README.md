@@ -62,7 +62,10 @@ protection page shows the same status beside each definition.
 Readers can list retained saved definitions and rerun them under current
 authorization. An administrator can save a displayed query with a fixed or
 rolling window, edit or delete it, and combine compatible saved series into a
-new exact-table dashboard.
+new exact-table dashboard. Every saved dashboard displays a credential-free
+relative sharing link. The link grants nothing: a recipient signs in separately,
+loads the definition under current same-scope read authority and reauthorizes
+each query run.
 The Protection page lists the committed status of heartbeat, battery,
 transport-health, motion and geofence rules through the read-only service
 projection, and each rule page pages its retained evaluation history. These

@@ -2579,6 +2579,15 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     {:ok, detail, html} = live(conn, Presenter.dashboard_path(dashboard))
     assert html =~ "Workshop temperature"
     assert html =~ "Rolling"
+    assert has_element?(detail, "h2", "Share dashboard")
+
+    assert has_element?(
+             detail,
+             ~s(input#share-dashboard-link[value="#{Presenter.dashboard_path(dashboard)}"][readonly])
+           )
+
+    assert html =~ "contains no credential and grants no access"
+    refute html =~ c.reader
     detail |> element("button", "Run saved query") |> render_click()
     assert has_element?(detail, "h2", "Query result")
     assert has_element?(detail, "path.chart-line")
@@ -2632,6 +2641,9 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
 
     send(detail.pid, :check_authority)
     assert_redirect(detail, "/sign-in")
+
+    assert {:error, {:redirect, %{to: "/sign-in"}}} =
+             live(conn, Presenter.dashboard_path(dashboard))
   end
 
   test "saved dashboard export rejects changed definitions and lost data authority", c do

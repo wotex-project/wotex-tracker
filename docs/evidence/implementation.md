@@ -3928,3 +3928,21 @@ ExDoc, Dialyzer, 58-member archive inspection, licences and the 525-file stack-
 language policy. The UI-enabled application-host gate passed 22 tests at 95.5%
 with its configured BEAM, native CLI, dependency, licence and policy checks.
 Real hardware anti-stalking qualification remains unpassed.
+
+### Scope-authorized dashboard link sharing — 2026-09-20
+
+Every admitted saved dashboard now displays one relative sharing link containing
+only its public route identifier. The page states that the link contains no
+credential and grants no access. A recipient must establish a separate session
+for the same deployment and scope; loading the definition and every query run
+continue through current read authorization. No public bearer link, cached result
+or new dataset grant is created.
+
+The shared workflow saves a rolling dashboard as an administrator, opens its
+exact link as a different read-only principal, executes and exports the result,
+then revokes that credential. The open view redirects at the next authority
+check, and reopening the unchanged shared link also redirects to sign-in. The
+complete shared-UI gate passed 168 tests at 95.0% production line coverage with
+its compiler, formatter, strict Credo, ExDoc, Dialyzer, dependency, licence,
+58-member archive and 525-file stack-language checks. The UI-enabled application-
+host gate passed 22 tests at 95.5% with every configured check.
