@@ -5932,3 +5932,40 @@ native-only lane. The bounded receipt is
 [`verification/zig-native-development.json`](../../verification/zig-native-development.json).
 Historical host/UI reports continue to name the Rust compiler that actually
 produced their older archived receipts; they are not rewritten as Zig evidence.
+
+### TAT140 and passive BLE host development paths — 2026-09-21
+
+The production host composition now admits one closed private passive-BLE
+document and a caller-selected adapter implementation; configuration cannot
+select executable code. The standalone and Nerves hosts compose the shared
+bounded ingress/scanner owners with an existing ingest grant, explicit scope,
+stable receiver identity and finite poll/timeout budgets. Their development
+peers exercise the same production composition seam, while the capability
+projection distinguishes configured and unconfigured scanning.
+
+The TAT140 profile and Thing Model now include documented EYE Sensor slot-one
+temperature, battery level, humidity and movement-counter AVL fields. One
+independently checksummed two-record Codec 8 Extended vector covers exact values,
+signed temperature conversion and the published not-found/lost sentinels. Public
+measurement projections retain the reason for unavailable values. A closed
+configuration plan renders only the documented APN/server SMS parameter IDs and
+represents Codec 8 Extended plus EYE Sensor setup as exact Teltonika Configurator
+USB selections; it does not invent unpublished SMS IDs or a phone-to-tracker BLE
+protocol.
+
+The complete local suites passed with 211 root tests plus 19 generated
+properties and one doctest, 395 service tests plus two generated properties, 33
+standalone-host tests and 51 Nerves-host tests. A committed-source ARM64 QEMU
+image then passed a fresh boot and reboot against the same virtual disk. Its
+software peer negotiated the configured IMEI on the real guest Teltonika TCP
+listener, submitted the deterministic two-record frame, required the two-record
+acknowledgement, checked the exact public GNSS/movement/battery/EYE state and
+confirmed generation-one durable replay after reboot. Both boots also passed
+private-store, loopback-HTTP, native-resource, initialized-marker and firmware
+startup-guard checks. The bounded artifact receipt is
+[`verification/nerves-qemu-boot.json`](../../verification/nerves-qemu-boot.json).
+
+This completes the tracking-hardware and headless-Pi development/local axes.
+Physical radio capture, TAT140/EYE interoperability, modem/SIM/carrier behavior,
+Pi 5 boot and power/storage fault qualification remain explicitly separate
+hardware evidence.

@@ -11,12 +11,13 @@ cross-build now exist under `hosts/nerves/`. A separately locked kiosk source
 profile reuses the shared LiveView package and has local endpoint/store-isolation
 tests. A separate ARM64 QEMU image exercises first boot, an existing data
 partition, private SQLite startup and loopback HTTP through Nerves. Its private
-QEMU-only software peer submits one deterministic Ruuvi observation over the
-authenticated HTTP boundary, verifies the decoded temperature state and replays
-the same durable operation after reboot. This is virtual software evidence only.
-That legacy fixture smoke MUST be replaced by a deterministic TAT140
-IMEI/Codec-8-Extended peer and tracking-state assertion before the Pi development
-axis is complete; no Ruuvi hardware test is planned.
+QEMU-only software peer opens the real Teltonika TCP listener, negotiates one
+configured TAT140 IMEI and submits a deterministic two-record Codec 8 Extended
+frame. It verifies the record-count acknowledgement and public GNSS, movement,
+battery-voltage and EYE Sensor state, including documented missing/lost
+sentinels, then replays the same durable operation after reboot without
+advancing generation. This is virtual software evidence only; no Ruuvi hardware
+test is planned.
 Both profiles supervise a bounded Linux procfs
 resource sampler beside the service; it contributes only system available
 memory, BEAM-process RSS and one-minute load to volatile operational history.
@@ -107,13 +108,16 @@ BlueZ build or assuming BlueHeron support from another Pi is insufficient.
 Generic BLE changes belong with `wotex_ble`, with its own native target rules.
 
 The QEMU-only source fixture owns a random private probe credential outside the
-runtime configuration. On both first boot and reboot it submits the same bounded
-Ruuvi RAWv2 observation through the real authenticated loopback HTTP interface,
-using one fixed idempotency key and generation-zero request. The first boot
-commits it; reboot receives the durable replay. Both require the resulting
-public state to contain the deterministic 24.3 °C decoded temperature before
-the serial probe passes. This proves software-peer ingress, decoding, storage
-and replay in the virtual image without claiming a radio or physical network.
+runtime configuration. On both first boot and reboot it connects to the real
+guest-loopback Teltonika listener, completes IMEI negotiation and submits the
+same bounded two-record TAT140 Codec 8 Extended frame. The first boot commits
+both records and returns a two-record acknowledgement; reboot returns the same
+acknowledgement while the authenticated HTTP projection remains at generation
+one. Both boots require exact GNSS, movement, battery voltage and EYE Sensor
+temperature, battery, humidity and movement-counter state. The second record's
+not-found and lost sentinels must remain unavailable with their public reasons.
+This proves cellular software-peer ingress, decoding, storage and replay in the
+virtual image without claiming a modem, SIM, carrier or physical network.
 
 The host uses Nerves networking/time libraries only as host dependencies. Offline
 boot must expose unsynchronized time honestly and retain the explicit receiver

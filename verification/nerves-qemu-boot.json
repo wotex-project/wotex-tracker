@@ -1,42 +1,44 @@
 {
   "boot_log_sha256": {
-    "first": "ed460aa34974666b98d0588275a63e23f62a8509e13fd4b5a2b0531a54a249a9",
-    "reboot": "e097ad99e7efb90883dce9f7a9ef3022fdf97da5a1e17d27a319534bb56aa4d4"
+    "first": "3ed081de27d5ce5c95a26299e381166a21394a5b575d770f3030370ff08bbd22",
+    "reboot": "9f5aab44f0a0755f45924e2655eb0a9e39f435bb6a3ec13b701eeaa6a31c0011"
   },
   "checks": {
     "core_health_before_firmware_validation": true,
     "firmware_startup_guard_with_finite_heart_timeout": true,
-    "first_boot_authenticated_fixture_ingress": true,
     "first_boot_formatted_fresh_partition": true,
     "first_boot_initialized_storage_marker": true,
     "first_boot_native_resource_sample": true,
     "first_boot_private_store_and_loopback_http": true,
     "first_boot_startup_guard_completed": true,
+    "first_boot_tat140_ble_sensor_state": true,
+    "first_boot_tat140_imei_codec8e_ingress": true,
     "no_active_iex_or_distribution": true,
     "no_credentials_in_runtime_config": true,
     "no_ui_or_ssh_applications": true,
     "offline_direct_tls_provisioning": true,
-    "reboot_authenticated_fixture_replay": true,
     "reboot_initialized_storage_marker": true,
     "reboot_kept_existing_partition": true,
     "reboot_native_resource_sample": true,
     "reboot_private_store_and_loopback_http": true,
     "reboot_startup_guard_completed": true,
+    "reboot_tat140_ble_sensor_state": true,
+    "reboot_tat140_durable_replay": true,
     "sqlite_nif_aarch64": true
   },
   "firmware": {
-    "bytes": 31208367,
+    "bytes": 31346311,
     "metadata": {
       "meta-architecture": "arm",
       "meta-author": "The Nerves Team",
-      "meta-creation-date": "2026-09-20T05:08:14Z",
-      "meta-nickname": "grunt-voyage",
+      "meta-creation-date": "2026-09-20T23:18:11Z",
+      "meta-nickname": "beach-lazy",
       "meta-platform": "qemu_aarch64",
       "meta-product": "wotex_tracker_nerves",
-      "meta-uuid": "6bfd5ec1-a1e8-52f0-ff11-372249142940",
+      "meta-uuid": "1674d92d-2120-54e1-3a5c-587340f2ce4c",
       "meta-version": "0.1.0"
     },
-    "sha256": "c941f8c18c621b3a2bf7b699592101be34821713c4763d41ecbaea5101d14269",
+    "sha256": "8ebf3affca5ab77c8fd6c2f62ce2387eb0560ca0e43a9226c8b070ba5c0cac69",
     "sqlite_nif": "ELF 64-bit LSB shared object, ARM aarch64, version 1 (SYSV), dynamically linked, BuildID[sha1]=a3dc0ce06a84ffe46914bb4a81e11c04c5f811c6, not stripped",
     "target_elixir": "1.20.4",
     "target_erts": "17.0.6"
@@ -95,26 +97,24 @@
   "schema": "wtr.nerves-qemu-boot.v1",
   "sources": {
     "wotex": {
-      "commit": "c5a16af4df6bb11a75048fb6940daec3670c01d7",
+      "commit": "a1bcee748062e5d48aeeedc9958f3af2f28d3116",
       "tracked_changes": false,
       "tracked_paths": []
     },
     "wotex_binding_http": {
-      "commit": "c5a16af4df6bb11a75048fb6940daec3670c01d7",
+      "commit": "a1bcee748062e5d48aeeedc9958f3af2f28d3116",
       "tracked_changes": false,
       "tracked_paths": []
     },
     "wotex_runtime": {
-      "commit": "c5a16af4df6bb11a75048fb6940daec3670c01d7",
+      "commit": "a1bcee748062e5d48aeeedc9958f3af2f28d3116",
       "tracked_changes": false,
       "tracked_paths": []
     },
     "wotex_tracker": {
-      "commit": "8c8baf154d590dc4ba30ad39ad4af150d07481fa",
-      "tracked_changes": true,
-      "tracked_paths": [
-        "docs/specs/WTR.15-product-and-mobile-applications.md"
-      ]
+      "commit": "db534aa2acd0142d53472dd183a51a1524737ef3",
+      "tracked_changes": false,
+      "tracked_paths": []
     }
   },
   "virtual_system": {

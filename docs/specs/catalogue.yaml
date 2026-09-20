@@ -134,13 +134,11 @@ delivery_targets:
     contracts: [WTR.03, WTR.05, WTR.06, WTR.09, WTR.12]
     requires: [headless_service]
     implementation_status: in-progress
-    development_status: in-progress
-    local_acceptance_status: in-progress
+    development_status: complete
+    local_acceptance_status: passed
     qualification_status: not-started
     distribution_status: not-required
-    remaining_development:
-      - implement and wire the production passive-BLE scanner contract into service and Pi hosts
-      - finish the TAT140 configuration and BLE-sensor protocol adapters against deterministic local peers
+    remaining_development: []
     evidence_refs: [docs/evidence/implementation.md]
     acceptance: qualified TAT140 direct cellular and BLE-sensor paths plus complete smart-bike capability coverage
   - id: shared_application
@@ -173,12 +171,11 @@ delivery_targets:
     contracts: [WTR.06, WTR.07, WTR.09, WTR.14]
     requires: [headless_service]
     implementation_status: in-progress
-    development_status: in-progress
-    local_acceptance_status: in-progress
+    development_status: complete
+    local_acceptance_status: passed
     qualification_status: not-started
     distribution_status: not-started
-    remaining_development:
-      - replace the legacy Ruuvi QEMU smoke observation with a deterministic TAT140 cellular protocol peer
+    remaining_development: []
     evidence_refs: [docs/evidence/implementation.md]
     acceptance: physical boot, target-runtime proof, durable storage and firmware/data recovery without UI
   - id: pi5_panel
