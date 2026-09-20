@@ -13,6 +13,7 @@ defmodule Wotex.Tracker.Service do
   alias Wotex.Tracker.Protocols.Teltonika.{TAT140, TAT140Import}
 
   alias Wotex.Tracker.Service.{
+    AgentProjection,
     Alert,
     AnalyticsPage,
     Arming,
@@ -269,6 +270,29 @@ defmodule Wotex.Tracker.Service do
     result =
       with {:ok, access} <- authorize(service, token, scope, "read", "read_property", now),
            do: Interaction.read(service, access, thing, name, context, now)
+
+    Result.normalize(result)
+  end
+
+  @doc "Projects current authorized Thing affordances into a closed provider-neutral agent contract."
+  @spec agent_tools(t(), String.t(), String.t(), map(), integer()) ::
+          {:ok, map()} | {:error, map()}
+  def agent_tools(service, token, scope, request, now) do
+    result =
+      with :ok <- AgentProjection.admit(request),
+           {:ok, access} <- authorize(service, token, scope, "read", "agent_tools", now),
+           {:ok, row} <-
+             fetch(service, access, "things", request["thing_id"], nil, "read", now),
+           true <- row["generation"] == request["expected_generation"] do
+        AgentProjection.project(
+          row["value"]["public"],
+          row["generation"],
+          request
+        )
+      else
+        false -> {:error, :revision_mismatch}
+        error -> error
+      end
 
     Result.normalize(result)
   end
