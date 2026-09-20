@@ -376,7 +376,7 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
-## HTTP and stream contract 1.37.0
+## HTTP and stream contract 1.38.0
 
 The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
 2020-12. The independently maintained Elixir audit checks document shape,
@@ -401,7 +401,7 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | `/api/v1/scopes/{scope}/access_audit` | GET an administrator-only, snapshot-bound page of successful authorization decisions with explicit retention/capacity disclosure |
 | `/api/v1/scopes/{scope}/privacy` | GET administrator-only exact retained primary-store counts, preservation rules, last deletion marker and limits of the deletion claim |
 | `/api/v1/scopes/{scope}/domain_data_deletions` | POST generation-checked, explicitly confirmed deletion of all retained domain data in this scope while preserving revocations and the access audit |
-| `/api/v1/scopes/{scope}/capabilities` | GET explicit available/unsupported/unconfigured/configured status; cellular is `unconfigured` for a service-only host and `configured` only when the composing host supervises its admitted listener. This is configuration state, not physical readiness. Rules report `heartbeat_battery_motion_geofence_suspicious_movement_definitions`, route and trip history advertise their paging contracts, trip summaries advertise bounded gap-honest reconstruction, arming reports an explicit administrative fact, and owner presence reports closed evidence-fact admission |
+| `/api/v1/scopes/{scope}/capabilities` | GET explicit available/unsupported/unconfigured/configured status; cellular is `configured` only when the composing host supervises its admitted listener, and notification delivery is `configured` only when it supervises an admitted dispatcher. These are composition states, not physical readiness or delivery receipts. Rules report `heartbeat_battery_motion_geofence_suspicious_movement_definitions`, route and trip history advertise their paging contracts, trip summaries advertise bounded gap-honest reconstruction, arming reports an explicit administrative fact, and owner presence reports closed evidence-fact admission |
 | `…/analytics/query` | POST one read-only structured measurement query against a committed snapshot |
 | `…/analytics/pages` | POST one snapshot-pinned bucket page with an encrypted continuation |
 | `…/routes/pages` | POST one snapshot-pinned, gap-honest retained route page with an encrypted continuation |
@@ -573,6 +573,17 @@ An invalid-token response tombstones only the still-matching endpoint revision.
 targets or payloads. The host supplies the provider adapter explicitly; this
 contract neither selects APNs credentials nor equates provider acceptance with OS
 delivery or a user read.
+
+The standalone host may select this composition with a separate private
+`WOTEX_TRACKER_APNS_CONFIG` file. The exact `wtr.apns-host.v1` document admits an
+Apple team ID, key ID, unencrypted P-256 key contents, sorted closed bundle-topic
+and service-scope sets, generic title/body copy, provider timeout, worker polling
+and retry intervals, batch ceiling and dispatch timeout. The same 0600 regular-
+file, 0700 parent, absolute-path, no-symlink and 64 KiB rules as the main host
+configuration apply. Missing configuration starts no dispatcher; malformed,
+unsafe or open documents fail startup. The authenticated capability status is
+`notification_delivery: configured` only for the admitted supervised
+composition, and `unconfigured` otherwise.
 
 `APNsAdapter` is the concrete opt-in token-authenticated provider boundary. Its
 constructor admits one Apple team ID, key ID, unencrypted P-256 private-key value,

@@ -603,6 +603,14 @@ write transport seam without duplicating tracker protocol or WoT mapping.
 Signed Xcode/APNs configuration, a qualified target profile and every physical
 native/device gate remain subsequent work.
 
+The standalone service host now closes the server half of that software seam.
+It optionally loads a separate private `wtr.apns-host.v1` document, admits the
+provider key, closed topics/scopes, generic copy and finite delivery budgets,
+then supervises the existing dispatcher with the concrete APNs adapter. The
+authenticated capability response distinguishes this configured composition
+from an unconfigured service. No real provider call, signed entitlement, device
+delivery or tap acceptance follows from that status.
+
 Acceptance: real iPhone secure storage, authorized BLE central provisioning,
 notification registration and cold/warm/background tap routing, suspend/resume,
 offline inspection, server/account isolation, safe external navigation, bounded

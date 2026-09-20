@@ -81,6 +81,45 @@ for this composed listener host; otherwise it reports `unconfigured`. That value
 describes admitted supervision, not socket liveness, carrier reachability,
 authentication, encryption or hardware qualification.
 
+## Optional APNs delivery
+
+Set `WOTEX_TRACKER_APNS_CONFIG` to a separate absolute, regular 0600 JSON file
+in a 0700 directory to supervise the notification dispatcher with the concrete
+APNs provider adapter:
+
+```json
+{
+  "schema": "wtr.apns-host.v1",
+  "team_id": "TEAMID1234",
+  "key_id": "KEYID12345",
+  "private_key": "-----BEGIN PRIVATE KEY-----\n<unencrypted P-256 .p8 contents>\n-----END PRIVATE KEY-----\n",
+  "topics": ["org.wotex.tracker"],
+  "scopes": ["workshop"],
+  "title": "WotEx alert",
+  "body": "Open WotEx to review this alert.",
+  "provider_timeout_ms": 5000,
+  "interval_ms": 10000,
+  "retry_after_ms": 60000,
+  "max_batch": 8,
+  "dispatch_timeout_ms": 6000
+}
+```
+
+The document is closed: topic and scope lists are sorted and unique, scopes use
+service identifiers, the provider and worker deadlines are finite, and the
+worker deadline cannot be shorter than the provider deadline. The key and alert
+copy are excluded from configuration inspection. Startup validates the complete
+service and dispatcher composition before supervising it; authorization is still
+rechecked against current credentials for every claimed endpoint.
+
+An absent variable starts no dispatcher. An unsafe file, malformed key, open
+field set or invalid budget fails the whole host startup. The authenticated
+`capabilities` resource reports `notification_delivery` as `configured` only
+for this supervised composition; otherwise it reports `unconfigured`. That
+status proves configuration and supervision, not provider acceptance, OS
+delivery, notification presentation or a user tap. Those require provisioned
+Apple credentials, a signed entitled application and physical-device evidence.
+
 ## Command-line workflow
 
 `bin/trackerctl` is a POSIX launcher for the Elixir client. Source use loads the

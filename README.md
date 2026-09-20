@@ -81,6 +81,10 @@ privileged host port also atomically persists transport-health state and stable
 event intents plus heartbeat, low-battery, motion/trip and geofence state and
 intents, with restart recovery and retry deduplication. The
 standalone CLI and bundled Darwin/Linux ARM64 service artifacts pass local probes.
+The standalone host can also admit a separate private APNs provider/dispatcher
+document, supervise that delivery worker and report the composition explicitly
+as configured or unconfigured. Provider acceptance, OS delivery and a user tap
+remain separate unpassed gates.
 See the [service contract](docs/contracts/service-v1.md). The first shared browser
 workflow now covers sign-in, bounded JSON capture import, evidence review,
 enrollment, later observation association, provisioning, retained measurements
@@ -109,8 +113,10 @@ foreign WebSocket origins. Remote requests use the selected HTTPS authority
 after the mobile OS resolver seam, and external HTTPS navigation leaves the
 bridge-bearing WebView. An iOS Mob plugin now supplies two closed,
 device-only Keychain slots without a file fallback; credential/cache lifecycle
-wiring, physical secure-storage evidence, native lifecycle/BLE/push/share
-bridges, signed-device and distribution gates remain open.
+wiring and closed native lifecycle, BLE-central, push-registration/tap-routing
+and share bridges are implemented in software. Physical secure-storage,
+suspend/resume, BLE, push/tap and share acceptance on a signed device, plus
+distribution gates, remain open.
 
 The WTR.05 pure foundation admits position evidence, freshness, deterministic
 selection, event ordering with modular sequence evidence, and bounded geofence

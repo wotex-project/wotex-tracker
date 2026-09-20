@@ -5062,3 +5062,41 @@ The implementation commit is
 The grid supplies geographic coordinate context only. It does not fetch or
 cache contextual map data, qualify offline tiles, match a road, bridge a gap or
 prove physical pan/zoom acceptance.
+
+### Private APNs host composition — 2026-09-20
+
+The standalone host now accepts an optional separate private
+`wtr.apns-host.v1` file selected by `WOTEX_TRACKER_APNS_CONFIG`. Its exact closed
+document admits one Apple team/key identity, an unencrypted P-256 provider key,
+sorted bundle-topic and service-scope sets, generic notification copy and finite
+provider, polling, retry, batch and worker deadlines. Existing private-file
+controls enforce an absolute regular 0600 file in a 0700 directory with no
+symlink traversal. Inspection excludes the provider key and copy, and missing
+configuration starts no dispatcher; malformed, unsafe and open documents fail
+the host startup.
+
+The host validates the resulting dispatcher against the complete service
+configuration and supervises it under the existing HTTP service. The service
+context and OpenAPI 1.38.0 capability response now report
+`notification_delivery` as `configured` only for that admitted composition and
+`unconfigured` otherwise. An integration test starts the real host, observes the
+dispatcher child and redacted status, calls the authenticated capability endpoint
+over HTTP, then proves host shutdown terminates both service and dispatcher.
+
+Both service runtime lanes passed 341 tests and two generated properties at
+95.1% production line coverage. Both standalone-host lanes passed 22 tests at
+98.2% coverage. Compiler, dependency, formatter, vulnerability audit, strict
+Credo, ExDoc, Dialyzer, boundary, stack-language, archive, OpenAPI, native helper
+and licence checks passed where configured. Dialyzer gates now force-check their
+PLTs so changed monorepo path dependencies cannot retain a stale API model. The
+unrelated SSE owner-shutdown race also passed 20 repeated targeted runs after
+the test peer admitted the expected closed-socket result. The test-hardening,
+dependency-analysis and APNs composition commits are
+`0c680bcf98233d3f96de2f702d9885302c15aec8`,
+`8481540ec3f41806672238c4bd4acd5fc7e7759d` and
+`f1febc82d2202f17407248b9faa484738039c226`.
+
+This is host-composition evidence, not a physical push receipt. No production
+provider exchange, signed application entitlement, provisioning profile, OS
+delivery, notification presentation or cold/warm/background user-tap acceptance
+was executed.

@@ -311,6 +311,12 @@ Wotex.Tracker.Service.HTTP.Server.start_link(
 )
 ```
 
+The standalone host provides the corresponding private-file boundary through
+`WOTEX_TRACKER_APNS_CONFIG`. Its exact `wtr.apns-host.v1` document admits the
+provider identity and key, closed topic and scope sets, generic copy and bounded
+dispatcher/provider budgets before composing `APNsHostConfig` with the service.
+The service package itself still reads no path or ambient provider credential.
+
 Provider acceptance still does not prove device delivery or user interaction.
 Physical APNs delivery, application entitlements and notification-tap routing
 require separately provisioned Apple credentials and mobile acceptance evidence.
@@ -457,7 +463,7 @@ and key paths. Explicit `:proxy` mode requires an HTTPS public origin and a
 protected proxy-to-listener network; forwarded headers never supply authority or
 Forms. No remote exposure is inferred.
 
-OpenAPI **3.1.0**, contract revision **1.37.0**, is packaged at
+OpenAPI **3.1.0**, contract revision **1.38.0**, is packaged at
 `priv/openapi/v1.json` and served at `/api/v1/openapi.json`. Liveness is
 `/health/live`; authenticated resources are under `/api/v1/scopes/{scope}`.
 Use `Authorization: Bearer …`, and a UUIDv4 `Idempotency-Key` for POST mutations.
@@ -475,7 +481,10 @@ The authenticated capabilities response reports cellular ingress as
 `unconfigured` by default and `configured` only when the composing host has
 admitted and supervised the optional listener. `configured` is not a liveness,
 carrier, network-security, device-authentication or hardware-qualification
-claim. Passive BLE scanning remains `unsupported`.
+claim. It separately reports notification delivery as `unconfigured` or
+`configured`; the latter means a host admitted and supervised a dispatcher, not
+that APNs accepted a request, an OS delivered it or a person read it. Passive BLE
+scanning remains `unsupported`.
 
 SSE is `/events/stream` below the scope. Supply exactly one initial `cursor`
 query parameter or resumed `Last-Event-ID` header. Transport IDs are encrypted
