@@ -166,6 +166,8 @@ td ul { margin: 0; padding-left: 1rem; }
 .chart-swatch { width: 1rem; height: 1rem; border-radius: 50%; background: var(--series-color); }
 .chart-controls { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1rem 0; }
 .chart-controls button { margin: 0; }
+.map-controls { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1rem 0; }
+.map-controls button { margin: 0; }
 .property-controls { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1rem 0; }
 .property-controls button { margin: 0; }
 

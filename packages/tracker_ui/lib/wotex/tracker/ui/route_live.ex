@@ -10,7 +10,7 @@ defmodule Wotex.Tracker.UI.RouteLive do
 
   use Phoenix.LiveView, log: false
   import Wotex.Tracker.UI.Components
-  alias Wotex.Tracker.UI.{Auth, Presenter, RouteChart, RouteExport}
+  alias Wotex.Tracker.UI.{Auth, Presenter, RouteChart, RouteExport, RouteViewport}
 
   @back_limit 32
   @day_ms 86_400_000
@@ -31,6 +31,7 @@ defmodule Wotex.Tracker.UI.RouteLive do
        request: nil,
        page: nil,
        chart: nil,
+       viewport: RouteViewport.new(),
        back: [],
        error: nil
      )}
@@ -44,7 +45,7 @@ defmodule Wotex.Tracker.UI.RouteLive do
       else
         socket
         |> assign(id: id, asset: nil, state: nil, input: %{}, request: nil, page: nil)
-        |> assign(chart: nil, back: [], error: nil)
+        |> assign(chart: nil, viewport: RouteViewport.new(), back: [], error: nil)
         |> load()
       end
 
@@ -56,7 +57,15 @@ defmodule Wotex.Tracker.UI.RouteLive do
 
   def handle_event("run", %{"route" => input}, socket) when is_map(input) do
     socket =
-      assign(socket, input: input, request: nil, page: nil, chart: nil, back: [], error: nil)
+      assign(socket,
+        input: input,
+        request: nil,
+        page: nil,
+        chart: nil,
+        viewport: RouteViewport.new(),
+        back: [],
+        error: nil
+      )
 
     case request(socket.assigns.id, input) do
       {:ok, request} -> {:noreply, page(socket, request)}
@@ -114,6 +123,20 @@ defmodule Wotex.Tracker.UI.RouteLive do
   end
 
   def handle_event("export-page", _, socket),
+    do: {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
+
+  def handle_event(
+        "map-view",
+        %{"action" => action},
+        %{assigns: %{chart: %{}, viewport: viewport}} = socket
+      ) do
+    case RouteViewport.update(viewport, action) do
+      {:ok, viewport} -> {:noreply, assign(socket, viewport: viewport, error: nil)}
+      :error -> {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
+    end
+  end
+
+  def handle_event("map-view", _, socket),
     do: {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
 
   def handle_event("run", _, socket),
@@ -230,9 +253,20 @@ defmodule Wotex.Tracker.UI.RouteLive do
           </dd>
           <dt>Page identity</dt><dd class="identifier">{@page["identity"]}</dd>
         </dl>
-        <figure :if={@chart} class="history-chart route-chart">
+        <figure
+          :if={@chart}
+          class="history-chart route-chart"
+          data-route-map
+          aria-labelledby="route-map-title"
+          aria-describedby="route-map-description route-map-status"
+        >
+          <h3 id="route-map-title">Interactive retained-position map</h3>
+          <p id="route-map-description" class="muted">
+            No contextual map layer is configured. The exact retained coordinates, separate
+            evidence segments and disclosed gaps remain available without tiles.
+          </p>
           <svg
-            viewBox="0 0 1000 400"
+            viewBox={RouteViewport.view_box(@viewport)}
             role="img"
             aria-label="Coordinate plot of page-local retained route segments; exact coordinates and gaps follow"
           >
@@ -254,9 +288,35 @@ defmodule Wotex.Tracker.UI.RouteLive do
             </circle>
           </svg>
           <figcaption>
-            Coordinate-only plot with separate service segments and short antimeridian deltas.
-            It supplies no basemap, street matching or position between recorded points.
+            Interactive coordinate map with separate service segments and short antimeridian
+            deltas. It supplies no basemap, street matching or position between recorded points.
           </figcaption>
+          <div class="map-controls" role="group" aria-label="Evidence map pan and zoom controls">
+            <button class="secondary" phx-click="map-view" phx-value-action="zoom-in">
+              Zoom in
+            </button>
+            <button class="secondary" phx-click="map-view" phx-value-action="zoom-out">
+              Zoom out
+            </button>
+            <button class="secondary" phx-click="map-view" phx-value-action="pan-left">
+              Pan left
+            </button>
+            <button class="secondary" phx-click="map-view" phx-value-action="pan-right">
+              Pan right
+            </button>
+            <button class="secondary" phx-click="map-view" phx-value-action="pan-up">
+              Pan up
+            </button>
+            <button class="secondary" phx-click="map-view" phx-value-action="pan-down">
+              Pan down
+            </button>
+            <button class="secondary" phx-click="map-view" phx-value-action="reset">
+              Reset map
+            </button>
+          </div>
+          <p id="route-map-status" class="muted" aria-live="polite">
+            {RouteViewport.label(@viewport)} · view changes presentation only.
+          </p>
         </figure>
         <p :if={is_nil(@chart)}>No qualified position can be plotted on this page.</p>
         <div
@@ -341,6 +401,7 @@ defmodule Wotex.Tracker.UI.RouteLive do
         input: input,
         page: nil,
         chart: nil,
+        viewport: RouteViewport.new(),
         back: [],
         error: nil
       )
@@ -359,6 +420,7 @@ defmodule Wotex.Tracker.UI.RouteLive do
               request: nil,
               page: nil,
               chart: nil,
+              viewport: RouteViewport.new(),
               back: [],
               error: nil
             )
@@ -386,6 +448,7 @@ defmodule Wotex.Tracker.UI.RouteLive do
             request: request,
             page: page,
             chart: RouteChart.project(page["route"]),
+            viewport: RouteViewport.new(),
             error: nil
           )
         else
@@ -547,6 +610,7 @@ defmodule Wotex.Tracker.UI.RouteLive do
       request: nil,
       page: nil,
       chart: nil,
+      viewport: RouteViewport.new(),
       back: [],
       error: error
     )

@@ -6041,6 +6041,22 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert html =~ "Multiple positions; no source selected"
     assert html =~ "Quality excluded: suspect"
     refute html =~ "private-position-evidence"
+    assert has_element?(view, "figure[data-route-map]")
+    assert has_element?(view, ~s(svg[viewBox="0.00 0.00 1000.00 400.00"]))
+    assert has_element?(view, "#route-map-status", "Map zoom 1×")
+
+    view |> element("button", "Zoom in") |> render_click()
+    assert has_element?(view, ~s(svg[viewBox="250.00 100.00 500.00 200.00"]))
+    assert has_element?(view, "#route-map-status", "Map zoom 2×")
+
+    view |> element("button", "Pan right") |> render_click()
+    assert has_element?(view, ~s(svg[viewBox="375.00 100.00 500.00 200.00"]))
+
+    view |> element("button", "Reset map") |> render_click()
+    assert has_element?(view, ~s(svg[viewBox="0.00 0.00 1000.00 400.00"]))
+
+    render_click(view, "map-view", %{"action" => "invent"})
+    assert has_element?(view, "[role=alert]", "Check the required fields")
     assert has_element?(view, "button", "Next route page")
     refute has_element?(view, "button", "Previous route page")
 
@@ -6932,12 +6948,10 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     second = route_point("wtr1_point-b", now + 1_000, 10.1, -179.9, "valid")
     third = route_point("wtr1_point-c", now + 3_000, 10.2, -179.8, "valid")
 
-    {segments, breaks, rejected, excluded, status, reason, record_count, sample_count,
-     point_count, segment_count, after_generation,
-     history_count} =
+    parts =
       if cursor do
-        {
-          [
+        %{
+          segments: [
             %{
               "schema" => "wtr.route-segment-public.v1",
               "point_count" => 2,
@@ -6949,11 +6963,12 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
               "points" => [third]
             }
           ],
-          Enum.map(
-            ~w(unqualified_materialisations rejected_samples time_gap distance_gap time_and_distance_gap),
-            &route_break(first, third, &1)
-          ),
-          [
+          breaks:
+            Enum.map(
+              ~w(unqualified_materialisations rejected_samples time_gap distance_gap time_and_distance_gap),
+              &route_break(first, third, &1)
+            ),
+          rejected: [
             %{
               "schema" => "wtr.route-rejection-public.v1",
               "id" => "wtr1_rejected",
@@ -6961,7 +6976,7 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
               "reason" => "quality:suspect"
             }
           ],
-          [
+          excluded: [
             %{
               "schema" => "wtr.route-exclusion.v1",
               "id" => "wtr1_excluded",
@@ -6969,35 +6984,35 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
               "reason" => "ambiguous_positions"
             }
           ],
-          "partial",
-          "gaps_or_rejections",
-          5,
-          4,
-          3,
-          2,
-          "0",
-          3
+          status: "partial",
+          reason: "gaps_or_rejections",
+          record_count: 5,
+          sample_count: 4,
+          point_count: 3,
+          segment_count: 2,
+          after_generation: "0",
+          history_count: 3
         }
       else
-        {
-          [
+        %{
+          segments: [
             %{
               "schema" => "wtr.route-segment-public.v1",
               "point_count" => 1,
               "points" => [third]
             }
           ],
-          [],
-          [],
-          [],
-          "complete",
-          "all_positions_qualified",
-          1,
-          1,
-          1,
-          1,
-          "2",
-          1
+          breaks: [],
+          rejected: [],
+          excluded: [],
+          status: "complete",
+          reason: "all_positions_qualified",
+          record_count: 1,
+          sample_count: 1,
+          point_count: 1,
+          segment_count: 1,
+          after_generation: "2",
+          history_count: 1
         }
       end
 
@@ -7007,28 +7022,28 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
       "thing_id" => thing,
       "generation" => "3",
       "history" => %{
-        "after_generation" => after_generation,
+        "after_generation" => parts.after_generation,
         "last_generation" => "3",
-        "record_count" => history_count
+        "record_count" => parts.history_count
       },
       "window" => %{"from_at" => now - 86_400_000, "to_at" => now + 10_000},
       "continuity" => "page_local_only",
       "route" => %{
         "schema" => "wtr.route-replay-public.v1",
         "algorithm" => "snapshot-pinned-gap-honest-route-v1",
-        "status" => status,
-        "reason" => reason,
-        "record_count" => record_count,
-        "sample_count" => sample_count,
-        "point_count" => point_count,
-        "segment_count" => segment_count,
-        "break_count" => length(breaks),
-        "rejected_count" => length(rejected),
-        "excluded_count" => length(excluded),
-        "segments" => segments,
-        "breaks" => breaks,
-        "rejected" => rejected,
-        "excluded" => excluded,
+        "status" => parts.status,
+        "reason" => parts.reason,
+        "record_count" => parts.record_count,
+        "sample_count" => parts.sample_count,
+        "point_count" => parts.point_count,
+        "segment_count" => parts.segment_count,
+        "break_count" => length(parts.breaks),
+        "rejected_count" => length(parts.rejected),
+        "excluded_count" => length(parts.excluded),
+        "segments" => parts.segments,
+        "breaks" => parts.breaks,
+        "rejected" => parts.rejected,
+        "excluded" => parts.excluded,
         "policy" => %{},
         "window" => %{"from_at" => now - 86_400_000, "to_at" => now + 10_000}
       },
