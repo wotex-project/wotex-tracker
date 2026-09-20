@@ -1332,6 +1332,7 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
       Presenter.path(:asset, thing) <> "/route",
       Presenter.path(:asset, thing) <> "/trips",
       Presenter.arming_path(thing),
+      Presenter.presence_path(thing),
       Presenter.interaction_path(thing),
       Presenter.path(:asset, thing) <> "/protection?operation=#{Identifier.uuid()}",
       Presenter.path(:asset, thing) <> "/remove?operation=#{Identifier.uuid()}",
@@ -4292,7 +4293,12 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     view |> element("button", "Refresh") |> render_click()
     assert has_element?(view, "#owner-presence-title + .reading", "Absent")
     assert render(view) =~ "revision owner-presence-5"
-    assert render(view) =~ "cannot create or edit presence evidence"
+
+    assert has_element?(
+             view,
+             ~s(a[href="#{Presenter.presence_path(thing)}"]),
+             "Review or admit qualified evidence"
+           )
 
     for private <- ~w(presence-observation-ui presence-evidence-ui owner.present) do
       refute render(view) =~ private
@@ -4373,6 +4379,281 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
 
     view |> element("button", "Refresh") |> render_click()
     assert has_element?(view, "#owner-presence-title + .reading", "Unknown")
+  end
+
+  test "administrators admit complete owner-presence evidence once and recover a lost reply", c do
+    thing = provisioned(c)
+    path = Presenter.presence_path(thing)
+
+    {:ok, view, html} = live(c.conn, path)
+    assert html =~ "Missing evidence remains unknown"
+    assert has_element?(view, ".reading", "Unknown")
+    assert has_element?(view, "button", "Prepare evidence admission")
+
+    {:ok, %{"id" => reader}} = Sessions.login(c.sessions, c.reader, c.scope)
+    reader_conn = build_conn() |> init_test_session(%{"browser_session" => reader})
+    {:ok, reader_view, _} = live(reader_conn, path)
+    assert render(reader_view) =~ "cannot admit private evidence"
+    refute has_element?(reader_view, "button", "Prepare evidence admission")
+
+    view |> element("button", "Prepare evidence admission") |> render_click()
+    prepared_path = assert_patch(view)
+    operation = operation_from(prepared_path)
+    assert has_element?(view, "#owner-presence-admission")
+
+    render_submit(view, "admit", %{})
+    assert has_element?(view, "[role=alert]", "Check the required fields")
+
+    fact = owner_presence_fact(thing, "admitted", "true", c.now)
+    upload_presence_fact(view, Codec.encode!(fact))
+    Agent.update(c.faults, &Map.put(&1, :admit_owner_presence, :lost_reply))
+
+    view
+    |> form("#owner-presence-admission", presence: %{confirmed: "yes"})
+    |> render_submit()
+
+    assert has_element?(view, "[role=status]", "Evidence-admission outcome unknown")
+    assert has_element?(view, ".identifier", operation)
+
+    for private <- ~w(presence-observation-ui-admitted presence-evidence-ui-admitted) do
+      refute render(view) =~ private
+    end
+
+    view |> element("button", "Check operation outcome") |> render_click()
+    assert has_element?(view, "[role=status]", "Owner-presence evidence admitted and verified")
+    assert has_element?(view, ".reading", "Present")
+
+    assert {:ok, %{"value" => %{"status" => "present", "observed_at" => observed_at}}} =
+             Service.get(c.service, c.reader, c.scope, "owner_presence", thing, c.now)
+
+    assert observed_at == c.now
+
+    {:ok, resumed, _} = live(c.conn, prepared_path)
+    assert has_element?(resumed, "[role=status]", "Owner-presence evidence admitted and verified")
+    assert has_element?(resumed, ".reading", "Present")
+
+    {:ok, invalid, _} = live(c.conn, path <> "?operation=bad")
+    assert has_element?(invalid, "[role=alert]", "Check the required fields")
+    refute has_element?(invalid, "#owner-presence-admission")
+  end
+
+  test "owner-presence admission rejects malformed, foreign and stale evidence", c do
+    thing = provisioned(c)
+    path = Presenter.presence_path(thing)
+
+    {:ok, malformed, _} = live(c.conn, path)
+    malformed |> element("button", "Prepare evidence admission") |> render_click()
+    upload_presence_fact(malformed, ~s({"schema":"not-a-policy-fact"}))
+
+    malformed
+    |> form("#owner-presence-admission", presence: %{confirmed: "yes"})
+    |> render_submit()
+
+    assert has_element?(malformed, "[role=alert]", "Check the required fields")
+
+    {:ok, foreign, _} = live(c.conn, path)
+    foreign |> element("button", "Prepare evidence admission") |> render_click()
+
+    other = "urn:uuid:11111111-1111-4111-8111-111111111111"
+
+    upload_presence_fact(
+      foreign,
+      Codec.encode!(owner_presence_fact(other, "foreign", "false", c.now))
+    )
+
+    foreign
+    |> form("#owner-presence-admission", presence: %{confirmed: "yes"})
+    |> render_submit()
+
+    assert has_element?(foreign, "[role=alert]", "Check the required fields")
+
+    assert {:error, %{"code" => "not_found"}} =
+             Service.get(c.service, c.reader, c.scope, "owner_presence", thing, c.now)
+
+    assert {:ok, %{"generation" => "4"}} =
+             Service.admit_owner_presence(
+               c.service,
+               c.admin,
+               c.scope,
+               Identifier.uuid(),
+               %{
+                 "thing_id" => thing,
+                 "fact" => owner_presence_fact(thing, "newer", "true", c.now + 1),
+                 "expected_generation" => "3"
+               },
+               c.now + 2
+             )
+
+    {:ok, stale, _} = live(c.conn, path)
+    stale |> element("button", "Prepare evidence admission") |> render_click()
+
+    upload_presence_fact(
+      stale,
+      Codec.encode!(owner_presence_fact(thing, "stale", "false", c.now))
+    )
+
+    stale
+    |> form("#owner-presence-admission", presence: %{confirmed: "yes"})
+    |> render_submit()
+
+    assert has_element?(stale, "[role=alert]", "service changed")
+    assert has_element?(stale, ".reading", "Present")
+  end
+
+  test "owner-presence workflow contains failed reads, preparation and operation boundaries", c do
+    thing = provisioned(c)
+    path = Presenter.presence_path(thing)
+    fact = owner_presence_fact(thing, "boundary", "true", c.now)
+
+    assert {:ok, %{"generation" => "4"}} =
+             Service.admit_owner_presence(
+               c.service,
+               c.admin,
+               c.scope,
+               Identifier.uuid(),
+               %{"thing_id" => thing, "fact" => fact, "expected_generation" => "3"},
+               c.now + 1
+             )
+
+    {:ok, view, _} = live(c.conn, path)
+    assert has_element?(view, ".reading", "Present")
+    render_click(view, "refresh", %{})
+    render_change(view, "validate-fact", %{})
+
+    Agent.update(c.faults, &Map.put(&1, :owner_presence, :unavailable))
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, ".reading", "Present")
+    assert has_element?(view, "[role=alert]")
+
+    Agent.update(c.faults, &Map.put(&1, :owner_presence, {:deny, "forbidden"}))
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, ".reading", "Unknown")
+
+    Agent.update(c.faults, &Map.put(&1, :owner_presence, {:reply, {:ok, %{}}}))
+    view |> element("button", "Refresh") |> render_click()
+    assert has_element?(view, ".reading", "Unknown")
+
+    Agent.update(c.faults, &Map.put(&1, :list, :unavailable))
+    view |> element("button", "Prepare evidence admission") |> render_click()
+    assert has_element?(view, "[role=alert]")
+
+    Agent.update(c.faults, &Map.put(&1, :list, {:reply, {:ok, %{}}}))
+    view |> element("button", "Prepare evidence admission") |> render_click()
+    assert has_element?(view, "[role=alert]")
+
+    {:ok, %{"id" => reader}} = Sessions.login(c.sessions, c.reader, c.scope)
+    reader_conn = build_conn() |> init_test_session(%{"browser_session" => reader})
+    {:ok, reader_view, _} = live(reader_conn, path)
+    render_click(reader_view, "prepare", %{})
+    assert has_element?(reader_view, "[role=alert]", "does not permit")
+
+    Agent.update(c.faults, &Map.put(&1, :get, {:persistent, :unavailable}))
+    {:ok, denied_asset, _} = live(c.conn, path)
+    assert has_element?(denied_asset, "h1", "Owner presence unavailable")
+    assert has_element?(denied_asset, "[role=alert]")
+    Agent.update(c.faults, &Map.delete(&1, :get))
+
+    Agent.update(c.faults, &Map.put(&1, :get, {:persistent, {:reply, {:ok, %{}}}}))
+    {:ok, malformed_asset, _} = live(c.conn, path)
+    assert has_element?(malformed_asset, "h1", "Owner presence unavailable")
+    Agent.update(c.faults, &Map.delete(&1, :get))
+  end
+
+  test "owner-presence operation recovery fails closed across malformed replies", c do
+    thing = provisioned(c)
+    path = Presenter.presence_path(thing)
+
+    {:ok, malformed, _} = live(c.conn, path)
+    malformed |> element("button", "Prepare evidence admission") |> render_click()
+
+    upload_presence_fact(
+      malformed,
+      Codec.encode!(owner_presence_fact(thing, "malformed-reply", "true", c.now))
+    )
+
+    Agent.update(c.faults, &Map.put(&1, :admit_owner_presence, {:reply, {:ok, %{}}}))
+
+    malformed
+    |> form("#owner-presence-admission", presence: %{confirmed: "yes"})
+    |> render_submit()
+
+    assert has_element?(malformed, "[role=alert]", "different workflow")
+
+    {:ok, unavailable, _} = live(c.conn, path)
+    unavailable |> element("button", "Prepare evidence admission") |> render_click()
+
+    upload_presence_fact(
+      unavailable,
+      Codec.encode!(owner_presence_fact(thing, "unavailable", "true", c.now))
+    )
+
+    Agent.update(c.faults, &Map.put(&1, :admit_owner_presence, :unavailable))
+
+    unavailable
+    |> form("#owner-presence-admission", presence: %{confirmed: "yes"})
+    |> render_submit()
+
+    assert has_element?(unavailable, "[role=status]", "Evidence-admission outcome unknown")
+    assert has_element?(unavailable, "[role=alert]")
+
+    {:ok, mismatched, _} = live(c.conn, path)
+    mismatched |> element("button", "Prepare evidence admission") |> render_click()
+
+    upload_presence_fact(
+      mismatched,
+      Codec.encode!(owner_presence_fact(thing, "mismatched", "true", c.now))
+    )
+
+    receipt = %{
+      "outcome" => "committed",
+      "data" => %{"thing_id" => thing, "status" => "absent", "observed_at" => c.now}
+    }
+
+    Agent.update(
+      c.faults,
+      &Map.put(&1, :admit_owner_presence, {:reply, {:ok, receipt}})
+    )
+
+    mismatched
+    |> form("#owner-presence-admission", presence: %{confirmed: "yes"})
+    |> render_submit()
+
+    assert has_element?(mismatched, "[role=alert]", "different workflow")
+
+    {:ok, lost, _} = live(c.conn, path)
+    lost |> element("button", "Prepare evidence admission") |> render_click()
+    upload_presence_fact(lost, Codec.encode!(owner_presence_fact(thing, "lost", "true", c.now)))
+    Agent.update(c.faults, &Map.put(&1, :admit_owner_presence, :lost_reply))
+
+    lost
+    |> form("#owner-presence-admission", presence: %{confirmed: "yes"})
+    |> render_submit()
+
+    Agent.update(c.faults, &Map.put(&1, :owner_presence, :unavailable))
+    lost |> element("button", "Check operation outcome") |> render_click()
+    assert has_element?(lost, "[role=status]", "Evidence-admission outcome unknown")
+    assert has_element?(lost, "[role=alert]")
+
+    lost |> element("button", "Check operation outcome") |> render_click()
+    assert has_element?(lost, "[role=status]", "Owner-presence evidence admitted and verified")
+
+    {:ok, malformed_verify, _} = live(c.conn, path)
+    malformed_verify |> element("button", "Prepare evidence admission") |> render_click()
+
+    upload_presence_fact(
+      malformed_verify,
+      Codec.encode!(owner_presence_fact(thing, "malformed-verify", "false", c.now + 1))
+    )
+
+    Agent.update(c.faults, &Map.put(&1, :admit_owner_presence, :lost_reply))
+
+    malformed_verify
+    |> form("#owner-presence-admission", presence: %{confirmed: "yes"})
+    |> render_submit()
+
+    Agent.update(c.faults, &Map.put(&1, :owner_presence, {:reply, {:ok, %{}}}))
+    malformed_verify |> element("button", "Check operation outcome") |> render_click()
+    assert has_element?(malformed_verify, "[role=alert]", "different workflow")
   end
 
   test "arming controls fail closed for readers, stale pages and malformed state", c do
@@ -7239,6 +7520,15 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
       ])
 
     render_upload(upload, "observation.json")
+  end
+
+  defp upload_presence_fact(view, bytes) do
+    upload =
+      file_input(view, "#owner-presence-admission", :fact, [
+        %{name: "owner-presence.json", content: bytes, type: "application/json"}
+      ])
+
+    render_upload(upload, "owner-presence.json")
   end
 
   defp enrolled(c) do

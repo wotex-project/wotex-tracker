@@ -235,6 +235,7 @@ defmodule Wotex.Tracker.UI.RuleCreateLive do
           before adding another.
         </p>
         <a :if={motion?(@definitions)} href={Presenter.arming_path(@id)}>Review arming state</a>
+        <a href={Presenter.presence_path(@id)}>Review owner-presence evidence</a>
       </section>
       <section :if={@thing} class="panel" aria-labelledby="asset-alerts-title">
         <h2 id="asset-alerts-title">Alerts for this asset</h2>

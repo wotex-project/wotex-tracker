@@ -253,6 +253,7 @@ defmodule Wotex.Tracker.UI.RemoteTest do
 
     mutation_cases = [
       acknowledge_alert: "alert_acknowledgements",
+      admit_owner_presence: "owner_presence",
       associate: "associations",
       delete_domain_data: "domain_data_deletions",
       delete_policy: "policy_deletions",

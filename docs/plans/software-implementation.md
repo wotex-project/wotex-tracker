@@ -387,9 +387,14 @@ ages the time-driven state. Every
 rule event becomes a public alert, and administrators can acknowledge a live
 alert once. The shared browser can inspect and conditionally change the retained
 arming fact for an asset with a motion definition. Closed owner-presence evidence
-can be admitted through the service but is not inferred or editable in the shared
-browser. Suspicious-movement orchestration is implemented at definition, motion,
-arming and presence mutation boundaries. Notification endpoint registration is
+can now be admitted through a separate administrator workflow from one complete
+bounded `PolicyFact` JSON document. It captures a stable operation reference,
+requires explicit confirmation, recovers a lost reply without resubmission and
+retains no private fact in page state. Readers receive only the exact reviewed
+public projection. The browser never creates absence from missing evidence and
+the import does not claim a fresh physical detection. Suspicious-movement
+orchestration is implemented at definition, motion, arming and presence mutation
+boundaries. Notification endpoint registration is
 implemented and live alerts atomically stage delivery references. Explicit
 provider-neutral dispatch, exact authority/revision rechecks and durable provider
 outcomes are implemented. The explicit ES256/HTTP/2 APNs adapter is implemented;
@@ -587,7 +592,11 @@ geofence rules for a provisioned asset in the browser, and review and acknowledg
 their alerts. Once a motion definition exists, the browser also creates and
 manages an event-only suspicious-movement definition without inventing current
 state. Its arming screen presents reviewed owner-presence state read-only and
-keeps missing evidence distinct from absence. Position-policy forms preserve ordering, lateness, sequence,
+keeps missing evidence distinct from absence. A separate reviewed-evidence page
+accepts one bounded complete owner-presence fact for the exact asset from an
+administrator, with a prepared operation, explicit confirmation, no automatic
+retry and public-state verification after receipt recovery. It does not acquire
+or qualify the physical evidence source. Position-policy forms preserve ordering, lateness, sequence,
 uncertainty, geometry, gap and dwell fields without choosing among position
 sources. Each provisioned asset
 lists its live rule definitions, stops offering new rules at the service's

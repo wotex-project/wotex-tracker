@@ -5618,3 +5618,45 @@ on the floor lane, including the documentation-contract and archive checks.
 The tests use a validated synthetic Action and stop at a durable queued intent.
 No dispatcher, packaged device Action, firmware image, physical adapter, device
 acknowledgement, completion or physical effect was exercised or claimed.
+
+### Shared reviewed owner-presence admission — 2026-09-20
+
+The shared application now exposes a dedicated owner-presence evidence route for
+each provisioned asset. Readers receive only the exact
+`wtr.owner-presence.v1` public projection. An administrator must first prepare a
+stable operation UUID, then select one JSON file no larger than 256 KiB and
+explicitly confirm a single submission. The file must restore as a complete
+content-consistent `wtr.policy-fact-sample.v1` fact for `owner.present`, backed
+by exact or strong identity evidence associated with the selected Thing. The
+complete private document is passed directly to the service and never enters
+LiveView assigns or rendered output.
+
+The local and remote presentation clients map the same closed mutation. A lost
+reply closes the form and is recovered from the durable receipt without
+resubmission; committed status is shown only after the receipt's Thing, status
+and receiver time match a newly authorized exact public-state read. Tests cover
+read-only denial, malformed and foreign facts, stale receiver time, stale scope
+generation, malformed and failed client replies, recovery-read failure and
+private observation/evidence identifier non-disclosure. Missing evidence remains
+unknown throughout. The mobile offline identity denies administration; neither
+the private fact nor its public projection is cached, queued or replayed.
+
+The complete shared-UI gate passed 190 tests on Elixir 1.18.4/Erlang/OTP
+27.3.4.15 at 95.1% production line coverage and on Elixir 1.20.4/Erlang/OTP
+29.0.4 at 95.2%. The new evidence projector reached 90.9% and the new LiveView
+95.6%. Compiler, unused-dependency, formatter, vulnerability audit, strict
+Credo, ExDoc, Dialyzer, stack-language, archive and licence checks passed in
+both lanes; the archive contained 63 members and all 59 package-owned
+source/assets. The semantic accessibility audit now covers 20 primary shared
+routes.
+
+The pinned mobile gate passed 64 tests at 95.6% on Elixir 1.19.5/Erlang/OTP
+27.3.4.15. The UI-enabled standalone host passed 38 tests at 96.1%, including
+its CLI and locked native consumer, and the Pi kiosk host composition passed all
+51 host tests. The complete root gate passed 201 tests, 19 generated properties
+and one doctest at 95.1%, including documentation-contract and archive checks.
+
+This evidence exercises bounded synthetic facts and software boundaries only.
+It does not acquire or qualify a physical owner-presence source, authenticate a
+real sensor's physical truth, boot firmware, or complete cross-surface hardware
+acceptance.

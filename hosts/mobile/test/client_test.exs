@@ -175,6 +175,16 @@ defmodule Wotex.Tracker.Mobile.ClientTest do
                "request" => %{"expected_generation" => "4", "input" => 5}
              })
 
+    assert {:ok, %{"outcome" => "unknown", "operation_id" => ^operation}} =
+             request(c.client, :admit_owner_presence, %{
+               "operation" => operation,
+               "request" => %{
+                 "thing_id" => "bike",
+                 "fact" => %{"private" => true},
+                 "expected_generation" => "4"
+               }
+             })
+
     assert {:error, %{"code" => "storage_unavailable"}} =
              request(c.client, :action_status, %{"operation" => operation})
 

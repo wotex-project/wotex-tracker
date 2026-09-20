@@ -107,6 +107,15 @@ that this service fact does not contact the tracker, perform a physical Action,
 or confirm notification delivery. Committing the fact can cause the service to
 reevaluate a live suspicious-movement binding atomically; the browser neither
 performs that evaluation nor dispatches its resulting alert.
+The adjacent owner-presence page gives readers the same exact reviewed public
+state and lets administrators submit one complete bounded
+`wtr.policy-fact-sample.v1` JSON document associated with the asset. A stable
+operation reference exists before the file is selected, explicit confirmation
+is required, and a lost reply is recovered from the receipt plus an
+identity-matched public-state read without resubmission. The complete private
+fact is validated and passed directly to the service without entering LiveView
+assigns. Missing evidence remains unknown, and importing a fact does not claim a
+fresh physical detection or qualify its source.
 The Protection page links to a newest-first alert list. Each alert page shows
 the recorded status change, rule, the asset of a defined rule or that the host
 manages the rule, evaluation mode and dispatch restriction, and
@@ -205,12 +214,12 @@ test helpers. Root and service-only consumers do not depend on this package.
 The first cohort exercises real authorized services, duplicate prevention,
 lost-reply recovery, revocation, read-only denial, upload bounds, bounded
 lists/history, CSRF protection and credential custody. Device discovery and
-capture, basemaps, owner-presence capture, physical notification delivery,
+capture, basemaps, qualified physical owner-presence acquisition, physical notification delivery,
 qualified physical Action/device interaction, hardware anti-stalking mechanisms
 and physical cross-surface accessibility remain subsequent work. A
 responsive browser view does not qualify a mobile or Pi application.
 
-The test cohort applies one semantic document audit to 19 primary shared routes.
+The test cohort applies one semantic document audit to 20 primary shared routes.
 It requires an explicit document language, one main landmark and page heading,
 ordered headings, unique IDs, valid ARIA references, labelled controls, named
 actions and regions, table captions, and accessible graphics. Negative fixtures

@@ -18,6 +18,7 @@ defmodule Wotex.Tracker.UI.Remote do
   @resources ~w(observations resolutions evidence state enrollments things saved_queries rules policies alerts arming owner_presence notification_endpoints)
   @mutations %{
     acknowledge_alert: "alert_acknowledgements",
+    admit_owner_presence: "owner_presence",
     associate: "associations",
     delete_domain_data: "domain_data_deletions",
     delete_policy: "policy_deletions",

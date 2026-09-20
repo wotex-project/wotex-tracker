@@ -197,6 +197,17 @@ defmodule Wotex.Tracker.UI.Local do
   defp dispatch(service, token, scope, :set_arming, args, now),
     do: Service.set_arming(service, token, scope, args["operation"], args["request"], now)
 
+  defp dispatch(service, token, scope, :admit_owner_presence, args, now),
+    do:
+      Service.admit_owner_presence(
+        service,
+        token,
+        scope,
+        args["operation"],
+        args["request"],
+        now
+      )
+
   defp dispatch(service, token, scope, :enroll, args, now),
     do: Service.enroll(service, token, scope, args["operation"], args["request"], now)
 

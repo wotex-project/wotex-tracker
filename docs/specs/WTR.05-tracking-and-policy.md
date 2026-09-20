@@ -20,7 +20,10 @@ the same Thing without exposing that nested policy publicly. The trusted decoder
 profile-backed position claims into immutable evidence, and an explicitly
 configured service exposes a closed redacted state projection. The service now
 admits complete content-validated owner-presence facts, retains their evidence
-privately and never interprets missing state as absence. The service now
+privately and never interprets missing state as absence. The shared application
+can submit one complete bounded fact document through a confirmed, recoverable
+administrator workflow; it retains only the closed public projection and makes
+no claim that importing evidence physically detected the owner. The service now
 reevaluates exact live suspicious bindings on definition saves, motion
 materialisation, arming changes and owner-presence admission, atomically staging
 stable event intent and a reviewed alert. For ordered cellular imports, current

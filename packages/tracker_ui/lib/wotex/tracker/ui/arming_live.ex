@@ -12,12 +12,10 @@ defmodule Wotex.Tracker.UI.ArmingLive do
   use Phoenix.LiveView, log: false
   import Wotex.Tracker.UI.Components
   alias Wotex.Tracker.Service.Identifier
-  alias Wotex.Tracker.UI.{Auth, Presenter}
+  alias Wotex.Tracker.UI.{Auth, PresenceEvidence, Presenter}
 
   @public_fields ~w(schema thing_id status revision changed_at changed_by)
-  @presence_fields ~w(schema thing_id status revision observed_at admitted_at admitted_by)
   @statuses ~w(armed disarmed)
-  @presence_statuses ~w(present absent unknown)
 
   @impl true
   def mount(_, _, socket) do
@@ -155,7 +153,7 @@ defmodule Wotex.Tracker.UI.ArmingLive do
       </section>
       <section :if={@thing} class="panel" aria-labelledby="owner-presence-title">
         <h2 id="owner-presence-title">Owner-presence evidence</h2>
-        <p class="reading">{presence_label(@owner_presence)}</p>
+        <p class="reading">{PresenceEvidence.label(@owner_presence)}</p>
         <p :if={@owner_presence}>
           Observed {Presenter.timestamp(%{"value" => @owner_presence["observed_at"]})} · admitted {Presenter.timestamp(
             %{"value" => @owner_presence["admitted_at"]}
@@ -166,8 +164,8 @@ defmodule Wotex.Tracker.UI.ArmingLive do
           unknown; they are not proof that the owner is absent.
         </p>
         <p>
-          This browser can inspect the reviewed state but cannot create or edit presence evidence.
           Private observations, evidence and fact identities stay in the service.
+          <a href={Presenter.presence_path(@id)}>Review or admit qualified evidence</a>
         </p>
       </section>
       <section :if={@thing && !motion?(@definitions)} class="panel">
@@ -260,7 +258,7 @@ defmodule Wotex.Tracker.UI.ArmingLive do
   defp load_presence(socket) do
     case Auth.request(socket, :owner_presence, %{"id" => socket.assigns.id}) do
       {:ok, %{"value" => value}} ->
-        if presence?(value, socket.assigns.id),
+        if PresenceEvidence.public?(value, socket.assigns.id),
           do: assign(socket, owner_presence: value),
           else: assign(socket, owner_presence: nil, error: %{"code" => "unavailable"})
 
@@ -441,54 +439,6 @@ defmodule Wotex.Tracker.UI.ArmingLive do
 
   defp arming_revision?(_), do: false
 
-  defp presence?(value, id) do
-    presence_shape?(value) and presence_identity?(value, id) and presence_times?(value) and
-      presence_actor?(value)
-  end
-
-  defp presence_shape?(value),
-    do:
-      is_map(value) and not is_struct(value) and
-        Enum.sort(Map.keys(value)) == Enum.sort(@presence_fields)
-
-  defp presence_identity?(value, id),
-    do:
-      value["schema"] == "wtr.owner-presence.v1" and value["thing_id"] == id and
-        value["status"] in @presence_statuses and presence_revision?(value["revision"])
-
-  defp presence_times?(value),
-    do: Enum.all?([value["observed_at"], value["admitted_at"]], &timestamp?/1)
-
-  defp presence_actor?(value),
-    do:
-      is_binary(value["admitted_by"]) and
-        Regex.match?(~r/\Awtr1_[A-Za-z0-9_-]+\z/, value["admitted_by"])
-
-  defp presence_revision?("owner-presence-" <> generation),
-    do: positive_generation?(generation)
-
-  defp presence_revision?(_), do: false
-
-  defp timestamp?(value), do: is_integer(value) and value in 0..9_007_199_254_740_991
-
-  defp positive_generation?(generation) do
-    if byte_size(generation) in 1..19 do
-      parse_positive_generation(generation)
-    else
-      false
-    end
-  end
-
-  defp parse_positive_generation(generation) do
-    case Integer.parse(generation) do
-      {value, ""} when value > 0 and value < 9_223_372_036_854_775_807 ->
-        Integer.to_string(value) == generation
-
-      _ ->
-        false
-    end
-  end
-
   defp motion?(definitions) when is_list(definitions),
     do: Enum.any?(definitions, &match?(%{"kind" => "motion"}, &1))
 
@@ -497,10 +447,6 @@ defmodule Wotex.Tracker.UI.ArmingLive do
   defp arming_label(%{"status" => "armed"}), do: "Armed"
   defp arming_label(%{"status" => "disarmed"}), do: "Disarmed"
   defp arming_label(_), do: "Unknown"
-  defp presence_label(%{"status" => "present"}), do: "Present"
-  defp presence_label(%{"status" => "absent"}), do: "Absent"
-  defp presence_label(%{"status" => "unknown"}), do: "Unknown"
-  defp presence_label(_), do: "Unknown"
   defp verb("armed"), do: "arming"
   defp verb("disarmed"), do: "disarming"
 

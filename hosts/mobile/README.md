@@ -62,6 +62,9 @@ management and operation recovery are never cached or queued.
 The shared Interactions route is therefore online-only: conservative offline
 identity denies the `interact` grant, invocation is never queued, and durable
 Action status is never replaced by a cached projection.
+The shared owner-presence admission is also online-only: conservative offline
+identity denies administration, no private fact or public presence projection is
+cached, and an unavailable submission is never queued or replayed.
 
 The root native screen subscribes only to Mob's application and network
 lifecycle categories. A real background-to-active transition or recovery of an
