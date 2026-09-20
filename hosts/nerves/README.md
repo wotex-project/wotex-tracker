@@ -15,6 +15,9 @@ including `fwup` and SquashFS. On this repository's macOS toolchain:
 ```sh
 WOTEX_PATH_DEPS=1 MIX_TARGET=host MIX_ENV=test mise exec -- mix deps.get
 WOTEX_PATH_DEPS=1 MIX_TARGET=host MIX_ENV=test mise exec -- mix test --no-start
+WOTEX_PATH_DEPS=1 MIX_TARGET=host MIX_ENV=test mise exec -- mix format --check-formatted
+WOTEX_PATH_DEPS=1 MIX_TARGET=host MIX_ENV=test mise exec -- mix credo --strict
+WOTEX_PATH_DEPS=1 MIX_TARGET=host MIX_ENV=test mise exec -- mix dialyzer
 WOTEX_PATH_DEPS=1 MIX_TARGET=rpi5 MIX_ENV=dev \
   mise exec elixir@1.20.4-otp-29 erlang@29.0.4 -- mix deps.get
 WOTEX_PATH_DEPS=1 MIX_TARGET=rpi5 MIX_ENV=dev \

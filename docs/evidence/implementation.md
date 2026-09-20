@@ -4958,3 +4958,21 @@ licence checks. The implementation commit is
 This proves the software admission contract and deterministic reconciliation.
 It does not authenticate the clear-TCP device, prove physical delivery, or
 qualify tracker firmware, a SIM, carrier or production network.
+
+### Clean Nerves source verification — 2026-09-20
+
+The target-conditional kiosk helper is now defined only in the Pi 5 compilation
+branch, so the headless host no longer retains an unreachable private function.
+The TLS provisioner's typed fail-closed pipeline no longer includes a statically
+covered fallback. Target-only QEMU aliases and the optional UI module dispatch
+retain their artifact boundaries without compiler or Credo warnings, and service
+aliases follow the repository's deterministic order.
+
+Headless verification passed 42 tests, strict Credo and Dialyzer. The UI-enabled
+host composition passed 45 tests and strict Credo. Warning-as-error compilation
+passed for the ordinary host and the QEMU ARM64, headless Pi 5 and kiosk Pi 5
+source profiles using the pinned target Elixir 1.20.4/Erlang/OTP 29.0.4 lane.
+The cleanup commit is `023b26d1fd6df3698b1673e1c89aaae72cb2d894`.
+
+This clears source-level static-analysis debt; it does not replace a firmware
+artifact build, virtual boot or either physical Pi acceptance profile.
