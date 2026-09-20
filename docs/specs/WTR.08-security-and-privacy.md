@@ -2,7 +2,13 @@
 
 ## Status
 
-Accepted target contract. No implementation claim.
+Accepted target contract. The maintained
+[abuse analysis](../security/abuse-analysis.md) and unauthenticated shared Safety
+page state the product's dual-use risks, implemented software controls, response
+guidance and unpassed production gates. A hardware-backed visible tracking-state
+control, unauthorized-association detection, physical permission-denial evidence
+and complete device acceptance remain open; no production anti-stalking claim is
+made.
 
 ## Threat model
 

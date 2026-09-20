@@ -263,6 +263,12 @@ missing hardware evidence or distribution funding block the relevant gate rather
 than reducing these requirements. The first browser workflow is implemented;
 complete application and firmware acceptance remain open.
 
+The maintained [abuse analysis](docs/security/abuse-analysis.md) records the
+dual-use and anti-stalking threats, implemented software controls and remaining
+physical gates. The shared application exposes the same core limitations at
+`/safety` without requiring an account. Neither the analysis nor the current
+software claims phone-vendor-scale unwanted-tracker detection.
+
 No external metrics database, vendor tracking cloud, private AI engine or hosted
 build service is required to operate the deterministic product. Network bearers,
 map sources, optional model providers and mobile push/distribution have explicit

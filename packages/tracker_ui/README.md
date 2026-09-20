@@ -4,6 +4,13 @@ Shared LiveView screens over the authorized Tracker service. This package has
 no application callback, endpoint, listener or automatic session store.
 Hosts own and explicitly supervise those resources.
 
+The shared `/safety` page is available without an account so the unwanted-tracker
+limitation and response guidance do not depend on service availability or
+authorization. It identifies the implemented enrollment, access, audit and
+retention controls without presenting operator confirmation as hardware identity
+or claiming phone-vendor-scale detection. Hardware-specific anti-stalking
+qualification remains open.
+
 The first workflow covers sign-in, bounded asset and observation lists,
 single-file Observation JSON capture import in Setup, evidence inspection,
 confirmed enrollment, later observation association, explicit Thing updates,
@@ -186,7 +193,7 @@ The first cohort exercises real authorized services, duplicate prevention,
 lost-reply recovery, revocation, read-only denial, upload bounds, bounded
 lists/history, CSRF protection and credential custody. Device discovery and
 capture, basemaps, owner-presence capture, physical notification delivery,
-interactions, hardware anti-stalking mechanisms and cross-surface accessibility remain
+interactions, qualified hardware anti-stalking mechanisms and cross-surface accessibility remain
 subsequent work. A
 responsive browser view does not qualify a mobile or Pi application.
 

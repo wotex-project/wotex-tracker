@@ -425,7 +425,9 @@ the limits of the managed-store claim, requires the literal confirmation phrase
 and verifies the retained marker before reporting success; readers receive no
 counts or destructive form. Hosts can opt into exact whole-scope inactivity
 retention, enforced on access and by a periodic store check without allowing
-reads to extend domain lifetime. An Activity page
+reads to extend domain lifetime. A public Safety page carries the maintained
+abuse analysis into every shared host without implying that software enrollment
+authenticates hardware or detects unwanted trackers. An Activity page
 pages the credential's recent committed changes for recovery. The shared Access
 page also lists the current principal's token-redacted mobile notification
 installations and removes one through an explicitly confirmed, generation-checked,

@@ -157,6 +157,14 @@ defmodule Wotex.Tracker.Host.BrowserTest do
 
     thing = enrolled["data"]["thing_id"]
 
+    {200, safety_headers, safety} = request(:get, origin <> "/safety", [], nil)
+    assert safety =~ "Tracking safety and limitations"
+    assert safety =~ "Not an unwanted-tracker detection network"
+    assert safety =~ "does not offer covert surveillance as a feature"
+    assert to_string(elem(List.keyfind(safety_headers, ~c"cache-control", 0), 1)) == "no-store"
+    refute safety =~ c.token
+    refute safety =~ browser.prompt.api_key
+
     {200, headers, body} = request(:get, origin <> "/sign-in", [], nil)
     [_, csrf] = Regex.run(~r/name="_csrf_token"[^>]*value="([^"]+)"/, body)
     cookie = cookie(headers)

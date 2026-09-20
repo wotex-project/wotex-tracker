@@ -3902,3 +3902,29 @@ the default application-host gate passed 12 tests at 95.7%, and the UI-enabled
 host gate passed 22 tests at 95.5%. Their compiler, unused-dependency, formatter,
 dependency audit, strict Credo, ExDoc, Dialyzer, OpenAPI, archive, native CLI,
 licence and stack-language checks passed wherever configured.
+
+### Anti-stalking abuse analysis and public safety disclosure — 2026-09-20
+
+The maintained abuse analysis now maps covert attachment, replayed identity,
+credential theft, evidence erasure, permission bypass, undisclosed retention,
+physical Action and compromised-ingress cases to the repository's implemented
+software controls and residual risks. It makes hardware-specific unauthorized-
+association detection, physical permission-denial evidence, device provisioning,
+labelling and signed cross-surface acceptance explicit production blockers. It
+does not promote operator confirmation, radio presence or a software alert to
+hardware authentication or phone-vendor-scale unwanted-tracker detection.
+
+Every shared host now serves `/safety` without requiring an account or service
+request. The page states those limits, distinguishes the current controls from
+unfinished hardware safeguards, links authenticated operators to access,
+retention and enrollment review, and supplies an incident-response checklist.
+Its static availability is not presented as a detection result. The composed
+browser-host test fetches it before sign-in, verifies `no-store` delivery and
+checks that neither service nor model credentials appear in the response.
+
+The complete shared-UI gate passed 168 tests at 95.0% production line coverage,
+including compiler, unused-dependency, formatter, dependency audit, strict Credo,
+ExDoc, Dialyzer, 58-member archive inspection, licences and the 525-file stack-
+language policy. The UI-enabled application-host gate passed 22 tests at 95.5%
+with its configured BEAM, native CLI, dependency, licence and policy checks.
+Real hardware anti-stalking qualification remains unpassed.

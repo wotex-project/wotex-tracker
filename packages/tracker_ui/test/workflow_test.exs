@@ -1003,6 +1003,27 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert has_element?(recovered, "[role=status]", "Retained domain data deleted and verified")
   end
 
+  test "safety limits remain available without an account", c do
+    {:ok, public, html} = live(build_conn(), "/safety")
+
+    assert html =~ ~s(href="/safety">Safety</a>)
+    assert has_element?(public, "h1", "Tracking safety and limitations")
+    assert has_element?(public, "h2", "Not an unwanted-tracker detection network")
+    assert html =~ "does not prove that no tracker is nearby"
+    assert html =~ "must not be relied on as a personal"
+    assert html =~ "safety detector"
+    assert html =~ "does not offer covert surveillance as a feature"
+    assert has_element?(public, ~s(a[href="/access"]), "Review access")
+    assert has_element?(public, ~s(a[href="/privacy"]), "Review retained data")
+    assert has_element?(public, ~s(a[href="/setup"]), "Review enrollment evidence")
+    refute html =~ c.admin
+    refute html =~ c.reader
+
+    {:ok, signed_in, _} = live(c.conn, "/safety")
+    assert has_element?(signed_in, "h2", "Controls this deployment does provide")
+    assert has_element?(signed_in, "h2", "If you suspect unauthorized tracking")
+  end
+
   test "domain deletion recovers a lost reply without submitting twice", c do
     materialized(c)
     {:ok, view, _} = live(c.conn, "/privacy")

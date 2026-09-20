@@ -32,6 +32,7 @@ defmodule Wotex.Tracker.UI.Router do
     get("/sign-in", SessionController, :new, log: false)
     post("/session", SessionController, :create, log: false)
     post("/session/logout", SessionController, :delete, log: false)
+    live("/safety", SafetyLive, :show)
 
     live_session :tracker, on_mount: [{Wotex.Tracker.UI.Auth, :default}] do
       live("/", BrowseLive, :assets)
