@@ -67,10 +67,22 @@ defmodule Wotex.Tracker.Nerves.QemuBootRecord do
     true = String.contains?(first, "Booting from slot a")
     true = String.contains?(first, "Linux version ")
     true = String.contains?(first, "Formatting application partition")
-    true = String.contains?(first, "QEMU boot probe passed: private store and loopback HTTP")
+
+    true =
+      String.contains?(
+        first,
+        "QEMU boot probe passed: private store, loopback HTTP and native resources"
+      )
+
     true = String.contains?(reboot, "Booting from slot a")
     false = String.contains?(reboot, "Formatting application partition")
-    true = String.contains?(reboot, "QEMU boot probe passed: private store and loopback HTTP")
+
+    true =
+      String.contains?(
+        reboot,
+        "QEMU boot probe passed: private store, loopback HTTP and native resources"
+      )
+
     false = String.contains?(first <> reboot, "QEMU boot probe failed")
     [_, kernel] = Regex.run(~r/Linux version (\S+)/, first)
 
@@ -105,8 +117,10 @@ defmodule Wotex.Tracker.Nerves.QemuBootRecord do
       "checks" => %{
         "first_boot_formatted_fresh_partition" => true,
         "first_boot_private_store_and_loopback_http" => true,
+        "first_boot_native_resource_sample" => true,
         "reboot_kept_existing_partition" => true,
         "reboot_private_store_and_loopback_http" => true,
+        "reboot_native_resource_sample" => true,
         "no_ui_or_ssh_applications" => true,
         "no_active_iex_or_distribution" => true,
         "no_credentials_in_runtime_config" => true,

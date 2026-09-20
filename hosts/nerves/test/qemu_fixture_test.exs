@@ -21,4 +21,39 @@ defmodule Wotex.Tracker.Nerves.QemuFixtureTest do
     assert :ok = QemuFixture.prepare(root)
     assert File.read!(Path.join(root, "config.json")) == original
   end
+
+  test "the boot probe requires store, health and a retained native sample" do
+    calls = :atomics.new(1, [])
+
+    history = fn ->
+      case :atomics.add_get(calls, 1, 1) do
+        1 -> {:ok, %{"samples" => []}}
+        _ -> {:ok, %{"samples" => [%{"event" => "native.sample"}]}}
+      end
+    end
+
+    assert :ok =
+             QemuFixture.probe(
+               regular?: fn -> true end,
+               health: fn -> :ok end,
+               history: history,
+               attempts: 2,
+               interval_ms: 0
+             )
+
+    for options <- [
+          [regular?: fn -> false end, health: fn -> :ok end, history: history],
+          [regular?: fn -> true end, health: fn -> :error end, history: history],
+          [
+            regular?: fn -> true end,
+            health: fn -> :ok end,
+            history: fn -> {:ok, %{"samples" => []}} end,
+            attempts: 1,
+            interval_ms: 0
+          ],
+          [regular?: fn -> raise "private path" end, health: fn -> :ok end, history: history]
+        ] do
+      assert :error = QemuFixture.probe(options)
+    end
+  end
 end

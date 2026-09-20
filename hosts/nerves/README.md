@@ -140,9 +140,10 @@ WOTEX_PATH_DEPS=1 MIX_TARGET=qemu_aarch64 MIX_ENV=dev \
 ```
 
 The last task creates the ignored `virtual-disk.img` and prints a QEMU command
-for the current host. Run it, wait for `QEMU boot probe passed`, stop QEMU, and
-run the same command again without regenerating the disk. The second boot must
-pass without formatting the application partition. `record_qemu_boot.exs`
+for the current host. Run it, wait for the probe to report the private store,
+loopback HTTP and native resources, stop QEMU, and run the same command again
+without regenerating the disk. The second boot must pass without formatting the
+application partition. `record_qemu_boot.exs`
 verifies both serial logs and writes
 `../../verification/nerves-qemu-boot.json`. On this macOS host, QEMU 11.1.1
 uses Hypervisor Framework acceleration. The Nerves virtual system is new and
