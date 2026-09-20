@@ -67,6 +67,7 @@ defmodule Wotex.Tracker.ReleaseProbe do
   @scope "workshop"
   @body_limit 4_194_304
   @native_resource_sources ~w(darwin_system_tools linux_procfs)
+  @release_process_key {__MODULE__, :active_release_process}
 
   def main(arguments) do
     {options, rest, invalid} =
@@ -97,25 +98,29 @@ defmodule Wotex.Tracker.ReleaseProbe do
     {:ok, _} = Application.ensure_all_started(:inets)
     load_http_consumer()
 
-    report =
-      %{
-        "runtime_licenses" => "pass",
-        "external_beam_tools_absent" => true,
-        "external_compiler_absent" => is_nil(System.find_executable("gcc"))
-      }
-      |> Map.merge(
-        lifecycle(
-          release,
-          Path.join(fixtures, "persistent"),
-          options[:browser] == true,
-          options[:native_resource]
+    try do
+      report =
+        %{
+          "runtime_licenses" => "pass",
+          "external_beam_tools_absent" => true,
+          "external_compiler_absent" => is_nil(System.find_executable("gcc"))
+        }
+        |> Map.merge(
+          lifecycle(
+            release,
+            Path.join(fixtures, "persistent"),
+            options[:browser] == true,
+            options[:native_resource]
+          )
         )
-      )
-      |> Map.merge(failures(release, fixtures, options[:readonly_directory]))
-      |> Map.merge(native_consumer(release, fixtures, options[:native_consumer]))
+        |> Map.merge(failures(release, fixtures, options[:readonly_directory]))
+        |> Map.merge(native_consumer(release, fixtures, options[:native_consumer]))
 
-    write_json(Path.join(fixtures, "result.json"), report)
-    IO.puts("RELEASE_PROBE_PASS " <> Jason.encode!(report))
+      write_json(Path.join(fixtures, "result.json"), report)
+      IO.puts("RELEASE_PROBE_PASS " <> Jason.encode!(report))
+    after
+      terminate_tracked()
+    end
   end
 
   defp lifecycle(release, directory, browser?, native_resource_source) do
@@ -593,6 +598,7 @@ defmodule Wotex.Tracker.ReleaseProbe do
     log = Path.join(instance.directory, "release.log")
     {:ok, process} = ReleaseProcess.start_link(executable, environment, log)
     instance = %{instance | process: process}
+    Process.put(@release_process_key, instance)
 
     if expected_failure do
       status = await_exit(process, 10_000)
@@ -627,10 +633,11 @@ defmodule Wotex.Tracker.ReleaseProbe do
 
     ReleaseProcess.drain(instance.process)
     GenServer.stop(instance.process)
+    clear_tracked(instance.process)
     {%{instance | process: nil}, System.monotonic_time(:millisecond) - started}
   end
 
-  defp terminate(%{process: nil}), do: :ok
+  defp terminate(%{process: nil}), do: terminate_tracked()
 
   defp terminate(instance) do
     if Process.alive?(instance.process) do
@@ -639,6 +646,22 @@ defmodule Wotex.Tracker.ReleaseProbe do
       catch
         :exit, _ -> :ok
       end
+    end
+
+    clear_tracked(instance.process)
+  end
+
+  defp terminate_tracked do
+    case Process.get(@release_process_key) do
+      nil -> :ok
+      instance -> terminate(instance)
+    end
+  end
+
+  defp clear_tracked(process) do
+    case Process.get(@release_process_key) do
+      %{process: ^process} -> Process.delete(@release_process_key)
+      _ -> :ok
     end
   end
 
