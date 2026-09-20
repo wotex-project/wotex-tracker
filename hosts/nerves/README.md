@@ -37,6 +37,17 @@ during boot. A missing storage marker stops with `recovery_required`; an invalid
 configuration stops with `invalid_configuration`. Neither case silently claims
 an empty history.
 
+The firmware can additionally supervise the bounded direct-cellular listener.
+This is opt-in at build time; add `WOTEX_TRACKER_CELLULAR=1` to the `deps.get`
+and `firmware` commands for the selected target. The resulting image requires a
+private singly linked 0600 `/root/tracker/cellular.json` in the standalone
+host's closed `wtr.cellular-host.v1` format, and `config.json` must select
+`teltonika.tat140.codec8e`. Missing or invalid enabled configuration fails
+startup; an image built without the flag starts no cellular listener. The
+cellular document chooses its numeric bind address and port. Clear TCP provides
+no transport authentication or encryption, so network reachability and
+firewall policy remain explicit operator responsibilities.
+
 Only loopback and direct TLS exposure are admitted. The image has no reverse
 proxy, so proxy mode is rejected. A TLS certificate and private key must each
 be a singly linked 0600 regular file under `/root/tracker`. Select an explicit

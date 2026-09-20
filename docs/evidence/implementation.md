@@ -4874,3 +4874,35 @@ This proves explicit standalone software deployment and restart-safe service
 resolution for the fixture path. It does not authenticate or encrypt the
 physical clear-TCP protocol and does not prove a tracker, firmware, SIM, carrier,
 firewall or production network.
+
+### Configured cellular appliance host — 2026-09-20
+
+The Nerves source host now has an explicit direct-cellular build choice. An
+enabled image loads the fixed private `/root/tracker/cellular.json` through the
+same closed `wtr.cellular-host.v1` validator as the standalone host and requires
+the service document to select `teltonika.tat140.codec8e`. Without the build
+choice, the application configuration contains no cellular path and starts no
+listener. Unsafe paths, malformed private files, unauthorized device bearers or
+contract mismatches stop startup rather than degrading to a partially configured
+socket.
+
+The appliance supervisor starts the cellular listener against a lazy provider
+for its current shared service child. Its integration test starts the composed
+host, performs the 15-digit IMEI handshake over a real TCP socket, submits the
+two-record documentation fixture, receives the exact record-count ACK and reads
+both ordered records from the durable service. Stopping the appliance supervisor
+terminates both the HTTP and cellular listener trees. The UI-enabled composition
+also keeps the optional cellular path disabled unless explicitly configured.
+
+Headless Nerves verification passed 42 tests and the UI-enabled composition
+passed 45 tests on the repository's Elixir 1.18.4/Erlang/OTP 27.3.4.15 host
+lane. Formatting passed. A refreshed Dialyzer run continued to report only the
+two existing Nerves warnings for a target-conditional kiosk helper and a covered
+TLS fallback; strict Credo likewise retained its existing unrelated findings.
+The appliance-listener implementation commit is
+`7568d8329afc0303db11759ae95b78d60b076e82`.
+
+This proves opt-in appliance software composition for the fixture-backed path.
+It does not prove that either image boots on a Pi, nor a physical tracker,
+firmware, modem, SIM, carrier, firewall, encrypted transport or production
+network.

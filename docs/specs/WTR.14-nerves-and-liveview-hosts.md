@@ -44,7 +44,12 @@ current-schema store pass one synchronous core-health check. The enabled Nerves
 Runtime startup guard can therefore validate pending firmware only after those
 criteria pass; the ten-minute heart handshake and guard's 15-minute callback
 bound failure before the system reverts. Bad-image validation and revert still
-require physical target evidence.
+require physical target evidence. An opt-in source profile now loads the same
+private, closed cellular-host document as the standalone application and
+supervises the bounded Teltonika listener beside the shared service. A host
+integration test proves real-socket login, two-record admission, acknowledgment,
+durable inspection and joint shutdown. It does not establish a Pi boot, tracker,
+SIM, carrier, firewall or encrypted-transport result.
 Bootable headless and local-display profiles remain required product deliverables
 and optional installations. They consume the pure library without changing its
 startup or dependency contract. WTR.13 governs the root.
@@ -57,6 +62,8 @@ supervisor, board configuration, network interfaces, time synchronization,
 persistent data, credentials and explicitly configured Tracker service instances.
 Its dependency direction is host -> Tracker -> core WoTEx values. Nothing in core
 imports the host. The root archive excludes hosts and their locks/build assets.
+An appliance build may opt into `/root/tracker/cellular.json`; absent that build
+choice and private file, it owns no cellular socket.
 
 `hosts/app/` supplies the server application. Both hosts consume the explicit
 service components and inert LiveView/HEEx package defined in WTR.15. Firmware

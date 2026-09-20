@@ -217,6 +217,9 @@ Model materialises position, motion and battery-voltage Properties from that
 bundle. The standalone host now admits a separate private cellular document,
 selects the fixed packaged TAT140 contract for both ingress and API operations,
 supervises the bounded listener and resolves the current service after restarts.
+The Nerves source host can opt into the same root-bound document and supervision
+without adding the listener to its default image. Its host integration sends the
+two-record fixture through a real TCP socket and inspects the persisted result.
 Operator network/firewall controls, any protocol-level encrypted alternative and
 all real-device evidence remain subsequent work.
 
@@ -399,6 +402,15 @@ Loopback startup remains available without NTP; direct TLS startup requires a
 positive synchronization result from the current NervesTime runtime before any
 store or listener starts. Hardware RTC and drift qualification remain physical
 deployment work.
+
+The appliance source can explicitly include the direct-cellular listener. An
+enabled image loads only the fixed private `/root/tracker/cellular.json`, requires
+the packaged TAT140 contract and supervises the bounded listener beside the HTTP
+service. No flag means no cellular socket. Host tests cover IMEI negotiation,
+two-record Codec 8 Extended admission, acknowledgment, durable inspection and
+shutdown through the composed appliance. This is software composition evidence;
+clear-TCP network policy and all board, modem, SIM, carrier and tracker evidence
+remain deployment work.
 
 The offline command can also create the kiosk's closed, loopback-only browser
 document with an independently generated session secret when the operator gives
