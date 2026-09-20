@@ -456,7 +456,7 @@ defmodule Wotex.Tracker.Service.NotificationDispatcherTest do
       try do
         Supervisor.stop(supervisor)
       catch
-        :exit, {:noproc, _} -> :ok
+        :exit, _ -> :ok
       end
     end)
 

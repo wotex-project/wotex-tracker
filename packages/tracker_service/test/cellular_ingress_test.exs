@@ -5,10 +5,10 @@ defmodule Wotex.Tracker.Service.CellularIngressTest do
   import Wotex.Tracker.Service.Fixtures
 
   alias Wotex.Tracker.Observation
-  alias Wotex.Tracker.Protocols.Teltonika.{Codec8Extended, TCPSession}
+  alias Wotex.Tracker.Protocols.Teltonika.{Codec8Extended, TAT140, TCPSession}
   alias Wotex.Tracker.Service
   alias Wotex.Tracker.Service.Cellular.Ingress
-  alias Wotex.Tracker.Service.Identifier
+  alias Wotex.Tracker.Service.{Codec, Identifier}
 
   @imei "123456789012345"
   @identity_key :binary.copy(<<7>>, 32)
@@ -28,6 +28,17 @@ defmodule Wotex.Tracker.Service.CellularIngressTest do
     assert :ok = Ingress.close(context.ingress, session)
     assert :ok = Ingress.close(context.ingress, :forged)
     _ = :sys.get_state(context.ingress)
+    assert {:error, :unauthorized} = Ingress.submit(context.ingress, session, context.packet)
+  end
+
+  test "a corrupted configured digest cannot authorize an existing session", context do
+    assert {:ok, session} = Ingress.login(context.ingress, @imei)
+
+    :sys.replace_state(context.ingress, fn state ->
+      [device] = state.devices
+      %{state | devices: [%{device | identity_digest: "short"}]}
+    end)
+
     assert {:error, :unauthorized} = Ingress.submit(context.ingress, session, context.packet)
   end
 
@@ -51,7 +62,7 @@ defmodule Wotex.Tracker.Service.CellularIngressTest do
     assert {:ok, %{disposition: :duplicate, operation_id: ^operation}} =
              Ingress.submit(context.ingress, second_session, context.packet)
 
-    assert {:ok, %{"generation" => "1", "items" => [_]}} =
+    assert {:ok, %{"generation" => "1", "items" => [%{"id" => id}]}} =
              Service.list(
                context.context.service,
                context.context.admin,
@@ -60,6 +71,20 @@ defmodule Wotex.Tracker.Service.CellularIngressTest do
                %{"limit" => 10},
                context.context.now
              )
+
+    assert {:ok, raw} =
+             Service.raw_observation(
+               context.context.service,
+               context.context.admin,
+               context.context.scope,
+               id,
+               context.context.now
+             )
+
+    document = Codec.decode!(raw)
+    assert document["provenance"]["configured_profile"] == TAT140.configured_profile()
+    assert {:ok, observation} = Observation.from_map(document)
+    assert {:ok, %{kind: :avl_data, record_count: 1}} = TAT140.decode(observation)
   end
 
   test "concurrent sessions serialize one frame into one durable operation", context do
@@ -94,6 +119,20 @@ defmodule Wotex.Tracker.Service.CellularIngressTest do
 
     assert {:ok, %{disposition: :duplicate, record_count: 1}} =
              Ingress.submit(ingress, session, packet())
+  end
+
+  test "loss of the store after receipt lookup remains an unknown outcome", context do
+    store = context.context.store
+
+    pid = spawn(&fail_after_operation/0)
+
+    failed_store = %{store | pid: pid}
+    failed_service = %{context.context.service | store: failed_store}
+    failed_context = %{context.context | service: failed_service, store: failed_store}
+    ingress = start_ingress(failed_context)
+    assert {:ok, session} = Ingress.login(ingress, @imei)
+
+    assert {:ok, %{disposition: :unknown}} = Ingress.submit(ingress, session, context.packet)
   end
 
   test "known pre-commit failure rejects with zero ACK and forged packets fail" do
@@ -136,6 +175,8 @@ defmodule Wotex.Tracker.Service.CellularIngressTest do
       Keyword.put(valid, :devices, [%{device | token: "invalid"}]),
       Keyword.put(valid, :devices, [%{device | scope: ""}]),
       Keyword.put(valid, :devices, [%{device | id: ""}]),
+      Keyword.put(valid, :devices, [%{device | profile: ""}]),
+      Keyword.put(valid, :devices, [Map.put(device, :unknown, true)]),
       Keyword.put(valid, :devices, [device, %{device | id: "other"}]),
       Keyword.put(valid, :devices, [
         device,
@@ -158,10 +199,45 @@ defmodule Wotex.Tracker.Service.CellularIngressTest do
              Ingress.submit(default_clock, session, context.packet)
 
     assert :ok = GenServer.stop(default_clock)
+
+    without_profile =
+      Keyword.put(valid, :devices, [Map.delete(device, :profile)])
+
+    assert {:ok, generic} = Ingress.start_link(without_profile)
+    assert {:ok, generic_session} = Ingress.login(generic, @imei)
+
+    assert {:ok, %{disposition: :accepted}} =
+             Ingress.submit(generic, generic_session, context.packet)
+
+    assert {:ok, %{"items" => [%{"id" => id}]}} =
+             Service.list(
+               context.context.service,
+               context.context.admin,
+               context.context.scope,
+               "observations",
+               %{"limit" => 10},
+               context.context.now
+             )
+
+    assert {:ok, raw} =
+             Service.raw_observation(
+               context.context.service,
+               context.context.admin,
+               context.context.scope,
+               id,
+               context.context.now
+             )
+
+    assert is_nil(Codec.decode!(raw)["provenance"]["configured_profile"])
+    assert :ok = GenServer.stop(generic)
   end
 
   test "an invalid trusted clock rejects without touching durable state", context do
-    for clock <- [fn -> :invalid end, fn -> raise "private clock failure" end] do
+    for clock <- [
+          fn -> :invalid end,
+          fn -> raise "private clock failure" end,
+          fn -> throw(:private_clock_failure) end
+        ] do
       ingress =
         start_supervised!(
           Supervisor.child_spec(
@@ -241,7 +317,8 @@ defmodule Wotex.Tracker.Service.CellularIngressTest do
           identity_digest: identity_digest,
           token: context.admin,
           scope: context.scope,
-          id: "configured-tracker"
+          id: "configured-tracker",
+          profile: TAT140.configured_profile()
         }
       ],
       clock: fn -> context.now end
@@ -255,6 +332,17 @@ defmodule Wotex.Tracker.Service.CellularIngressTest do
     [vector] = fixture["vectors"]
     {:ok, packet} = vector["hex"] |> Base.decode16!() |> Codec8Extended.decode_frame()
     packet
+  end
+
+  defp fail_after_operation do
+    receive do
+      {:"$gen_call", from, {:authorized, _access, _permission, _activity, _now}} ->
+        GenServer.reply(from, :ok)
+        fail_after_operation()
+
+      {:"$gen_call", from, {:operation, _scope, _principal, _operation, _now}} ->
+        GenServer.reply(from, {:error, :not_found})
+    end
   end
 
   defp cellular_document(context, packet) do
@@ -281,6 +369,7 @@ defmodule Wotex.Tracker.Service.CellularIngressTest do
         provenance: %{
           "protocol" => "teltonika-codec8-extended",
           "revision" => "1.0.0",
+          "configured_profile" => TAT140.configured_profile(),
           "identity_assurance" => "configured-routing-identifier"
         }
       })

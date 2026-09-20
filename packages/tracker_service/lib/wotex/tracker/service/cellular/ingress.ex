@@ -167,12 +167,16 @@ defmodule Wotex.Tracker.Service.Cellular.Ingress do
   defp devices?(_), do: false
 
   defp device?(%{identity_digest: digest, token: token, scope: scope, id: id} = device)
-       when map_size(device) == 4,
-       do:
-         digest?(digest) and match?({:ok, _}, Credentials.token_digest(token)) and
-           Codec.id?(scope) and Codec.id?(id)
+       when map_size(device) in [4, 5] do
+    Enum.all?(Map.keys(device), &(&1 in [:identity_digest, :token, :scope, :id, :profile])) and
+      digest?(digest) and match?({:ok, _}, Credentials.token_digest(token)) and Codec.id?(scope) and
+      Codec.id?(id) and profile?(Map.get(device, :profile))
+  end
 
   defp device?(_), do: false
+
+  defp profile?(nil), do: true
+  defp profile?(profile), do: Codec.id?(profile)
 
   defp digest?(digest) when is_binary(digest) and byte_size(digest) == 64,
     do: match?({:ok, _}, Base.decode16(digest, case: :lower))
@@ -289,6 +293,14 @@ defmodule Wotex.Tracker.Service.Cellular.Ingress do
   defp observation(device, packet, now) do
     digest = frame_digest(device.identity_digest, packet.frame)
 
+    provenance =
+      %{
+        "protocol" => "teltonika-codec8-extended",
+        "revision" => "1.0.0",
+        "identity_assurance" => "configured-routing-identifier",
+        "configured_profile" => Map.get(device, :profile)
+      }
+
     Observation.new(%{
       id: "teltonika-frame-" <> digest,
       observed_at: now,
@@ -302,11 +314,7 @@ defmodule Wotex.Tracker.Service.Cellular.Ingress do
         "record_count" => packet.record_count,
         "acknowledgement" => "durable-record-count"
       },
-      provenance: %{
-        "protocol" => "teltonika-codec8-extended",
-        "revision" => "1.0.0",
-        "identity_assurance" => "configured-routing-identifier"
-      }
+      provenance: provenance
     })
   end
 

@@ -5,7 +5,7 @@ defmodule Wotex.Tracker.Service.CellularServerTest do
   import Bitwise, only: [bxor: 2]
   import Wotex.Tracker.Service.Fixtures
 
-  alias Wotex.Tracker.Protocols.Teltonika.TCPSession
+  alias Wotex.Tracker.Protocols.Teltonika.{TAT140, TCPSession}
   alias Wotex.Tracker.Service
   alias Wotex.Tracker.Service.Cellular.{Connection, Ingress, Server}
 
@@ -199,7 +199,8 @@ defmodule Wotex.Tracker.Service.CellularServerTest do
           identity_digest: identity_digest,
           token: context.admin,
           scope: context.scope,
-          id: "configured-tracker"
+          id: "configured-tracker",
+          profile: TAT140.configured_profile()
         }
       ],
       ip: {127, 0, 0, 1},
