@@ -4157,5 +4157,5 @@ kiosk composition passed 13, both with warnings-as-errors and formatter checks.
 
 This closes only offline software preparation of the private service tree. It
 does not prove transfer to selected media, an authenticated on-device bootstrap,
-browser/TLS provisioning, clock policy, durable-storage recovery or a physical
-Pi boot. Those gates remain explicit.
+browser/TLS provisioning, clock policy, physical durable-storage recovery or a
+physical Pi boot. Those gates remain explicit.

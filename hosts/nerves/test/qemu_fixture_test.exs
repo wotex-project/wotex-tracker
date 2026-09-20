@@ -2,7 +2,7 @@ Code.require_file("../qemu/qemu_fixture.ex", __DIR__)
 
 defmodule Wotex.Tracker.Nerves.QemuFixtureTest do
   use ExUnit.Case, async: false
-  alias Wotex.Tracker.Nerves.{Config, QemuFixture}
+  alias Wotex.Tracker.Nerves.{Config, QemuFixture, StoragePolicy}
 
   test "a virtual first boot creates one private, valid service document" do
     parent = Path.expand("_build/test/qemu_fixture")
@@ -14,6 +14,7 @@ defmodule Wotex.Tracker.Nerves.QemuFixtureTest do
     assert {:ok, options} = Config.load(Path.join(root, "config.json"), root)
     assert options[:directory] == Path.join(root, "data")
     assert options[:exposure] == :loopback
+    assert :ok = StoragePolicy.admit(root, "qemu-smoke", Path.join(root, "data"))
     assert File.stat!(root).mode |> Bitwise.band(0o777) == 0o700
     assert File.stat!(Path.join(root, "config.json")).mode |> Bitwise.band(0o777) == 0o600
 

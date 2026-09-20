@@ -4,6 +4,7 @@ defmodule Wotex.Tracker.Nerves.BrowserTest do
   alias Wotex.Tracker.Nerves.Browser.Client
   alias Wotex.Tracker.Nerves.Browser.Endpoint
   alias Wotex.Tracker.Nerves.BrowserConfig
+  alias Wotex.Tracker.Nerves.StoragePolicy
   alias Wotex.Tracker.Service.{Codec, Credentials}
   alias Wotex.Tracker.Service.HTTP.Server
 
@@ -39,6 +40,7 @@ defmodule Wotex.Tracker.Nerves.BrowserTest do
 
     service_path = Path.join(root, "config.json")
     write(service_path, service)
+    {:ok, _marker} = StoragePolicy.provision(root, root, "pi-browser-test")
     port = free_port()
 
     browser = %{

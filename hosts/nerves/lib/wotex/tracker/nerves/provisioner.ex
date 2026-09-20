@@ -7,6 +7,7 @@ defmodule Wotex.Tracker.Nerves.Provisioner do
   Provisioning never emits the bearer token; it reports the private token file.
   """
 
+  alias Wotex.Tracker.Nerves.StoragePolicy
   alias Wotex.Tracker.Service.HostProvisioning
 
   @runtime_root "/root/tracker"
@@ -52,11 +53,13 @@ defmodule Wotex.Tracker.Nerves.Provisioner do
              ip: "127.0.0.1",
              port: port,
              expires_at: now + expires_in * 1_000
-           }) do
+           }),
+         {:ok, marker} <- provision_storage(paths, directory, runtime_root, instance) do
       {:ok,
        %{
          "schema" => "wtr.nerves-provisioning.v1",
          "config_file" => paths.config,
+         "storage_marker" => marker,
          "token_file" => paths.token_file,
          "staged_data_directory" => paths.data_directory,
          "runtime_config_file" => paths.runtime_config,
@@ -71,4 +74,20 @@ defmodule Wotex.Tracker.Nerves.Provisioner do
   end
 
   def run(_, _, _), do: {:error, :invalid_arguments}
+
+  defp provision_storage(paths, directory, runtime_root, instance) do
+    case StoragePolicy.provision(directory, runtime_root, instance) do
+      {:ok, marker} ->
+        {:ok, marker}
+
+      {:error, _} = error ->
+        discard_host_paths(paths)
+        error
+    end
+  end
+
+  defp discard_host_paths(paths) do
+    _ = [File.rm(paths.config), File.rm(paths.token_file), File.rmdir(paths.data_directory)]
+    :ok
+  end
 end

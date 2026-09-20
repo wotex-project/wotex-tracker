@@ -3,6 +3,7 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
   alias Wotex.Tracker.Nerves.Application, as: HostApplication
   alias Wotex.Tracker.Nerves.Config
   alias Wotex.Tracker.Nerves.NativeResourceSampler
+  alias Wotex.Tracker.Nerves.StoragePolicy
   alias Wotex.Tracker.Service.{Codec, Credentials}
   alias Wotex.Tracker.Service.HTTP.Server
 
@@ -39,6 +40,7 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
     path = Path.join(root, "config.json")
     File.write!(path, Codec.encode!(document))
     File.chmod!(path, 0o600)
+    {:ok, marker} = StoragePolicy.provision(root, root, "pi-test")
     previous_path = Application.get_env(:wotex_tracker_nerves, :config_path)
     previous_root = Application.get_env(:wotex_tracker_nerves, :data_root)
 
@@ -48,7 +50,7 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
       File.rm_rf!(root)
     end)
 
-    %{root: root, data: data, path: path, document: document, token: token}
+    %{root: root, data: data, path: path, marker: marker, document: document, token: token}
   end
 
   test "a configured appliance owns only the shared service listener and store", c do
@@ -68,6 +70,9 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
     assert port > 0
     assert {:ok, store} = Server.child(server, :store)
     assert Process.alive?(store)
+
+    assert {:ok, %{"state" => "initialized"}} =
+             c.marker |> File.read!() |> Codec.decode()
 
     url = ~c"http://127.0.0.1:#{port}/api/v1/scopes/workshop/health/ready"
 
@@ -89,7 +94,7 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
   end
 
   test "unprovisioned, public and out-of-root material fails closed", c do
-    assert {:error, :invalid_configuration} = HostApplication.start(:normal, [])
+    assert {:error, :recovery_required} = HostApplication.start(:normal, [])
     assert {:error, :invalid_configuration} = Config.load(c.path, c.root <> ".other")
 
     File.chmod!(c.path, 0o644)
@@ -109,6 +114,19 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
 
     File.write!(c.path, Codec.encode!(proxy))
     assert {:error, :invalid_configuration} = Config.load(c.path, c.root)
+  end
+
+  test "initialized missing and corrupt storage requires recovery", c do
+    File.write!(Path.join(c.data, "tracker.db"), "not sqlite")
+    File.chmod!(Path.join(c.data, "tracker.db"), 0o600)
+    assert :ok = StoragePolicy.mark_initialized(c.root, "pi-test", c.data)
+
+    Application.put_env(:wotex_tracker_nerves, :config_path, c.path)
+    Application.put_env(:wotex_tracker_nerves, :data_root, c.root)
+    assert {:error, :recovery_required} = start_trapping_exit()
+
+    File.rm!(Path.join(c.data, "tracker.db"))
+    assert {:error, :recovery_required} = HostApplication.start(:normal, [])
   end
 
   test "TLS key and certificate must be private files under the provisioned root", c do
@@ -135,5 +153,15 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
     File.chmod!(key, 0o600)
     File.write!(c.path, Codec.encode!(put_in(document, ["tls", "keyfile"], "/etc/key.pem")))
     assert {:error, :invalid_configuration} = Config.load(c.path, c.root)
+  end
+
+  defp start_trapping_exit do
+    previous = Process.flag(:trap_exit, true)
+
+    try do
+      HostApplication.start(:normal, [])
+    after
+      Process.flag(:trap_exit, previous)
+    end
   end
 end

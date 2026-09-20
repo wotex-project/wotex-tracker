@@ -355,9 +355,12 @@ Add BLE only after its controller/backend passes Phase 4.
 
 The source host now has a create-only offline provisioner that stages the shared
 private service document, operator-token file and data directory for the fixed
-appliance runtime root. It never replaces an occupied path or emits the bearer.
-Authenticated on-device setup, browser/TLS provisioning and the exact physical
-media installation path remain required acceptance work.
+appliance runtime root. It also creates a private one-time storage marker. A
+successful SQLite startup advances that marker atomically; later missing,
+unsafe, corrupt or unsupported storage fails with `recovery_required` instead
+of becoming an empty store. Provisioning never replaces an occupied path or
+emits the bearer. Authenticated on-device setup, browser/TLS provisioning and
+the exact physical media installation path remain required acceptance work.
 
 Complete both product profiles: durable headless service on `nerves_system_rpi5`
 and shared LiveView on `kiosk_system_rpi5` with local Cog display. Physical touch

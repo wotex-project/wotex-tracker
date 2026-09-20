@@ -29,12 +29,18 @@ defmodule Wotex.Tracker.Nerves.ProvisionerTest do
     assert {:ok, result} = Provisioner.run(["--" | arguments], 1_700_000_000_000, c.root)
     assert result["schema"] == "wtr.nerves-provisioning.v1"
     assert result["runtime_config_file"] == Path.join(c.root, "config.json")
+    assert result["storage_marker"] == Path.join(c.root, "storage.json")
     assert {:ok, options} = Config.load(result["config_file"], c.root)
     assert options[:port] == 4321
     assert options[:directory] == Path.join(c.root, "data")
 
     token = result["token_file"] |> File.read!() |> String.trim_trailing("\n")
     document = result["config_file"] |> File.read!() |> Codec.decode!()
+    storage = result["storage_marker"] |> File.read!() |> Codec.decode!()
+
+    assert storage["state"] == "prepared"
+    assert storage["instance_id"] == "pi-gateway"
+    assert storage["data_directory"] == Path.join(c.root, "data")
 
     assert {:ok, hd(document["credentials"])["token_sha256"]} ==
              Credentials.token_digest(token)
@@ -61,7 +67,9 @@ defmodule Wotex.Tracker.Nerves.ProvisionerTest do
              )
 
     document = result["config_file"] |> File.read!() |> Codec.decode!()
+    storage = result["storage_marker"] |> File.read!() |> Codec.decode!()
     assert document["data_directory"] == "/root/tracker/data"
+    assert storage["data_directory"] == "/root/tracker/data"
     assert result["runtime_config_file"] == "/root/tracker/config.json"
 
     assert {:error, :invalid_arguments} =
@@ -89,5 +97,32 @@ defmodule Wotex.Tracker.Nerves.ProvisionerTest do
                1_700_000_000_000,
                c.root
              )
+  end
+
+  test "an occupied storage marker is retained and rolls back only new host paths", c do
+    File.mkdir!(c.root)
+    File.chmod!(c.root, 0o700)
+    marker = Path.join(c.root, "storage.json")
+    File.write!(marker, "occupied")
+    File.chmod!(marker, 0o600)
+
+    assert {:error, :configuration_exists} =
+             Provisioner.run(
+               [
+                 "--directory",
+                 c.root,
+                 "--instance-id",
+                 "pi-gateway",
+                 "--scope",
+                 "workshop"
+               ],
+               1_700_000_000_000,
+               "/root/tracker"
+             )
+
+    assert File.read!(marker) == "occupied"
+    refute File.exists?(Path.join(c.root, "config.json"))
+    refute File.exists?(Path.join(c.root, "operator.token"))
+    refute File.exists?(Path.join(c.root, "data"))
   end
 end

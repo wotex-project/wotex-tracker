@@ -17,10 +17,13 @@ tree for `/root/tracker` through the shared service configuration seam. It emits
 only private file paths and can target mounted media without embedding the mount
 path in runtime configuration. It is not an authenticated on-device setup UI,
 TLS/browser provisioning or media installation. Neither Pi image has booted on
-a Pi, and no durable-storage policy or hardware acceptance exists yet. Bootable
-headless and local-display profiles remain required product deliverables and
-optional installations. They consume the pure library without changing its
-startup or dependency contract. WTR.13 governs the root.
+a Pi. A source-level storage marker now permits one prepared initialization and
+makes later missing, unsafe, corrupt or unsupported stores an explicit
+`recovery_required` startup result. No physical storage-recovery or hardware
+acceptance exists yet. Bootable headless and local-display profiles remain
+required product deliverables and optional installations. They consume the pure
+library without changing its startup or dependency contract. WTR.13 governs the
+root.
 
 ## Separate library and appliance
 
@@ -125,6 +128,16 @@ before advertising durable storage. Use an explicit recovery-required state for
 previously initialized storage that cannot be safely read, rather than silently
 claiming an empty replacement is the last valid state.
 [Nerves runtime filesystem initialization](https://hexdocs.pm/nerves_runtime/readme.html#filesystem-initialization).
+
+The source host implements that boundary with a private `wtr.storage.v1` marker
+bound to the configured instance and data directory. Only a provisioned
+`prepared` marker admits a missing database. After the service opens the store,
+performs supported migrations and passes SQLite integrity checks, the marker is
+atomically advanced to `initialized`. Subsequent missing, empty, unsafe, corrupt
+or unsupported storage and interrupted marker transitions return
+`recovery_required`; startup does not delete or replace the database. This is a
+software policy, not evidence that selected Pi media survives or recovers from
+the physical failure matrix below.
 
 The volatile first boot profile needs no database. A durable profile additionally
 passes WTR.06 transaction/replay tests on the actual target storage. Specify data

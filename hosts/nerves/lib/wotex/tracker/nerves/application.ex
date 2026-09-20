@@ -10,28 +10,52 @@ defmodule Wotex.Tracker.Nerves.Application do
   """
 
   use Application
-  alias Wotex.Tracker.Nerves.Config
+  alias Wotex.Tracker.Nerves.{Config, StoragePolicy}
   alias Wotex.Tracker.Nerves.Supervisor, as: HostSupervisor
+  alias Wotex.Tracker.Service.Credentials
 
   @impl true
   def start(_type, _args) do
     with :ok <- prepare_target(),
+         :ok <- StoragePolicy.require_marker(data_root()),
          {:ok, options} <-
            Config.load(
              Application.get_env(:wotex_tracker_nerves, :config_path),
              Application.get_env(:wotex_tracker_nerves, :data_root)
            ),
+         instance_id = Credentials.instance_id(options[:credentials]),
+         :ok <- StoragePolicy.admit(data_root(), instance_id, options[:directory]),
          {:ok, browser} <- browser_config(options) do
-      case HostSupervisor.start_link(service: options, browser: browser) do
-        {:ok, _} = started ->
-          target_ready()
-          started
-
-        error ->
-          error
-      end
+      start_host(options, browser, instance_id)
     end
   end
+
+  defp start_host(options, browser, instance_id) do
+    case HostSupervisor.start_link(service: options, browser: browser) do
+      {:ok, host} -> finalize_host(host, instance_id, options[:directory])
+      {:error, reason} -> recover_or_return(reason)
+    end
+  end
+
+  defp finalize_host(host, instance_id, directory) do
+    case StoragePolicy.mark_initialized(data_root(), instance_id, directory) do
+      :ok ->
+        target_ready()
+        {:ok, host}
+
+      {:error, :recovery_required} = error ->
+        Supervisor.stop(host)
+        error
+    end
+  end
+
+  defp recover_or_return(reason) do
+    if StoragePolicy.recovery_failure?(reason),
+      do: {:error, :recovery_required},
+      else: {:error, reason}
+  end
+
+  defp data_root, do: Application.get_env(:wotex_tracker_nerves, :data_root)
 
   if Mix.target() == :qemu_aarch64 do
     defp prepare_target, do: Wotex.Tracker.Nerves.QemuFixture.prepare()

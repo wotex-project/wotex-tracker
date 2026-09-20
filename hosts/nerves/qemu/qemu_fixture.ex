@@ -11,6 +11,7 @@ defmodule Wotex.Tracker.Nerves.QemuFixture do
   """
 
   require Logger
+  alias Wotex.Tracker.Nerves.StoragePolicy
   alias Wotex.Tracker.Nerves.Supervisor, as: HostSupervisor
   alias Wotex.Tracker.Service.{Codec, Credentials}
   alias Wotex.Tracker.Service.HTTP.Server
@@ -106,6 +107,7 @@ defmodule Wotex.Tracker.Nerves.QemuFixture do
     File.write!(temporary, Codec.encode!(document))
     File.chmod!(temporary, 0o600)
     File.rename!(temporary, Path.join(root, "config.json"))
+    {:ok, _marker} = StoragePolicy.provision(root, root, "qemu-smoke")
     :ok
   end
 

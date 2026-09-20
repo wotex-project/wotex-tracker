@@ -27,14 +27,15 @@ does not write an SD card or validate a physical Pi. Do not use `mix burn` or
 
 ## Private configuration
 
-The appliance expects `/root/tracker/config.json` in a private 0700 directory,
-with a separate private storage directory below it. The file is the shared
-`wtr.host.v1` JSON format documented by [the standalone host](../app/README.md).
-It must be a singly linked 0600 regular file, with no symlinked ancestors.
-Credentials are token hashes plus a 32-byte instance key; the firmware creates
-neither tokens nor a default listener during boot. A missing or invalid document
-stops the Tracker application with a fixed `invalid_configuration` error. It
-does not silently claim an empty history.
+The appliance expects `/root/tracker/config.json` and `storage.json` in a private
+0700 directory, with a separate private storage directory below it. The config
+file is the shared `wtr.host.v1` JSON format documented by
+[the standalone host](../app/README.md). Both files must be singly linked 0600
+regular files, with no symlinked ancestors. Credentials are token hashes plus a
+32-byte instance key; the firmware creates neither tokens nor a default listener
+during boot. A missing storage marker stops with `recovery_required`; an invalid
+configuration stops with `invalid_configuration`. Neither case silently claims
+an empty history.
 
 Only loopback and direct TLS exposure are admitted. The image has no reverse
 proxy, so proxy mode is rejected. A TLS certificate and private key must each
@@ -58,12 +59,13 @@ WOTEX_PATH_DEPS=1 MIX_TARGET=host MIX_ENV=test mise exec -- \
 ```
 
 The command uses the service package's shared host provisioner. It creates a
-0700 destination and data directory, exclusive 0600 `config.json` and
-`operator.token` files, a fresh instance key and one operator credential with a
-one-day default expiry. `--expires-in` accepts 1–604800 seconds. Output contains
-only file paths; read the token from its private file. A repeated command refuses
-the occupied tree without changing it, and normal failure removes only paths
-created by that attempt.
+0700 destination and data directory, exclusive 0600 `config.json`,
+`storage.json` and `operator.token` files, a fresh instance key and one operator
+credential with a one-day default expiry. `storage.json` starts in `prepared`
+state and carries a random non-secret storage identity. `--expires-in` accepts
+1–604800 seconds. Output contains only file paths; read the token from its
+private file. A repeated command refuses the occupied tree without changing it,
+and failure removes only files and directories created by that attempt.
 
 The generated configuration always names `/root/tracker/config.json` and
 `/root/tracker/data` as runtime paths. If `--directory` is a staging or mounted-
@@ -84,16 +86,36 @@ It carries only the fixed `nerves` surface and `linux_procfs` source labels.
 Missing or malformed fields produce no partial or invented sample. No procfs
 path, process ID, device identity, credential or scope becomes telemetry.
 
+## Storage recovery state
+
+The service may create `data/tracker.db` only while the private marker is in its
+one-time `prepared` state. After SQLite has opened, migrated its supported schema
+and passed `quick_check`, startup atomically replaces that state with
+`initialized`. Every later boot requires the same instance identity, data path,
+private non-empty database and an intact marker. A missing/empty/unsafe database,
+malformed or interrupted marker, SQLite corruption, storage failure or newer
+unsupported schema stops startup with `recovery_required`. It never deletes,
+renames or recreates that database during recovery admission.
+
+Recovery is operator-controlled: preserve the failed media, restore the complete
+private Tracker tree from a SQLite-consistent backup onto separate media, retain
+the 0700/0600 modes and storage identity, and boot the restored copy. Do not copy
+a live database without its SQLite backup operation, remove the marker to force
+initialization, or reuse an empty `prepared` marker for an initialized appliance.
+The source tests cover missing, corrupt, unsafe and interrupted states; physical
+power-loss, full-media, unmountable-partition and restore trials remain required.
+
 ## Current limits
 
 The development cross-build is software evidence only. No Pi 5, display,
 touch controller, Bluetooth controller, SD recovery trial or firmware update
 trial has been exercised. The default Nerves data-partition initialization can
-reformat unreadable storage; a durable product image needs a tested recovery
-policy before history preservation can be claimed. Offline clock estimates are
-not trusted NTP synchronization, so credential expiry under an unsynchronized
-clock needs a device policy before exposed use. Local authenticated bootstrap
-setup and hardware gates remain open.
+reformat unreadable storage; losing the provisioned marker then fails closed but
+does not recover history. Durable product acceptance still needs the physical
+recovery matrix and a proven backup/restore path. Offline clock estimates are not
+trusted NTP synchronization, so credential expiry under an unsynchronized clock
+needs a device policy before exposed use. Local authenticated bootstrap setup and
+hardware gates remain open.
 
 The build record in `../../verification/nerves-headless-build.json` contains
 the local firmware digest and resolved target components when generated. The
@@ -155,10 +177,11 @@ is the closer virtual boot candidate.
 `MIX_TARGET=qemu_aarch64` builds a separate headless software-test image with
 `nerves_system_qemu_aarch64` 0.4.2 and `mix.qemu.lock`. It is not a Pi artifact.
 This profile alone creates an unpredictable, inaccessible test credential on its
-first boot under the private `/root/tracker` mount. The listener remains guest
-loopback-only. It probes the private SQLite file and `/health/live`, reporting
-only pass or fail to the serial console. The Pi profiles never compile this
-fixture or turn on a serial logger.
+first boot under the private `/root/tracker` mount together with the same prepared
+storage marker. Successful SQLite startup advances the marker before the probe.
+The listener remains guest loopback-only. It probes the private SQLite file and
+`/health/live`, reporting only pass or fail to the serial console. The Pi profiles
+never compile this fixture or turn on a serial logger.
 
 ```sh
 WOTEX_PATH_DEPS=1 MIX_TARGET=qemu_aarch64 MIX_ENV=dev \
