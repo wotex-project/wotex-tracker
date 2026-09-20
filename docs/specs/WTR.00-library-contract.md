@@ -2,7 +2,13 @@
 
 ## Status
 
-Accepted target contract. No implementation claim.
+Implemented for the reusable core and package boundary: `wotex_tracker` is an
+inert, headless library with explicit inputs, deterministic domain operations and
+no application callback, while service, browser, mobile and Nerves consumers live
+in separate packages/hosts. This does not claim completion of the product,
+physical adapters, hardware qualification or distribution gates required below.
+See the [implementation plan](../plans/software-implementation.md) and
+[executed evidence](../evidence/implementation.md#foundation--2026-09-15).
 
 ## Purpose
 
