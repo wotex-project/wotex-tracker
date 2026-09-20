@@ -26,9 +26,11 @@ defmodule Wotex.Tracker.Nerves.StoragePolicyTest do
     assert :ok = StoragePolicy.mark_initialized(c.root, "pi-test", c.data)
     assert {:ok, %{"state" => "initialized"}} = c.marker |> File.read!() |> Codec.decode()
     assert :ok = StoragePolicy.admit(c.root, "pi-test", c.data)
+    assert StoragePolicy.initialized?(c.root, "pi-test", c.data)
 
     File.rm!(Path.join(c.data, "tracker.db"))
     assert {:error, :recovery_required} = StoragePolicy.admit(c.root, "pi-test", c.data)
+    refute StoragePolicy.initialized?(c.root, "pi-test", c.data)
   end
 
   test "marker identity, paths, shape and privacy fail closed", c do

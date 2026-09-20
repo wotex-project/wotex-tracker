@@ -151,7 +151,7 @@ defmodule Wotex.Tracker.Nerves.BuildRecord do
 
   defp digest(path) do
     path
-    |> File.stream!([:read, :binary], 1_048_576)
+    |> File.stream!(1_048_576, [:read, :binary])
     |> Enum.reduce(:crypto.hash_init(:sha256), &:crypto.hash_update(&2, &1))
     |> :crypto.hash_final()
     |> Base.encode16(case: :lower)

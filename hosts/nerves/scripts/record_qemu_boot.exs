@@ -76,6 +76,8 @@ defmodule Wotex.Tracker.Nerves.QemuBootRecord do
 
     true = String.contains?(reboot, "Booting from slot a")
     false = String.contains?(reboot, "Formatting application partition")
+    true = String.contains?(first, "initialized storage marker")
+    true = String.contains?(reboot, "initialized storage marker")
 
     true =
       String.contains?(
@@ -118,9 +120,11 @@ defmodule Wotex.Tracker.Nerves.QemuBootRecord do
         "first_boot_formatted_fresh_partition" => true,
         "first_boot_private_store_and_loopback_http" => true,
         "first_boot_native_resource_sample" => true,
+        "first_boot_initialized_storage_marker" => true,
         "reboot_kept_existing_partition" => true,
         "reboot_private_store_and_loopback_http" => true,
         "reboot_native_resource_sample" => true,
+        "reboot_initialized_storage_marker" => true,
         "no_ui_or_ssh_applications" => true,
         "no_active_iex_or_distribution" => true,
         "no_credentials_in_runtime_config" => true,
@@ -146,7 +150,7 @@ defmodule Wotex.Tracker.Nerves.QemuBootRecord do
 
   defp digest(path) do
     path
-    |> File.stream!([:read, :binary], 1_048_576)
+    |> File.stream!(1_048_576, [:read, :binary])
     |> Enum.reduce(:crypto.hash_init(:sha256), &:crypto.hash_update(&2, &1))
     |> :crypto.hash_final()
     |> Base.encode16(case: :lower)

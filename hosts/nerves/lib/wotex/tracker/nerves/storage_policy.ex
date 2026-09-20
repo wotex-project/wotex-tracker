@@ -65,6 +65,15 @@ defmodule Wotex.Tracker.Nerves.StoragePolicy do
     end
   end
 
+  @doc false
+  @spec initialized?(term(), term(), term()) :: boolean()
+  def initialized?(root, instance_id, data_directory) do
+    with :ok <- admit(root, instance_id, data_directory),
+         {:ok, %{"state" => "initialized"}} <- read(root),
+         do: true,
+         else: (_ -> false)
+  end
+
   @doc "Advances a prepared marker after SQLite has opened and passed its checks."
   @spec mark_initialized(term(), term(), term()) :: :ok | {:error, :recovery_required}
   def mark_initialized(root, instance_id, data_directory),

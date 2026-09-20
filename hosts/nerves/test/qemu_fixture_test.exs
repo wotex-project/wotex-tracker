@@ -36,6 +36,7 @@ defmodule Wotex.Tracker.Nerves.QemuFixtureTest do
     assert :ok =
              QemuFixture.probe(
                regular?: fn -> true end,
+               initialized?: fn -> true end,
                health: fn -> :ok end,
                history: history,
                attempts: 2,
@@ -43,16 +44,38 @@ defmodule Wotex.Tracker.Nerves.QemuFixtureTest do
              )
 
     for options <- [
-          [regular?: fn -> false end, health: fn -> :ok end, history: history],
-          [regular?: fn -> true end, health: fn -> :error end, history: history],
+          [
+            regular?: fn -> false end,
+            initialized?: fn -> true end,
+            health: fn -> :ok end,
+            history: history
+          ],
           [
             regular?: fn -> true end,
+            initialized?: fn -> false end,
+            health: fn -> :ok end,
+            history: history
+          ],
+          [
+            regular?: fn -> true end,
+            initialized?: fn -> true end,
+            health: fn -> :error end,
+            history: history
+          ],
+          [
+            regular?: fn -> true end,
+            initialized?: fn -> true end,
             health: fn -> :ok end,
             history: fn -> {:ok, %{"samples" => []}} end,
             attempts: 1,
             interval_ms: 0
           ],
-          [regular?: fn -> raise "private path" end, health: fn -> :ok end, history: history]
+          [
+            regular?: fn -> raise "private path" end,
+            initialized?: fn -> true end,
+            health: fn -> :ok end,
+            history: history
+          ]
         ] do
       assert :error = QemuFixture.probe(options)
     end

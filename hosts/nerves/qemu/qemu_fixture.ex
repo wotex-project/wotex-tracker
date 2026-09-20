@@ -36,7 +36,8 @@ defmodule Wotex.Tracker.Nerves.QemuFixture do
         case probe() do
           :ok ->
             Logger.info(
-              "QEMU boot probe passed: private store, loopback HTTP and native resources"
+              "QEMU boot probe passed: private store, loopback HTTP and native resources, " <>
+                "initialized storage marker"
             )
 
           :error ->
@@ -52,12 +53,14 @@ defmodule Wotex.Tracker.Nerves.QemuFixture do
 
   def probe(options) when is_list(options) do
     regular? = Keyword.get(options, :regular?, &default_store?/0)
+    initialized? = Keyword.get(options, :initialized?, &default_storage_initialized?/0)
     health = Keyword.get(options, :health, &default_health/0)
     history = Keyword.get(options, :history, &default_history/0)
     attempts = Keyword.get(options, :attempts, @probe_attempts)
     interval = Keyword.get(options, :interval_ms, @probe_interval_ms)
 
     with true <- is_function(regular?, 0) and regular?.(),
+         true <- is_function(initialized?, 0) and initialized?.(),
          true <- is_function(health, 0),
          :ok <- health.(),
          true <- is_function(history, 0),
@@ -112,6 +115,9 @@ defmodule Wotex.Tracker.Nerves.QemuFixture do
   end
 
   defp default_store?, do: File.regular?(Path.join(@root, "data/tracker.db"))
+
+  defp default_storage_initialized?,
+    do: StoragePolicy.initialized?(@root, "qemu-smoke", Path.join(@root, "data"))
 
   defp default_health do
     url = ~c"http://127.0.0.1:4000/health/live"
