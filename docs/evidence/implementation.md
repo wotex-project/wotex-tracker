@@ -4656,3 +4656,49 @@ cryptographic device authentication. This slice does not open a TCP listener,
 enforce socket deadlines, exercise an independent wire peer, map TAT140 IO
 identifiers into device-profile semantics or prove a real tracker and SIM; those
 remain separate acceptance boundaries.
+
+### Bounded Teltonika TCP listener and independent peer — 2026-09-20
+
+The explicitly started cellular server now supervises the serialized admission
+owner and one clear-TCP Thousand Island listener. Package loading remains inert.
+Configuration requires the service, 256-bit private identity key, finite keyed
+device table, exact bind address and port. One acceptor admits at most 32 live
+connections; socket receive and application buffers are bounded at 32 KiB.
+Login, incomplete-frame, send and shutdown deadlines are positive and capped at
+five minutes. A port selected by the operating system can be queried without
+exposing credentials or device configuration.
+
+Malformed login and AVL bytes close without an acknowledgement. An unknown
+configured identity receives the documented zero login byte. Accepted and
+duplicate commits receive the complete record count, a known rejection receives
+zero and an unknown commit outcome closes the connection. Private admission
+sessions are released on peer close, timeout, transport error and supervised
+shutdown. The listener delegates framing and durable decisions to the already
+bounded pure and service seams rather than duplicating them.
+
+The independent Erlang escript imports no Tracker or service modules. In one
+execution it opens 103 real TCP connections covering coalesced login plus data,
+all 16 nontrivial splits of the 17-byte login, all 85 nontrivial splits of the
+86-byte official frame, two concatenated frames and retransmission. Additional
+wire tests cover an unknown and malformed IMEI, invalid CRC, an oversized
+declared frame, incomplete EOF, connection capacity, absolute login and frame
+timeouts, listener shutdown and connection loss before and after the durable
+commit boundary. The post-commit fault closes without an ACK; reconnecting the
+same frame resolves the retained operation as a duplicate and leaves one
+observation.
+
+Both service runtime lanes passed the complete gate. Elixir 1.18.4 on
+Erlang/OTP 27.3.4.15 and Elixir 1.20.4 on Erlang/OTP 29.0.4 each passed 329 tests
+and two generated properties at 95.0% production line coverage. The repository
+gate passed 176 tests and 19 generated properties at 95.4%. Compiler, dependency,
+formatter, vulnerability audit, strict Credo, ExDoc, Dialyzer, stack-language,
+documentation-contract, archive, OpenAPI and licence checks passed where
+configured. The implementation commit is
+`523d0abf044a1b81789e114332e31d3bea4f95cc`.
+
+This proves bounded clear-TCP protocol execution against an independent software
+peer and commit-dependent retransmission behavior. It does not authenticate the
+device cryptographically, encrypt the tracker transport, provide host or
+firmware deployment configuration, map TAT140 IO identifiers into semantic
+capabilities, exercise commands or UDP, or prove a physical tracker, SIM and
+operator network; those remain separate acceptance boundaries.
