@@ -690,6 +690,13 @@ authenticated capability response distinguishes this configured composition
 from an unconfigured service. No real provider call, signed entitlement, device
 delivery or tap acceptance follows from that status.
 
+The mobile host also owns a bounded distribution finalizer for the pinned
+MobDev cohort's missing APNs release entitlement. It admits the exact embedded
+App Store profile identity, re-signs with only the required production fields,
+verifies the resulting signature and entitlement map, and preserves the original
+IPA on every tested failure. This closes the software assembly seam without
+claiming an Apple identity, signed artifact, upload or physical delivery.
+
 Acceptance: real iPhone secure storage, authorized BLE central provisioning,
 notification registration and cold/warm/background tap routing, suspend/resume,
 offline inspection, server/account isolation, safe external navigation, bounded

@@ -5757,7 +5757,16 @@ toolchain and CI lane. The monorepo dependency seam compiles the shared UI as a
 consumed development dependency, keeping its package-internal test dependencies
 out of the mobile host lock and gate.
 
-The complete mobile gate passed 77 tests at 95.0% production line coverage.
+The repository-owned distribution finalizer compensates for MobDev 0.7.1's
+missing release APNs entitlement without editing fetched dependency source. It
+extracts the embedded App Store profile, admits only the exact production bundle
+and team identity, re-signs with a minimal four-field entitlement document,
+verifies both the signature and exact signed entitlement map, and atomically
+replaces the IPA only after packaging succeeds. Failure-injection tests preserve
+the original artifact across profile, signing, verification, entitlement and
+packaging failures.
+
+The complete mobile gate passed 82 tests at 95.0% production line coverage.
 Compiler, unused-dependency, formatter, vulnerability audit, strict Credo,
 ExDoc, Dialyzer, stack-language and licence checks passed. The native plugin
 inventory reported all three plugins activated and clean; its automated audit
@@ -5770,7 +5779,6 @@ No simulator or signed-device build is claimed. Xcode is installed, but its SDK
 tools refuse access until the machine owner reviews and accepts Apple's Xcode
 licence. Signing team/profile selection, APNs entitlement qualification,
 simulator execution, physical BLE and notification behavior and installation
-therefore remain open physical-platform evidence. MobDev 0.7.1's generated
-distribution-signing script also omits `aps-environment`; no TestFlight artifact
-is acceptable until a repaired or upgraded path retains the production
-entitlement and the signed application passes explicit entitlement inspection.
+therefore remain open physical-platform evidence. The finalizer has not run
+against a real distribution identity/profile because none is available, so no
+TestFlight artifact or production push entitlement is claimed.

@@ -73,6 +73,15 @@ defmodule Wotex.Tracker.Mobile.NativeArtifactTest do
     assert production =~ "<key>aps-environment</key>"
     assert production =~ "<string>production</string>"
     refute production =~ "<string>development</string>"
+
+    wrapper = read!("scripts/release_ios.exs")
+    finalizer = read!("scripts/ios_release.exs")
+    assert wrapper =~ "MobDev.Release.build_ipa"
+    assert wrapper =~ "IOSRelease.finalize"
+    assert finalizer =~ ~s(@codesign "/usr/bin/codesign")
+    assert finalizer =~ ~s("aps-environment" => profile.environment)
+    refute finalizer =~ "System.shell"
+    refute finalizer =~ ":os.cmd"
   end
 
   test "native generated output and local Mob configuration stay ignored" do

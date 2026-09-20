@@ -184,19 +184,25 @@ distribution preparation begins by copying
 --distribution`. Keep team IDs, certificate names, profile UUIDs and API-key
 paths only in ignored local configuration or the CI secret store.
 
-Do not upload an IPA from the pinned MobDev 0.7.1 `mix mob.release` path yet.
-Its generated distribution-signing script currently omits `aps-environment`
-even when the App Store profile contains it. A qualified release path must first
-preserve the production entitlement and then pass both Mob's signature checks
-and this explicit inspection:
+MobDev 0.7.1's generated distribution-signing script omits `aps-environment`
+even when the App Store profile contains it, so do not invoke `mix mob.release`
+directly. The repository-owned release command runs that build, extracts the
+embedded App Store profile, requires the exact production application/team/APNs
+identity, re-signs with the minimal admitted entitlement set, verifies the
+signature and signed entitlements, and only then atomically replaces the IPA:
 
 ```sh
-codesign -d --entitlements :- path/to/WotexTrackerMobile.app | plutil -p -
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+  WOTEX_NOTIFICATION_ENVIRONMENT=production \
+  WOTEX_PATH_DEPS=1 MIX_ENV=dev mise exec -- \
+  mix run --no-start scripts/release_ios.exs
 ```
 
-The output must include `"aps-environment" => "production"` before TestFlight
-upload. Upgrading or repairing that upstream release path is a software
-prerequisite; Apple signing authority is a separate user-managed prerequisite.
+The command leaves the original IPA unchanged on profile, signing, verification,
+entitlement or packaging failure. The resulting signed application must still
+show `"aps-environment" => "production"` under `codesign -d --entitlements -`
+before TestFlight upload. Apple signing authority remains a separate
+user-managed prerequisite.
 
 This repository has generated and software-tested the native tree, but has not
 claimed a signed build. On the current machine the Xcode licence still requires
@@ -204,7 +210,8 @@ manual acceptance, and no signing team/profile or physical iPhone is available.
 MobDev's published 0.7.1 constraint also predates Mob 0.9 even though the pinned
 override compiles and its current native templates target Mob 0.9; a physical
 build must qualify that exact override before release. The distribution
-entitlement defect above also remains open. Physical notification delivery,
-cold/warm/background tap distinction, secure-storage behavior, suspend/resume,
-network handoff, target-profile BLE provisioning, share-sheet behavior and all
-other physical-iPhone evidence remain explicitly open.
+entitlement repair is software-tested but has not run against a signed artifact.
+Physical notification delivery, cold/warm/background tap distinction,
+secure-storage behavior, suspend/resume, network handoff, target-profile BLE
+provisioning, share-sheet behavior and all other physical-iPhone evidence remain
+explicitly open.
