@@ -4,6 +4,12 @@ This records reviewed contracts and source identities, not package availability,
 
 Baseline date: 2026-09-12.
 
+The repository rows below preserve the pre-consolidation source snapshot that
+informed the contracts. Coordinated development subsequently moved those
+packages below the sibling `wotex/packages/` monorepo tree; Tracker's exact path
+and archive-consumer evidence is recorded separately in
+[implementation evidence](../evidence/implementation.md#wotex-monorepo-development-seam--2026-09-19).
+
 See the [ecosystem research](ecosystem-research.md) for dated public release
 candidates and adoption decisions. Local source pins and public package releases
 are different evidence; neither implies a passing Tracker consumer build.
@@ -37,9 +43,25 @@ Exact normative revisions used by code MUST be pinned in the owning upstream WoT
 
 Tracker specifications intentionally follow the WoTEx convention of numbered target contracts, an index, a machine-readable catalogue, provenance, decisions and an implementation plan. Implementation evidence remains separate.
 
-All inspected root Mix libraries declare Elixir `~> 1.18`; inspected CI lanes select Elixir 1.20 / OTP 29. Declarations alone do not prove all allowed runtime combinations. Tracker has no Mix requirement or executed support matrix yet. Native protocol prerequisites and optional Nx requirements must be qualified independently.
+All inspected root Mix libraries declare Elixir `~> 1.18`; inspected CI lanes
+select Elixir 1.20 / OTP 29. Declarations alone do not prove all allowed runtime
+combinations. At this baseline Tracker had no Mix requirement or executed support
+matrix; current Tracker verification is recorded in implementation evidence.
+Native protocol prerequisites and optional Nx requirements must be qualified
+independently.
 
 All 15 sibling libraries excluding Lab have no first-party `mod:` application callback in their root Mix declarations. Source inspection found no ambient `Application.get_env/fetch_env/compile_env` configuration or fixed registered session singleton. Explicit session processes are permitted. Calls clearing child-process environment variables are not global library configuration. CoAP's explicit DTLS path starts OTP SSL; this is not automatic network work on loading CoAP. These are focused ownership observations, not complete sibling production audits.
+
+## Monorepo topology follow-up
+
+A read-only follow-up on 2026-09-20 inspected committed `wotex_ble` source at
+[`1793303ffcdfd92e325856b2f44562448046f76a`](https://github.com/wotex-project/wotex/tree/1793303ffcdfd92e325856b2f44562448046f76a/packages/wotex-ble).
+That source uses the accepted first-party C++17/libdbus Port and runtime guardian;
+the legacy Python/dbus-next backend is absent. It still exposes connected GATT
+discovery rather than a passive advertisement-scanning API, so the Tracker BLE
+ingress gate remains blocked on a separately owned public scanner contract and
+physical qualification. This focused source observation is not a promoted
+Tracker dependency cohort or published-package compatibility result.
 
 ## Elixir and OTP design references
 

@@ -61,7 +61,14 @@ Long-lived observations/events remain caller-supervised. Tracker may provide hos
 
 HTTP and MQTT forms use their dedicated WoTEx bindings when compatible. Tracker-specific cellular/AVL/advertisement decoding happens before WoT exposure and is not mislabeled as an HTTP/MQTT binding.
 
-`wotex_ble` already supplies `Wotex.BLE`, `profile/1`, session-based GATT discovery and Runtime adapters. Its recorded checkout distinguishes existing Python/dbus-next execution from an accepted C++ Port target. Tracker MUST NOT claim that target is implemented, require the legacy backend for its pure core, or reproduce it locally. Passive advertisements, Linux scanning and macOS scanning each require their own public API and evidence. BLE GATT discovery and physical advertisement discovery remain distinct.
+`wotex_ble` already supplies `Wotex.BLE`, `profile/1`, session-based GATT
+discovery and Runtime adapters. Its later committed monorepo source replaces the
+legacy Python/dbus-next execution path with the accepted first-party
+C++17/libdbus Port and guardian. Tracker MUST NOT require that backend for its
+pure core, reproduce it locally or reinterpret GATT discovery as passive
+scanning. Passive advertisements, Linux scanning and macOS scanning each require
+their own public API and evidence. BLE GATT discovery and physical advertisement
+discovery remain distinct.
 
 A LoRaWAN repository should likewise be created only if there is a reusable WoT binding/network-server abstraction beyond tracker-specific payload profiles. LoRaWAN radio/network semantics must not be forced into core merely to satisfy this PoC.
 
