@@ -8,9 +8,13 @@ defmodule Wotex.Tracker.Mobile.WebSession do
 
   @derive {Inspect, only: [:origin]}
   @enforce_keys [:origin, :capability]
-  defstruct @enforce_keys
+  defstruct @enforce_keys ++ [notification: nil]
 
-  @type t :: %__MODULE__{origin: String.t(), capability: String.t()}
+  @type t :: %__MODULE__{
+          origin: String.t(),
+          capability: String.t(),
+          notification: nil | %{app_id: String.t(), environment: String.t()}
+        }
 
   @doc "Builds the one permitted WebView navigation target."
   @spec new(String.t(), String.t()) :: {:ok, t()} | {:error, :invalid_configuration}

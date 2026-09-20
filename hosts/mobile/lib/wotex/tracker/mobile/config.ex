@@ -9,7 +9,7 @@ defmodule Wotex.Tracker.Mobile.Config do
   alias Wotex.Tracker.Mobile.{DNS, RemoteTransport, WebSession}
   alias Wotex.Tracker.UI.{Remote, RemoteMintTransport}
 
-  @keys ~w(directory remote_origin port secret_key_base capability remote_transport timeout_ms secure_store clock)a
+  @keys ~w(directory remote_origin port secret_key_base capability remote_transport timeout_ms secure_store clock notification_app_id notification_environment)a
   @derive {Inspect, only: [:origin, :directory, :remote_origin, :port]}
   @enforce_keys [
     :directory,
@@ -20,6 +20,7 @@ defmodule Wotex.Tracker.Mobile.Config do
     :capability_digest,
     :remote,
     :web_session,
+    :notification,
     :secure_store,
     :clock
   ]
@@ -34,6 +35,7 @@ defmodule Wotex.Tracker.Mobile.Config do
           capability_digest: binary(),
           remote: Remote.t(),
           web_session: WebSession.t(),
+          notification: nil | %{app_id: String.t(), environment: String.t()},
           secure_store: {module(), term()},
           clock: (-> integer())
         }
@@ -56,8 +58,10 @@ defmodule Wotex.Tracker.Mobile.Config do
          secret when is_binary(secret) and byte_size(secret) in 64..256 <-
            Keyword.get(options, :secret_key_base),
          capability when is_binary(capability) <- Keyword.get(options, :capability),
+         {:ok, notification} <- notification(options),
          origin = "http://127.0.0.1:#{port}",
          {:ok, web_session} <- WebSession.new(origin, capability),
+         web_session = %{web_session | notification: notification},
          transport <- Keyword.get(options, :remote_transport, default_transport()),
          timeout <- Keyword.get(options, :timeout_ms, 5_000),
          secure_store <- Keyword.get(options, :secure_store, default_secure_store()),
@@ -76,6 +80,7 @@ defmodule Wotex.Tracker.Mobile.Config do
          capability_digest: :crypto.hash(:sha256, capability),
          remote: remote,
          web_session: web_session,
+         notification: notification,
          secure_store: secure_store,
          clock: clock
        }}
@@ -95,6 +100,26 @@ defmodule Wotex.Tracker.Mobile.Config do
   end
 
   defp default_secure_store, do: {Wotex.Mobile.SecureStore, :wotex_secure_store_nif}
+
+  defp notification(options) do
+    case {
+      Keyword.get(options, :notification_app_id),
+      Keyword.get(options, :notification_environment)
+    } do
+      {nil, nil} ->
+        {:ok, nil}
+
+      {app_id, environment}
+      when is_binary(app_id) and byte_size(app_id) in 3..256 and
+             environment in ~w(sandbox production) ->
+        if Regex.match?(~r/\A[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+\z/, app_id),
+          do: {:ok, %{app_id: app_id, environment: environment}},
+          else: {:error, :invalid_configuration}
+
+      _ ->
+        {:error, :invalid_configuration}
+    end
+  end
 
   defp secure_store?({module, _}) when is_atom(module) do
     Code.ensure_loaded?(module) and function_exported?(module, :fetch, 2) and

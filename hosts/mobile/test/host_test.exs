@@ -2,7 +2,15 @@ defmodule Wotex.Tracker.Mobile.HostTest do
   @moduledoc false
 
   use ExUnit.Case, async: false
-  alias Wotex.Tracker.Mobile.{Config, Endpoint, Host, Runtime, SessionGate}
+
+  alias Wotex.Tracker.Mobile.{
+    Config,
+    Endpoint,
+    Host,
+    NotificationRegistration,
+    Runtime,
+    SessionGate
+  }
 
   defmodule ServiceTransport do
     @behaviour Wotex.Tracker.UI.RemoteTransport
@@ -10,15 +18,15 @@ defmodule Wotex.Tracker.Mobile.HostTest do
     @impl true
     def request(agent, _authority, request) do
       Agent.get_and_update(agent, fn state ->
-        response = if state[:offline], do: {:error, :offline}, else: respond(request.path)
+        response = if state[:offline], do: {:error, :offline}, else: respond(request)
         {response, Map.update!(state, :requests, fn requests -> [request | requests] end)}
       end)
     end
 
-    defp respond(path) do
+    defp respond(request) do
       data =
         cond do
-          String.ends_with?(path, "/access") ->
+          String.ends_with?(request.path, "/access") ->
             %{
               "schema" => "wtr.access.v1",
               "credential_id" => "mobile-credential",
@@ -28,8 +36,16 @@ defmodule Wotex.Tracker.Mobile.HostTest do
               "expires_at" => 9_007_199_254_740_991
             }
 
-          String.ends_with?(path, "/enrollments") ->
+          String.ends_with?(request.path, "/enrollments") ->
             %{"generation" => "0", "items" => [], "cursor" => nil}
+
+          String.ends_with?(request.path, "/notification_endpoints") and
+              request.method == "GET" ->
+            %{"generation" => "0", "items" => []}
+
+          String.ends_with?(request.path, "/notification_endpoints") and
+              request.method == "POST" ->
+            %{"outcome" => "committed"}
 
           true ->
             %{"generation" => "0", "items" => [], "cursor" => nil}
@@ -280,6 +296,45 @@ defmodule Wotex.Tracker.Mobile.HostTest do
     assert offline =~ "Offline cached data"
     assert offline =~ "complete for this request"
     refute offline =~ token
+  end
+
+  test "registers an explicitly configured push endpoint through the current session", c do
+    options =
+      c.options ++
+        [
+          notification_app_id: "org.wotex.tracker",
+          notification_environment: "sandbox"
+        ]
+
+    {:ok, config} = Config.new(options)
+    start_supervised!({Host, config})
+    {cookie, csrf} = bootstrap_sign_in(c)
+    assert {302, _, _} = sign_in(c, cookie, csrf, "notification-token")
+
+    provider_token = "private-apns-routing-token"
+    assert :ok = NotificationRegistration.register(NotificationRegistration, :ios, provider_token)
+    assert %{state: :registered} = NotificationRegistration.status(NotificationRegistration)
+
+    requests = Agent.get(c.agent, & &1.requests)
+
+    registration =
+      Enum.find(requests, fn request ->
+        request.method == "POST" and
+          String.ends_with?(request.path, "/notification_endpoints")
+      end)
+
+    assert Jason.decode!(registration.body) == %{
+             "id" => Jason.decode!(registration.body)["id"],
+             "provider" => "apns",
+             "app_id" => "org.wotex.tracker",
+             "environment" => "sandbox",
+             "token" => provider_token,
+             "expected_generation" => "0"
+           }
+
+    assert String.starts_with?(Jason.decode!(registration.body)["id"], "ios-")
+    refute inspect(:sys.get_status(NotificationRegistration)) =~ provider_token
+    refute inspect(config) =~ provider_token
   end
 
   test "failed secure storage keeps login atomic and logout retryable", c do

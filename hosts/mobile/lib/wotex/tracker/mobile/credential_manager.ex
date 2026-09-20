@@ -8,13 +8,13 @@ defmodule Wotex.Tracker.Mobile.CredentialManager do
   """
 
   use GenServer
-  alias Wotex.Tracker.Mobile.Cache
+  alias Wotex.Tracker.Mobile.{Cache, NotificationRegistration}
   alias Wotex.Tracker.UI.Sessions
 
   @schema "wtr.mobile-credential.v1"
   @account_schema "wtr.mobile-account.v1"
   @maximum_time 9_007_199_254_740_991
-  @keys ~w(name sessions cache origin secure_store clock)a
+  @keys ~w(name sessions cache origin secure_store clock notification_registration)a
 
   @doc "Starts one mobile credential/cache lifecycle owner."
   @spec start_link(keyword()) :: GenServer.on_start()
@@ -66,6 +66,11 @@ defmodule Wotex.Tracker.Mobile.CredentialManager do
   @spec offline_identity(GenServer.server(), String.t(), integer()) ::
           {:ok, map()} | {:error, :unavailable}
   def offline_identity(server, scope, now), do: call(server, {:offline_identity, scope, now})
+
+  @doc false
+  @spec notification_context(GenServer.server()) ::
+          {:ok, %{session_id: String.t(), endpoint_id: String.t()}} | {:error, :unavailable}
+  def notification_context(server), do: call(server, :notification_context)
 
   @impl true
   def init(state), do: {:ok, state, {:continue, :restore}}
@@ -149,6 +154,23 @@ defmodule Wotex.Tracker.Mobile.CredentialManager do
     {:reply, result, state}
   end
 
+  def handle_call(:notification_context, _from, state) do
+    result =
+      with true <- state.credential?,
+           session_id when is_binary(session_id) <- state.session_id,
+           installation_id when is_binary(installation_id) <- state.installation_id do
+        {:ok,
+         %{
+           session_id: session_id,
+           endpoint_id: notification_endpoint_id(installation_id)
+         }}
+      else
+        _ -> {:error, :unavailable}
+      end
+
+    {:reply, result, state}
+  end
+
   @impl true
   def format_status(status) do
     status
@@ -164,16 +186,25 @@ defmodule Wotex.Tracker.Mobile.CredentialManager do
     origin = Keyword.get(options, :origin)
     secure_store = Keyword.get(options, :secure_store)
     clock = Keyword.get(options, :clock)
+    notification_registration = Keyword.get(options, :notification_registration)
 
-    if valid_options?(options) and valid_server?(sessions) and valid_server?(cache) and
-         canonical_origin?(origin) and storage?(secure_store) and is_function(clock, 0) and
-         valid_name?(name) do
+    if valid_options?(options) and
+         Enum.all?([
+           valid_server?(sessions),
+           valid_server?(cache),
+           canonical_origin?(origin),
+           storage?(secure_store),
+           is_function(clock, 0),
+           valid_name?(name),
+           optional_server?(notification_registration)
+         ]) do
       state = %{
         sessions: sessions,
         cache: cache,
         origin: origin,
         secure_store: secure_store,
         clock: clock,
+        notification_registration: notification_registration,
         installation_id: nil,
         credential?: false,
         session_id: nil,
@@ -239,15 +270,18 @@ defmodule Wotex.Tracker.Mobile.CredentialManager do
          {:ok, encoded} <- Jason.encode(stored.envelope),
          :ok <- put(state, :credential, encoded),
          {:ok, account} <- bind(state, stored.access) do
-      {:ok,
-       %{
-         state
-         | credential?: true,
-           session_id: credential.session_id,
-           account: account,
-           access: stored.access,
-           storage: :ready
-       }}
+      state =
+        %{
+          state
+          | credential?: true,
+            session_id: credential.session_id,
+            account: account,
+            access: stored.access,
+            storage: :ready
+        }
+
+      _ = NotificationRegistration.retry(state.notification_registration)
+      {:ok, state}
     else
       _ -> rollback(state)
     end
@@ -533,6 +567,13 @@ defmodule Wotex.Tracker.Mobile.CredentialManager do
   end
 
   defp valid_server?(server), do: is_pid(server) or is_atom(server) or is_tuple(server)
+  defp optional_server?(nil), do: true
+  defp optional_server?(server), do: valid_server?(server)
+
+  defp notification_endpoint_id(installation_id) do
+    digest = :crypto.hash(:sha256, "wotex-ios-notification-v1:" <> installation_id)
+    "ios-" <> Base.url_encode64(digest, padding: false)
+  end
 
   defp storage?({module, _}) when is_atom(module) do
     Code.ensure_loaded?(module) and function_exported?(module, :fetch, 2) and

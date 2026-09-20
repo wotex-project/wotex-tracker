@@ -130,7 +130,12 @@ defmodule Wotex.Tracker.Mobile.CredentialManagerTest do
     assert canonical_id?(browser_session)
     assert %{credential: true, session: true, storage: :ready} = CredentialManager.status(manager)
 
+    assert {:ok, %{session_id: ^browser_session, endpoint_id: endpoint_id}} =
+             CredentialManager.notification_context(manager)
+
     values = Agent.get(c.store, & &1.values)
+    assert String.starts_with?(endpoint_id, "ios-")
+    refute endpoint_id =~ values.installation_id
 
     assert %{"schema" => "wtr.mobile-credential.v1", "token" => "retained-token"} =
              Jason.decode!(values.credential)
@@ -149,6 +154,7 @@ defmodule Wotex.Tracker.Mobile.CredentialManagerTest do
 
     refute Map.has_key?(Agent.get(c.store, & &1.values), :credential)
     assert {:error, :account_mismatch} = Cache.status(c.cache, account, @now)
+    assert {:error, :unavailable} = CredentialManager.notification_context(manager)
   end
 
   test "restores after restart, preserves offline cache binding and clears revoked access", c do
@@ -325,6 +331,7 @@ defmodule Wotex.Tracker.Mobile.CredentialManagerTest do
     assert :none = CredentialManager.browser_session(:missing_manager)
     assert %{storage: :unavailable} = CredentialManager.status(:missing_manager)
     assert {:error, :unavailable} = CredentialManager.retain(:missing_manager, credential("x"))
+    assert {:error, :unavailable} = CredentialManager.notification_context(:missing_manager)
   end
 
   defp start_manager(c) do

@@ -21,6 +21,8 @@ defmodule Wotex.Tracker.Mobile.ConfigTest do
                secret_key_base: String.duplicate("s", 64),
                capability: capability,
                remote_transport: {Transport, :context},
+               notification_app_id: "org.wotex.tracker",
+               notification_environment: "sandbox",
                timeout_ms: 1_000
              )
 
@@ -30,6 +32,8 @@ defmodule Wotex.Tracker.Mobile.ConfigTest do
     assert %WebSession{} = config.web_session
     assert config.remote.origin == "https://service.example"
     assert config.remote.timeout_ms == 1_000
+    assert config.notification == %{app_id: "org.wotex.tracker", environment: "sandbox"}
+    assert config.web_session.notification == config.notification
     refute inspect(config) =~ capability
     refute inspect(config) =~ config.secret_key_base
   end
@@ -56,6 +60,11 @@ defmodule Wotex.Tracker.Mobile.ConfigTest do
       Keyword.put(valid, :timeout_ms, 99),
       Keyword.put(valid, :secure_store, {String, nil}),
       Keyword.put(valid, :clock, :invalid),
+      Keyword.put(valid, :notification_app_id, "invalid"),
+      Keyword.put(valid, :notification_app_id, "org.wotex.tracker"),
+      Keyword.put(valid, :notification_environment, "production"),
+      valid ++ [notification_app_id: "invalid", notification_environment: "sandbox"],
+      valid ++ [notification_app_id: "org.wotex.tracker", notification_environment: "other"],
       valid ++ [extra: true],
       valid ++ [port: 4_322]
     ]

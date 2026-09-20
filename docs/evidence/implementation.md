@@ -3576,3 +3576,48 @@ Credo, ExDoc, Dialyzer, licenses and the 504-file stack-language policy passed.
 This does not claim that a suspended BEAM keeps running. Physical suspend,
 process eviction, reboot, Wi-Fi/cellular handoff, reconnection latency, memory
 pressure and energy acceptance remain unexecuted on an iPhone.
+
+### Bounded mobile notification registration and routing — 2026-09-20
+
+The mobile host now pins and activates the signed MobNotify 0.1.2 plugin and can
+optionally supervise one APNs registration owner for an explicit bundle-style
+application ID and `sandbox` or `production` environment. The root native screen
+requests notification permission, asks iOS for a provider token only after a
+grant and best-effort removes the endpoint after denial. The shared remote client
+exposes only the existing service notification-endpoint list, registration and
+deletion resources; all work still passes through the current bounded,
+authorized mobile session.
+
+The registrar derives a stable endpoint identifier from a domain-separated
+SHA-256 digest of the device-only installation ID. Registration, rotation and
+removal first read the exact server generation and submit a deterministic UUIDv4
+operation identity. Provider tokens are bounded to printable ASCII, never enter
+the projection cache, secure credential envelope or status output, and are
+cleared after a successful operation. A token received before sign-in or during
+service unavailability may remain only in the status-redacted volatile process;
+credential retention and lifecycle recovery retry it without an automatic
+mutation loop.
+
+Notification input admits only the exact two-field
+`wtr.notification-reference.v1` data projection. A bounded valid UTF-8 opaque
+event reference is percent-encoded into the fixed local protection-alert route,
+where the existing shared screen reauthorizes and fetches current state. Extra
+fields, private content, malformed references, widened provider events and
+native exceptions, throws or invalid results cannot navigate the WebView.
+
+Tests cover registration and token rotation, deterministic operation shape,
+generation and response failures, absent endpoints, permission denial,
+pre-authentication retry, redaction, installation-bound endpoint identity,
+configuration closure, permission/token callbacks and exact tap routing. The
+complete mobile-host gate passed 56 tests at 95.4% production line coverage, and
+the complete shared-UI gate passed 156 tests at 95.0%. Compiler,
+unused-dependency, formatter, dependency audit, strict Credo, ExDoc, Dialyzer,
+56-member UI archive inspection, licenses and the 507-file stack-language policy
+passed for their applicable profiles.
+
+This is software-boundary evidence. No Xcode host was generated, and no signed
+build, Push Notifications entitlement, provisioning profile, AppDelegate token
+forwarding, APNs provider exchange or physical delivery/tap test ran. The current
+Mob callback presents notification payloads through one software event shape;
+cold-start, warm, foreground and background tap behavior therefore remains an
+explicit physical-device gate rather than an inferred claim.

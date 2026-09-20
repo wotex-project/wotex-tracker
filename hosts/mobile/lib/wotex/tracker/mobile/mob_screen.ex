@@ -7,17 +7,22 @@ defmodule Wotex.Tracker.Mobile.MobScreen do
   """
 
   use Mob.Screen
-  alias Wotex.Tracker.Mobile.{ExternalURL, Lifecycle, WebSession}
+  alias Wotex.Tracker.Mobile.{ExternalURL, Lifecycle, Notifications, WebSession}
 
   @impl true
   def mount(%{session: %WebSession{} = session}, _stored, socket) do
     _ = Lifecycle.subscribe()
 
-    {:ok,
-     Mob.Socket.assign(socket,
-       web_session: session,
-       lifecycle: Lifecycle.new()
-     )}
+    socket =
+      Mob.Socket.assign(socket,
+        web_session: session,
+        lifecycle: Lifecycle.new()
+      )
+
+    socket =
+      if is_map(session.notification), do: Notifications.request_permission(socket), else: socket
+
+    {:ok, socket}
   end
 
   def mount(_, _, _), do: {:error, :invalid_session}
@@ -37,6 +42,22 @@ defmodule Wotex.Tracker.Mobile.MobScreen do
   def handle_info({:mob_device, _, _} = event, socket), do: lifecycle(event, socket)
   def handle_info({:mob_device, _} = event, socket), do: lifecycle(event, socket)
 
+  def handle_info({:permission, :notifications, :granted}, socket),
+    do: {:noreply, Notifications.register_push(socket)}
+
+  def handle_info({:permission, :notifications, :denied}, socket) do
+    _ = Notifications.unregister_endpoint()
+    {:noreply, socket}
+  end
+
+  def handle_info({:push_token, :ios, token}, socket) do
+    _ = Notifications.register_endpoint(token)
+    {:noreply, socket}
+  end
+
+  def handle_info({:notification, payload}, socket),
+    do: {:noreply, Notifications.route(socket, payload)}
+
   def handle_info(_, socket), do: {:noreply, socket}
 
   @doc false
@@ -53,7 +74,15 @@ defmodule Wotex.Tracker.Mobile.MobScreen do
   defp lifecycle(event, %{assigns: %{lifecycle: lifecycle}} = socket) do
     {lifecycle, effect} = Lifecycle.transition(lifecycle, event)
     socket = Mob.Socket.assign(socket, :lifecycle, lifecycle)
-    socket = if effect == :reload, do: Lifecycle.reload(socket), else: socket
+
+    socket =
+      if effect == :reload do
+        _ = Notifications.retry_registration()
+        Lifecycle.reload(socket)
+      else
+        socket
+      end
+
     {:noreply, socket}
   end
 end

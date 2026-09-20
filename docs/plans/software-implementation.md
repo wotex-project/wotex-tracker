@@ -463,8 +463,13 @@ external HTTPS links leave the bridge-bearing WebView. Mobile remote requests
 invoke the Mob OS-resolver seam while preserving the configured HTTPS authority.
 An app-owned iOS Mob plugin now provides two closed device-only Keychain slots,
 explicitly disables synchronization and has no file fallback. Credential/cache
-lifecycle wiring, cache/view synchronization and every physical native/device
-gate remain subsequent work.
+lifecycle wiring and cache/view synchronization now restore an account-bound,
+read-only offline presentation and reconnect it through bounded native lifecycle
+events. The pinned notification plugin and an optional supervised registrar now
+request permission, register one installation-bound APNs endpoint through the
+current authorized session and route an exact opaque notification reference to
+the local shared alert screen. No provider token is persisted. Signed Xcode/APNs
+configuration and every physical native/device gate remain subsequent work.
 
 Acceptance: real iPhone secure storage, authorized BLE central provisioning,
 notification registration and cold/warm/background tap routing, suspend/resume,

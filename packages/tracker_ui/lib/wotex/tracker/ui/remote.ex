@@ -15,7 +15,7 @@ defmodule Wotex.Tracker.UI.Remote do
 
   alias Wotex.Tracker.UI.RemoteMintTransport
 
-  @resources ~w(observations resolutions evidence state enrollments things saved_queries rules policies alerts arming owner_presence)
+  @resources ~w(observations resolutions evidence state enrollments things saved_queries rules policies alerts arming owner_presence notification_endpoints)
   @mutations %{
     acknowledge_alert: "alert_acknowledgements",
     associate: "associations",
@@ -23,11 +23,13 @@ defmodule Wotex.Tracker.UI.Remote do
     delete_query: "saved_query_deletions",
     enroll: "enrollments",
     materialize: "materialisations",
+    register_notification_endpoint: "notification_endpoints",
     revoke: "revocations",
     save_policy: "policies",
     save_query: "saved_queries",
     set_arming: "arming",
     submit: "observations",
+    unregister_notification_endpoint: "notification_endpoint_deletions",
     unenroll: "unenrollments"
   }
   @maximum_body_bytes 1_048_576

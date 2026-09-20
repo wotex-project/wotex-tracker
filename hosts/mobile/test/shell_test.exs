@@ -77,6 +77,29 @@ defmodule Wotex.Tracker.Mobile.ShellTest do
 
     assert {:noreply, ^mounted} =
              MobScreen.handle_info({:webview, :blocked, "javascript:alert(1)"}, mounted)
+
+    notification_session = %{
+      session
+      | notification: %{app_id: "org.wotex.tracker", environment: "sandbox"}
+    }
+
+    assert {:ok, notification_screen} =
+             MobScreen.mount(%{session: notification_session}, %{}, socket)
+
+    for event <- [
+          {:permission, :notifications, :granted},
+          {:permission, :notifications, :denied},
+          {:push_token, :ios, "provider-token"},
+          {:notification,
+           %{
+             data: %{
+               schema: "wtr.notification-reference.v1",
+               event_ref: "alert-one"
+             }
+           }}
+        ] do
+      assert {:noreply, %Mob.Socket{}} = MobScreen.handle_info(event, notification_screen)
+    end
   end
 
   test "reloads once after resume and once when connectivity returns" do

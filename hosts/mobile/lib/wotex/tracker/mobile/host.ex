@@ -14,6 +14,7 @@ defmodule Wotex.Tracker.Mobile.Host do
     Config,
     CredentialManager,
     Endpoint,
+    NotificationRegistration,
     Runtime,
     SessionGate
   }
@@ -24,6 +25,7 @@ defmodule Wotex.Tracker.Mobile.Host do
   @sessions Wotex.Tracker.Mobile.Sessions
   @cache Wotex.Tracker.Mobile.CacheServer
   @credentials Wotex.Tracker.Mobile.CredentialManager
+  @notifications Wotex.Tracker.Mobile.NotificationRegistration
 
   @doc "Starts one explicit local mobile composition."
   @spec start_link(keyword() | Config.t()) :: Supervisor.on_start()
@@ -86,7 +88,7 @@ defmodule Wotex.Tracker.Mobile.Host do
       http: listener
     ]
 
-    Supervisor.init(
+    children =
       [
         {Cache, directory: config.directory, name: @cache},
         {Phoenix.PubSub, name: @pubsub},
@@ -101,11 +103,28 @@ defmodule Wotex.Tracker.Mobile.Host do
          cache: @cache,
          origin: config.remote_origin,
          secure_store: config.secure_store,
-         clock: config.clock},
-        {Runtime, config.web_session},
-        {Endpoint, endpoint}
-      ],
-      strategy: :rest_for_one
-    )
+         clock: config.clock,
+         notification_registration: if(config.notification, do: @notifications, else: nil)}
+      ] ++
+        notification_children(config) ++
+        [
+          {Runtime, config.web_session},
+          {Endpoint, endpoint}
+        ]
+
+    Supervisor.init(children, strategy: :rest_for_one)
+  end
+
+  defp notification_children(%{notification: nil}), do: []
+
+  defp notification_children(%{notification: notification}) do
+    [
+      {NotificationRegistration,
+       name: @notifications,
+       sessions: {Sessions, @sessions},
+       credentials: {CredentialManager, @credentials},
+       app_id: notification.app_id,
+       environment: notification.environment}
+    ]
   end
 end

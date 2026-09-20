@@ -203,6 +203,7 @@ defmodule Wotex.Tracker.UI.RemoteTest do
       {:credentials, %{}, "GET", "/credentials", nil},
       {:list, %{"resource" => "observations", "params" => %{"limit" => 25}}, "GET",
        "/observations?limit=25", nil},
+      {:list, %{"resource" => "notification_endpoints"}, "GET", "/notification_endpoints", nil},
       {:get, %{"resource" => "rules", "id" => "motion:one"}, "GET", "/rules/motion%3Aone", nil},
       {:arming, %{"id" => "asset"}, "GET", "/arming/asset", nil},
       {:owner_presence, %{"id" => "asset"}, "GET", "/owner_presence/asset", nil},
@@ -236,11 +237,13 @@ defmodule Wotex.Tracker.UI.RemoteTest do
       delete_query: "saved_query_deletions",
       enroll: "enrollments",
       materialize: "materialisations",
+      register_notification_endpoint: "notification_endpoints",
       revoke: "revocations",
       save_policy: "policies",
       save_query: "saved_queries",
       set_arming: "arming",
       submit: "observations",
+      unregister_notification_endpoint: "notification_endpoint_deletions",
       unenroll: "unenrollments"
     ]
 

@@ -67,6 +67,24 @@ remote reauthorization and view resnapshot. Duplicate callbacks do nothing;
 native subscription and reload failures stay contained. This is reconnect
 orchestration, not a background-execution or background-location claim.
 
+Notification support is an explicit opt-in pair of APNs application ID and
+`sandbox` or `production` environment. The host pins and activates the signed
+MobNotify plugin, asks for notification permission from the root native screen
+and requests a provider token only after permission is granted. The token is
+submitted through the current authorized session with the service's generation
+check and a deterministic recoverable operation ID. Its endpoint identifier is
+a one-way, domain-separated digest of the device-only installation ID. Provider
+tokens are never written to the cache, Keychain envelope or process status; an
+unavailable registration may retain one only in the redacted volatile registrar
+until sign-in or network recovery retries it. Permission denial best-effort
+removes an existing endpoint.
+
+The notification bridge admits only the exact
+`wtr.notification-reference.v1` data projection with one opaque event reference.
+It percent-encodes that reference into the fixed local alert route, where the
+shared UI reauthorizes and resolves current data. Extra keys, private alert data,
+invalid UTF-8, malformed references and native failures produce no navigation.
+
 Run the software gate with the host-pinned toolchain:
 
 ```sh
@@ -74,7 +92,8 @@ WOTEX_PATH_DEPS=1 MIX_ENV=test mise exec -- mix deps.get
 WOTEX_PATH_DEPS=1 MIX_ENV=test mise exec -- mix check --no-retry
 ```
 
-No Xcode project, signed installation, physical secure-storage evidence,
-notification plugin, BLE central bridge, sharing bridge or physical-iPhone
-evidence exists in this slice. Physical suspend/resume and network-handoff
-evidence also remain explicitly open.
+No Xcode project, signed installation, APNs entitlement or AppDelegate token
+forwarding has been generated or exercised here. Physical notification delivery,
+cold/warm/background tap distinction, secure-storage behavior, suspend/resume,
+network handoff, BLE central operation, OS sharing and all other physical-iPhone
+evidence remain explicitly open.
