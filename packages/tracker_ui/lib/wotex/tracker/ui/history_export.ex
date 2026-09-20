@@ -36,7 +36,7 @@ defmodule Wotex.Tracker.UI.HistoryExport do
   @spec collect(String.t(), (map() -> {:ok, map()} | {:error, map()})) ::
           {:ok, map()} | {:error, map()}
   def collect(asset, fetch) when is_binary(asset) and is_function(fetch, 1) do
-    collect_pages(asset, fetch, %{"limit" => @page_size}, nil, [], 0, 0, MapSet.new())
+    collect_pages(asset, fetch, %{"limit" => @page_size}, nil, [], 0, 0, %{})
   rescue
     _ -> {:error, %{"code" => "storage_unavailable"}}
   end
@@ -82,7 +82,7 @@ defmodule Wotex.Tracker.UI.HistoryExport do
       next_pages == @max_pages ->
         {:error, %{"code" => "export_limit"}}
 
-      MapSet.member?(seen, cursor) ->
+      is_map_key(seen, cursor) ->
         {:error, %{"code" => "invalid_cursor"}}
 
       true ->
@@ -94,7 +94,7 @@ defmodule Wotex.Tracker.UI.HistoryExport do
           next_rows,
           next_pages,
           next_bytes,
-          MapSet.put(seen, cursor)
+          Map.put(seen, cursor, true)
         )
     end
   end
