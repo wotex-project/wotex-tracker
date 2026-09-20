@@ -84,6 +84,17 @@ defmodule Wotex.Tracker.HTTPTest do
     assert_capacity_released(capacity)
   end
 
+  test "an independent HTTP process inspects and deletes retained domain data" do
+    context = service()
+    {_thing, _td} = materialized(context)
+    server = start_supervised!({Server, options(context)})
+
+    output = run_consumer(context, server, %{"mode" => "data_deletion"})
+    assert output =~ "HTTP_CONSUMER_PASS openapi=true data_deletion=true backups=false"
+    assert {:ok, capacity} = Server.child(server, :capacity)
+    assert_capacity_released(capacity)
+  end
+
   test "instances use distinct listeners and stores; invalid exposure and configuration fail closed" do
     first = service()
     second = service()

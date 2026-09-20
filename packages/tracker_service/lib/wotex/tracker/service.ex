@@ -19,6 +19,7 @@ defmodule Wotex.Tracker.Service do
     Codec,
     Credentials,
     Cursor,
+    DataDeletion,
     DecoderRegistry,
     Enrollment,
     Events,
@@ -773,6 +774,43 @@ defmodule Wotex.Tracker.Service do
       end
 
     Result.normalize(result)
+  end
+
+  @doc "Returns exact retained-data counts and deletion consequences for this scope."
+  @spec privacy(t(), String.t(), String.t(), integer()) :: {:ok, map()} | {:error, map()}
+  def privacy(service, token, scope, now) do
+    result =
+      with {:ok, access} <- authorize(service, token, scope, "admin", "privacy", now),
+           do: Store.authorized_privacy(service.store, access, now)
+
+    Result.normalize(result)
+  end
+
+  @doc """
+  Deletes all retained domain data in this scope through one recoverable operation.
+
+  Credential revocations and the bounded successful-access audit are preserved.
+  Backups, offline exports and already-remote publications are outside the
+  managed primary store and are explicitly not claimed as deleted.
+  """
+  @spec delete_domain_data(t(), String.t(), String.t(), String.t(), map(), integer()) ::
+          {:ok, map()} | {:error, map()}
+  def delete_domain_data(service, token, scope, operation, request, now) do
+    result =
+      with {:ok, access} <-
+             authorize(service, token, scope, "admin", "delete_domain_data", now),
+           true <- Identifier.operation?(operation),
+           :ok <- DataDeletion.admit(request),
+           do:
+             Store.delete_domain_data(
+               service.store,
+               access,
+               operation,
+               request,
+               now
+             )
+
+    Result.mutation(result, operation)
   end
 
   @doc "Authenticates current scope authority; transports must repeat this before every delivery."

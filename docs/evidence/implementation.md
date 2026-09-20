@@ -3791,3 +3791,43 @@ native CLI build/format, dependency audit, licences and stack-language policy.
 This closes shared presentation of the successful-access journal. Retained
 domain-data deletion and configurable domain retention remain separate privacy
 work; physical Pi and mobile acceptance also remain open.
+
+### Recoverable retained-domain-data deletion — 2026-09-20
+
+OpenAPI contract 1.35.0 adds administrator-only `GET …/privacy` and
+`POST …/domain_data_deletions`, backed by `Service.privacy/4` and
+`Service.delete_domain_data/6`. The preview reports exact counts for observations,
+non-access record versions, events, publications, queued deliveries, rule state,
+rule-event intents and operation receipts at the current scope generation. It
+also reports preserved credential revocations and successful-access rows, the
+last deletion marker, and the limits of the erasure claim.
+
+Deletion requires the exact confirmation phrase, a current expected generation
+and a stable operation identity. One immediate transaction removes every listed
+domain category and prior receipt, advances the scope generation, then writes a
+minimal privacy marker, public deletion event and caller-recoverable receipt.
+Old event cursors fail after the erased sequence. A repeat returns the original
+receipt; stale generations conflict; injected failure before commit preserves
+all rows; lost acknowledgement or process exit after commit resolves through
+the receipt. Durable access revocations and the separately bounded successful-
+authorization audit survive, so erasure neither reactivates access nor removes
+its security journal.
+
+The managed SQLite connection enables secure deletion of freed cells. The API
+still makes only a managed-primary-store claim: a pre-deletion consistent backup
+is independently restored in the test and retains the old data, while offline
+exports and already-remote publications are likewise reported as not deleted.
+Concurrent readers can defer WAL reclamation, so the contract does not claim
+that every historical physical byte disappears at commit.
+
+The independent HTTP process validates preview, reader denial, the destructive
+request and receipt, post-delete empty resources, and the retained marker against
+the served OpenAPI document. The complete service gate passed 297 tests and two
+generated properties at 95.1% production line coverage. Compiler,
+unused-dependency, formatter, dependency audit, strict Credo, ExDoc, Dialyzer,
+boundary checks, OpenAPI validation, licences, 100-member archive inspection and
+the 522-file stack-language policy passed.
+
+This completes the durable service deletion boundary. Shared application
+presentation and configurable automatic domain retention remain separate work;
+backup/export/remote-destination deletion remains operator-managed by design.

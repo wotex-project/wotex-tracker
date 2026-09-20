@@ -33,7 +33,8 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
     "arming" => {:set_arming, "admin"},
     "owner_presence" => {:admit_owner_presence, "admin"},
     "notification_endpoints" => {:register_notification_endpoint, "admin"},
-    "notification_endpoint_deletions" => {:unregister_notification_endpoint, "admin"}
+    "notification_endpoint_deletions" => {:unregister_notification_endpoint, "admin"},
+    "domain_data_deletions" => {:delete_domain_data, "admin"}
   }
 
   @impl true
@@ -448,6 +449,12 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
     {conn, result}
   end
 
+  defp scoped(%{method: "GET"} = conn, ["privacy"], params, context)
+       when map_size(params) == 0 do
+    {service, token, scope, now} = context
+    {conn, Service.privacy(service, token, scope, now)}
+  end
+
   defp scoped(%{method: "GET"} = conn, ["notification_endpoints"], params, context)
        when map_size(params) == 0 do
     {service, token, scope, now} = context
@@ -484,6 +491,7 @@ defmodule Wotex.Tracker.Service.HTTP.Router do
            "owner_presence" => "closed_evidence_fact_admission",
            "notifications" => "encrypted_principal_bound_apns_registration",
            "access_audit" => "bounded_successful_authorization_decisions",
+           "privacy" => "administrator_inspection_and_scope_domain_data_deletion",
            "runtime" => %{
              "readproperty" => "available",
              "observeproperty" => "available",

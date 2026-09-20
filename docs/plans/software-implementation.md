@@ -417,7 +417,11 @@ sources. Each provisioned asset
 lists its live rule definitions, stops offering new rules at the service's
 eight-definition limit and pages the alerts those definitions recorded.
 Administrators can remove an enrolled asset from current views after a stated,
-confirmed and recoverable operation; data deletion remains open. An Activity page
+confirmed and recoverable operation. The service can also inspect exact retained
+scope counts and delete all managed domain data through an explicitly confirmed,
+generation-checked, recoverable operation while preserving revocations and the
+bounded access audit; the shared destructive UI and configurable retention remain
+open. An Activity page
 pages the credential's recent committed changes for recovery. The shared Access
 page also lists the current principal's token-redacted mobile notification
 installations and removes one through an explicitly confirmed, generation-checked,

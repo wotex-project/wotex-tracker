@@ -316,6 +316,54 @@ defmodule Wotex.Tracker.HTTPConsumer do
     IO.puts("HTTP_CONSUMER_PASS openapi=true access_audit=true private_token=false")
   end
 
+  defp run(context, %{"mode" => "data_deletion"}) do
+    prefix = "/api/v1/scopes/" <> encode_segment(context.scope)
+    privacy = prefix <> "/privacy"
+    deletion = prefix <> "/domain_data_deletions"
+
+    request(context, "get_privacy", privacy, who: :reader, status: 403)
+    before = data(context, "get_privacy", privacy)
+    %{"schema" => "wtr.privacy.v1", "generation" => "3"} = before
+    true = before["retained"]["observations"] > 0
+    "outside_managed_primary_store" = before["policy"]["backups"]
+
+    request(context, "delete_domain_data", deletion,
+      who: :reader,
+      body: %{
+        "expected_generation" => "3",
+        "confirmation" => "delete retained domain data"
+      },
+      status: 403
+    )
+
+    %{
+      "generation" => "4",
+      "data" => %{
+        "schema" => "wtr.domain-data-deletion.v1",
+        "action" => "deleted_retained_domain_data",
+        "backups" => "not_deleted",
+        "offline_exports" => "not_deleted",
+        "remote_publications" => "not_deleted"
+      }
+    } =
+      data(context, "delete_domain_data", deletion,
+        body: %{
+          "expected_generation" => "3",
+          "confirmation" => "delete retained domain data"
+        }
+      )
+
+    %{"generation" => "4", "items" => []} =
+      data(context, "list_observations", prefix <> "/observations")
+
+    %{
+      "generation" => "4",
+      "last_deletion" => %{"schema" => "wtr.privacy-deletion.v1"}
+    } = data(context, "get_privacy", privacy)
+
+    IO.puts("HTTP_CONSUMER_PASS openapi=true data_deletion=true backups=false")
+  end
+
   defp run(context, descriptor) do
     workflow(context, descriptor)
 

@@ -17,7 +17,8 @@ defmodule Wotex.Tracker.Service.Schema do
 
   def initialize(db, options) do
     SQL.execute!(db, "PRAGMA busy_timeout=#{options.busy_timeout}")
-    SQL.execute!(db, "PRAGMA foreign_keys=ON; PRAGMA synchronous=FULL")
+    SQL.execute!(db, "PRAGMA foreign_keys=ON; PRAGMA synchronous=FULL; PRAGMA secure_delete=ON")
+    require_value!(SQL.rows!(db, "PRAGMA secure_delete"), [[1]])
     require_value!(SQL.rows!(db, "PRAGMA page_size"), [[4096]])
     require_value!(SQL.rows!(db, "PRAGMA journal_mode=WAL"), [["wal"]])
     SQL.rows!(db, "PRAGMA max_page_count=#{options.max_pages}")

@@ -23,6 +23,7 @@ defmodule Wotex.Tracker.Service.Store do
     Authority,
     Codec,
     Credentials,
+    DataDeletion,
     ForwardItem,
     ForwardQueue,
     Operation,
@@ -131,6 +132,14 @@ defmodule Wotex.Tracker.Service.Store do
   @doc false
   def authorized_access_audit(store, access, query, now),
     do: StoreCall.run(store, {:authorized_access_audit, access, query, now})
+
+  @doc false
+  def authorized_privacy(store, access, now),
+    do: StoreCall.run(store, {:authorized_privacy, access, now})
+
+  @doc false
+  def delete_domain_data(store, access, operation, request, now),
+    do: StoreCall.run(store, {:delete_domain_data, access, operation, request, now})
 
   @doc "Checks current authority inside the same SQLite read snapshot as the requested page."
   @spec authorized_snapshot(t(), Access.t(), String.t(), map(), integer()) ::
@@ -650,6 +659,26 @@ defmodule Wotex.Tracker.Service.Store do
         )
       end)
 
+  defp dispatch({:authorized_privacy, access, now}, state),
+    do:
+      DataDeletion.status(
+        state.db,
+        access,
+        Authority.now(state.options, now),
+        state.options
+      )
+
+  defp dispatch({:delete_domain_data, access, operation, request, now}, state),
+    do:
+      DataDeletion.delete(
+        state.db,
+        access,
+        operation,
+        request,
+        now,
+        state.options
+      )
+
   defp dispatch({:authorized_snapshot, access, permission, query, now}, state),
     do:
       Read.snapshot(state.db, query, fn ->
@@ -777,6 +806,9 @@ defmodule Wotex.Tracker.Service.Store do
   end
 
   defp emit_call({:mutate, _}, result, _state, started),
+    do: OperationalTelemetry.store(:mutation, result, started)
+
+  defp emit_call({:delete_domain_data, _, _, _, _}, result, _state, started),
     do: OperationalTelemetry.store(:mutation, result, started)
 
   defp emit_call({:commit_rule, _}, result, _state, started),

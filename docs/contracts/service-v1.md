@@ -376,7 +376,7 @@ encrypted transport `cursor` can change on replay; clients deduplicate the
 domain ID. Cursor encryption, retained IDs and current authorization remain
 separate checks. An empty event batch preserves the supplied cursor.
 
-## HTTP and stream contract 1.34.0
+## HTTP and stream contract 1.35.0
 
 The packaged `priv/openapi/v1.json` uses OpenAPI **3.1.0** with JSON Schema
 2020-12. The independently maintained Elixir audit checks document shape,
@@ -399,6 +399,8 @@ Forms or authorization. Loading the service package starts no Tracker instance.
 | `/api/v1/scopes/{scope}/health/ready` | GET authenticated writable-store check reporting store schema `8` |
 | `/api/v1/scopes/{scope}/access` | GET the current credential's non-secret ID, principal, exact requested-scope permissions and expiry after current read authorization |
 | `/api/v1/scopes/{scope}/access_audit` | GET an administrator-only, snapshot-bound page of successful authorization decisions with explicit retention/capacity disclosure |
+| `/api/v1/scopes/{scope}/privacy` | GET administrator-only exact retained primary-store counts, preservation rules, last deletion marker and limits of the deletion claim |
+| `/api/v1/scopes/{scope}/domain_data_deletions` | POST generation-checked, explicitly confirmed deletion of all retained domain data in this scope while preserving revocations and the access audit |
 | `/api/v1/scopes/{scope}/capabilities` | GET explicit available/unsupported/unconfigured status; rules report `heartbeat_battery_motion_geofence_suspicious_movement_definitions`, route and trip history advertise their paging contracts, trip summaries advertise bounded gap-honest reconstruction, arming reports an explicit administrative fact, and owner presence reports closed evidence-fact admission |
 | `…/analytics/query` | POST one read-only structured measurement query against a committed snapshot |
 | `…/analytics/pages` | POST one snapshot-pinned bucket page with an encrypted continuation |
@@ -441,6 +443,24 @@ acknowledgement returns HTTP 202 with an `unknown` receipt. Unexpected programmi
 failures return a redacted 500 and conservatively report unknown mutation outcome.
 They are logged as a fixed failure message, never exception/request text.
 Self-revocation may commit its own receipt; subsequent requests are denied.
+
+The scope deletion operation removes observations, every non-access domain
+record version, events, publication intents, queued deliveries, rule state and
+event intents, and prior operation receipts in one immediate transaction. It
+then advances the scope generation and retains only a minimal deletion marker,
+public deletion event and the caller-recoverable receipt. Exact retry returns
+that receipt; stale generation conflicts; failure before commit leaves every row
+intact; loss after commit resolves through ordinary operation lookup. Existing
+event cursors cannot cross the erased sequence and fail explicitly. Durable
+credential revocations and the separately bounded successful-access audit remain
+so deletion cannot reactivate access or erase its security record.
+
+The managed SQLite connection enables secure deletion of freed cells. This is a
+primary-store logical deletion contract, not a claim about every historical
+physical byte: concurrent readers can defer WAL reclamation. Pre-existing
+backups, offline exports and already-remote publications are outside the managed
+store and are reported as not deleted. Operators remain responsible for their
+separate expiry and erasure policies.
 
 The access projection requires the same current `read` authority as the shared
 application. Its `wtr.access.v1` document contains only the current configured
