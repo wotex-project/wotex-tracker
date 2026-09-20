@@ -30,6 +30,7 @@ defmodule Wotex.Tracker.Nerves.Browser do
       tracker_ui: [
         sessions: Wotex.Tracker.Nerves.Browser.Sessions,
         prompt: nil,
+        map_pack: config.map_pack,
         operational_history: true
       ],
       debug_errors: false,

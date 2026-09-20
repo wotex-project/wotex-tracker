@@ -107,10 +107,12 @@ uncertainty, clock and quality disclosures; the UI does not imply a live, fused 
 canonical location. Route history now includes a bounded interactive
 retained-position map with keyboard-operable pan and zoom controls plus bounded
 latitude/longitude graticules while keeping exact coordinates, exclusions and
-gaps visible. Antimeridian labels return to the ordinary longitude range. The
-map has no contextual basemap, tile source, road matching or invented position.
-Live scanning, contextual map data and the rest of the application remain
-subsequent work.
+gaps visible. Antimeridian labels return to the ordinary longitude range. An
+optional bounded, attributed [offline map pack](docs/contracts/map-pack-v1.md)
+can supply operator-controlled road, water and boundary context on the browser,
+Pi and mobile hosts without a map network request. A page outside complete pack
+coverage draws no partial background. Context never road-matches or invents a
+position. Live scanning and the rest of the application remain subsequent work.
 
 The independent mobile host now pins its Mob runtime cohort without changing the
 root library's Elixir floor. Its first executable boundary is a private SQLite

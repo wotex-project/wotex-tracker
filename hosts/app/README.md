@@ -311,6 +311,13 @@ WOTEX_PATH_DEPS=1 WOTEX_TRACKER_UI=1 MIX_ENV=test \
   mise exec -- mix run --no-halt
 ```
 
+The version-one document starts without geographic context. To configure an
+operator-controlled offline layer, use schema `wtr.browser.v2` and add a
+`map_pack` containing the closed `wtr.map-pack.v1` document specified by the
+repository's `docs/contracts/map-pack-v1.md`. The complete
+private browser file remains subject to the existing 64 KiB limit. Invalid or
+unknown map content fails startup; the host makes no tile or map-provider request.
+
 Open `http://127.0.0.1:4040`, sign in with scope `workshop` and the private
 operator token, then choose Setup. Choose a preformed Observation JSON capture
 up to 256 KiB to import it from the browser. The CLI and API accept the same

@@ -10,7 +10,7 @@ defmodule Wotex.Tracker.UI.RouteLive do
 
   use Phoenix.LiveView, log: false
   import Wotex.Tracker.UI.Components
-  alias Wotex.Tracker.UI.{Auth, Presenter, RouteChart, RouteExport, RouteViewport}
+  alias Wotex.Tracker.UI.{Auth, MapContext, Presenter, RouteChart, RouteExport, RouteViewport}
 
   @back_limit 32
   @day_ms 86_400_000
@@ -31,6 +31,7 @@ defmodule Wotex.Tracker.UI.RouteLive do
        request: nil,
        page: nil,
        chart: nil,
+       map_context: MapContext.project(nil, nil),
        viewport: RouteViewport.new(),
        back: [],
        error: nil
@@ -45,7 +46,13 @@ defmodule Wotex.Tracker.UI.RouteLive do
       else
         socket
         |> assign(id: id, asset: nil, state: nil, input: %{}, request: nil, page: nil)
-        |> assign(chart: nil, viewport: RouteViewport.new(), back: [], error: nil)
+        |> assign(
+          chart: nil,
+          map_context: MapContext.project(nil, nil),
+          viewport: RouteViewport.new(),
+          back: [],
+          error: nil
+        )
         |> load()
       end
 
@@ -62,6 +69,7 @@ defmodule Wotex.Tracker.UI.RouteLive do
         request: nil,
         page: nil,
         chart: nil,
+        map_context: MapContext.project(nil, nil),
         viewport: RouteViewport.new(),
         back: [],
         error: nil
@@ -115,7 +123,15 @@ defmodule Wotex.Tracker.UI.RouteLive do
         {:noreply, clear(socket, error)}
 
       {:error, %{"code" => "conflict"} = error} ->
-        {:noreply, assign(socket, request: nil, page: nil, chart: nil, back: [], error: error)}
+        {:noreply,
+         assign(socket,
+           request: nil,
+           page: nil,
+           chart: nil,
+           map_context: MapContext.project(nil, nil),
+           back: [],
+           error: error
+         )}
 
       {:error, error} ->
         {:noreply, assign(socket, error: error)}
@@ -258,19 +274,35 @@ defmodule Wotex.Tracker.UI.RouteLive do
           class="history-chart route-chart"
           data-route-map
           aria-labelledby="route-map-title"
-          aria-describedby="route-map-description route-map-status"
+          aria-describedby="route-map-description route-map-coverage route-map-status"
         >
           <h3 id="route-map-title">Interactive retained-position map</h3>
           <p id="route-map-description" class="muted">
-            Latitude and longitude graticules provide geographic coordinate context. No
-            contextual map layer is configured. Exact retained coordinates, separate evidence
-            segments and disclosed gaps remain available without tiles.
+            {map_description(@map_context)} Exact retained coordinates, separate evidence
+            segments and disclosed gaps remain authoritative.
           </p>
           <svg
             viewBox={RouteViewport.view_box(@viewport)}
             role="img"
             aria-label="Coordinate plot of page-local retained route segments; exact coordinates and gaps follow"
           >
+            <defs>
+              <clipPath id="route-map-context-clip">
+                <rect x="56" y="24" width="888" height="352" />
+              </clipPath>
+            </defs>
+            <g
+              :if={@map_context.status == :available}
+              class="route-map-context"
+              clip-path="url(#route-map-context-clip)"
+              aria-hidden="true"
+            >
+              <path
+                :for={line <- @map_context.lines}
+                d={line.line}
+                class={["route-context-line", "route-context-#{line.class}"]}
+              />
+            </g>
             <g class="route-graticule" aria-hidden="true">
               <line
                 :for={tick <- @chart.longitude_ticks}
@@ -327,9 +359,15 @@ defmodule Wotex.Tracker.UI.RouteLive do
           </svg>
           <figcaption>
             Interactive geographic coordinate map with separate service segments and short
-            antimeridian deltas. It supplies no basemap, street matching or position between
-            recorded points.
+            antimeridian deltas. Operator-supplied context never supplies street matching or a
+            position between recorded points.
           </figcaption>
+          <p id="route-map-coverage" class="muted route-map-coverage">
+            {map_coverage(@map_context)}
+            <span :if={@map_context.status == :available}>
+              Attribution: {@map_context.attribution}
+            </span>
+          </p>
           <div class="map-controls" role="group" aria-label="Evidence map pan and zoom controls">
             <button class="secondary" phx-click="map-view" phx-value-action="zoom-in">
               Zoom in
@@ -440,6 +478,7 @@ defmodule Wotex.Tracker.UI.RouteLive do
         input: input,
         page: nil,
         chart: nil,
+        map_context: MapContext.project(nil, nil),
         viewport: RouteViewport.new(),
         back: [],
         error: nil
@@ -459,6 +498,7 @@ defmodule Wotex.Tracker.UI.RouteLive do
               request: nil,
               page: nil,
               chart: nil,
+              map_context: MapContext.project(nil, nil),
               viewport: RouteViewport.new(),
               back: [],
               error: nil
@@ -483,10 +523,13 @@ defmodule Wotex.Tracker.UI.RouteLive do
     case Auth.request(socket, :route_history, %{"request" => request}) do
       {:ok, page} ->
         if page?(page, socket.assigns.id) do
+          chart = RouteChart.project(page["route"])
+
           assign(socket,
             request: request,
             page: page,
-            chart: RouteChart.project(page["route"]),
+            chart: chart,
+            map_context: MapContext.project(map_pack(socket), chart),
             viewport: RouteViewport.new(),
             error: nil
           )
@@ -641,6 +684,27 @@ defmodule Wotex.Tracker.UI.RouteLive do
   defp gap_reason("quality:" <> quality), do: "Quality excluded: " <> quality
   defp gap_reason(value), do: value
 
+  defp map_pack(socket), do: socket.endpoint.config(:tracker_ui)[:map_pack]
+
+  defp map_description(%{status: :available}),
+    do: "A bounded offline map pack provides attributed geographic context."
+
+  defp map_description(%{status: :outside_coverage}),
+    do:
+      "The configured offline map pack does not cover this complete route page, so no partial background is drawn."
+
+  defp map_description(_),
+    do:
+      "No offline map pack is configured; the coordinate graticule remains available without tiles."
+
+  defp map_coverage(%{status: :available, id: id, revision: revision}),
+    do: "Offline map coverage: #{id} revision #{revision}. "
+
+  defp map_coverage(%{status: :outside_coverage}),
+    do: "Offline map coverage: unavailable for the complete displayed route."
+
+  defp map_coverage(_), do: "Offline map coverage: not configured."
+
   defp clear(socket, error) do
     assign(socket,
       asset: nil,
@@ -649,6 +713,7 @@ defmodule Wotex.Tracker.UI.RouteLive do
       request: nil,
       page: nil,
       chart: nil,
+      map_context: MapContext.project(nil, nil),
       viewport: RouteViewport.new(),
       back: [],
       error: error

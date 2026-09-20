@@ -29,6 +29,20 @@ defmodule Wotex.Tracker.UI.RouteChart do
 
   def project(_), do: nil
 
+  @doc "Projects one already-unwrapped coordinate into an existing route chart."
+  @spec project_coordinate(map(), number(), number()) :: %{x: float(), y: float()}
+  def project_coordinate(
+        %{longitude: {longitude_low, longitude_high}, latitude: {latitude_low, latitude_high}},
+        latitude,
+        longitude
+      )
+      when is_number(latitude) and is_number(longitude) do
+    %{
+      x: scale(longitude, longitude_low, longitude_high, @left, @right),
+      y: scale(latitude, latitude_low, latitude_high, @bottom, @top)
+    }
+  end
+
   defp project_segments(segments, points) do
     {longitude_low, longitude_high} = extent(Enum.map(points, & &1.longitude))
     {latitude_low, latitude_high} = extent(Enum.map(points, & &1.latitude))
@@ -37,10 +51,17 @@ defmodule Wotex.Tracker.UI.RouteChart do
       Enum.map(segments, fn segment ->
         points =
           Enum.map(segment, fn point ->
-            Map.merge(point, %{
-              x: scale(point.longitude, longitude_low, longitude_high, @left, @right),
-              y: scale(point.latitude, latitude_low, latitude_high, @bottom, @top)
-            })
+            Map.merge(
+              point,
+              project_coordinate(
+                %{
+                  longitude: {longitude_low, longitude_high},
+                  latitude: {latitude_low, latitude_high}
+                },
+                point.latitude,
+                point.longitude
+              )
+            )
           end)
 
         %{line: line(points), points: points}

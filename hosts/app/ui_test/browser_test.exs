@@ -9,7 +9,7 @@ defmodule Wotex.Tracker.Host.BrowserTest do
   alias Wotex.Tracker.Service
   alias Wotex.Tracker.Service.{Codec, Credentials, Identifier}
   alias Wotex.Tracker.Service.HTTP.{Config, Server}
-  alias Wotex.Tracker.UI.Presenter
+  alias Wotex.Tracker.UI.{MapPack, Presenter}
 
   setup do
     {:ok, _} = Application.ensure_all_started(:inets)
@@ -96,6 +96,7 @@ defmodule Wotex.Tracker.Host.BrowserTest do
        c do
     port = port()
     origin = "http://127.0.0.1:#{port}"
+    {:ok, map_pack} = MapPack.new(map_pack_document())
 
     browser = %BrowserConfig{
       ip: {127, 0, 0, 1},
@@ -104,6 +105,7 @@ defmodule Wotex.Tracker.Host.BrowserTest do
       exposure: :loopback,
       tls: nil,
       secret_key_base: Base.encode64(:crypto.strong_rand_bytes(64)),
+      map_pack: map_pack,
       prompt: %PromptConfig{
         endpoint: "https://api.openai.com/v1/responses",
         model: "gpt-5-mini",
@@ -125,6 +127,7 @@ defmodule Wotex.Tracker.Host.BrowserTest do
     {:ok, config} = Config.new(c.service_options)
     {:ok, service} = Server.context(api, config)
     assert {:ok, {{127, 0, 0, 1}, ^port}} = Endpoint.server_info(:http)
+    assert Endpoint.config(:tracker_ui)[:map_pack] == map_pack
 
     {:ok, document} = File.read!("priv/examples/ruuvi-raw-v2.observation.json") |> Codec.decode()
 
@@ -418,6 +421,17 @@ defmodule Wotex.Tracker.Host.BrowserTest do
     {:ok, {_, port}} = :inet.sockname(socket)
     :gen_tcp.close(socket)
     port
+  end
+
+  defp map_pack_document do
+    %{
+      "schema" => "wtr.map-pack.v1",
+      "id" => "host-test-map",
+      "revision" => "1",
+      "attribution" => "Host test map",
+      "coverage" => %{"west" => 17, "south" => 59, "east" => 19, "north" => 60},
+      "features" => [%{"class" => "road", "points" => [[59.3, 18.0], [59.4, 18.1]]}]
+    }
   end
 
   defp cookie(headers) do

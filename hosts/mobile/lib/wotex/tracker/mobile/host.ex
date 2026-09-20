@@ -77,6 +77,7 @@ defmodule Wotex.Tracker.Mobile.Host do
         sessions: @sessions,
         session_guard: {SessionGate, config.capability_digest},
         prompt: nil,
+        map_pack: config.map_pack,
         operational_history: false
       ],
       mobile: [

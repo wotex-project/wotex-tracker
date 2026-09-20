@@ -110,6 +110,7 @@ defmodule Wotex.Tracker.Mobile.HostTest do
       secret_key_base: Base.encode64(:crypto.strong_rand_bytes(64)),
       capability: capability,
       remote_transport: {ServiceTransport, agent},
+      map_pack: map_pack_document(),
       secure_store: {SecureStore, secure_store}
     ]
 
@@ -130,6 +131,7 @@ defmodule Wotex.Tracker.Mobile.HostTest do
     start_supervised!({Host, c.config})
     assert {:ok, {{127, 0, 0, 1}, c.port}} == Endpoint.server_info(:http)
     assert c.config.web_session == Runtime.web_session()
+    assert Endpoint.config(:tracker_ui)[:map_pack] == c.config.map_pack
 
     assert {401, _, ""} = request(:get, c.origin <> "/sign-in", [], nil)
     assert {401, _, ""} = request(:get, c.origin <> "/assets/tracker.js", [], nil)
@@ -225,6 +227,17 @@ defmodule Wotex.Tracker.Mobile.HostTest do
 
     assert signed_out =~ "Sign in"
     assert :error = Agent.get(c.secure_store, &Map.fetch(&1, :credential))
+  end
+
+  defp map_pack_document do
+    %{
+      "schema" => "wtr.map-pack.v1",
+      "id" => "mobile-host-map",
+      "revision" => "1",
+      "attribution" => "Mobile host map",
+      "coverage" => %{"west" => 17, "south" => 59, "east" => 19, "north" => 60},
+      "features" => [%{"class" => "boundary", "points" => [[59.3, 18.0], [59.4, 18.1]]}]
+    }
   end
 
   test "rejects foreign WebSocket origins and validates retained session digests", c do

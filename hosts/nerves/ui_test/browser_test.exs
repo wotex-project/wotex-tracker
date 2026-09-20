@@ -50,12 +50,13 @@ defmodule Wotex.Tracker.Nerves.BrowserTest do
     port = free_port()
 
     browser = %{
-      "schema" => "wtr.browser.v2",
+      "schema" => "wtr.browser.v3",
       "listen" => %{"ip" => "127.0.0.1", "port" => port},
       "exposure" => "loopback",
       "public_origin" => "http://127.0.0.1:#{port}",
       "secret_key_base" => Base.encode64(:crypto.strong_rand_bytes(64)),
-      "device_session" => %{"scope" => "workshop"}
+      "device_session" => %{"scope" => "workshop"},
+      "map_pack" => map_pack_document()
     }
 
     browser_path = Path.join(root, "browser.json")
@@ -98,6 +99,7 @@ defmodule Wotex.Tracker.Nerves.BrowserTest do
     assert {:ok, store} = Server.child(server, :store)
     assert {:ok, {{127, 0, 0, 1}, port}} = Endpoint.server_info(:http)
     assert port == c.port
+    assert Endpoint.config(:tracker_ui)[:map_pack].id == "pi-test-map"
 
     url = ~c"http://127.0.0.1:#{port}/sign-in"
 
@@ -174,6 +176,11 @@ defmodule Wotex.Tracker.Nerves.BrowserTest do
     write(c.browser_path, legacy)
     assert {:ok, %{device_session: nil}} = BrowserConfig.load(c.browser_path, c.root, options)
 
+    write(c.browser_path, c.browser)
+    assert {:ok, %{map_pack: map_pack}} = BrowserConfig.load(c.browser_path, c.root, options)
+    assert map_pack.id == "pi-test-map"
+    refute inspect(map_pack) =~ "Pi test map"
+
     for changed <- [
           Map.put(browser, "secret_key_base", "short"),
           Map.put(browser, "exposure", "proxy"),
@@ -225,6 +232,17 @@ defmodule Wotex.Tracker.Nerves.BrowserTest do
   defp write(path, document) do
     File.write!(path, Codec.encode!(document))
     File.chmod!(path, 0o600)
+  end
+
+  defp map_pack_document do
+    %{
+      "schema" => "wtr.map-pack.v1",
+      "id" => "pi-test-map",
+      "revision" => "1",
+      "attribution" => "Pi test map",
+      "coverage" => %{"west" => 17, "south" => 59, "east" => 19, "north" => 60},
+      "features" => [%{"class" => "road", "points" => [[59.3, 18.0], [59.4, 18.1]]}]
+    }
   end
 
   defp header(headers, name) do

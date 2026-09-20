@@ -7,9 +7,9 @@ defmodule Wotex.Tracker.Mobile.Config do
   """
 
   alias Wotex.Tracker.Mobile.{DNS, RemoteTransport, WebSession}
-  alias Wotex.Tracker.UI.{Remote, RemoteMintTransport}
+  alias Wotex.Tracker.UI.{MapPack, Remote, RemoteMintTransport}
 
-  @keys ~w(directory remote_origin port secret_key_base capability remote_transport timeout_ms secure_store clock notification_app_id notification_environment)a
+  @keys ~w(directory remote_origin port secret_key_base capability remote_transport timeout_ms secure_store clock notification_app_id notification_environment map_pack)a
   @derive {Inspect, only: [:origin, :directory, :remote_origin, :port]}
   @enforce_keys [
     :directory,
@@ -21,6 +21,7 @@ defmodule Wotex.Tracker.Mobile.Config do
     :remote,
     :web_session,
     :notification,
+    :map_pack,
     :secure_store,
     :clock
   ]
@@ -36,6 +37,7 @@ defmodule Wotex.Tracker.Mobile.Config do
           remote: Remote.t(),
           web_session: WebSession.t(),
           notification: nil | %{app_id: String.t(), environment: String.t()},
+          map_pack: MapPack.t() | nil,
           secure_store: {module(), term()},
           clock: (-> integer())
         }
@@ -59,6 +61,7 @@ defmodule Wotex.Tracker.Mobile.Config do
            Keyword.get(options, :secret_key_base),
          capability when is_binary(capability) <- Keyword.get(options, :capability),
          {:ok, notification} <- notification(options),
+         {:ok, map_pack} <- map_pack(Keyword.get(options, :map_pack)),
          origin = "http://127.0.0.1:#{port}",
          {:ok, web_session} <- WebSession.new(origin, capability),
          web_session = %{web_session | notification: notification},
@@ -81,6 +84,7 @@ defmodule Wotex.Tracker.Mobile.Config do
          remote: remote,
          web_session: web_session,
          notification: notification,
+         map_pack: map_pack,
          secure_store: secure_store,
          clock: clock
        }}
@@ -100,6 +104,9 @@ defmodule Wotex.Tracker.Mobile.Config do
   end
 
   defp default_secure_store, do: {Wotex.Mobile.SecureStore, :wotex_secure_store_nif}
+
+  defp map_pack(nil), do: {:ok, nil}
+  defp map_pack(document), do: MapPack.new(document)
 
   defp notification(options) do
     case {

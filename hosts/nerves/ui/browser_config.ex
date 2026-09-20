@@ -6,26 +6,28 @@ defmodule Wotex.Tracker.Nerves.BrowserConfig do
   checks the closed schema, file and directory policy, listener and matching
   origin, and session-signing secret before returning a listener configuration.
   A version-two document additionally binds the display to one configured scope
-  and the matching private operator-token file. Inspection includes only the
-  address, port, and origin, never the secret or device-session configuration.
+  and the matching private operator-token file. Version three admits one bounded
+  offline map pack. Inspection includes only the address, port, and origin,
+  never the secret, device-session or map configuration.
   """
 
   import Bitwise
   @derive {Inspect, only: [:ip, :port, :public_origin]}
   @enforce_keys [:ip, :port, :public_origin, :secret_key_base, :device_session]
-  defstruct @enforce_keys
+  defstruct @enforce_keys ++ [map_pack: nil]
 
   alias Wotex.Tracker.Service.Credentials
   alias Wotex.Tracker.Service.HTTP.Config, as: ServerConfig
   alias Wotex.Tracker.Service.HTTP.FileConfig
   alias Wotex.Tracker.Service.StorePath
+  alias Wotex.Tracker.UI.MapPack
 
   @spec load(term(), term(), keyword()) :: {:ok, %__MODULE__{}} | {:error, :invalid_configuration}
   def load(path, root, service_options) do
     with :ok <- StorePath.private_directory(root),
          true <- path == Path.join(root, "browser.json"),
          {:ok, document} <- FileConfig.read_document(path),
-         {:ok, listen, origin, secret, device_session} <-
+         {:ok, listen, origin, secret, device_session, map_pack} <-
            browser_document(document, root, service_options),
          true <- is_binary(secret) and byte_size(secret) in 64..128,
          {:ok, ip, port} <- FileConfig.listen(listen),
@@ -47,7 +49,8 @@ defmodule Wotex.Tracker.Nerves.BrowserConfig do
          port: port,
          public_origin: origin,
          secret_key_base: secret,
-         device_session: device_session
+         device_session: device_session,
+         map_pack: map_pack
        }}
     else
       _ -> {:error, :invalid_configuration}
@@ -71,7 +74,7 @@ defmodule Wotex.Tracker.Nerves.BrowserConfig do
          _service_options
        )
        when map_size(document) == 5,
-       do: {:ok, listen, origin, secret, nil}
+       do: {:ok, listen, origin, secret, nil, nil}
 
   defp browser_document(
          %{
@@ -91,7 +94,33 @@ defmodule Wotex.Tracker.Nerves.BrowserConfig do
 
     with true <- is_binary(scope),
          :ok <- private_token_file(token_file, credentials, scope) do
-      {:ok, listen, origin, secret, %{scope: scope, token_file: token_file}}
+      {:ok, listen, origin, secret, %{scope: scope, token_file: token_file}, nil}
+    else
+      _ -> {:error, :invalid_configuration}
+    end
+  end
+
+  defp browser_document(
+         %{
+           "schema" => "wtr.browser.v3",
+           "listen" => listen,
+           "exposure" => "loopback",
+           "public_origin" => origin,
+           "secret_key_base" => secret,
+           "device_session" => %{"scope" => scope} = device,
+           "map_pack" => map_document
+         } = document,
+         root,
+         service_options
+       )
+       when map_size(document) == 7 and map_size(device) == 1 do
+    token_file = Path.join(root, "operator.token")
+    credentials = service_options[:credentials]
+
+    with true <- is_binary(scope),
+         :ok <- private_token_file(token_file, credentials, scope),
+         {:ok, map_pack} <- MapPack.new(map_document) do
+      {:ok, listen, origin, secret, %{scope: scope, token_file: token_file}, map_pack}
     else
       _ -> {:error, :invalid_configuration}
     end

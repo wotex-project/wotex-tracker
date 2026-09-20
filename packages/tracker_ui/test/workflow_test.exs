@@ -32,6 +32,7 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
   alias Wotex.Tracker.UI.{
     AccessibilityAudit,
     ErrorHTML,
+    MapPack,
     Presenter,
     PromptPeer,
     Sessions,
@@ -58,6 +59,8 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
          client: {TestClient, {fn -> {:ok, c.service} end, faults}}, clock: fn -> c.now end}
       )
 
+    {:ok, map_pack} = MapPack.new(map_pack_document())
+
     start_supervised!({Phoenix.PubSub, name: Wotex.Tracker.UI.TestPubSub})
 
     start_supervised!(
@@ -69,7 +72,12 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
        check_origin: ["https://www.example.com"],
        render_errors: [formats: [html: Wotex.Tracker.UI.ErrorHTML], layout: false],
        server: false,
-       tracker_ui: [sessions: sessions, prompt: {PromptPeer, prompt}, operational_history: true]}
+       tracker_ui: [
+         sessions: sessions,
+         prompt: {PromptPeer, prompt},
+         map_pack: map_pack,
+         operational_history: true
+       ]}
     )
 
     {:ok, %{"id" => id}} = Sessions.login(sessions, c.admin, c.scope)
@@ -6616,6 +6624,9 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert length(Regex.scan(~r/class="route-grid-line"/, html)) == 10
     assert has_element?(view, ~s(svg[viewBox="0.00 0.00 1000.00 400.00"]))
     assert has_element?(view, "#route-map-status", "Map zoom 1×")
+    assert has_element?(view, ".route-context-road")
+    assert has_element?(view, ".route-map-coverage", "stockholm-test revision 1")
+    assert has_element?(view, ".route-map-coverage", "Attribution: Test map data")
 
     view |> element("button", "Zoom in") |> render_click()
     assert has_element?(view, ~s(svg[viewBox="250.00 100.00 500.00 200.00"]))
@@ -6680,6 +6691,19 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     refute has_element?(view, "#route-query")
     refute has_element?(view, "h2", "Route page")
     assert has_element?(view, "[role=alert]", "does not permit")
+  end
+
+  defp map_pack_document do
+    %{
+      "schema" => "wtr.map-pack.v1",
+      "id" => "stockholm-test",
+      "revision" => "1",
+      "attribution" => "Test map data",
+      "coverage" => %{"west" => -180, "south" => -90, "east" => 180, "north" => 90},
+      "features" => [
+        %{"class" => "road", "points" => [[10.0, 179.8], [10.2, -179.8]]}
+      ]
+    }
   end
 
   test "route history distinguishes an unprovisioned asset from a missing one", c do

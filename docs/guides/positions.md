@@ -261,8 +261,12 @@ an existing cursor invalid.
 The shared route-history screen exposes the closed window, clock, quality and gap
 controls. It draws one SVG path per returned service segment, uses the short
 antimeridian delta and provides the exact coordinates and gap records in tables
-and lists. It supplies no basemap or road matching. Temporary page failures keep
-the current page visible; terminal authorization loss clears it. Previous and
-next pages are reloaded under current authority and are never visually joined.
-A route-page JSON export first reruns the exact request, requires the same page
-identity and omits the encrypted continuation cursor from the downloaded document.
+and lists. A host can add a bounded, attributed
+[`wtr.map-pack.v1`](../contracts/map-pack-v1.md) offline context layer. The page
+draws it only under complete declared coverage and reports absent or insufficient
+coverage explicitly. The context has no tile fetch or road-matching authority.
+Temporary page failures keep the current page visible; terminal authorization
+loss clears it. Previous and next pages are reloaded under current authority and
+are never visually joined. A route-page JSON export first reruns the exact
+request, requires the same page identity and omits the encrypted continuation
+cursor from the downloaded document.

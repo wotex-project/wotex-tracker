@@ -18,6 +18,12 @@ to lose: an absent or OS-purged cache is an explicit first-use state. The host
 must reconstruct the binding from platform secure storage after process start;
 ordinary files, preferences and browser storage are not credential stores.
 
+The optional `:map_pack` startup value is a decoded `wtr.map-pack.v1` document,
+specified by the repository's `docs/contracts/map-pack-v1.md`. Startup admits
+its closed coverage, attribution and bounded line work before passing it to the
+loopback endpoint. It is packaged/operator content, not an account cache entry;
+it carries no service credential or retained route and causes no network fetch.
+
 The executable presentation seam runs the shared LiveView router behind a
 numeric IPv4 loopback-only Bandit listener. A fresh 32-byte capability appears
 only in the initial WebView bootstrap URL; the endpoint replaces it with an

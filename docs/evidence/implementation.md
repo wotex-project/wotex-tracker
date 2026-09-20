@@ -5660,3 +5660,41 @@ This evidence exercises bounded synthetic facts and software boundaries only.
 It does not acquire or qualify a physical owner-presence source, authenticate a
 real sensor's physical truth, boot firmware, or complete cross-surface hardware
 acceptance.
+
+### Operator-controlled offline map context — 2026-09-20
+
+The shared route-history screen now accepts one closed `wtr.map-pack.v1`
+presentation document from its host. Admission bounds the public pack identity,
+revision, attribution, coverage, feature vocabulary, feature count and total
+coordinates. It rejects unknown fields, network URLs, unsupported line classes,
+control characters, points outside declared coverage and over-capacity content.
+Antimeridian-crossing coverage is explicit.
+
+The route page projects admitted road, water and boundary line work behind its
+existing coordinate graticule and retained evidence. It draws context only when
+the pack covers every qualified point in the current page. Missing configuration
+and incomplete coverage have distinct visible states; incomplete coverage draws
+no partial background. Attribution and pack identity/revision remain visible.
+The context does not change service segments, exact coordinates, gaps,
+continuity, authorization or exports, and it performs no tile or map-provider
+request.
+
+Standalone browser schema version two, Pi kiosk browser schema version three
+and the mobile startup configuration all admit the same pack before starting
+their endpoint. Older browser and kiosk documents remain valid without map
+context. The private browser-file boundary retains its 64 KiB cap, while the
+mobile pack remains separate from the account-bound projection cache.
+
+Both shared-UI runtime lanes passed 193 tests at 95.0% production line coverage
+with every configured compiler, unused-dependency, formatter, vulnerability
+audit, strict Credo, ExDoc, Dialyzer, stack-language, archive and licence gate.
+The archives contained 65 members and all 61 package-owned source/assets. The
+mobile host passed 64 tests at 95.6% coverage and its remaining configured gates;
+the UI-enabled standalone host passed 38 tests at 95.7%, including CLI and
+native-consumer checks. The headless standalone host passed 27 tests at 95.8%
+with its full gate, and the Pi kiosk composition passed 51 host tests. The local
+documentation catalogue, delivery graph, evidence and link check passed.
+
+These results use bounded synthetic line work. They do not qualify a third-party
+map dataset or licence, physical display, touch/gesture behavior, screen reader,
+offline storage budget, signed iPhone application or Pi firmware image.

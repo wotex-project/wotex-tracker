@@ -141,6 +141,11 @@ td ul { margin: 0; padding-left: 1rem; }
 .chart-axis { stroke: #7c9288; stroke-width: 2; }
 .route-grid-line { stroke: #d6dfdb; stroke-width: 1; }
 .route-grid-label { fill: #52665d; font-size: 12px; }
+.route-context-line { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.route-context-boundary { stroke: #8b8177; stroke-width: 2; stroke-dasharray: 7 5; }
+.route-context-road { stroke: #c3a56c; stroke-width: 5; }
+.route-context-water { stroke: #75a8be; stroke-width: 4; }
+.route-map-coverage span { display: block; }
 .chart-line { fill: none; stroke: #146351; stroke-width: 3; stroke-linejoin: round; }
 .chart-area { fill: #a8d8cb; stroke: none; }
 .chart-point { fill: #146351; stroke: white; stroke-width: 2; }

@@ -59,6 +59,7 @@ defmodule Wotex.Tracker.Host.Browser do
               do: {PromptProvider, Wotex.Tracker.Host.Browser.PromptProvider},
               else: nil
             ),
+          map_pack: config.map_pack,
           operational_history: true
         ],
         debug_errors: false,

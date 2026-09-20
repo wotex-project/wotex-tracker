@@ -324,6 +324,13 @@ Manual sign-in remains available after sign-out or a failed bootstrap, and a
 device without the private provisioned files still cannot reach an authenticated
 panel.
 
+Provisioning emits version two without map context. An operator can instead use
+schema `wtr.browser.v3` with the same `device_session` and one embedded
+`map_pack` following the closed `wtr.map-pack.v1` contract in the repository's
+`docs/contracts/map-pack-v1.md`. The complete
+private browser file remains capped at 64 KiB. The pack is admitted before the
+kiosk endpoint starts and never triggers a tile or map-provider request.
+
 The host test executes the HTTP exchange, authenticated setup render, replay
 denial and controlled presentation restart while retaining the store. This is
 software evidence for authenticated attached-display setup, not on-device

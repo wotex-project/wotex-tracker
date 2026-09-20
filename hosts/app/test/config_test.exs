@@ -454,7 +454,23 @@ defmodule Wotex.Tracker.Host.ConfigTest do
     write(path, browser)
     assert {:ok, config} = Config.load_browser(path, service_options)
     assert config.port == 4040 and config.exposure == :loopback
+    assert config.map_pack == nil
     refute inspect(config) =~ browser["secret_key_base"]
+
+    mapped =
+      browser
+      |> Map.put("schema", "wtr.browser.v2")
+      |> Map.put("map_pack", map_pack_document())
+
+    write(path, mapped)
+
+    if Code.ensure_loaded?(Wotex.Tracker.UI.MapPack) do
+      assert {:ok, mapped_config} = Config.load_browser(path, service_options)
+      assert inspect(mapped_config.map_pack) =~ "test-map"
+      refute inspect(mapped_config) =~ "Test map attribution"
+    else
+      assert {:error, :invalid_configuration} = Config.load_browser(path, service_options)
+    end
 
     model = %{
       "provider" => "openai_responses",
@@ -539,6 +555,17 @@ defmodule Wotex.Tracker.Host.ConfigTest do
   defp write(path, document) do
     File.write!(path, Codec.encode!(document))
     File.chmod!(path, 0o600)
+  end
+
+  defp map_pack_document do
+    %{
+      "schema" => "wtr.map-pack.v1",
+      "id" => "test-map",
+      "revision" => "1",
+      "attribution" => "Test map attribution",
+      "coverage" => %{"west" => 17, "south" => 59, "east" => 19, "north" => 60},
+      "features" => [%{"class" => "road", "points" => [[59.3, 18.0], [59.4, 18.1]]}]
+    }
   end
 
   defp tat140_frame do

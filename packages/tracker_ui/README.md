@@ -214,10 +214,11 @@ test helpers. Root and service-only consumers do not depend on this package.
 The first cohort exercises real authorized services, duplicate prevention,
 lost-reply recovery, revocation, read-only denial, upload bounds, bounded
 lists/history, CSRF protection and credential custody. Device discovery and
-capture, basemaps, qualified physical owner-presence acquisition, physical notification delivery,
-qualified physical Action/device interaction, hardware anti-stalking mechanisms
-and physical cross-surface accessibility remain subsequent work. A
-responsive browser view does not qualify a mobile or Pi application.
+capture, qualified physical owner-presence acquisition, physical notification
+delivery, qualified physical Action/device interaction, hardware anti-stalking
+mechanisms and physical cross-surface map/accessibility acceptance remain
+subsequent work. A responsive browser view does not qualify a mobile or Pi
+application.
 
 The test cohort applies one semantic document audit to 20 primary shared routes.
 It requires an explicit document language, one main landmark and page heading,
@@ -235,13 +236,16 @@ keyboard-operable controls pan, reset and zoom the bounded view at fixed levels.
 Its latitude/longitude graticule labels the displayed geographic extent and
 normalizes unwrapped antimeridian values back to east/west longitudes. The
 viewport resets when its query or page changes and never changes the underlying
-evidence. It has no basemap, tile source or road matching and makes no claim
-between recorded points. Missing or ambiguous materialisations and rejected
-samples remain visible. Previous/next navigation reloads every page under current
-authority, retains the displayed page on temporary failure and never connects
-coordinates across pages. Page export reruns the exact cursor-bound request
-under current authority, requires the displayed content identity and downloads a
-bounded cursor-free JSON document.
+evidence. A host may admit one closed `wtr.map-pack.v1` document containing
+bounded attributed road, water and boundary line work. It is rendered only when
+its declared offline coverage contains every route point on the page; absent and
+out-of-coverage states are explicit. No tile request or road matching occurs and
+the map makes no claim between recorded points. Missing or ambiguous
+materialisations and rejected samples remain visible. Previous/next navigation
+reloads every page under current authority, retains the displayed page on
+temporary failure and never connects coordinates across pages. Page export
+reruns the exact cursor-bound request under current authority, requires the
+displayed content identity and downloads a bounded cursor-free JSON document.
 
 The analytics screen builds a closed absolute UTC query for one retained asset
 using a currently recorded numeric measurement and unit. It restricts the

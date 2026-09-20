@@ -5,7 +5,7 @@ defmodule Wotex.Tracker.Host.Config do
   `load/1` delegates the closed service document to
   `Wotex.Tracker.Service.HTTP.FileConfig`. `load_browser/2` accepts a separate
   private browser file, checks its listener, origin, exposure, signing secret,
-  and optional model budgets against the service configuration, then returns
+  optional model budgets and an optional bounded offline map pack against the service configuration, then returns
   a `Wotex.Tracker.Host.BrowserConfig`. An absent browser path leaves the
   headless service available; malformed configuration fails startup.
   """
@@ -64,19 +64,13 @@ defmodule Wotex.Tracker.Host.Config do
   def load_browser(path, service_options) do
     with {:ok, document} <- FileConfig.read_document(path),
          %{
-           "schema" => "wtr.browser.v1",
+           "schema" => _schema,
            "listen" => listen,
            "exposure" => exposure,
            "public_origin" => origin,
            "secret_key_base" => secret
          } <- document,
-         true <-
-           Enum.sort(Map.keys(document)) in [
-             Enum.sort(~w(schema listen exposure public_origin secret_key_base)),
-             Enum.sort(~w(schema listen exposure public_origin secret_key_base tls)),
-             Enum.sort(~w(schema listen exposure public_origin secret_key_base model)),
-             Enum.sort(~w(schema listen exposure public_origin secret_key_base tls model))
-           ],
+         true <- browser_keys?(document),
          true <- is_binary(secret) and byte_size(secret) in 64..128,
          true <- is_binary(origin) and origin != "listener",
          {:ok, ip, port} <- listen(listen),
@@ -84,6 +78,7 @@ defmodule Wotex.Tracker.Host.Config do
          {:ok, exposure} <- exposure(exposure),
          {:ok, tls} <- tls(document["tls"]),
          {:ok, prompt} <- prompt_config(document["model"]),
+         {:ok, map_pack} <- map_pack(document),
          {:ok, config} <-
            ServerConfig.new(
              Keyword.merge(service_options,
@@ -100,6 +95,7 @@ defmodule Wotex.Tracker.Host.Config do
        |> Map.take([:ip, :port, :public_origin, :exposure, :tls])
        |> Map.put(:secret_key_base, secret)
        |> Map.put(:prompt, prompt)
+       |> Map.put(:map_pack, map_pack)
        |> then(&struct!(BrowserConfig, &1))}
     else
       _ -> {:error, :invalid_configuration}
@@ -112,6 +108,34 @@ defmodule Wotex.Tracker.Host.Config do
   end
 
   defp browser_origin?(_), do: true
+
+  defp browser_keys?(document) do
+    base = ~w(schema listen exposure public_origin secret_key_base)
+    keys = Map.keys(document)
+
+    common? =
+      Enum.all?(base, &(&1 in keys)) and
+        Enum.all?(keys, &(&1 in (base ++ ~w(tls model map_pack))))
+
+    case document["schema"] do
+      "wtr.browser.v1" -> common? and not Map.has_key?(document, "map_pack")
+      "wtr.browser.v2" -> common? and Map.has_key?(document, "map_pack")
+      _ -> false
+    end
+  end
+
+  defp map_pack(%{"schema" => "wtr.browser.v1"}), do: {:ok, nil}
+
+  defp map_pack(%{"schema" => "wtr.browser.v2", "map_pack" => document}) do
+    module = Wotex.Tracker.UI.MapPack
+
+    if Code.ensure_loaded?(module),
+      do: :erlang.apply(module, :new, [document]),
+      else: {:error, :invalid_configuration}
+  end
+
+  defp map_pack(_), do: {:error, :invalid_configuration}
+
   defp prompt_config(nil), do: {:ok, nil}
 
   defp prompt_config(

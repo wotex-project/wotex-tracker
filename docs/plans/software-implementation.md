@@ -558,13 +558,15 @@ The service boundary for a later history screen is implemented as authorized,
 snapshot-pinned route pages with explicit gaps and page-local continuity.
 The shared route-history screen now selects that closed policy, plots only the
 returned page-local segments and exposes exact points, rejections, exclusions
-and break reasons without a basemap or cross-page join. A bounded presentation
-viewport provides keyboard-operable pan, zoom and reset controls at fixed zoom
-levels, clamps navigation to the rendered coordinate space and resets whenever
-the query or page changes. A bounded latitude/longitude graticule labels the
-geographic extent and restores unwrapped antimeridian values to ordinary east/
-west labels. It changes only the view of returned evidence; it does not fetch
-tiles, match roads or join gaps. Its bounded page export reauthorizes and
+and break reasons without a cross-page join. A bounded presentation viewport
+provides keyboard-operable pan, zoom and reset controls at fixed zoom levels,
+clamps navigation to the rendered coordinate space and resets whenever the query
+or page changes. A bounded latitude/longitude graticule labels the geographic
+extent and restores unwrapped antimeridian values to ordinary east/west labels.
+Hosts may admit one closed, attributed offline map pack; the page draws its
+bounded road, water and boundary line work only when the declared coverage
+contains the complete route page. It reports missing coverage and never fetches
+tiles, matches roads or joins gaps. Its bounded page export reauthorizes and
 reproduces the displayed identity before emitting cursor-free JSON.
 The asset page can also read declared scalar Properties from the committed
 service snapshot through current `read` authority. Overview cards fetch each
