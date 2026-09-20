@@ -4416,3 +4416,58 @@ This proves the source ordering, packaged configuration and successful virtual
 completion of the health-dependent startup guard. It does not exercise an
 unvalidated firmware slot, bad-image failure, physical timeout, interrupted
 update or revert on a Pi 5; those remain hardware acceptance gates.
+
+### Offline direct-TLS appliance provisioning — 2026-09-20
+
+The host provisioner now accepts one closed, all-or-nothing direct-TLS input:
+listen IP, HTTPS public origin, certificate source and private-key source. It
+keeps loopback HTTP as the default when none of those arguments is supplied and
+rejects partial TLS input, non-HTTPS origins, mismatched origin hosts and paths
+outside the selected runtime root. The generated service document is decoded
+and compared with the exact expected document before provisioning succeeds.
+
+The Nerves custody boundary requires absolute source paths beneath a private,
+symlink-free parent. Each source must be a singly linked, regular 0600 file no
+larger than 64 KiB. Certificate input must decode to one through eight PEM
+certificates; the key must be an unencrypted RSA, EC or PKCS#8 private key. A
+challenge signed by the private key is verified against the leaf certificate's
+public key before either artifact is installed. The bytes are exclusively
+copied to fixed 0600 `tls-cert.pem` and `tls-key.pem` runtime files, synchronized
+and read back exactly. Failures remove only files and an empty root created by
+the current attempt, preserve pre-existing occupants, collapse to bounded error
+atoms and never emit certificate or key contents.
+
+The integration test creates a real RSA certificate/key pair, provisions a
+disposable root through the public host command, starts the synchronized direct
+TLS listener from the resulting closed configuration, completes a TLS handshake
+and receives an authenticated writable health response. Negative coverage
+includes partial and invalid CLI input, path escape and symlink cases, public or
+linked files, oversize and malformed PEM, encrypted and mismatched keys,
+occupied destinations, copy failure and rollback boundaries. The service gate
+passed 311 tests and two generated properties at 95.0% production line coverage
+with all configured checks. Headless Nerves verification passed 40 tests and
+the kiosk composition passed 43 with warnings-as-errors and formatter checks.
+The repository gate passed 164 tests and 19 generated properties at 95.4% with
+all configured checks.
+
+All three target profiles rebuilt from Tracker commit
+`67169702192a4836650e4e0b1bf1ead2dc402812`. The headless Pi 5 firmware SHA-256
+is `2b24899ebc36e45d872c60048d71fd486753e98c9893d495e1c5e9a9d3c853fc`;
+the kiosk SHA-256 is
+`6523b9c45729066a60fdc0f1f4cab08e4b0a0dc471f25bdb34518360a0ef0cc9`;
+and the QEMU firmware SHA-256 is
+`88578ce07f0e48c1785be17ac647301df36aa2f220fb6d15c4554fe4916cb010`.
+The build consumers found the packaged TLS module and the compiled provisioner
+call to its four-argument custody function. A fresh virtual partition and reboot
+of the same disk both passed the private-store, loopback-HTTP, native-resource,
+initialized-marker and firmware-valid startup-guard checks. First-boot and
+reboot serial-log SHA-256 digests are respectively
+`338bcf6d9d4bb5cf2b69f68a6bc5e9c63474d79f509672e0a0ce073b0f3fd0fd`
+and `5b4c75b21e65b26a2cc1e77b9bf93014db186b6e575c6d0674f0b08409a12e3d`.
+The receipts identify only the concurrent uncommitted WTR.15 documentation
+path; it was not staged here.
+
+This proves bounded offline custody and a real direct-TLS service handshake. It
+does not issue certificates, establish CA or hostname trust, renew credentials,
+provide authenticated on-device setup, prove remote-network reachability, or
+exercise physical Pi 5 hardware; those remain separate acceptance boundaries.

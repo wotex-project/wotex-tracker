@@ -5,23 +5,24 @@
     "no_active_iex_or_distribution": true,
     "no_credentials_in_runtime_config": true,
     "no_ssh_applications": true,
+    "offline_direct_tls_provisioning": true,
     "profile_application_set": true,
     "required_service_network_time_storage": true,
     "sqlite_nif_aarch64": true
   },
   "firmware": {
-    "bytes": 60289037,
+    "bytes": 60292913,
     "metadata": {
       "meta-architecture": "aarch64",
       "meta-author": "The Nerves Team",
-      "meta-creation-date": "2026-09-20T04:25:21Z",
-      "meta-nickname": "hood-web",
+      "meta-creation-date": "2026-09-20T04:44:15Z",
+      "meta-nickname": "run-tag",
       "meta-platform": "rpi5",
       "meta-product": "wotex_tracker_nerves",
-      "meta-uuid": "60fa74f5-0937-5a29-c74d-3fe2262aaa0b",
+      "meta-uuid": "c8dc566c-2bfb-5752-7435-4e707992e8b3",
       "meta-version": "0.1.0"
     },
-    "sha256": "99a5c95d164b0504e437a3777637aae6640d05532bbc9157931176616acf3ea7",
+    "sha256": "2b24899ebc36e45d872c60048d71fd486753e98c9893d495e1c5e9a9d3c853fc",
     "sqlite_nif": "ELF 64-bit LSB shared object, ARM aarch64, version 1 (SYSV), dynamically linked, BuildID[sha1]=a3dc0ce06a84ffe46914bb4a81e11c04c5f811c6, not stripped",
     "target_elixir": "1.20.4",
     "target_erts": "17.0.6"
@@ -101,7 +102,7 @@
       "tracked_changes": false
     },
     "wotex_tracker": {
-      "commit": "825465ae3272e06910e44b2f60a70cdb02feaf8d",
+      "commit": "67169702192a4836650e4e0b1bf1ead2dc402812",
       "tracked_changes": true
     }
   }
