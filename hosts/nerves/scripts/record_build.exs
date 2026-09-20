@@ -78,7 +78,7 @@ defmodule Wotex.Tracker.Nerves.BuildRecord do
     args = File.read!(Path.join(release_root, "releases/0.1.0/vm.args"))
     true = String.contains?(args, "-noshell")
     false = Regex.match?(~r/^\s*-(?:name|sname|setcookie|user)\b/m, args)
-    true = Regex.match?(~r/^\s*-heart\s*$/m, args)
+    true = Regex.match?(~r/^\s*-heart\s+-env\s+HEART_BEAT_TIMEOUT\s+30\s*$/m, args)
     true = Regex.match?(~r/^\s*-env\s+HEART_INIT_TIMEOUT\s+600\s*$/m, args)
     sys_config = File.read!(Path.join(release_root, "releases/0.1.0/sys.config"))
     true = String.contains?(sys_config, "{startup_guard_enabled,true}")

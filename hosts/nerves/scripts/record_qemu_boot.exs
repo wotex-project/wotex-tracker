@@ -64,7 +64,7 @@ defmodule Wotex.Tracker.Nerves.QemuBootRecord do
     vm_args = File.read!(Path.join(release_root, "releases/0.1.0/vm.args"))
     true = String.contains?(vm_args, "-noshell")
     false = Regex.match?(~r/^\s*-(?:name|sname|setcookie|user)\b/m, vm_args)
-    true = Regex.match?(~r/^\s*-heart\s*$/m, vm_args)
+    true = Regex.match?(~r/^\s*-heart\s+-env\s+HEART_BEAT_TIMEOUT\s+30\s*$/m, vm_args)
     true = Regex.match?(~r/^\s*-env\s+HEART_INIT_TIMEOUT\s+600\s*$/m, vm_args)
     sys_config = File.read!(Path.join(release_root, "releases/0.1.0/sys.config"))
     true = String.contains?(sys_config, "{startup_guard_enabled,true}")
