@@ -35,8 +35,9 @@ through the pure constructors. `RuleTransition` re-evaluates the result and bind
 its expected prior identity; `Store.commit_rule/2` writes canonical state,
 immutable history and any stable event intent at one scope generation. Restart,
 exact retry, stale-writer and replay-prohibition semantics are shared across the
-supported rule kinds. The host still owns monotonic timer scheduling and
-notification delivery.
+supported rule kinds. An explicitly started host owns scheduler and dispatcher
+supervision; recording a new live event atomically stages only the minimal
+per-endpoint notification references, never physical delivery.
 
 `Wotex.Tracker.Service.RuleScheduler` is the explicit host scheduler for this
 deadline. It reads at most 1,024 persisted heartbeat and battery states, converts
@@ -47,8 +48,8 @@ immediately. Before evaluation it rereads the exact durable state, then uses the
 pure live transition and `Store.commit_rule/2`. Stale timer tokens cannot update
 a newer state. The default explicit HTTP host supervises one scheduler, while
 package loading still starts nothing. An overdue intent retains
-`separate_authorization_required`; the scheduler never performs a notification or
-physical Action.
+`separate_authorization_required`; the scheduler never performs provider delivery
+or a physical Action.
 
 An administrator can also bind a heartbeat definition to an enrolled Thing through
 the service `policies` resource. The service evaluates it against the Thing's

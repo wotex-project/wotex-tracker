@@ -38,7 +38,9 @@ atoms. Policy/state restoration rechecks measurement scope, hysteresis status
 and content identities. `Store.commit_rule/2` writes canonical state, immutable
 history and any stable event intent at one scope generation, with restart,
 optimistic-writer, exact-retry and replay-prohibition semantics. Measurement
-ingestion and notification delivery remain caller-owned.
+ingestion remains caller-owned. Recording a new live battery event atomically
+stages the same minimal per-endpoint notification references as other live rule
+events; provider acceptance and physical delivery remain separate gates.
 
 The explicitly started service `RuleScheduler` also reconstructs battery time
 boundaries from durable state. A fresh normal/low sample is reconsidered at the
