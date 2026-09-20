@@ -4996,3 +4996,21 @@ both host lanes passed 20 tests at 98.0% / 98.1%. Their complete compiler,
 formatter, audit, strict Credo, ExDoc, Dialyzer, OpenAPI, archive, native CLI,
 language-policy and licence gates passed. The implementation commit is
 `5837441c5ac99c1f68d6a42dd7c438badef7a5b1`.
+
+### Fail-closed appliance cellular build flag — 2026-09-20
+
+The Nerves target configuration now accepts only an absent
+`WOTEX_TRACKER_CELLULAR` value or the exact value `1`. Any other supplied value
+raises during configuration instead of silently building an image without the
+requested listener. A regression reads the target configuration in isolation
+and covers disabled, enabled and invalid values.
+
+Headless verification passed 43 tests, strict Credo and Dialyzer. The UI-enabled
+composition passed 46 tests and strict Credo. Pi 5 headless and kiosk source
+profiles with cellular enabled compiled with warnings as errors on Elixir
+1.20.4/Erlang/OTP 29.0.4, and an invalid target build emitted the fixed failure.
+The implementation commit is
+`424f487c2e54f4bf1df136d47d9b3c221f4cf972`.
+
+This is build-configuration evidence only; it does not prove a firmware artifact
+boot, a physical Pi, a tracker, SIM, carrier or production network.

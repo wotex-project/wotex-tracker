@@ -50,6 +50,9 @@ startup; an image built without the flag starts no cellular listener. The
 cellular document chooses its numeric bind address and port. Clear TCP provides
 no transport authentication or encryption, so network reachability and
 firewall policy remain explicit operator responsibilities.
+The build flag is closed: omit it to disable cellular ingress or set it to the
+exact value `1`; any other supplied value aborts configuration instead of
+silently producing a headless image without the requested listener.
 
 Only loopback and direct TLS exposure are admitted. The image has no reverse
 proxy, so proxy mode is rejected. A TLS certificate and private key must each
