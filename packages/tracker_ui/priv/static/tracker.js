@@ -1,11 +1,16 @@
 "use strict";
 const csrf = document.querySelector("meta[name='csrf-token']").content;
+let nativeMob = null;
 const MobHook = {
   mounted() {
+    if (window.mob && typeof window.mob.send === "function" && !window.mob._liveview) {
+      nativeMob = window.mob;
+    }
     window.mob = {
       send: (data) => this.pushEvent("mob_message", data),
       onMessage: (handler) => this.handleEvent("mob_push", handler),
-      _dispatch: () => {}
+      _dispatch: () => {},
+      _liveview: true
     };
   }
 };
@@ -21,6 +26,19 @@ liveSocket.socket.onOpen(() => { status.hidden = true; });
 const downloadJson = (event, filename) => {
   const content = event.detail && event.detail.content;
   if (typeof content !== "string") return;
+  if (nativeMob) {
+    try {
+      nativeMob.send({
+        schema: "wtr.mobile-share.v1",
+        filename,
+        media_type: "application/json",
+        content
+      });
+      return;
+    } catch (_) {
+      nativeMob = null;
+    }
+  }
   const url = URL.createObjectURL(new Blob([content], { type: "application/json" }));
   const link = document.createElement("a");
   link.href = url;

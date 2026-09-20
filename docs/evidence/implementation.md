@@ -3621,3 +3621,37 @@ forwarding, APNs provider exchange or physical delivery/tap test ran. The curren
 Mob callback presents notification payloads through one software event shape;
 cold-start, warm, foreground and background tap behavior therefore remains an
 explicit physical-device gate rather than an inferred claim.
+
+### Closed mobile sharing of authorized exports — 2026-09-20
+
+The shared UI's eight existing JSON export events now preserve their ordinary
+Blob-download behavior in a browser and select the native path only when Mob's
+original WebView bridge was present before the LiveView hook mounted. The native
+request has one exact `wtr.mobile-share.v1` shape containing a fixed filename,
+fixed JSON media type and the already-produced content. It cannot name a native
+function, URL, filesystem path or new fetch.
+
+The root Mob screen passes that message through a closed validator before
+calling the system text share sheet. Six public export filenames require their
+exact query, history, route or trip export schema. The separately authorized raw
+observation and evidence downloads accept only a JSON object or array. Every
+payload must be valid UTF-8 JSON no larger than 1 MiB and have exactly four
+bridge fields. Extra fields, unknown filenames, schema substitution, scalar or
+invalid JSON, oversize input and native exceptions or throws produce no native
+effect. The share boundary performs no service request itself: the originating
+LiveView has already repeated the export's existing authorization and identity
+checks immediately before emitting the content.
+
+Tests exercise all eight allowed contracts, browser/native asset wiring,
+invalid media and schemas, widened messages, raw scalar rejection, UTF-8 and
+size bounds, absent NIF containment and root-screen integration. The complete
+mobile-host gate passed 58 tests at 95.6% production line coverage, and the
+complete shared-UI gate passed 156 tests at 95.0%. JavaScript syntax, compiler,
+unused-dependency, formatter, dependency audit, strict Credo, ExDoc, Dialyzer,
+56-member UI archive inspection, licenses and the 509-file stack-language policy
+passed for their applicable profiles.
+
+This is a checked software bridge to Mob's text-sharing API, not physical-device
+evidence. No iPhone share sheet opened in this run, no receiving application was
+selected, and no handoff fidelity, cancellation, memory-pressure or accessibility
+behavior was observed. Those checks remain part of the signed-device gate.

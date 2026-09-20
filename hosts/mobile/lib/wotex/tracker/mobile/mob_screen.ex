@@ -7,7 +7,7 @@ defmodule Wotex.Tracker.Mobile.MobScreen do
   """
 
   use Mob.Screen
-  alias Wotex.Tracker.Mobile.{ExternalURL, Lifecycle, Notifications, WebSession}
+  alias Wotex.Tracker.Mobile.{ExternalURL, Lifecycle, Notifications, Sharing, WebSession}
 
   @impl true
   def mount(%{session: %WebSession{} = session}, _stored, socket) do
@@ -38,6 +38,9 @@ defmodule Wotex.Tracker.Mobile.MobScreen do
     _ = open_external_url(url)
     {:noreply, socket}
   end
+
+  def handle_info({:webview, :message, payload}, socket),
+    do: {:noreply, Sharing.share(socket, payload)}
 
   def handle_info({:mob_device, _, _} = event, socket), do: lifecycle(event, socket)
   def handle_info({:mob_device, _} = event, socket), do: lifecycle(event, socket)

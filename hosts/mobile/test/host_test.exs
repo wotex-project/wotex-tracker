@@ -202,6 +202,9 @@ defmodule Wotex.Tracker.Mobile.HostTest do
 
     assert script =~ "MobHook"
     assert script =~ ~s(hooks: { MobHook })
+    assert script =~ "wtr.mobile-share.v1"
+    assert script =~ "nativeMob.send"
+    assert script =~ "URL.createObjectURL"
 
     [_, logout_csrf] = Regex.run(~r/name="_csrf_token"[^>]*value="([^"]+)"/, assets)
 

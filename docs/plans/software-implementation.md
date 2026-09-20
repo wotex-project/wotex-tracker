@@ -468,7 +468,9 @@ read-only offline presentation and reconnect it through bounded native lifecycle
 events. The pinned notification plugin and an optional supervised registrar now
 request permission, register one installation-bound APNs endpoint through the
 current authorized session and route an exact opaque notification reference to
-the local shared alert screen. No provider token is persisted. Signed Xcode/APNs
+the local shared alert screen. No provider token is persisted. Existing bounded,
+reauthorized JSON exports now keep browser downloads while an exact closed bridge
+routes their content to Mob's native text share sheet. Signed Xcode/APNs
 configuration and every physical native/device gate remain subsequent work.
 
 Acceptance: real iPhone secure storage, authorized BLE central provisioning,

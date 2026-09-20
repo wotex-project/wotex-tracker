@@ -85,6 +85,15 @@ It percent-encodes that reference into the fixed local alert route, where the
 shared UI reauthorizes and resolves current data. Extra keys, private alert data,
 invalid UTF-8, malformed references and native failures produce no navigation.
 
+Authorized JSON exports retain their ordinary Blob download in a browser. In
+the native WebView, the packaged script captures only Mob's original native
+message bridge before the LiveView hook replaces it and sends a fixed
+`wtr.mobile-share.v1` request to the root screen. That boundary accepts only the
+eight existing export filenames, `application/json`, valid JSON no larger than
+1 MiB and the exact public export schema where one exists. It then opens Mob's
+text share sheet with the authorized JSON content. No URL, path, file read,
+fetch, native method name or arbitrary plain text crosses the bridge.
+
 Run the software gate with the host-pinned toolchain:
 
 ```sh
@@ -95,5 +104,5 @@ WOTEX_PATH_DEPS=1 MIX_ENV=test mise exec -- mix check --no-retry
 No Xcode project, signed installation, APNs entitlement or AppDelegate token
 forwarding has been generated or exercised here. Physical notification delivery,
 cold/warm/background tap distinction, secure-storage behavior, suspend/resume,
-network handoff, BLE central operation, OS sharing and all other physical-iPhone
-evidence remain explicitly open.
+network handoff, BLE central operation, share-sheet behavior and all other
+physical-iPhone evidence remain explicitly open.

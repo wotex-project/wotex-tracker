@@ -78,6 +78,18 @@ defmodule Wotex.Tracker.Mobile.ShellTest do
     assert {:noreply, ^mounted} =
              MobScreen.handle_info({:webview, :blocked, "javascript:alert(1)"}, mounted)
 
+    assert {:noreply, ^mounted} =
+             MobScreen.handle_info(
+               {:webview, :message,
+                %{
+                  "schema" => "wtr.mobile-share.v1",
+                  "filename" => "arbitrary.json",
+                  "media_type" => "application/json",
+                  "content" => "{}"
+                }},
+               mounted
+             )
+
     notification_session = %{
       session
       | notification: %{app_id: "org.wotex.tracker", environment: "sandbox"}
