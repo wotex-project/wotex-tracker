@@ -122,6 +122,7 @@ defmodule Wotex.Tracker.ReleaseProbe do
     try do
       instance = start(instance)
       HTTPConsumer.main([instance.descriptor])
+      %{"notification_delivery" => "configured"} = request(instance, "/capabilities")
       thing = request(instance, "/things")["items"] |> hd() |> Map.fetch!("id")
       browser_cookie = browser_workflow(instance, thing, native_resource?)
       generation = request(instance, "/state")["generation"]
@@ -171,6 +172,7 @@ defmodule Wotex.Tracker.ReleaseProbe do
         "restart_and_idempotency" => "pass",
         "sigkill_recovery" => "pass",
         "retained_revocation" => "pass",
+        "notification_delivery" => "pass",
         "browser" => if(browser_cookie, do: "pass", else: "not-in-artifact"),
         "native_resource" => if(native_resource?, do: "pass", else: "not-requested")
       }
@@ -316,6 +318,7 @@ defmodule Wotex.Tracker.ReleaseProbe do
     })
 
     browser = if browser?, do: browser_configuration(directory), else: nil
+    apns = apns_configuration(directory)
 
     %{
       release: release,
@@ -327,8 +330,34 @@ defmodule Wotex.Tracker.ReleaseProbe do
       origin: "http://127.0.0.1:#{port}",
       descriptor: client,
       browser: browser,
+      apns: apns,
       process: nil
     }
+  end
+
+  defp apns_configuration(directory) do
+    key = :public_key.generate_key({:namedCurve, {1, 2, 840, 10_045, 3, 1, 7}})
+    entry = :public_key.pem_entry_encode(:PrivateKeyInfo, key)
+    private_key = :public_key.pem_encode([entry])
+    config = Path.join(directory, "apns.json")
+
+    write_json(config, %{
+      "schema" => "wtr.apns-host.v1",
+      "team_id" => "TEAMID1234",
+      "key_id" => "KEYID12345",
+      "private_key" => private_key,
+      "topics" => ["org.wotex.tracker"],
+      "scopes" => [@scope],
+      "title" => "WotEx alert",
+      "body" => "Open WotEx to review this alert.",
+      "provider_timeout_ms" => 5_000,
+      "interval_ms" => 60_000,
+      "retry_after_ms" => 60_000,
+      "max_batch" => 8,
+      "dispatch_timeout_ms" => 6_000
+    })
+
+    %{config: config, private_key: private_key}
   end
 
   defp browser_configuration(directory) do
@@ -542,7 +571,10 @@ defmodule Wotex.Tracker.ReleaseProbe do
     environment =
       System.get_env()
       |> Map.delete("WOTEX_TRACKER_UI_CONFIG")
+      |> Map.delete("WOTEX_TRACKER_CELLULAR_CONFIG")
+      |> Map.delete("WOTEX_TRACKER_APNS_CONFIG")
       |> Map.put("WOTEX_TRACKER_CONFIG", instance.config)
+      |> Map.put("WOTEX_TRACKER_APNS_CONFIG", instance.apns.config)
 
     environment =
       if instance.browser,
@@ -772,6 +804,7 @@ defmodule Wotex.Tracker.ReleaseProbe do
 
       secrets = [instance.token, instance.reader, instance.document["secret_key"]]
       secrets = if instance.browser, do: [instance.browser.secret | secrets], else: secrets
+      secrets = [instance.apns.private_key | secrets]
 
       for secret <- secrets,
           String.contains?(bytes, secret),
@@ -783,10 +816,26 @@ defmodule Wotex.Tracker.ReleaseProbe do
     root = System.fetch_env!("WOTEX_TRACKER_RELEASE_ROOT") |> File.cd!(fn -> File.cwd!() end)
 
     for tool <- ~w(elixir erl mix), executable = System.find_executable(tool), executable do
-      unless String.starts_with?(Path.expand(executable), root <> "/"),
+      unless String.starts_with?(physical_file!(executable), root <> "/"),
         do: raise("release probe found external BEAM tool #{tool}")
     end
   end
+
+  defp physical_file!(path, remaining \\ 8)
+
+  defp physical_file!(path, remaining) when remaining > 0 do
+    path = Path.expand(path)
+    parent = File.cd!(Path.dirname(path), fn -> File.cwd!() end)
+    path = Path.join(parent, Path.basename(path))
+
+    case File.read_link(path) do
+      {:ok, target} -> physical_file!(Path.expand(target, parent), remaining - 1)
+      {:error, :einval} -> path
+      {:error, reason} -> raise("release probe cannot resolve executable: #{reason}")
+    end
+  end
+
+  defp physical_file!(_path, 0), do: raise("release probe executable symlink depth exceeded")
 
   defp assert_licenses!(release) do
     components =
