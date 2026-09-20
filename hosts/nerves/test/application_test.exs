@@ -50,11 +50,13 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
     {:ok, marker} = StoragePolicy.provision(root, root, "pi-test")
 
     previous =
-      Map.new([:config_path, :data_root, :clock_synchronized, :cellular_config_path], fn key ->
-        {key, Application.get_env(:wotex_tracker_nerves, key)}
-      end)
+      Map.new(
+        [:config_path, :data_root, :clock_synchronized, :cellular_config_path, :apns_config_path],
+        fn key -> {key, Application.get_env(:wotex_tracker_nerves, key)} end
+      )
 
     Application.put_env(:wotex_tracker_nerves, :cellular_config_path, nil)
+    Application.put_env(:wotex_tracker_nerves, :apns_config_path, nil)
 
     on_exit(fn ->
       Enum.each(previous, fn {key, value} ->
@@ -184,6 +186,8 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
                System.system_time(:millisecond)
              )
 
+    assert {:ok, %{"cellular" => "configured"}} = capabilities(api, c.token)
+
     assert :ok = Supervisor.stop(host)
     refute Process.alive?(api)
     refute Process.alive?(listener)
@@ -197,6 +201,50 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
     assert {:error, :invalid_configuration} = Config.load_cellular(outside, c.root, options)
     assert {:error, :invalid_configuration} = Config.load_cellular(c.path, c.root, options)
     assert {:error, :invalid_configuration} = Config.load_cellular("invalid", nil, :invalid)
+  end
+
+  test "the appliance supervises explicitly configured APNs delivery", c do
+    apns_path = Path.join(c.root, "apns.json")
+    apns = apns_document()
+    write_private(apns_path, Codec.encode!(apns))
+
+    assert {:ok, options} = Config.load(c.path, c.root)
+    assert {:ok, configured} = Config.load_apns(apns_path, c.root, options)
+    refute inspect(configured) =~ apns["private_key"]
+    refute inspect(configured) =~ apns["body"]
+
+    Application.put_env(:wotex_tracker_nerves, :config_path, c.path)
+    Application.put_env(:wotex_tracker_nerves, :data_root, c.root)
+    Application.put_env(:wotex_tracker_nerves, :apns_config_path, apns_path)
+    assert {:ok, host} = HostApplication.start(:normal, [])
+    children = Supervisor.which_children(host)
+    assert {Server, api, :supervisor, _} = List.keyfind(children, Server, 0)
+    assert {:ok, dispatcher} = Server.child(api, :notification_dispatcher)
+    assert Process.alive?(dispatcher)
+
+    assert {:ok, %{"schema" => "wtr.notification-dispatcher.v1"}} =
+             Server.notification_dispatcher(api)
+
+    assert {:ok, %{"notification_delivery" => "configured"}} =
+             capabilities(api, c.token)
+
+    assert :ok = Supervisor.stop(host)
+    refute Process.alive?(api)
+    refute Process.alive?(dispatcher)
+  end
+
+  test "APNs appliance configuration is optional and root-bound", c do
+    assert {:ok, options} = Config.load(c.path, c.root)
+    assert {:ok, nil} = Config.load_apns(nil, c.root, options)
+
+    outside = Path.expand("../apns.json", c.root)
+    assert {:error, :invalid_configuration} = Config.load_apns(outside, c.root, options)
+    assert {:error, :invalid_configuration} = Config.load_apns(c.path, c.root, options)
+    assert {:error, :invalid_configuration} = Config.load_apns("invalid", nil, :invalid)
+
+    path = Path.join(c.root, "apns.json")
+    write_private(path, Codec.encode!(%{}))
+    assert {:error, :invalid_configuration} = Config.load_apns(path, c.root, options)
   end
 
   test "the target cellular build flag fails closed" do
@@ -218,6 +266,28 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
 
     assert_raise RuntimeError,
                  "WOTEX_TRACKER_CELLULAR accepts only 1 when building cellular ingress",
+                 &target_config/0
+  end
+
+  test "the target APNs build flag fails closed" do
+    previous = System.get_env("WOTEX_TRACKER_APNS")
+
+    on_exit(fn ->
+      if previous,
+        do: System.put_env("WOTEX_TRACKER_APNS", previous),
+        else: System.delete_env("WOTEX_TRACKER_APNS")
+    end)
+
+    System.delete_env("WOTEX_TRACKER_APNS")
+    assert target_config()[:apns_config_path] == nil
+
+    System.put_env("WOTEX_TRACKER_APNS", "1")
+    assert target_config()[:apns_config_path] == "/root/tracker/apns.json"
+
+    System.put_env("WOTEX_TRACKER_APNS", "invalid")
+
+    assert_raise RuntimeError,
+                 "WOTEX_TRACKER_APNS accepts only 1 when building notification delivery",
                  &target_config/0
   end
 
@@ -425,6 +495,38 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
 
     [vector] = fixture["vectors"]
     Base.decode16!(vector["hex"])
+  end
+
+  defp apns_document do
+    key = :public_key.generate_key({:namedCurve, {1, 2, 840, 10_045, 3, 1, 7}})
+    entry = :public_key.pem_entry_encode(:PrivateKeyInfo, key)
+
+    %{
+      "schema" => "wtr.apns-host.v1",
+      "team_id" => "TEAMID1234",
+      "key_id" => "KEYID12345",
+      "private_key" => :public_key.pem_encode([entry]),
+      "topics" => ["org.wotex.tracker"],
+      "scopes" => ["workshop"],
+      "title" => "WotEx alert",
+      "body" => "Open WotEx to review this alert.",
+      "provider_timeout_ms" => 5_000,
+      "interval_ms" => 60_000,
+      "retry_after_ms" => 60_000,
+      "max_batch" => 8,
+      "dispatch_timeout_ms" => 6_000
+    }
+  end
+
+  defp capabilities(server, token) do
+    with {:ok, {{127, 0, 0, 1}, port}} <- Server.listener_info(server),
+         url = ~c"http://127.0.0.1:#{port}/api/v1/scopes/workshop/capabilities",
+         headers = [{~c"authorization", ~c"Bearer #{token}"}],
+         {:ok, {{_, 200, _}, _, body}} <-
+           :httpc.request(:get, {url, headers}, [timeout: 1_000], body_format: :binary),
+         {:ok, %{"data" => data}} <- Codec.decode(body) do
+      {:ok, data}
+    end
   end
 
   defp free_port do

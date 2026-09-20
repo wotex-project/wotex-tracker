@@ -6,4 +6,5 @@ config :wotex_tracker_nerves,
   config_path: nil,
   data_root: nil,
   browser_config_path: nil,
-  cellular_config_path: nil
+  cellular_config_path: nil,
+  apns_config_path: nil
