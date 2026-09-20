@@ -1,0 +1,88 @@
+{
+  "builder": {
+    "architecture": "arm64",
+    "image_id": "sha256:c03a37c4fda289749dbdf74be3da3501c6151fff943192e7b58d0d03e0a25f9f",
+    "image_tag": "wotex-tracker-builder:elixir-1.18.4-otp-27.3.4.15",
+    "os": "linux"
+  },
+  "full_immutable_qualification": {
+    "blocker": {
+      "commit": "cd73c5493d3453ae9ecd203c63b589676c9b9fd6",
+      "detail": "unmatched nil | pid() returns",
+      "gate": "wotex-binding-http Dialyzer",
+      "locations": [
+        "test/support/fake_client.ex:17",
+        "test/support/fake_client.ex:18"
+      ]
+    },
+    "receipt_promoted": false,
+    "status": "blocked_upstream"
+  },
+  "kind": "focused_source_release_probe",
+  "limitations": [
+    "production path dependencies were used",
+    "the release ran in the builder rather than the final runtime image",
+    "non-root and read-only runtime execution were not exercised",
+    "physical Linux and Pi hardware were not exercised",
+    "capacity budgets were not measured"
+  ],
+  "probe": {
+    "checks": {
+      "browser": "pass",
+      "cli_property_resume": "pass",
+      "external_beam_tools_absent": true,
+      "external_compiler_absent": false,
+      "history": "pass",
+      "http_openapi_sse": "pass",
+      "invalid_storage_permissions": "pass",
+      "native_resource": "pass",
+      "property_observation": "pass",
+      "readonly_filesystem": "not-executed",
+      "restart_and_idempotency": "pass",
+      "retained_revocation": "pass",
+      "runtime_licenses": "pass",
+      "shutdown_seconds": 1.087,
+      "sigkill_recovery": "pass",
+      "sigterm_active_stream": "pass",
+      "sqlite_full_rollback": "pass"
+    },
+    "flags": [
+      "--browser",
+      "--native-resource"
+    ],
+    "native_resource_assertion": {
+      "event": "native.sample",
+      "measurements": [
+        "system_available_memory_bytes",
+        "process_rss_bytes",
+        "load_1m_milli"
+      ],
+      "source": "linux_procfs",
+      "surface": "service"
+    },
+    "result_sha256": "7e6d8249ca3c1e04fd3c23a7c2e31c4b73c212315dd016df2c6792bf9349ba96"
+  },
+  "recorded_at": "2026-09-20T03:07:17Z",
+  "release": {
+    "mix_env": "dev",
+    "version": "wotex_tracker 0.1.0"
+  },
+  "schema": "wtr.linux-native-resource-source.v1",
+  "scope": "local-source-cohort-not-immutable-artifact",
+  "sources": {
+    "wotex": {
+      "commit": "cd73c5493d3453ae9ecd203c63b589676c9b9fd6",
+      "dependency_surfaces_clean": true,
+      "other_tracked_paths": [
+        "packages/wotex-opcua/test/interop/rust_peer/src/main.rs"
+      ]
+    },
+    "wotex_tracker": {
+      "commit": "3fb273c08d106bc6377688591aaefffb32e2c021",
+      "other_tracked_paths": [
+        "docs/specs/WTR.15-product-and-mobile-applications.md"
+      ]
+    }
+  },
+  "temporary_resources_removed": true
+}

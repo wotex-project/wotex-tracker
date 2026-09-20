@@ -4081,6 +4081,40 @@ the 533-file stack-language policy passed wherever configured. Headless Nerves
 verification passed 8 tests and the kiosk composition passed 11 with warnings as
 errors and formatter checks.
 
-This is deterministic host-software evidence. An actual Linux release/container
+This is deterministic host-software evidence. Packaged Linux source-cohort
+evidence is recorded below; an immutable ordinary-package release/container
 sample, Darwin or mobile native-resource adapter, measured capacity budget and
 physical-device acceptance remain separate gates.
+
+### Packaged Linux ARM64 native-resource source proof — 2026-09-20
+
+A focused Linux ARM64 run assembled the browser-enabled bundled release from
+Tracker commit `3fb273c08d106bc6377688591aaefffb32e2c021` inside the existing local
+Elixir 1.18.4 / OTP 27.3.4.15 builder. The builder is Linux ARM64 image
+`sha256:c03a37c4fda289749dbdf74be3da3501c6151fff943192e7b58d0d03e0a25f9f`.
+The release identified itself as `wotex_tracker 0.1.0` and ran with external
+BEAM tools removed from `PATH`.
+
+The black-box release probe signed into the packaged browser host and polled its
+authenticated operational view. It required one `native.sample` containing all
+three closed measurements (`system_available_memory_bytes`, `process_rss_bytes`
+and `load_1m_milli`) plus exact `surface: service` and `source: linux_procfs`
+metadata. That assertion passed together with the HTTP/OpenAPI/SSE consumer,
+browser workflow, Property resume, immutable history, restart/idempotency,
+SIGTERM active-stream shutdown, SIGKILL recovery, retained revocation, invalid
+storage rejection and SQLite-full rollback checks. The result document SHA-256
+is `7e6d8249ca3c1e04fd3c23a7c2e31c4b73c212315dd016df2c6792bf9349ba96`;
+its complete result and provenance are retained in
+`verification/linux-native-resource-source.json`. The exact temporary container
+and build volume were removed after recording the result.
+
+This focused proof used production path dependencies under `MIX_ENV=dev` in the
+builder and did not run the release as the final non-root, read-only runtime
+image. It therefore proves the packaged source cohort, not the immutable
+ordinary-package cohort. The complete UI source qualifier was attempted first
+and stopped in sibling WoTEx commit
+`cd73c5493d3453ae9ecd203c63b589676c9b9fd6`: its own binding HTTP Dialyzer gate
+reports unmatched `nil | pid()` returns at `test/support/fake_client.ex` lines
+17 and 18. No receipt is promoted for that cohort until the upstream gate is
+clean and the complete qualifier passes. Physical Linux/Pi behavior, capacity
+budgets and Darwin/mobile adapters remain unqualified.

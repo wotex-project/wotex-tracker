@@ -319,6 +319,8 @@ mounted configuration and data must be private and accessible to that user.
 The black-box artifact probe exercises HTTP/OpenAPI/SSE, history, active-stream
 SIGTERM shutdown, restart, exact receipt replay, retained revocation, process-kill
 recovery and SQLite's real page ceiling. Linux additionally runs as a non-root
-user on a read-only container root and checks an unwritable data destination.
+user on a read-only container root, checks an unwritable data destination and,
+for the browser artifact, requires the authenticated operational view to expose
+the exact `native.sample` measurement set with `service`/`linux_procfs` metadata.
 The probe imports no BEAM source and runs without external BEAM tools in PATH.
 This is software artifact evidence, not physical power-loss or device qualification.
