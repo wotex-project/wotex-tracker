@@ -76,13 +76,31 @@ state and carries a random non-secret storage identity. `--expires-in` accepts
 private file. A repeated command refuses the occupied tree without changing it,
 and failure removes only files and directories created by that attempt.
 
+For the kiosk profile, add distinct service and browser ports:
+
+```sh
+WOTEX_PATH_DEPS=1 MIX_TARGET=host MIX_ENV=test mise exec -- \
+  mix run --no-start scripts/provision.exs -- \
+  --directory /absolute/private/staging/tracker \
+  --instance-id workshop-pi --scope workshop \
+  --port 4001 --browser-port 4000
+```
+
+`--browser-port` creates an exclusive 0600 `browser.json` with loopback-only
+HTTP, a matching public origin and an independent random session-signing secret.
+The service and browser ports must differ. Output contains the browser file path,
+never its secret. The headless artifact still has no browser or UI dependency;
+the extra document is used only by the explicitly selected kiosk profile.
+
 The generated configuration always names `/root/tracker/config.json` and
 `/root/tracker/data` as runtime paths. If `--directory` is a staging or mounted-
 media path, install its contents at exactly `/root/tracker` while preserving
 0700/0600 modes and ownership. That installation step is operator- and media-
 specific; the command does not flash a device. It also does not generate TLS or
-`browser.json`, expose a network listener, rotate an existing credential or
-provide an authenticated on-device setup screen. Those remain separate gates.
+expose a network listener, rotate an existing credential or provide an
+authenticated on-device setup screen. Browser configuration is generated only
+when `--browser-port` is explicit. Those remaining operations stay separate
+gates.
 
 ## Native operational resources
 
@@ -158,7 +176,8 @@ The firmware is `_build/ui/rpi5_dev/nerves/images/wotex_tracker_nerves.fw`.
 Its dependency lock is `mix.ui.lock`, separate from the headless `mix.lock`.
 
 The kiosk also needs `/root/tracker/browser.json`, a private 0600 file under
-the same private directory as the service configuration:
+the same private directory as the service configuration. Prefer the optional
+offline provisioning flag above. The closed document is:
 
 ```json
 {

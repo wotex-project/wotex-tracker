@@ -16,8 +16,11 @@ An offline create-only host provisioner now prepares the exact private service
 tree for `/root/tracker` through the shared service configuration seam. It emits
 only private file paths and can target mounted media without embedding the mount
 path in runtime configuration. It is not an authenticated on-device setup UI,
-TLS/browser provisioning or media installation. Neither Pi image has booted on
-a Pi. A source-level storage marker now permits one prepared initialization and
+TLS provisioning or media installation. The same command can optionally create
+a private loopback browser document on a distinct port without adding UI
+dependencies to the headless profile. It is not an on-device setup UI. Neither
+Pi image has booted on a Pi. A source-level storage marker now permits one
+prepared initialization and
 makes later missing, unsafe, corrupt or unsupported stores an explicit
 `recovery_required` startup result. No physical storage-recovery or hardware
 acceptance exists yet. Bootable headless and local-display profiles remain

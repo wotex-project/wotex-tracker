@@ -3,6 +3,7 @@ defmodule Wotex.Tracker.Nerves.BrowserTest do
   alias Wotex.Tracker.Nerves.Application, as: HostApplication
   alias Wotex.Tracker.Nerves.Browser.Client
   alias Wotex.Tracker.Nerves.Browser.Endpoint
+  alias Wotex.Tracker.Nerves.BrowserProvisioning
   alias Wotex.Tracker.Nerves.BrowserConfig
   alias Wotex.Tracker.Nerves.StoragePolicy
   alias Wotex.Tracker.Service.{Codec, Credentials}
@@ -114,16 +115,19 @@ defmodule Wotex.Tracker.Nerves.BrowserTest do
   end
 
   test "browser configuration is private, loopback-only and keeps secrets out of inspection", c do
+    File.rm!(c.browser_path)
+    assert {:ok, browser_path} = BrowserProvisioning.provision(c.root, c.port)
+    browser = browser_path |> File.read!() |> Codec.decode!()
     {:ok, options} = Wotex.Tracker.Service.HTTP.FileConfig.load(c.service_path)
     assert {:ok, config} = BrowserConfig.load(c.browser_path, c.root, options)
     assert config.port == c.port
-    refute inspect(config) =~ c.browser["secret_key_base"]
+    refute inspect(config) =~ browser["secret_key_base"]
 
     for changed <- [
-          Map.put(c.browser, "secret_key_base", "short"),
-          Map.put(c.browser, "exposure", "proxy"),
-          Map.put(c.browser, "public_origin", "http://foreign.example"),
-          Map.put(c.browser, "extra", true)
+          Map.put(browser, "secret_key_base", "short"),
+          Map.put(browser, "exposure", "proxy"),
+          Map.put(browser, "public_origin", "http://foreign.example"),
+          Map.put(browser, "extra", true)
         ] do
       write(c.browser_path, changed)
 
@@ -131,7 +135,7 @@ defmodule Wotex.Tracker.Nerves.BrowserTest do
                BrowserConfig.load(c.browser_path, c.root, options)
     end
 
-    write(c.browser_path, c.browser)
+    write(c.browser_path, browser)
     File.chmod!(c.browser_path, 0o644)
     assert {:error, :invalid_configuration} = BrowserConfig.load(c.browser_path, c.root, options)
   end

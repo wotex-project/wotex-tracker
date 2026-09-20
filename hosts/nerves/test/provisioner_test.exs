@@ -99,6 +99,50 @@ defmodule Wotex.Tracker.Nerves.ProvisionerTest do
              )
   end
 
+  test "optionally stages a private kiosk browser on a distinct loopback port", c do
+    assert {:ok, result} =
+             Provisioner.run(
+               [
+                 "--directory",
+                 c.root,
+                 "--instance-id",
+                 "pi-kiosk",
+                 "--scope",
+                 "workshop",
+                 "--port",
+                 "4001",
+                 "--browser-port",
+                 "4000"
+               ],
+               1_700_000_000_000,
+               "/root/tracker"
+             )
+
+    assert result["browser_config_file"] == Path.join(c.root, "browser.json")
+    browser = result["browser_config_file"] |> File.read!() |> Codec.decode!()
+    assert browser["listen"] == %{"ip" => "127.0.0.1", "port" => 4000}
+    assert browser["public_origin"] == "http://127.0.0.1:4000"
+    refute Codec.encode!(result) =~ browser["secret_key_base"]
+
+    assert {:error, :invalid_arguments} =
+             Provisioner.run(
+               [
+                 "--directory",
+                 c.root <> "-conflict",
+                 "--instance-id",
+                 "pi-kiosk",
+                 "--scope",
+                 "workshop",
+                 "--port",
+                 "4000",
+                 "--browser-port",
+                 "4000"
+               ],
+               1_700_000_000_000,
+               "/root/tracker"
+             )
+  end
+
   test "an occupied storage marker is retained and rolls back only new host paths", c do
     File.mkdir!(c.root)
     File.chmod!(c.root, 0o700)
@@ -122,6 +166,38 @@ defmodule Wotex.Tracker.Nerves.ProvisionerTest do
 
     assert File.read!(marker) == "occupied"
     refute File.exists?(Path.join(c.root, "config.json"))
+    refute File.exists?(Path.join(c.root, "operator.token"))
+    refute File.exists?(Path.join(c.root, "data"))
+  end
+
+  test "an occupied browser file is retained while new service paths roll back", c do
+    File.mkdir!(c.root)
+    File.chmod!(c.root, 0o700)
+    browser = Path.join(c.root, "browser.json")
+    File.write!(browser, "occupied")
+    File.chmod!(browser, 0o600)
+
+    assert {:error, :configuration_exists} =
+             Provisioner.run(
+               [
+                 "--directory",
+                 c.root,
+                 "--instance-id",
+                 "pi-kiosk",
+                 "--scope",
+                 "workshop",
+                 "--port",
+                 "4001",
+                 "--browser-port",
+                 "4000"
+               ],
+               1_700_000_000_000,
+               "/root/tracker"
+             )
+
+    assert File.read!(browser) == "occupied"
+    refute File.exists?(Path.join(c.root, "config.json"))
+    refute File.exists?(Path.join(c.root, "storage.json"))
     refute File.exists?(Path.join(c.root, "operator.token"))
     refute File.exists?(Path.join(c.root, "data"))
   end
