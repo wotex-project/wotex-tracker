@@ -2,7 +2,12 @@
 
 ## Status
 
-Accepted target contract. No implementation claim.
+Implemented for bounded observations, native-JSON/byte exports, evidence and
+closed evidence bundles, content identities, explicit pseudonymous association
+and typed consistency failures. Durable retention policy and physical identity
+or hardware attestation remain host/device qualification concerns. See the
+[observation guide](../guides/observations.md) and
+[executed evidence](../evidence/implementation.md#wtr01-software-values--2026-09-15).
 
 ## Observation envelope
 
