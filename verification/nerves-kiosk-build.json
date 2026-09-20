@@ -13,19 +13,19 @@
     "sqlite_nif_aarch64": true
   },
   "firmware": {
-    "bytes": 145979222,
+    "bytes": 145979139,
     "metadata": {
       "meta-architecture": "aarch64",
       "meta-author": "The Nerves Team",
-      "meta-creation-date": "2026-09-20T05:00:40Z",
-      "meta-nickname": "trade-zoo",
+      "meta-creation-date": "2026-09-20T05:08:27Z",
+      "meta-nickname": "gain-silver",
       "meta-platform": "rpi5",
       "meta-product": "wotex_tracker_nerves",
-      "meta-uuid": "e8ffc3c6-0a11-5c47-c5b2-ea56033b0356",
+      "meta-uuid": "4cd5c265-72c3-5946-d7b3-5cc23c5de62f",
       "meta-version": "0.1.0"
     },
     "myelin_web_extension": "ELF 64-bit LSB shared object, ARM aarch64, version 1 (SYSV), dynamically linked, BuildID[sha1]=18e52db95084d0f4aa91bc027116b55545819727, with debug_info, not stripped",
-    "sha256": "3bd5e47225366955791e3270d2b165822d40b6f27dfe5174fb4675610e3c5d9b",
+    "sha256": "b81f492d9ee99837064272a0b0b527b468e9c918b199a247b091a35f06740433",
     "sqlite_nif": "ELF 64-bit LSB shared object, ARM aarch64, version 1 (SYSV), dynamically linked, BuildID[sha1]=a3dc0ce06a84ffe46914bb4a81e11c04c5f811c6, not stripped",
     "target_elixir": "1.20.4",
     "target_erts": "17.0.6"
@@ -105,19 +105,19 @@
   "schema": "wtr.nerves-kiosk-build.v1",
   "sources": {
     "wotex": {
-      "commit": "cd73c5493d3453ae9ecd203c63b589676c9b9fd6",
+      "commit": "c5a16af4df6bb11a75048fb6940daec3670c01d7",
       "tracked_changes": false
     },
     "wotex_binding_http": {
-      "commit": "cd73c5493d3453ae9ecd203c63b589676c9b9fd6",
+      "commit": "c5a16af4df6bb11a75048fb6940daec3670c01d7",
       "tracked_changes": false
     },
     "wotex_runtime": {
-      "commit": "cd73c5493d3453ae9ecd203c63b589676c9b9fd6",
+      "commit": "c5a16af4df6bb11a75048fb6940daec3670c01d7",
       "tracked_changes": false
     },
     "wotex_tracker": {
-      "commit": "5b5c45597ceac2c80c70d24b157e4c8861694388",
+      "commit": "8c8baf154d590dc4ba30ad39ad4af150d07481fa",
       "tracked_changes": true
     }
   }

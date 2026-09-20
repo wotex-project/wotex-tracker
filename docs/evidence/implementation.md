@@ -4526,3 +4526,43 @@ that its target code is packaged. It does not create credentials on the device,
 boot Cog, exercise GPU/DRM, touch or keyboard input, demonstrate offline setup
 on a physical display, or qualify browser-crash and revocation behavior on a Pi
 5; those remain physical acceptance gates.
+
+### Authenticated virtual firmware fixture ingress — 2026-09-20
+
+The QEMU-only boot fixture now creates one random 256-bit bearer on the virtual
+data partition, writes it as a singly linked 0600 file and configures only its
+digest with read and ingest grants. Neither Pi 5 profile contains the fixture,
+and the bearer is absent from runtime configuration and serial output. The
+fixture submits one deterministic Ruuvi RAWv2 observation through the real
+loopback HTTP ingress using an authenticated request and a fixed UUID operation
+identifier. It then reads public state through the same service boundary and
+requires the decoded temperature to be 24.3 degrees Celsius.
+
+A fresh virtual disk committed that operation at generation zero. Booting the
+same disk again submitted the identical request and operation identifier,
+exercising the durable replay path rather than creating a second observation.
+Both boots passed the private-store, loopback-HTTP, native-resource,
+initialized-marker and firmware-valid startup-guard probes. The first boot
+formatted the fresh partition; the reboot mounted it without formatting. The
+headless host suite passed 40 tests, the QEMU target compiled with warnings as
+errors, and the repository gate passed 164 tests and 19 generated properties at
+95.4% production line coverage with all configured checks.
+
+All three target profiles rebuilt from Tracker commit
+`8c8baf154d590dc4ba30ad39ad4af150d07481fa`. The headless Pi 5 firmware
+SHA-256 is
+`2c6d03963da420c9efae93fb00fcf475d953ca36cb1cb8e198a8942800ba701b`;
+the kiosk SHA-256 is
+`b81f492d9ee99837064272a0b0b527b468e9c918b199a247b091a35f06740433`;
+and the QEMU firmware SHA-256 is
+`c941f8c18c621b3a2bf7b699592101be34821713c4763d41ecbaea5101d14269`.
+The first-boot and same-disk reboot serial-log SHA-256 digests are respectively
+`ed460aa34974666b98d0588275a63e23f62a8509e13fd4b5a2b0531a54a249a9`
+and `e097ad99e7efb90883dce9f7a9ef3022fdf97da5a1e17d27a319534bb56aa4d4`.
+The receipts identify only the concurrent uncommitted WTR.15 documentation
+path; it was not staged.
+
+This proves authenticated, decoded fixture ingress and durable idempotent replay
+inside the packaged virtual firmware. It does not exercise a physical radio,
+BLE, external network peer, Pi 5 storage or power interruption; those remain
+physical acceptance gates.

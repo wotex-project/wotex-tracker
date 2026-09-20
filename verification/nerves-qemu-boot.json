@@ -1,11 +1,12 @@
 {
   "boot_log_sha256": {
-    "first": "9256d954ddfe7dadb661f9adedaae34629a509c293aa5bf69cea76acce131fa9",
-    "reboot": "2ce49504cb1e5d3129968fecfa1ba05e7c70d308edc83bc426b33bd0b53602b4"
+    "first": "ed460aa34974666b98d0588275a63e23f62a8509e13fd4b5a2b0531a54a249a9",
+    "reboot": "e097ad99e7efb90883dce9f7a9ef3022fdf97da5a1e17d27a319534bb56aa4d4"
   },
   "checks": {
     "core_health_before_firmware_validation": true,
     "firmware_startup_guard_with_finite_heart_timeout": true,
+    "first_boot_authenticated_fixture_ingress": true,
     "first_boot_formatted_fresh_partition": true,
     "first_boot_initialized_storage_marker": true,
     "first_boot_native_resource_sample": true,
@@ -15,6 +16,7 @@
     "no_credentials_in_runtime_config": true,
     "no_ui_or_ssh_applications": true,
     "offline_direct_tls_provisioning": true,
+    "reboot_authenticated_fixture_replay": true,
     "reboot_initialized_storage_marker": true,
     "reboot_kept_existing_partition": true,
     "reboot_native_resource_sample": true,
@@ -23,18 +25,18 @@
     "sqlite_nif_aarch64": true
   },
   "firmware": {
-    "bytes": 31206578,
+    "bytes": 31208367,
     "metadata": {
       "meta-architecture": "arm",
       "meta-author": "The Nerves Team",
-      "meta-creation-date": "2026-09-20T05:00:24Z",
-      "meta-nickname": "super-dinner",
+      "meta-creation-date": "2026-09-20T05:08:14Z",
+      "meta-nickname": "grunt-voyage",
       "meta-platform": "qemu_aarch64",
       "meta-product": "wotex_tracker_nerves",
-      "meta-uuid": "d94920a6-98a6-57a3-9375-31c0bbb8f19a",
+      "meta-uuid": "6bfd5ec1-a1e8-52f0-ff11-372249142940",
       "meta-version": "0.1.0"
     },
-    "sha256": "711061d8a17f809c695829cc08745ff111797da5ee11dcc54f15b8b2476c613f",
+    "sha256": "c941f8c18c621b3a2bf7b699592101be34821713c4763d41ecbaea5101d14269",
     "sqlite_nif": "ELF 64-bit LSB shared object, ARM aarch64, version 1 (SYSV), dynamically linked, BuildID[sha1]=a3dc0ce06a84ffe46914bb4a81e11c04c5f811c6, not stripped",
     "target_elixir": "1.20.4",
     "target_erts": "17.0.6"
@@ -93,22 +95,22 @@
   "schema": "wtr.nerves-qemu-boot.v1",
   "sources": {
     "wotex": {
-      "commit": "cd73c5493d3453ae9ecd203c63b589676c9b9fd6",
+      "commit": "c5a16af4df6bb11a75048fb6940daec3670c01d7",
       "tracked_changes": false,
       "tracked_paths": []
     },
     "wotex_binding_http": {
-      "commit": "cd73c5493d3453ae9ecd203c63b589676c9b9fd6",
+      "commit": "c5a16af4df6bb11a75048fb6940daec3670c01d7",
       "tracked_changes": false,
       "tracked_paths": []
     },
     "wotex_runtime": {
-      "commit": "cd73c5493d3453ae9ecd203c63b589676c9b9fd6",
+      "commit": "c5a16af4df6bb11a75048fb6940daec3670c01d7",
       "tracked_changes": false,
       "tracked_paths": []
     },
     "wotex_tracker": {
-      "commit": "5b5c45597ceac2c80c70d24b157e4c8861694388",
+      "commit": "8c8baf154d590dc4ba30ad39ad4af150d07481fa",
       "tracked_changes": true,
       "tracked_paths": [
         "docs/specs/WTR.15-product-and-mobile-applications.md"
