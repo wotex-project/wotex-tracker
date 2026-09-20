@@ -16,14 +16,18 @@ exact ID/version pair referenced by the profile. Model construction calls
 upstream `Wotex.ThingModel.from_map/2` with validation enabled and records full
 content identity. No resolver, network fetch, inheritance engine or templating
 language is included. `tm:ref`, composition links, placeholders, nested TM
-directives and nonempty Action/Event sections return
-`unsupported_model_feature` in this slice.
+directives and nonempty Event sections return `unsupported_model_feature` in
+this slice. A self-contained Action is admitted only when the pinned decoder
+emits its distinct Action capability, the profile maps that capability to the
+exact Action pointer and deployment supplies an explicit invocation Form.
 
 The model requires temperature and makes the other nine Properties optional.
 A missing current sample does not remove a supported affordance. All Properties
 are readable and have explicit units. Writable Properties and physical device
-Events remain unsupported. Host delivery of committed Property values requires
-the separate declaration below.
+Events remain unsupported. No packaged profile currently declares an Action.
+The synthetic Action contract tests materialisation only; it does not install an
+execution adapter or claim a physical effect. Host delivery of committed
+Property values requires the separate declaration below.
 
 The generic cellular asset-tracker 1.0.0 model is selected by the configured
 TAT140 profile; revision 1.1.0 is selected by ATC700 and adds a bounded integer
@@ -46,10 +50,11 @@ nor the payload MAC becomes a public Thing identifier.
 
 `Deployment.new/2` requires atom-keyed `revision`, `title`, `forms`,
 `security_definitions` and `security`. Forms are a native object keyed by exact
-escaped affordance pointers. Every selected Property needs one to eight explicit
-Forms. By default each Form declares `readproperty` (string or singleton list), an
-absolute URI without embedded credentials or placeholders, and any security
-references must resolve. Generic Form/security construction remains upstream.
+escaped affordance pointers. Every selected Property or Action needs one to eight
+explicit Forms. A Property Form declares only `readproperty`; an Action Form
+declares only `invokeaction`. Each Form uses an absolute URI without embedded
+credentials or placeholders, and any security references must resolve. Generic
+Form/security construction remains upstream.
 Host Runtime/binding validation subsequently determines supported transport,
 content type and actual operation behavior.
 
@@ -100,10 +105,10 @@ support must remain consistent, all original decoded evidence must still resolve
 and selected capabilities must be present in the decoded result. Equal revision
 labels alone cannot smuggle a different catalogue into an old decode.
 
-Only optional Properties with exact `tm:optional` pointers may be omitted.
+Only optional Properties or Actions with exact `tm:optional` pointers may be omitted.
 Mandatory missing support is `missing_capability`. Duplicate mapping destinations,
 unknown destinations, incompatible units/operations and missing Forms fail.
-Escaped Property names use upstream JSON Pointer semantics. The transform removes
+Escaped affordance names use upstream JSON Pointer semantics. The transform removes
 consumed TM instructions/types, preserves applicable native extensions and other
 types, and supplies the explicit instance title, ID, version, security and Forms.
 The candidate enters `Wotex.ThingDescription.from_map/2` with validation enabled.
@@ -116,8 +121,11 @@ into the public TD. Publication policy and authorization remain host-owned.
 ## Executed scope
 
 The fixed source-derived fixture TD is checked against an independent JSON
-expectation. Structural validation and synthetic Forms do not prove a reachable
-endpoint. Local signed-registry consumers run the archive in production without
-path dependency switches, optional hosts or newly created processes. Public Hex
-release availability and actual Runtime/software-peer interaction are separate
-gates. See [implementation evidence](../evidence/implementation.md).
+expectation. A separate synthetic fixture proves that a closed Action declaration
+survives only with its decoder evidence, profile mapping and exact invocation
+Form. Structural validation and synthetic Forms do not prove a reachable endpoint
+or authorize invocation. Local signed-registry consumers run the archive in
+production without path dependency switches, optional hosts or newly created
+processes. Public Hex release availability and actual Runtime/software-peer
+interaction are separate gates. See
+[implementation evidence](../evidence/implementation.md).

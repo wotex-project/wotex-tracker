@@ -105,6 +105,12 @@ WTR.04. Use upstream model/TD constructors and JSON admission. Pass explicit
 pseudonymous identity, security and deployment Forms. No model network resolver,
 general inheritance engine or templating language is included.
 
+The pure materialiser now also accepts a self-contained Action only when a
+trusted decoder emits its closed Action capability, the immutable profile maps
+it to that Action and deployment supplies an exact `invokeaction` Form. Packaged
+profiles still declare no Actions. Service authorization, durable dispatch and
+physical effect evidence are separate later boundaries.
+
 Acceptance: fixture -> observation -> resolution -> decoder evidence -> capabilities
 -> TM selection -> validated TD, with fixed canonical output and no Tracker-created
 processes. Exercise every WTR.04 failure case and retained provenance. Unsupported

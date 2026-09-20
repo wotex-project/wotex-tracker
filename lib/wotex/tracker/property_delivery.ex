@@ -25,9 +25,10 @@ defmodule Wotex.Tracker.PropertyDelivery do
     end
   end
 
-  def operations(form, false), do: Wotex.Form.operations(form) === ["readproperty"]
+  def operations(form, false, :property),
+    do: Wotex.Form.operations(form) === ["readproperty"]
 
-  def operations(form, true) do
+  def operations(form, true, :property) do
     map = Wotex.Form.to_map(form)
 
     case Wotex.Form.operations(form) do
@@ -48,7 +49,14 @@ defmodule Wotex.Tracker.PropertyDelivery do
     end
   end
 
-  def complete(forms, observing?) do
+  def operations(form, false, :action),
+    do:
+      Wotex.Form.operations(form, for: :action) === ["invokeaction"] and
+        explicit_operation?(Wotex.Form.to_map(form), "invokeaction")
+
+  def operations(_, true, :action), do: false
+
+  def complete(forms, observing?, :property) do
     operations =
       forms
       |> Enum.flat_map(fn form -> List.wrap(form["op"]) end)
@@ -62,6 +70,18 @@ defmodule Wotex.Tracker.PropertyDelivery do
 
     if operations == expected, do: :ok, else: error()
   end
+
+  def complete(forms, false, :action) do
+    operations =
+      forms
+      |> Enum.flat_map(fn form -> List.wrap(form["op"]) end)
+      |> Enum.uniq()
+      |> Enum.sort()
+
+    if operations == ["invokeaction"], do: :ok, else: error()
+  end
+
+  def complete(_, true, :action), do: error()
 
   def project(property, pointer, capability, deployment, bundle) do
     case Map.fetch(deployment.observation_evidence, pointer) do
@@ -107,6 +127,13 @@ defmodule Wotex.Tracker.PropertyDelivery do
         "forms" => deployment.forms[pointer]
       }
   end
+
+  defp explicit_operation?(%{"op" => "invokeaction"}, _operation), do: true
+
+  defp explicit_operation?(%{"op" => operations}, operation) when is_list(operations),
+    do: operations == [operation]
+
+  defp explicit_operation?(_, _), do: false
 
   defp error, do: {:error, Error.new(:invalid_mapping, :materialisation)}
 end

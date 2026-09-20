@@ -6,10 +6,13 @@ defmodule Wotex.Tracker.Decoder do
   Programming errors in trusted callbacks are not swallowed.
 
   The callback returns
-  `{:ok, %{measurements: [Measurement.t()], positions: [map()], identity: map()}}`
-  or a typed error. Position maps are closed `wtr.position.v1` claims; the wrapper
-  binds them to observation/profile/decoder lineage before admitting `Position`
-  values. It validates the entire return and returns one immutable evidence bundle.
+  `{:ok, %{measurements: [Measurement.t()], positions: [map()], identity: map(), actions: [String.t()]}}`
+  or a typed error. `actions` is optional and defaults to an empty list. Position
+  maps are closed `wtr.position.v1` claims; the wrapper binds them to
+  observation/profile/decoder lineage before admitting `Position` values.
+  Action names become evidence-backed invocation capabilities but are never
+  executed by this pure seam. It validates the entire return and returns one
+  immutable evidence bundle.
   """
 
   alias Wotex.Tracker.{
@@ -67,9 +70,16 @@ defmodule Wotex.Tracker.Decoder do
          {:ok, bundle} <- EvidenceBundle.validate(bundle, options),
          {:ok, identity} <- identity_output(bundle),
          {:ok, position_claims} <- stored_position_claims(positions),
+         actions <- stored_actions(value.capabilities),
          {:ok, output} <-
            result(
-             {:ok, %{measurements: measurements, positions: position_claims, identity: identity}},
+             {:ok,
+              %{
+                measurements: measurements,
+                positions: position_claims,
+                identity: identity,
+                actions: actions
+              }},
              limits,
              options
            ),
@@ -104,6 +114,12 @@ defmodule Wotex.Tracker.Decoder do
 
   defp stored_position_claims(_), do: {:error, Error.new(:invalid_decoder_result, :decode)}
 
+  defp stored_actions(capabilities) do
+    capabilities
+    |> Enum.filter(&(&1.kind == :action))
+    |> Enum.map(& &1.id)
+  end
+
   defp build(output, observation, resolution, options) do
     with {:ok, evidence, descriptors, position_ids} <-
            evidence(output, observation, resolution, options),
@@ -135,9 +151,12 @@ defmodule Wotex.Tracker.Decoder do
   defp callback(_, _), do: {:error, Error.new(:revision_mismatch, :decode)}
 
   defp result({:ok, output}, limits, options) do
-    with :ok <- Admission.fields(output, [:measurements, :positions, :identity]),
+    with :ok <- Admission.fields(output, [:measurements, :positions, :identity], [:actions]),
+         output = Map.put_new(output, :actions, []),
          :ok <- Admission.bounded_list(output.measurements, limits.max_claims),
          :ok <- Admission.bounded_list(output.positions, limits.max_sources),
+         :ok <- Admission.ids(output.actions, limits, limits.max_affordances),
+         true <- length(output.actions) == length(Enum.uniq(output.actions)),
          :ok <- Admission.object(output.identity, limits),
          :ok <- Admission.each(output.measurements, &measurement(&1, options)),
          :ok <- Admission.each(output.positions, &position_claim(&1, limits, options)),
@@ -198,9 +217,41 @@ defmodule Wotex.Tracker.Decoder do
         error -> {:halt, error}
       end
     end)
+    |> action_claims(output.actions, observation, resolution, options)
     |> position_claims(output.positions, observation, resolution, options)
     |> identity_claim(output.identity, observation, resolution, options)
   end
+
+  defp action_claims({:ok, evidence, descriptors, ids}, actions, observation, resolution, options) do
+    Enum.reduce_while(actions, {:ok, evidence, descriptors, ids}, fn action,
+                                                                     {:ok, evidence, descriptors,
+                                                                      ids} ->
+      support = %{
+        "capability" => action,
+        "unit" => nil,
+        "interaction" => "action",
+        "operations" => ["invoke"]
+      }
+
+      case claim(:capability, support, [], observation, resolution, options) do
+        {:ok, capability} ->
+          descriptor = %{
+            id: action,
+            kind: :action,
+            operations: [:invoke],
+            unit: nil,
+            evidence_ids: [capability.id]
+          }
+
+          {:cont, {:ok, [capability | evidence], [descriptor | descriptors], ids}}
+
+        error ->
+          {:halt, error}
+      end
+    end)
+  end
+
+  defp action_claims(error, _, _, _, _), do: error
 
   defp position_claims(
          {:ok, evidence, descriptors, ids},

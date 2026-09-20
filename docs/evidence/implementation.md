@@ -5406,3 +5406,35 @@ checks passed where configured.
 The fixture is synthetic and derived from public documentation. No physical
 ATC700, firmware revision, SIM, carrier, live endpoint or passive BLE scanner
 was exercised or claimed.
+
+### Evidence-backed Action materialisation — 2026-09-20
+
+The pure tracker boundary now admits decoder-declared Action names as closed
+`action`/`invoke` capability evidence without a unit. A selected profile must
+map each name to an exact `/actions/{segment}` JSON Pointer, the self-contained
+Thing Model must declare the Action, and deployment data must supply one exact
+absolute HTTP(S) Form with an explicit singleton `invokeaction` operation.
+Property and Action affordances share the existing 64-affordance construction
+budget.
+
+Materialisation projects only the intersection of those independently supplied
+facts. Missing mandatory capability evidence or Forms, duplicate or blank
+decoder Action names, malformed pointer escapes, relative or userinfo-bearing
+URLs, wrong or multiple operations and observation evidence all fail closed.
+An Action listed by `tm:optional` may be omitted without weakening mandatory
+affordances. Stored decoder results and materialised Things are recomputed
+through the same validation path.
+
+The complete root gate passed 201 tests, 19 generated properties and one
+doctest (221 total cases) at 95.1% production line coverage on both Elixir
+1.18.4/Erlang/OTP 27.3.4.15 and Elixir 1.20.4/Erlang/OTP 29.0.4. The complete
+service gate passed 370 tests and two generated properties (372 total cases) at
+95.1% on the floor lane and 95.2% on the upper lane. Compiler,
+unused-dependency, formatter, vulnerability audit, strict Credo, ExDoc,
+Dialyzer, boundary, stack-language, documentation, archive, OpenAPI and licence
+checks passed where configured.
+
+No packaged profile currently declares an Action. The exercised Action is a
+synthetic contract fixture only: no service authorization, durable dispatch,
+execution adapter, device acknowledgement or physical effect was implemented,
+exercised or claimed.

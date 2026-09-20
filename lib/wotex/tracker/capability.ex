@@ -1,8 +1,11 @@
 defmodule Wotex.Tracker.Capability do
   @moduledoc """
   Evidence-backed affordance support, independent of current sample availability.
-  The initial decoder slice implements readable Properties only. Events, writes
-  and physical Actions require their own qualified evidence and adapters.
+
+  Readable Properties carry their declared unit. Invokable Actions carry no
+  unit and require a distinct trusted-decoder capability claim. Admitting an
+  Action here proves only that the selected profile declares the affordance; it
+  does not execute it or establish a physical effect.
   """
 
   alias Wotex.Tracker.{Admission, Error, EvidenceBundle, Limits}
@@ -12,13 +15,13 @@ defmodule Wotex.Tracker.Capability do
   @enforce_keys @fields
   defstruct @fields
 
-  @doc "Admits readable support only when matching capability claims resolve in the bundle."
+  @doc "Admits closed Property-read or Action-invoke support from matching evidence."
   @spec new(term(), term(), term()) :: {:ok, t()} | {:error, Error.t()}
   def new(input, bundle, options \\ []) do
     with {:ok, limits} <- Limits.new(options),
          :ok <- Admission.fields(input, @fields),
-         :ok <- Admission.each([input.id, input.unit], &Admission.id(&1, limits)),
-         true <- input.kind === :property and input.operations === [:read],
+         :ok <- Admission.id(input.id, limits),
+         true <- interaction?(input, limits),
          :ok <- Admission.ids(input.evidence_ids, limits, limits.max_sources),
          true <- input.evidence_ids != [],
          {:ok, bundle} <- EvidenceBundle.validate(bundle, options),
@@ -46,8 +49,8 @@ defmodule Wotex.Tracker.Capability do
       {:ok,
        %{
          "id" => capability.id,
-         "kind" => "property",
-         "operations" => ["read"],
+         "kind" => Atom.to_string(capability.kind),
+         "operations" => Enum.map(capability.operations, &Atom.to_string/1),
          "unit" => capability.unit,
          "evidence_ids" => capability.evidence_ids
        }}
@@ -58,7 +61,8 @@ defmodule Wotex.Tracker.Capability do
     case Map.fetch(bundle.evidence, id) do
       {:ok, %{kind: :capability, claim: claim}} ->
         if claim["capability"] === input.id and claim["unit"] === input.unit and
-             claim["interaction"] === "property" and claim["operations"] === ["read"],
+             claim["interaction"] === Atom.to_string(input.kind) and
+             claim["operations"] === Enum.map(input.operations, &Atom.to_string/1),
            do: :ok,
            else: Admission.fail(:missing_capability)
 
@@ -66,4 +70,10 @@ defmodule Wotex.Tracker.Capability do
         Admission.fail(:dangling_reference)
     end
   end
+
+  defp interaction?(%{kind: :property, operations: [:read], unit: unit}, limits),
+    do: match?(:ok, Admission.id(unit, limits))
+
+  defp interaction?(%{kind: :action, operations: [:invoke], unit: nil}, _limits), do: true
+  defp interaction?(_, _), do: false
 end

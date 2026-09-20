@@ -61,10 +61,9 @@ defmodule Wotex.Tracker.Model do
   end
 
   defp subset(document) do
-    if unsupported?(document, true) or Map.get(document, "actions", %{}) != %{} or
-         Map.get(document, "events", %{}) != %{},
-       do: {:error, Error.new(:unsupported_model_feature, :materialisation)},
-       else: :ok
+    if unsupported?(document, true) or Map.get(document, "events", %{}) != %{},
+      do: {:error, Error.new(:unsupported_model_feature, :materialisation)},
+      else: :ok
   end
 
   defp unsupported?(value, root) when is_map(value) do
@@ -81,10 +80,12 @@ defmodule Wotex.Tracker.Model do
 
   defp count(document, limits) do
     properties = Map.get(document, "properties", %{})
+    actions = Map.get(document, "actions", %{})
 
-    if is_map(properties) and map_size(properties) <= limits.max_affordances,
-      do: :ok,
-      else: {:error, Error.new(:limit_exceeded, :materialisation)}
+    if is_map(properties) and is_map(actions) and
+         map_size(properties) + map_size(actions) <= limits.max_affordances,
+       do: :ok,
+       else: {:error, Error.new(:limit_exceeded, :materialisation)}
   end
 
   defp upstream(document, limits) do

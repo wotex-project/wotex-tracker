@@ -50,9 +50,9 @@ defmodule Wotex.Tracker.Materialisation do
          :ok <- revisions(input, resolution.selected, bundle, model),
          {:ok, capabilities} <- capabilities(input.capabilities, bundle, limits, options),
          :ok <- decoded_evidence(decoded, bundle, capabilities),
-         {:ok, properties} <-
+         {:ok, affordances} <-
            select(model, resolution.selected.mapping, capabilities, deployment, bundle, limits),
-         candidate = candidate(model, identity, properties, deployment),
+         candidate = candidate(model, identity, affordances, deployment),
          {:ok, td} <- upstream(candidate, limits),
          {:ok, profile_identity} <- DeviceProfile.identity(resolution.selected, options),
          provenance = provenance(input, model, bundle, deployment, profile_identity),
@@ -126,12 +126,20 @@ defmodule Wotex.Tracker.Materialisation do
 
   defp select(model, mapping, capabilities, deployment, bundle, limits) do
     properties = Map.get(model.document, "properties", %{})
+    actions = Map.get(model.document, "actions", %{})
     destinations = Map.values(mapping)
 
-    known =
+    known_properties =
       Map.new(properties, fn {name, property} ->
-        {Wotex.JSON.join_pointer("/properties", name), {name, property}}
+        {Wotex.JSON.join_pointer("/properties", name), {:property, name, property}}
       end)
+
+    known_actions =
+      Map.new(actions, fn {name, action} ->
+        {Wotex.JSON.join_pointer("/actions", name), {:action, name, action}}
+      end)
+
+    known = Map.merge(known_properties, known_actions)
 
     with true <- length(Enum.uniq(destinations)) == length(destinations),
          true <- Enum.all?(destinations, &Map.has_key?(known, &1)),
@@ -140,32 +148,76 @@ defmodule Wotex.Tracker.Materialisation do
       inverse = Map.new(mapping, fn {capability, pointer} -> {pointer, capability} end)
       optional = Map.get(model.document, "tm:optional", [])
 
-      select_properties(known, inverse, capabilities, deployment, optional, bundle)
+      select_affordances(known, inverse, capabilities, deployment, optional, bundle)
     else
       false -> error(:invalid_mapping)
       error -> error
     end
   end
 
-  defp select_properties(known, inverse, capabilities, deployment, optional, bundle) do
-    Enum.reduce_while(known, {:ok, %{}}, fn {pointer, {name, property}}, {:ok, acc} ->
-      case property(pointer, property, inverse, capabilities, deployment, optional, bundle) do
-        {:ok, selected} -> {:cont, {:ok, Map.put(acc, name, selected)}}
-        :omit -> {:cont, {:ok, acc}}
-        error -> {:halt, error}
-      end
+  defp select_affordances(known, inverse, capabilities, deployment, optional, bundle) do
+    initial = %{properties: %{}, actions: %{}}
+
+    Enum.reduce_while(known, {:ok, initial}, fn entry, {:ok, acc} ->
+      select_one(entry, acc, inverse, capabilities, deployment, optional, bundle)
     end)
   end
 
-  defp property(pointer, property, inverse, capabilities, deployment, optional, bundle) do
-    case Map.fetch(capabilities, inverse[pointer]) do
-      {:ok, capability} -> readable(pointer, property, capability, deployment, bundle)
-      :error -> if pointer in optional, do: :omit, else: error(:missing_capability)
+  defp select_one(
+         {pointer, {kind, name, definition}},
+         acc,
+         inverse,
+         capabilities,
+         deployment,
+         optional,
+         bundle
+       ) do
+    case affordance(
+           kind,
+           pointer,
+           definition,
+           inverse,
+           capabilities,
+           deployment,
+           optional,
+           bundle
+         ) do
+      {:ok, selected} ->
+        key = if(kind == :property, do: :properties, else: :actions)
+        {:cont, {:ok, Map.update!(acc, key, &Map.put(&1, name, selected))}}
+
+      :omit ->
+        {:cont, {:ok, acc}}
+
+      error ->
+        {:halt, error}
     end
   end
 
-  defp readable(pointer, property, capability, deployment, bundle) do
+  defp affordance(
+         kind,
+         pointer,
+         definition,
+         inverse,
+         capabilities,
+         deployment,
+         optional,
+         bundle
+       ) do
+    case Map.fetch(capabilities, inverse[pointer]) do
+      {:ok, capability} ->
+        project_affordance(kind, pointer, definition, capability, deployment, bundle)
+
+      :error ->
+        if pointer in optional, do: :omit, else: error(:missing_capability)
+    end
+  end
+
+  defp project_affordance(:property, pointer, property, capability, deployment, bundle) do
     cond do
+      capability.kind != :property or capability.operations != [:read] ->
+        error(:invalid_mapping)
+
       property["readOnly"] !== true or property["writeOnly"] === true ->
         error(:invalid_mapping)
 
@@ -182,16 +234,35 @@ defmodule Wotex.Tracker.Materialisation do
     end
   end
 
-  defp candidate(model, identity, properties, deployment) do
-    model.document
-    |> Map.delete("tm:optional")
-    |> remove_model_type()
-    |> Map.put("id", identity.thing_id)
-    |> Map.put("title", deployment.title)
-    |> Map.put("properties", properties)
-    |> Map.update!("version", &Map.put(&1, "instance", deployment.revision))
-    |> Map.put("securityDefinitions", deployment.security_definitions)
-    |> Map.put("security", deployment.security)
+  defp project_affordance(:action, pointer, action, capability, deployment, _bundle) do
+    cond do
+      capability.kind != :action or capability.operations != [:invoke] or
+          not is_nil(capability.unit) ->
+        error(:invalid_mapping)
+
+      not Map.has_key?(deployment.forms, pointer) ->
+        error(:missing_form)
+
+      true ->
+        {:ok, Map.put(action, "forms", deployment.forms[pointer])}
+    end
+  end
+
+  defp candidate(model, identity, affordances, deployment) do
+    candidate =
+      model.document
+      |> Map.delete("tm:optional")
+      |> remove_model_type()
+      |> Map.put("id", identity.thing_id)
+      |> Map.put("title", deployment.title)
+      |> Map.put("properties", affordances.properties)
+      |> Map.update!("version", &Map.put(&1, "instance", deployment.revision))
+      |> Map.put("securityDefinitions", deployment.security_definitions)
+      |> Map.put("security", deployment.security)
+
+    if Map.has_key?(model.document, "actions") or map_size(affordances.actions) > 0,
+      do: Map.put(candidate, "actions", affordances.actions),
+      else: candidate
   end
 
   defp remove_model_type(document) do

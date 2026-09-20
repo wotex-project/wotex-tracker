@@ -2,6 +2,7 @@ defmodule Wotex.Tracker.MaterialisationTest do
   use ExUnit.Case, async: true
 
   alias Wotex.Tracker.{
+    Capability,
     Catalogue,
     Decoder,
     Deployment,
@@ -129,7 +130,6 @@ defmodule Wotex.Tracker.MaterialisationTest do
           Map.put(input.model.document, "links", [
             %{"href" => "https://example.invalid/model", "rel" => "tm:extends"}
           ]),
-          Map.put(input.model.document, "actions", %{"act" => %{}}),
           Map.put(input.model.document, "events", %{"event" => %{}})
         ] do
       assert {:error, %Error{code: :unsupported_model_feature}} =
@@ -153,6 +153,123 @@ defmodule Wotex.Tracker.MaterialisationTest do
 
     assert {:error, _} =
              Model.new(input.model.document, input.model.revision, max_material_bytes: 1)
+  end
+
+  test "qualified Action capabilities materialise without claiming execution" do
+    input = action_input()
+    action = Enum.find(input.capabilities, &(&1.kind == :action))
+
+    assert {:ok, projected} = Capability.to_map(action, input.bundle)
+
+    assert projected == %{
+             "evidence_ids" => action.evidence_ids,
+             "id" => "requestLocation",
+             "kind" => "action",
+             "operations" => ["invoke"],
+             "unit" => nil
+           }
+
+    assert {:ok, result} = Materialisation.new(input)
+    td = Wotex.ThingDescription.to_map(result.td)
+
+    assert td["actions"]["requestLocation"] == %{
+             "description" => "Requests a new device report without claiming delivery",
+             "input" => %{"maximum" => 300, "minimum" => 1, "type" => "integer", "unit" => "s"},
+             "output" => %{"type" => "string"},
+             "safe" => false,
+             "idempotent" => false,
+             "forms" => [
+               %{
+                 "contentType" => "application/json",
+                 "href" => "https://fixture.example.invalid/actions/request-location",
+                 "op" => ["invokeaction"]
+               }
+             ]
+           }
+
+    decoded = input.decoded
+
+    assert {:ok, ^decoded} =
+             Decoder.validate(input.decoded, input.observation, input.catalogue)
+
+    property_capabilities = Enum.reject(input.capabilities, &(&1.kind == :action))
+
+    assert {:error, %Error{code: :missing_capability}} =
+             Materialisation.new(%{input | capabilities: property_capabilities})
+
+    optional_model =
+      input.model.document
+      |> Map.put(
+        "tm:optional",
+        input.model.document["tm:optional"] ++ ["/actions/requestLocation"]
+      )
+      |> then(fn document -> Model.new(document, input.model.revision) end)
+
+    assert {:ok, optional_model} = optional_model
+
+    assert {:ok, optional} =
+             Materialisation.new(%{
+               input
+               | model: optional_model,
+                 capabilities: property_capabilities
+             })
+
+    assert optional.td |> Wotex.ThingDescription.to_map() |> Map.fetch!("actions") == %{}
+
+    missing_form =
+      redeploy(input.deployment, %{
+        forms: Map.delete(input.deployment.forms, "/actions/requestLocation")
+      })
+
+    assert {:error, %Error{code: :missing_form}} =
+             Materialisation.new(%{input | deployment: missing_form})
+  end
+
+  test "Action declarations require exact invocation Forms and bounded trusted output", %{
+    input: base
+  } do
+    input = action_input()
+    data = input.deployment |> Map.from_struct() |> Map.delete(:identity)
+    pointer = "/actions/requestLocation"
+    form = hd(data.forms[pointer])
+
+    for changed <- [
+          Map.delete(form, "op"),
+          %{form | "op" => ["invokeaction", "queryaction"]},
+          %{form | "op" => "readproperty"},
+          %{form | "href" => "/relative"},
+          %{form | "href" => "https://user:password@example.invalid/action"}
+        ] do
+      assert {:error, _} =
+               Deployment.new(%{data | forms: Map.put(data.forms, pointer, [changed])})
+    end
+
+    assert {:error, _} =
+             Deployment.new(%{data | observation_evidence: %{pointer => "transport-evidence"}})
+
+    assert {:error, %Error{code: :invalid_decoder_result}} =
+             Decoder.run(
+               base.observation,
+               base.resolution,
+               base.catalogue,
+               {RuuviRawV2.revision(),
+                fn observation ->
+                  {:ok, output} = RuuviRawV2.decode(observation)
+                  {:ok, Map.put(output, :actions, ["duplicate", "duplicate"])}
+                end}
+             )
+
+    assert {:error, %Error{code: :invalid_decoder_result}} =
+             Decoder.run(
+               base.observation,
+               base.resolution,
+               base.catalogue,
+               {RuuviRawV2.revision(),
+                fn observation ->
+                  {:ok, output} = RuuviRawV2.decode(observation)
+                  {:ok, Map.put(output, :actions, [""])}
+                end}
+             )
   end
 
   test "duplicate mappings and incompatible Property semantics are rejected", %{input: input} do
@@ -366,6 +483,28 @@ defmodule Wotex.Tracker.MaterialisationTest do
       input.model.document |> Map.put("properties", properties) |> Map.put("tm:optional", [])
 
     assert {:error, %Error{code: :limit_exceeded}} = Model.new(document, input.model.revision)
+
+    action = %{
+      "input" => %{"type" => "integer", "minimum" => 1},
+      "output" => %{"type" => "string"}
+    }
+
+    for {property_count, expected} <- [{63, :ok}, {64, :error}] do
+      properties =
+        Map.new(
+          1..property_count,
+          &{"p#{&1}", %{"type" => "number", "unit" => "Cel", "readOnly" => true}}
+        )
+
+      document =
+        input.model.document
+        |> Map.put("properties", properties)
+        |> Map.put("actions", %{"requestLocation" => action})
+        |> Map.put("tm:optional", [])
+
+      assert {^expected, _} = Model.new(document, input.model.revision)
+    end
+
     document = put_in(input.model.document, ["properties", "temperature", "tm:optional"], [])
 
     assert {:error, %Error{code: :unsupported_model_feature}} =
@@ -457,6 +596,78 @@ defmodule Wotex.Tracker.MaterialisationTest do
         capabilities: decoded.capabilities,
         bundle: bundle,
         identity: identity
+    }
+  end
+
+  defp action_input do
+    input = Fixtures.materialisation_input()
+    pointer = "/actions/requestLocation"
+
+    action = %{
+      "description" => "Requests a new device report without claiming delivery",
+      "input" => %{"type" => "integer", "unit" => "s", "minimum" => 1, "maximum" => 300},
+      "output" => %{"type" => "string"},
+      "safe" => false,
+      "idempotent" => false
+    }
+
+    {:ok, model} =
+      input.model.document
+      |> Map.put("actions", %{"requestLocation" => action})
+      |> then(&Model.new(&1, input.model.revision))
+
+    profile = %{
+      input.resolution.selected
+      | mapping: Map.put(input.resolution.selected.mapping, "requestLocation", pointer)
+    }
+
+    {:ok, catalogue} = Catalogue.new([profile])
+    {:ok, resolution} = Resolution.resolve(input.observation, catalogue)
+
+    decoder = fn observation ->
+      with {:ok, output} <- RuuviRawV2.decode(observation),
+           do: {:ok, Map.put(output, :actions, ["requestLocation"])}
+    end
+
+    {:ok, decoded} =
+      Decoder.run(
+        input.observation,
+        resolution,
+        catalogue,
+        {RuuviRawV2.revision(), decoder}
+      )
+
+    association = input.bundle.evidence["identity-1"]
+
+    {:ok, bundle} =
+      EvidenceBundle.new(
+        [input.observation],
+        [association | Map.values(decoded.bundle.evidence)]
+      )
+
+    {:ok, identity} = Identity.new(Fixtures.identity_input(), bundle)
+
+    form = %{
+      "href" => "https://fixture.example.invalid/actions/request-location",
+      "op" => ["invokeaction"],
+      "contentType" => "application/json"
+    }
+
+    deployment =
+      redeploy(input.deployment, %{
+        forms: Map.put(input.deployment.forms, pointer, [form])
+      })
+
+    %{
+      input
+      | catalogue: catalogue,
+        resolution: resolution,
+        decoded: decoded,
+        bundle: bundle,
+        capabilities: decoded.capabilities,
+        identity: identity,
+        model: model,
+        deployment: deployment
     }
   end
 end

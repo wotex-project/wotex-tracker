@@ -4,8 +4,11 @@
 
 Implemented for the first pure software milestone: the packaged environmental
 sensor and cellular asset-tracker models, explicit evidence/capability mapping,
-deployment-owned Forms and security, upstream TM/TD validation, deterministic
-canonical output and the failure cases below are covered by executable tests.
+deployment-owned Property/Action Forms and security, upstream TM/TD validation,
+deterministic canonical output and the failure cases below are covered by
+executable tests. A synthetic Action is materialised only from an explicit
+decoder capability, profile mapping and invocation Form; no packaged profile or
+execution adapter claims a physical Action.
 Synthetic Forms do not prove endpoint reachability, installed Runtime bindings,
 publication authorization or physical hardware. See the
 [materialisation guide](../guides/materialisation.md) and
@@ -51,19 +54,26 @@ The native candidate map MUST enter `Wotex.ThingDescription.from_map/2` with val
 ## First materialisation algorithm
 
 1. Validate the immutable model, evidence bundle, explicit pseudonymous identity and deployment inputs under their bounds. Require the selected profile's exact model/mapping revision and complete association evidence. Unknown, candidate-only or ambiguous resolution cannot materialise a Thing.
-2. Admit only the implemented self-contained model subset. Cross-model composition, `tm:ref` resolution and placeholder substitution are unsupported in this milestone and return `:unsupported_model_feature`; they are not fetched or silently ignored. A valid upstream TM can still be unsupported by this materialiser. Unknown JSON extensions are preserved when valid for the resulting TD, never reinterpreted as executable instructions.
+2. Admit only the implemented self-contained model subset. Cross-model composition, `tm:ref` resolution, placeholder substitution and Event materialisation are unsupported in this milestone and return `:unsupported_model_feature`; they are not fetched or silently ignored. A valid upstream TM can still be unsupported by this materialiser. Unknown JSON extensions are preserved when valid for the resulting TD, never reinterpreted as executable instructions.
 3. Select evidence-backed affordances using an explicit mapping. Only optional affordances declared by exact `tm:optional` pointers may be omitted. Missing evidence for a mandatory affordance is `:missing_capability`; no unsupported affordance may survive merely to satisfy validation. Resolve escaped pointer names using upstream JSON pointer semantics.
 4. Construct a new TD map: remove the model's `tm:ThingModel` type and consumed `tm:optional` instruction, preserve other applicable types/extensions, use the supplied instance ID/title, and apply only the allowed deployment fields. Model identity remains provenance; it is not reused as physical Thing identity. Do not deep-merge arbitrary device input into the TD or discard fields by an unreviewed blanket filter.
 5. Require explicit security definitions/references and at least one appropriate deployment Form for every selected affordance. No default `nosec`, invented endpoint, placeholder URL or inferred credentials. Validate exact affordance/operation mapping, read/write/event semantics and duplicate mapping targets. Observation addressing does not supply deployment URLs.
 6. Validate the candidate through upstream core and return the validated TD. The evidence bundle remains available to the caller with its model/profile/deployment revisions; public TD provenance must exclude private identifiers and raw payloads. Any failed stage returns a typed error without publishing, writing state or executing a Form.
 
-Tests must cover optional omission, missing mandatory capability, escaped affordance names, unsupported model features, duplicate mapping destinations, mismatched revisions, unresolved security, missing Forms, preserved native extension values and type-strict deterministic output. A fixed model/evidence/deployment bundle must yield identical upstream canonical bytes independent of map insertion or catalogue order. Canonical encoding here means the upstream package's declared format, not general JSON canonicalization compliance.
+Tests must cover optional omission, missing mandatory capability, escaped affordance names, unsupported model features, duplicate mapping destinations, mismatched revisions, unresolved security, missing Forms, exact Action invocation Forms, preserved native extension values and type-strict deterministic output. A fixed model/evidence/deployment bundle must yield identical upstream canonical bytes independent of map insertion or catalogue order. Canonical encoding here means the upstream package's declared format, not general JSON canonicalization compliance.
 
 ## Capability-to-affordance mapping
 
 Evidence-backed readable state becomes Properties. Asynchronous device facts become Events when the underlying interaction semantics justify events. Mutating device operations become Actions or writable Properties according to the relevant WoT model and binding semantics.
 
 A brochure feature MUST NOT become an affordance unless the qualified profile proves how it is observed or invoked.
+
+The decoder's optional closed Action-name list creates a capability claim with
+`interaction: "action"`, `operations: ["invoke"]` and no unit. Materialisation
+requires that exact capability, a profile mapping to `/actions/{name}` and a
+deployment Form declaring only `invokeaction`. This is structural and provenance
+evidence. Authorization, input admission, durable intent, dispatch and effect
+evidence belong to later service/device boundaries.
 
 Readable does not imply observable, and receiving advertisements does not itself justify an Event subscription. Capability support remains stable across a missing sample. An unavailable measurement must follow the declared host/schema error or nullable-value contract without mutating the TD on every packet.
 
