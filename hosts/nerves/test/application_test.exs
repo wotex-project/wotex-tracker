@@ -216,6 +216,7 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
     Application.put_env(:wotex_tracker_nerves, :config_path, c.path)
     Application.put_env(:wotex_tracker_nerves, :data_root, c.root)
     Application.put_env(:wotex_tracker_nerves, :apns_config_path, apns_path)
+    Application.put_env(:wotex_tracker_nerves, :clock_synchronized, fn -> true end)
     assert {:ok, host} = HostApplication.start(:normal, [])
     children = Supervisor.which_children(host)
     assert {Server, api, :supervisor, _} = List.keyfind(children, Server, 0)
@@ -245,6 +246,18 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
     path = Path.join(c.root, "apns.json")
     write_private(path, Codec.encode!(%{}))
     assert {:error, :invalid_configuration} = Config.load_apns(path, c.root, options)
+  end
+
+  test "APNs appliance startup requires a synchronized clock before storage opens", c do
+    path = Path.join(c.root, "apns.json")
+    write_private(path, Codec.encode!(apns_document()))
+    Application.put_env(:wotex_tracker_nerves, :config_path, c.path)
+    Application.put_env(:wotex_tracker_nerves, :data_root, c.root)
+    Application.put_env(:wotex_tracker_nerves, :apns_config_path, path)
+    Application.put_env(:wotex_tracker_nerves, :clock_synchronized, fn -> false end)
+
+    assert {:error, :clock_unsynchronized} = HostApplication.start(:normal, [])
+    refute File.exists?(Path.join(c.data, "tracker.db"))
   end
 
   test "the target cellular build flag fails closed" do

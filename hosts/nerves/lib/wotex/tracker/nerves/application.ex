@@ -23,11 +23,11 @@ defmodule Wotex.Tracker.Nerves.Application do
              Application.get_env(:wotex_tracker_nerves, :config_path),
              Application.get_env(:wotex_tracker_nerves, :data_root)
            ),
-         :ok <- ClockPolicy.admit(options, &synchronized_clock?/0),
+         {:ok, apns} <- apns_config(options),
+         :ok <- ClockPolicy.admit(options, not is_nil(apns), &synchronized_clock?/0),
          instance_id = Credentials.instance_id(options[:credentials]),
          :ok <- StoragePolicy.admit(data_root(), instance_id, options[:directory]),
          {:ok, cellular} <- cellular_config(options),
-         {:ok, apns} <- apns_config(options),
          {:ok, browser} <- browser_config(options) do
       start_host(options, browser, cellular, apns, instance_id)
     end
