@@ -34,7 +34,7 @@ defmodule Wotex.Tracker.Host.PromptConfig do
     :input_price_micro_usd_per_million,
     :output_price_micro_usd_per_million
   ]
-  defstruct @enforce_keys
+  defstruct @enforce_keys ++ [http: Mint.HTTP1]
 
   @type t :: %__MODULE__{
           endpoint: String.t(),
@@ -48,6 +48,7 @@ defmodule Wotex.Tracker.Host.PromptConfig do
           max_requests_per_minute: pos_integer(),
           max_cost_micro_usd: pos_integer(),
           input_price_micro_usd_per_million: pos_integer(),
-          output_price_micro_usd_per_million: pos_integer()
+          output_price_micro_usd_per_million: pos_integer(),
+          http: module()
         }
 end

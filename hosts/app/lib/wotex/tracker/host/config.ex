@@ -155,6 +155,25 @@ defmodule Wotex.Tracker.Host.Config do
 
   defp prompt_config(
          %{
+           "provider" => "development_responses",
+           "endpoint" => "https://responses-simulator.invalid/v1/responses",
+           "api_key" => "development-responses-token"
+         } = config
+       )
+       when map_size(config) == 14 do
+    module = Wotex.Tracker.Host.Development.ResponsesHTTP
+
+    with true <- Code.ensure_loaded?(module) and function_exported?(module, :simulator?, 0),
+         true <- :erlang.apply(module, :simulator?, []),
+         {:ok, prompt} <- prompt_config(Map.put(config, "provider", "openai_responses")) do
+      {:ok, %{prompt | http: module}}
+    else
+      _ -> {:error, :invalid_configuration}
+    end
+  end
+
+  defp prompt_config(
+         %{
            "provider" => "openai_responses",
            "endpoint" => endpoint,
            "model" => model,

@@ -309,6 +309,36 @@ The host makes one request with no provider tools, retries or stored response.
 Failure leaves the structured form and existing result usable. Keep the key in
 the 0600 file and refresh the price inputs when provider pricing changes.
 
+For local development without a public model account, dev/test UI builds admit
+one exact simulator selection in the same private `model` object:
+
+```json
+{
+  "provider": "development_responses",
+  "endpoint": "https://responses-simulator.invalid/v1/responses",
+  "model": "development-query-translator",
+  "api_key": "development-responses-token",
+  "disclosure": "question_schema_utc",
+  "timeout_ms": 1000,
+  "max_request_bytes": 8192,
+  "max_response_bytes": 8192,
+  "max_output_tokens": 512,
+  "max_concurrent": 1,
+  "max_requests_per_minute": 10,
+  "max_cost_micro_usd": 100,
+  "input_price_micro_usd_per_million": 1,
+  "output_price_micro_usd_per_million": 1
+}
+```
+
+The repository-owned peer parses the complete schema-only Responses request and
+returns either deterministic closed query fields or a clarification through the
+same response decoder. The hostname is never resolved and no network request is
+made. Any other development provider, endpoint or token fails configuration;
+the peer is absent from headless and production compilation. This proves local
+request/response composition and malicious-boundary handling, not public-model
+quality, availability, pricing or data-handling behavior.
+
 The optional browser also offers **Operational history** from the asset list to
 administrators. It selects a one-, five- or fifteen-minute UTC window and reads
 at most 25 exact local telemetry samples per page, with event filtering and
