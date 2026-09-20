@@ -5512,3 +5512,21 @@ stack-language and licence checks passed in both lanes.
 The peer is a protocol fixture. No packaged Action, configured production
 Runtime, physical adapter, device acknowledgement or physical effect was
 exercised or claimed.
+
+### Monorepo package archive closure — 2026-09-20
+
+The shared archive verifier now derives the active Mix project root and requires
+every regular file under that package's `lib/` and `priv/` trees. This replaces
+the stale representative list that stopped at service schema 7 and named only
+the original environmental Thing Model. Root cellular models, all service
+modules, schemas 1 through 9 and every migration, the OpenAPI document, and all
+shared-UI modules/static assets now fail their owning package gate if absent from
+the generated archive. The ordinary dependency build still runs with the local
+path switch removed, and forbidden build, dependency, test, secret and database
+members remain rejected.
+
+The focused archive gate passed on both required runtime lanes for all three Mix
+packages. The root archive contained 112 members and all 57 package-owned
+source/assets; the service archive contained 121 members and all 117; the shared
+UI archive contained 59 members and all 55. These checks validate local package
+contents, not public registry publication or fresh public dependency resolution.

@@ -6,9 +6,12 @@ Implemented as the source/package verification floor for the root library,
 service, shared UI and applicable hosts. The declared Elixir 1.18.4 / OTP
 27.3.4.15 and Elixir 1.20.4 / OTP 29.0.4 lanes run their configured compiler,
 test/coverage, analysis, documentation, dependency, archive, contract, licence
-and language-policy gates as applicable. This does not claim every version
-allowed by Mix, every platform/toolchain, published package availability or any
-physical hardware lane. See the
+and language-policy gates as applicable. Each root, service and shared-UI
+archive gate resolves its own project root and requires every regular packaged
+source and private asset under `lib/` and `priv/`; adding a module, migration,
+contract or static asset cannot rely on a hand-maintained sample list. This does
+not claim every version allowed by Mix, every platform/toolchain, published
+package availability or any physical hardware lane. See the
 [executed evidence](../evidence/implementation.md#foundation--2026-09-15).
 
 ## Library application and ownership

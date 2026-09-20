@@ -18,18 +18,32 @@ contents =
 
 {:ok, files} = :erl_tar.extract({:binary, contents}, [:memory, :compressed])
 names = Enum.map(files, fn {name, _} -> List.to_string(name) end)
+project_root = Mix.Project.project_file() |> Path.dirname() |> Path.expand()
+
+package_sources =
+  ~w(lib priv)
+  |> Enum.flat_map(fn directory ->
+    project_root
+    |> Path.join("#{directory}/**/*")
+    |> Path.wildcard(match_dot: true)
+  end)
+  |> Enum.filter(&File.regular?/1)
+  |> Enum.map(&Path.relative_to(&1, project_root))
+  |> Enum.sort()
 
 required_files =
   case Mix.Project.config()[:app] do
     :wotex_tracker ->
-      ~w(mix.exs README.md LICENSE NOTICE SECURITY.md CONTRIBUTING.md lib/wotex/tracker/error.ex docs/specs/catalogue.yaml priv/thing_models/environmental-sensor-1.0.0.tm.json)
+      ~w(mix.exs README.md LICENSE NOTICE SECURITY.md CONTRIBUTING.md docs/specs/catalogue.yaml)
 
     :wotex_tracker_service ->
-      ~w(mix.exs README.md LICENSE NOTICE lib/wotex/tracker/service/store.ex lib/wotex/tracker/service/forward_queue.ex lib/wotex/tracker/service/rule_store.ex lib/wotex/tracker/service/rule_transition.ex lib/wotex/tracker/service/http/server.ex priv/schema/1.sql priv/schema/1-to-2.sql priv/schema/2.sql priv/schema/2-to-3.sql priv/schema/3.sql priv/schema/3-to-4.sql priv/schema/4.sql priv/schema/4-to-5.sql priv/schema/5.sql priv/schema/5-to-6.sql priv/schema/6.sql priv/schema/6-to-7.sql priv/schema/7.sql priv/openapi/v1.json)
+      ~w(mix.exs README.md LICENSE NOTICE)
 
     :wotex_tracker_ui ->
-      ~w(mix.exs README.md LICENSE NOTICE lib/wotex/tracker/ui/sessions.ex lib/wotex/tracker/ui/router.ex lib/wotex/tracker/ui/observation_live.ex lib/wotex/tracker/ui/asset_live.ex priv/static/tracker.css priv/static/tracker.js)
+      ~w(mix.exs README.md LICENSE NOTICE)
   end
+  |> Kernel.++(package_sources)
+  |> Enum.uniq()
 
 for required <- required_files do
   if required not in names, do: Mix.raise("Archive missing #{required}")
@@ -43,5 +57,5 @@ for name <- names do
 end
 
 IO.puts(
-  "Inspected #{length(names)} archive members; ordinary package dependency metadata built without path switch"
+  "Inspected #{length(names)} archive members and #{length(package_sources)} package-owned source/assets; ordinary package dependency metadata built without path switch"
 )
