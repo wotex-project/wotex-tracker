@@ -335,9 +335,12 @@ degradation, recovery and rule-edit events have stable identities. See the
 [transport policy guide](../guides/transport-policy.md). The service now
 atomically persists this rule's canonical state, history and stable event intent
 with optimistic prior-state identity and restart recovery. Decision
-freshness/future-skew scheduling is now implemented. Input-triggered orchestration
-and notification delivery remain for geofence evaluation; suspicious-movement
-notification delivery remains open.
+freshness/future-skew scheduling is now implemented. Thing materialisation
+triggers geofence evaluation against committed evidence, and every newly
+recorded live geofence or suspicious-movement event atomically stages the same
+minimal per-endpoint notification reference as other live rule alerts. Provider
+acceptance, physical delivery and mobile tap handling remain separate acceptance
+gates.
 Readers can inspect every persisted rule kind's current status and history through
 the read-only service `rules` resource without receiving its private evidence.
 Administrators can now persist versioned heartbeat, battery, motion, geofence and
