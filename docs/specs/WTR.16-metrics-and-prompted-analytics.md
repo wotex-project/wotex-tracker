@@ -17,7 +17,9 @@ global BEAM memory, process and port counts into that collector. The optional
 browser host records sanitized LiveView render durations and marked reconnect
 attempts there. Reconnect samples contain only duration and closed
 surface/kind/outcome labels; initial connections and page reloads are not
-reported as reconnects. OS-native resource events remain with their owning
+reported as reconnects. The Nerves host contributes fixed Linux procfs
+available-memory, BEAM-process RSS and one-minute-load samples without paths or
+device labels. Other OS-native resource events remain with their owning
 adapters.
 Host-only operational pages pin a collector epoch and sequence high-water mark;
 continuations reject restart, altered filters and expired samples.

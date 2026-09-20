@@ -2,6 +2,7 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
   use ExUnit.Case, async: false
   alias Wotex.Tracker.Nerves.Application, as: HostApplication
   alias Wotex.Tracker.Nerves.Config
+  alias Wotex.Tracker.Nerves.NativeResourceSampler
   alias Wotex.Tracker.Service.{Codec, Credentials}
   alias Wotex.Tracker.Service.HTTP.Server
 
@@ -55,7 +56,14 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
     Application.put_env(:wotex_tracker_nerves, :data_root, c.root)
 
     assert {:ok, host} = HostApplication.start(:normal, [])
-    assert [{Server, server, :supervisor, _}] = Supervisor.which_children(host)
+
+    children = Supervisor.which_children(host)
+    assert {Server, server, :supervisor, _} = List.keyfind(children, Server, 0)
+
+    assert {NativeResourceSampler, sampler, :worker, _} =
+             List.keyfind(children, NativeResourceSampler, 0)
+
+    assert Process.alive?(sampler)
     assert {:ok, {{127, 0, 0, 1}, port}} = Server.listener_info(server)
     assert port > 0
     assert {:ok, store} = Server.child(server, :store)

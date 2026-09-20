@@ -18,6 +18,7 @@ defmodule Wotex.Tracker.Service.OperationalTelemetry do
   @runtime [:wotex, :tracker, :service, :runtime, :sample]
   @browser_render [:wotex, :tracker, :browser, :render, :stop]
   @browser_connection [:wotex, :tracker, :browser, :connection, :stop]
+  @native_resource [:wotex, :tracker, :native, :resource, :sample]
   @outcomes ~w(ok dropped rejected conflict overloaded deadline unavailable unknown)a
   @request_operations ~w(health contract capabilities mutation resource events stream property analytics saved_query unknown)a
   @aggregations ~w(count min max mean last)a
@@ -28,6 +29,9 @@ defmodule Wotex.Tracker.Service.OperationalTelemetry do
   @resources ~w(store)a
   @resource_operations ~w(readiness checkpoint backup)a
   @render_outcomes ~w(ok unavailable)a
+  @native_surfaces ~w(nerves)a
+  @native_sources ~w(linux_procfs)a
+  @native_measurements ~w(system_available_memory_bytes process_rss_bytes load_1m_milli)a
 
   @doc "Returns the complete event vocabulary and its measurement units."
   def contracts do
@@ -97,6 +101,16 @@ defmodule Wotex.Tracker.Service.OperationalTelemetry do
         name: "connection.stop",
         measurements: %{duration_us: :microsecond},
         metadata: %{surface: [:browser], kind: [:reconnect], outcome: @render_outcomes}
+      },
+      %{
+        event: @native_resource,
+        name: "native.sample",
+        measurements: %{
+          system_available_memory_bytes: :byte,
+          process_rss_bytes: :byte,
+          load_1m_milli: :milli_load
+        },
+        metadata: %{surface: @native_surfaces, source: @native_sources}
       }
     ]
   end
@@ -183,6 +197,19 @@ defmodule Wotex.Tracker.Service.OperationalTelemetry do
     )
   end
 
+  @doc "Records one closed native-host resource sample."
+  def native_resource_sample(surface, source, measurements)
+      when surface in @native_surfaces and source in @native_sources and is_map(measurements) do
+    if exact?(measurements, @native_measurements) and
+         Enum.all?(measurements, fn {_, value} -> is_integer(value) and value >= 0 end) do
+      execute(@native_resource, measurements, %{surface: surface, source: source})
+    else
+      {:error, :invalid_sample}
+    end
+  end
+
+  def native_resource_sample(_, _, _), do: {:error, :invalid_sample}
+
   @doc false
   def event_names,
     do: [
@@ -195,7 +222,8 @@ defmodule Wotex.Tracker.Service.OperationalTelemetry do
       @resource,
       @runtime,
       @browser_render,
-      @browser_connection
+      @browser_connection,
+      @native_resource
     ]
 
   @doc false
@@ -262,6 +290,16 @@ defmodule Wotex.Tracker.Service.OperationalTelemetry do
         metadata,
         [:duration_us],
         [:surface, :kind, :outcome]
+      )
+
+  def sample(@native_resource, measurements, metadata),
+    do:
+      sample(
+        "native.sample",
+        measurements,
+        metadata,
+        @native_measurements,
+        [:surface, :source]
       )
 
   def sample(_, _, _), do: {:error, :invalid_sample}
@@ -333,6 +371,9 @@ defmodule Wotex.Tracker.Service.OperationalTelemetry do
     do:
       metadata.surface == :browser and metadata.kind == :reconnect and
         metadata.outcome in @render_outcomes
+
+  defp valid_metadata?("native.sample", metadata),
+    do: metadata.surface in @native_surfaces and metadata.source in @native_sources
 
   defp exact?(value, keys),
     do: is_map(value) and not is_struct(value) and Enum.sort(Map.keys(value)) == Enum.sort(keys)

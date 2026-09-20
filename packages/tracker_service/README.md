@@ -343,7 +343,8 @@ timezones, prompting and graph rendering remain later contracts.
 
 `OperationalTelemetry.contracts/0` documents the closed
 `[:wotex, :tracker, …]` request, query, import-stage, store, queue,
-publication, resource, browser-render and browser-connection event names.
+publication, resource, browser-render, browser-connection and native-resource
+event names.
 Measurements include integer microsecond
 durations, query row counts, queue depth/bytes and processed/drop counts. Labels
 contain only closed stage, operation, outcome, aggregation and resource
@@ -378,7 +379,11 @@ Its browser adapter marks a connection only after the same LiveSocket has
 opened once; a reload starts another initial connection. The host accepts only
 its own endpoint event and retains duration plus closed surface, kind and
 outcome labels. Socket parameters and page data are discarded. Native
-host-resource coverage remains with the adapters that own those operations.
+host-resource coverage remains with the adapters that own those operations. The
+Nerves host uses the closed `native.sample` event for fixed Linux procfs system
+available memory, BEAM-process RSS and one-minute load. The service validates
+the complete nonnegative integer measurement set and retains only `nerves`
+surface and `linux_procfs` source labels.
 
 ## Explicit HTTP instance
 

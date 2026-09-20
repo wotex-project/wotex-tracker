@@ -7,7 +7,10 @@ cross-build now exist under `hosts/nerves/`. A separately locked kiosk source
 profile reuses the shared LiveView package and has local endpoint/store-isolation
 tests. A separate ARM64 QEMU image exercises first boot, an existing data
 partition, private SQLite startup and loopback HTTP through Nerves. This is
-virtual software evidence only. Neither Pi image has
+virtual software evidence only. Both profiles supervise a bounded Linux procfs
+resource sampler beside the service; it contributes only system available
+memory, BEAM-process RSS and one-minute load to volatile operational history.
+Neither Pi image has
 booted on a Pi, and no device provisioning workflow, durable-storage policy or
 hardware acceptance exists yet. Bootable headless and local-display profiles
 remain required product deliverables and optional installations. They consume

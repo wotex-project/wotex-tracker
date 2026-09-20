@@ -43,6 +43,17 @@ HTTPS public origin and provision certificates and operator tokens outside the
 firmware. The local host test exercises this configuration policy and the
 service/store supervision, but there is not yet a device provisioning workflow.
 
+## Native operational resources
+
+The host supervises a Linux procfs sampler beside the HTTP service. At startup
+and every 30 seconds it reads only `/proc/meminfo`, `/proc/self/status` and
+`/proc/loadavg`, admitting at most 65,536 bytes from each. One complete sample
+adds system available-memory bytes, the BEAM OS-process RSS bytes and one-minute
+load multiplied by 1,000 to the service's bounded volatile operational history.
+It carries only the fixed `nerves` surface and `linux_procfs` source labels.
+Missing or malformed fields produce no partial or invented sample. No procfs
+path, process ID, device identity, credential or scope becomes telemetry.
+
 ## Current limits
 
 The development cross-build is software evidence only. No Pi 5, display,

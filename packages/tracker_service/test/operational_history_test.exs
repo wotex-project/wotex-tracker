@@ -25,7 +25,8 @@ defmodule Wotex.Tracker.Service.OperationalHistoryTest do
              resource,
              runtime,
              render,
-             connection
+             connection,
+             native
            ] =
              OperationalTelemetry.contracts()
 
@@ -78,6 +79,16 @@ defmodule Wotex.Tracker.Service.OperationalHistoryTest do
              kind: [:reconnect],
              outcome: [:ok, :unavailable]
            }
+
+    assert native.event == [:wotex, :tracker, :native, :resource, :sample]
+
+    assert native.measurements == %{
+             system_available_memory_bytes: :byte,
+             process_rss_bytes: :byte,
+             load_1m_milli: :milli_load
+           }
+
+    assert native.metadata == %{surface: [:nerves], source: [:linux_procfs]}
   end
 
   test "browser render samples keep only closed duration and status" do
@@ -143,6 +154,49 @@ defmodule Wotex.Tracker.Service.OperationalHistoryTest do
 
     assert {:ok, %{"samples" => [_]}} =
              OperationalHistory.snapshot(collector, event: "connection.stop")
+  end
+
+  test "native resource samples keep only bounded measurements and closed host labels" do
+    collector = start_supervised!({OperationalHistory, []})
+
+    assert :ok =
+             OperationalTelemetry.native_resource_sample(:nerves, :linux_procfs, %{
+               system_available_memory_bytes: 8_192,
+               process_rss_bytes: 4_096,
+               load_1m_milli: 125
+             })
+
+    assert {:error, :invalid_sample} =
+             OperationalTelemetry.native_resource_sample(:nerves, :linux_procfs, %{
+               system_available_memory_bytes: 1,
+               process_rss_bytes: 1,
+               load_1m_milli: 1,
+               path: 1
+             })
+
+    assert {:error, :invalid_sample} =
+             OperationalTelemetry.native_resource_sample(:browser, :linux_procfs, %{})
+
+    eventually(fn ->
+      match?(
+        {:ok, %{"samples" => [_]}},
+        OperationalHistory.snapshot(collector, event: "native.sample")
+      )
+    end)
+
+    assert {:ok, %{"samples" => [sample]}} =
+             OperationalHistory.snapshot(collector, event: "native.sample")
+
+    assert sample["measurements"] == %{
+             "system_available_memory_bytes" => 8_192,
+             "process_rss_bytes" => 4_096,
+             "load_1m_milli" => 125
+           }
+
+    assert sample["metadata"] == %{
+             "surface" => "nerves",
+             "source" => "linux_procfs"
+           }
   end
 
   test "bounded volatile samples expire and malformed external events are ignored" do

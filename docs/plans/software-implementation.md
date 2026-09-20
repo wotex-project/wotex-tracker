@@ -544,8 +544,10 @@ historical exploration. A valid/suspect quality selector feeds the same closed
 query and persists with a saved definition. The optional browser host records
 closed LiveView render durations and marked reconnect outcomes in the same
 volatile collector without retaining socket parameters or page data. Initial
-connections and reloads are not classified as reconnects. OS-native resource
-events remain. The unsaved per-asset analytics page can opt
+connections and reloads are not classified as reconnects. The Nerves host also
+records fixed Linux procfs available-memory, BEAM-process RSS and one-minute-load
+samples; native resource adapters for other surfaces remain. The unsaved
+per-asset analytics page can opt
 into a five-second committed-event check that reruns only after a change, keeps
 the selected duration while moving to the newest retained asset state, marks a
 temporary failure stale and stops on terminal denial or historical navigation.

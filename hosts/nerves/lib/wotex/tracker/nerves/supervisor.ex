@@ -10,6 +10,7 @@ defmodule Wotex.Tracker.Nerves.Supervisor do
   """
 
   use Supervisor
+  alias Wotex.Tracker.Nerves.NativeResourceSampler
   alias Wotex.Tracker.Service.HTTP.{Config, Server}
   @kiosk_target Mix.target() == :rpi5
 
@@ -37,7 +38,8 @@ defmodule Wotex.Tracker.Nerves.Supervisor do
 
     kiosk = if @kiosk_target, do: kiosk_child(options[:browser]), else: []
 
-    Supervisor.init([{Server, options[:service]}] ++ browser ++ kiosk,
+    Supervisor.init(
+      [{Server, options[:service]}, {NativeResourceSampler, []}] ++ browser ++ kiosk,
       strategy: :one_for_one
     )
   end

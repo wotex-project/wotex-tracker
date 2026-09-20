@@ -3995,3 +3995,31 @@ configured compiler, unused-dependency, formatter, dependency audit, strict
 Credo, ExDoc, Dialyzer, OpenAPI, archive, native CLI, licence and 527-file
 stack-language checks passed. OS-native resource telemetry and physical
 reconnection acceptance remain unpassed.
+
+### Bounded Nerves native-resource telemetry — 2026-09-20
+
+The headless and kiosk Nerves profiles now supervise a resource sampler beside
+the shared HTTP service. Its production source reads only the fixed Linux paths
+`/proc/meminfo`, `/proc/self/status` and `/proc/loadavg` at startup and every 30
+seconds, admitting at most 65,536 bytes from each. A complete sample contains
+nonnegative integer system available-memory bytes, BEAM OS-process RSS bytes and
+one-minute load multiplied by 1,000. Missing, malformed, negative, overflowing
+or oversized source data produces no partial or invented sample.
+
+The service's closed telemetry vocabulary and volatile collector now admit
+`native.sample` with exactly those three measurements and only `nerves` surface
+plus `linux_procfs` source metadata. Tests exercise exact parsing, malformed and
+oversized files, unavailable-source process survival, rejected extra
+measurements and retention through the real collector. They also verify that the
+sampler is supervised in the composed appliance without changing service
+failure isolation. No path, PID, scope, device identity or credential is stored.
+
+The complete service gate passed 305 tests and two generated properties at
+95.1% production line coverage. The shared-UI gate passed 171 tests at 95.0%
+with the new event available through its contract-derived filter. Headless
+Nerves host verification passed 7 tests and the kiosk composition passed 10,
+both with warnings-as-errors and formatter checks. Configured dependency audit,
+strict Credo, ExDoc, Dialyzer, OpenAPI, 100-member service archive, 58-member UI
+archive, licences and the 530-file stack-language policy passed. This is host
+software evidence; real Pi resource behavior, budgets and other native-surface
+adapters remain unpassed.
