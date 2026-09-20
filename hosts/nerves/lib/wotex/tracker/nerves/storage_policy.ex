@@ -42,7 +42,7 @@ defmodule Wotex.Tracker.Nerves.StoragePolicy do
   @spec require_marker(term()) :: :ok | {:error, :recovery_required}
   def require_marker(root) do
     with true <- root_name?(root),
-         true <- missing?(Path.join(root, @next)),
+         :ok <- resolve_transition(root),
          {:ok, _document} <- read(root) do
       :ok
     else
@@ -135,8 +135,49 @@ defmodule Wotex.Tracker.Nerves.StoragePolicy do
     end
   end
 
-  defp read(root) do
-    with {:ok, document} <- FileConfig.read_document(marker_path(root)),
+  defp resolve_transition(root) do
+    next = Path.join(root, @next)
+
+    case File.lstat(next) do
+      {:error, :enoent} -> :ok
+      {:ok, _stat} -> resolve_transition(root, next)
+      _ -> {:error, :recovery_required}
+    end
+  end
+
+  defp resolve_transition(root, next_path) do
+    with {:ok, current} <- read(root),
+         {:ok, next} <- read_path(next_path),
+         true <- transition?(root, current, next),
+         true <- initialized_database?(next["data_directory"]) do
+      finish_transition(current["state"], next_path, marker_path(root))
+    else
+      _ -> {:error, :recovery_required}
+    end
+  end
+
+  defp transition?(root, current, next) do
+    current["state"] in @states and next["state"] == "initialized" and
+      next["data_directory"] == Path.join(root, "data") and
+      validate(next, next["instance_id"], next["data_directory"]) == :ok and
+      Map.put(current, "state", "initialized") == next
+  end
+
+  defp finish_transition("prepared", next, marker), do: rename_marker(next, marker)
+
+  defp finish_transition("initialized", next, _marker) do
+    case File.rm(next) do
+      :ok -> :ok
+      _ -> {:error, :recovery_required}
+    end
+  end
+
+  defp finish_transition(_, _, _), do: {:error, :recovery_required}
+
+  defp read(root), do: read_path(marker_path(root))
+
+  defp read_path(path) do
+    with {:ok, document} <- FileConfig.read_document(path),
          true <- is_map(document) and map_size(document) == length(@fields),
          true <- Enum.sort(Map.keys(document)) == Enum.sort(@fields) do
       {:ok, document}

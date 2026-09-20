@@ -65,7 +65,7 @@ defmodule Wotex.Tracker.Nerves.StoragePolicyTest do
     assert File.read!(c.marker) == "occupied"
   end
 
-  test "an interrupted transition remains explicitly recoverable", c do
+  test "a matching interrupted transition completes on the next admission", c do
     assert {:ok, _} = StoragePolicy.provision(c.root, c.root, "pi-test")
     database = Path.join(c.data, "tracker.db")
     File.write!(database, "sqlite")
@@ -79,7 +79,21 @@ defmodule Wotex.Tracker.Nerves.StoragePolicyTest do
              end)
 
     assert File.exists?(Path.join(c.root, "storage.json.next"))
-    assert {:error, :recovery_required} = StoragePolicy.admit(c.root, "pi-test", c.data)
+    assert :ok = StoragePolicy.admit(c.root, "pi-test", c.data)
+    refute File.exists?(Path.join(c.root, "storage.json.next"))
+    assert StoragePolicy.initialized?(c.root, "pi-test", c.data)
+  end
+
+  test "a mismatched interrupted transition requires recovery without replacement", c do
+    assert {:ok, _} = StoragePolicy.provision(c.root, c.root, "pi-test")
+    original = File.read!(c.marker)
+    next = Path.join(c.root, "storage.json.next")
+    File.write!(next, "{}")
+    File.chmod!(next, 0o600)
+
+    assert {:error, :recovery_required} = StoragePolicy.require_marker(c.root)
+    assert File.read!(c.marker) == original
+    assert File.read!(next) == "{}"
   end
 
   test "nested startup reasons classify only storage failures as recovery", _c do
