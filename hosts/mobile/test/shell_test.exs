@@ -90,6 +90,30 @@ defmodule Wotex.Tracker.Mobile.ShellTest do
                mounted
              )
 
+    ble_request = "123e4567-e89b-42d3-a456-426614174000"
+
+    assert {:noreply, ^mounted} =
+             MobScreen.handle_info(
+               {:webview, :message,
+                %{
+                  "schema" => "wtr.mobile-ble-central-command.v1",
+                  "request_id" => ble_request,
+                  "operation" => "scan",
+                  "service_uuids" => ["180a"],
+                  "timeout_ms" => 1_000
+                }},
+               mounted
+             )
+
+    assert_received {:ble_central, ^ble_request, :rejected, :unavailable}
+
+    assert {:noreply, ^mounted} =
+             MobScreen.handle_info(
+               {:ble_central, ble_request, :scan_result,
+                {"123e4567-e89b-12d3-a456-426614174000", nil, -42, ["180a"]}},
+               mounted
+             )
+
     notification_session = %{
       session
       | notification: %{app_id: "org.wotex.tracker", environment: "sandbox"}

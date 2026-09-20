@@ -94,6 +94,18 @@ eight existing export filenames, `application/json`, valid JSON no larger than
 text share sheet with the authorized JSON content. No URL, path, file read,
 fetch, native method name or arbitrary plain text crosses the bridge.
 
+Because the pinned first-party Bluetooth plugin exposes only the peripheral
+role, the app-owned `wotex_mobile_ble` plugin supplies the required iOS
+CoreBluetooth central transport boundary. Packaged UI can issue only the exact
+versioned scan, stop, connect, disconnect, filtered-discovery, read and confirmed
+write commands through the current root screen. Scans require one to eight
+service UUIDs and a deadline of at most 30 seconds; every other native operation
+has a fixed 30-second deadline, and values are capped at 512 bytes. Results are
+projected back as bounded versioned browser events. The bridge neither selects a
+device nor implements a tracker protocol, identity decision, persistence or WoT
+mapping; those require a separately qualified profile and the upstream
+`wotex_ble` boundary.
+
 Run the software gate with the host-pinned toolchain:
 
 ```sh
@@ -102,7 +114,9 @@ WOTEX_PATH_DEPS=1 MIX_ENV=test mise exec -- mix check --no-retry
 ```
 
 No Xcode project, signed installation, APNs entitlement or AppDelegate token
-forwarding has been generated or exercised here. Physical notification delivery,
+forwarding has been generated or exercised here. The Objective-C BLE bridge is
+warnings-as-errors syntax-checked against the installed Apple SDK, but this host
+does not have the iPhoneOS SDK. Physical notification delivery,
 cold/warm/background tap distinction, secure-storage behavior, suspend/resume,
-network handoff, BLE central operation, share-sheet behavior and all other
-physical-iPhone evidence remain explicitly open.
+network handoff, target-profile BLE provisioning, share-sheet behavior and all
+other physical-iPhone evidence remain explicitly open.

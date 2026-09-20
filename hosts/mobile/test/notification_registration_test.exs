@@ -305,7 +305,13 @@ defmodule Wotex.Tracker.Mobile.NotificationRegistrationTest do
     {manifest, _} = Code.eval_file(manifest_path)
 
     assert Application.spec(:mob_notify, :vsn) == ~c"0.1.2"
-    assert Application.get_env(:mob, :plugins) == [:mob_notify, :wotex_mobile_secure_store]
+
+    assert Application.get_env(:mob, :plugins) == [
+             :mob_notify,
+             :wotex_mobile_ble,
+             :wotex_mobile_secure_store
+           ]
+
     assert manifest.name == :mob_notify
     assert manifest.plugin_spec_version == 1
     assert manifest.ios.frameworks == ["UserNotifications"]

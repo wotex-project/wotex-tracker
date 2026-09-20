@@ -7,6 +7,7 @@ defmodule Wotex.Tracker.Mobile.MobScreen do
   """
 
   use Mob.Screen
+  alias Wotex.Mobile.BLECentral
   alias Wotex.Tracker.Mobile.{ExternalURL, Lifecycle, Notifications, Sharing, WebSession}
 
   @impl true
@@ -39,8 +40,17 @@ defmodule Wotex.Tracker.Mobile.MobScreen do
     {:noreply, socket}
   end
 
+  def handle_info(
+        {:webview, :message, %{"schema" => "wtr.mobile-ble-central-command.v1"} = command},
+        socket
+      ),
+      do: {:noreply, BLECentral.execute(socket, command)}
+
   def handle_info({:webview, :message, payload}, socket),
     do: {:noreply, Sharing.share(socket, payload)}
+
+  def handle_info({:ble_central, _, _, _} = event, socket),
+    do: {:noreply, BLECentral.deliver(socket, event)}
 
   def handle_info({:mob_device, _, _} = event, socket), do: lifecycle(event, socket)
   def handle_info({:mob_device, _} = event, socket), do: lifecycle(event, socket)

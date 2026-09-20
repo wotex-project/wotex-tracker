@@ -26,6 +26,7 @@ defmodule WotexTrackerMobile.MixProject do
   defp deps do
     [
       ui(),
+      {:wotex_mobile_ble, path: "plugins/wotex_mobile_ble"},
       {:wotex_mobile_secure_store, path: "plugins/wotex_mobile_secure_store"},
       {:mob, "== 0.9.1"},
       {:mob_notify, "== 0.1.2"},

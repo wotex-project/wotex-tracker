@@ -203,6 +203,8 @@ defmodule Wotex.Tracker.Mobile.HostTest do
     assert script =~ "MobHook"
     assert script =~ ~s(hooks: { MobHook })
     assert script =~ "wtr.mobile-share.v1"
+    assert script =~ "wtr.mobile-ble-central-command.v1"
+    assert script =~ "wotex:ble-central-command"
     assert script =~ "nativeMob.send"
     assert script =~ "URL.createObjectURL"
 

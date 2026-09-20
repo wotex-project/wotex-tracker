@@ -48,6 +48,16 @@ const downloadJson = (event, filename) => {
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 5000);
 };
+window.addEventListener("wotex:ble-central-command", (event) => {
+  const command = event.detail;
+  if (!nativeMob || !command || typeof command !== "object" || Array.isArray(command)) return;
+  if (command.schema !== "wtr.mobile-ble-central-command.v1") return;
+  try {
+    nativeMob.send(command);
+  } catch (_) {
+    nativeMob = null;
+  }
+});
 window.addEventListener("phx:download-query-result", (event) => downloadJson(event, "wotex-query-result.json"));
 window.addEventListener("phx:download-history-page", (event) => downloadJson(event, "wotex-history-page.json"));
 window.addEventListener("phx:download-history", (event) => downloadJson(event, "wotex-retained-history.json"));
