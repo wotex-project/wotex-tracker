@@ -1,7 +1,19 @@
 defmodule Wotex.Tracker.TeltonikaTAT140ImportTest do
   use ExUnit.Case, async: true
 
-  alias Wotex.Tracker.{Capability, Catalogue, Error, EvidenceBundle, Observation}
+  alias Wotex.Tracker.{
+    Capability,
+    Catalogue,
+    Deployment,
+    Error,
+    Evidence,
+    EvidenceBundle,
+    Identity,
+    Materialisation,
+    Model,
+    Observation
+  }
+
   alias Wotex.Tracker.Protocols.Teltonika.{TAT140, TAT140Import}
 
   setup do
@@ -105,6 +117,97 @@ defmodule Wotex.Tracker.TeltonikaTAT140ImportTest do
 
     assert {:error, %Error{code: :unknown_resolution}} =
              TAT140Import.run(unresolved, context.catalogue)
+  end
+
+  test "record evidence materialises the complete cellular tracker model", context do
+    assert {:ok, imported} = TAT140Import.run(context.observation, context.catalogue)
+
+    association_id = "tat140-enrollment"
+    thing_id = "urn:uuid:aca49b80-1e09-40cf-929e-b193047f6ca9"
+
+    {:ok, association} =
+      Evidence.new(%{
+        id: "tat140-identity",
+        kind: :identity,
+        claim: %{
+          "thing_id" => thing_id,
+          "strategy" => "operator-pseudonym-v1",
+          "revision" => "1"
+        },
+        source_observation_ids: [context.observation.id],
+        evidence_ids: [],
+        profile: {context.profile.id, context.profile.version},
+        decoder: context.profile.decoder,
+        confidence: :exact,
+        reasons: ["operator_confirmed_association"],
+        association_id: association_id
+      })
+
+    {:ok, bundle} =
+      EvidenceBundle.new(
+        [context.observation],
+        [association | Map.values(imported.bundle.evidence)]
+      )
+
+    {:ok, identity} =
+      Identity.new(
+        %{
+          thing_id: thing_id,
+          association_id: association_id,
+          revision: "1",
+          evidence_id: association.id
+        },
+        bundle
+      )
+
+    {:ok, document} =
+      "priv/thing_models/cellular-asset-tracker-1.0.0.tm.json"
+      |> File.read!()
+      |> Wotex.JSON.decode()
+
+    {:ok, model} = Model.new(document, context.profile.model)
+
+    forms =
+      Map.new(context.profile.mapping, fn {name, pointer} ->
+        {pointer,
+         [
+           %{
+             "href" => "https://tracker.example.invalid/things/asset/properties/" <> name,
+             "op" => "readproperty",
+             "contentType" => "application/json"
+           }
+         ]}
+      end)
+
+    {:ok, deployment} =
+      Deployment.new(%{
+        revision: "tat140-deployment-1",
+        title: "Cellular asset",
+        forms: forms,
+        security_definitions: %{"bearer" => %{"scheme" => "bearer"}},
+        security: ["bearer"]
+      })
+
+    assert {:ok, materialised} =
+             Materialisation.new(%{
+               observation: context.observation,
+               catalogue: context.catalogue,
+               resolution: imported.resolution,
+               decoded: imported,
+               bundle: bundle,
+               capabilities: imported.capabilities,
+               identity: identity,
+               model: model,
+               mapping_revision: context.profile.mapping_revision,
+               deployment: deployment
+             })
+
+    td = Wotex.ThingDescription.to_map(materialised.td)
+    assert Map.keys(td["properties"]) |> Enum.sort() == ~w(batteryVoltage motion position)
+    assert td["properties"]["position"]["unit"] == "WGS84"
+    assert td["properties"]["motion"]["type"] == "boolean"
+    assert td["properties"]["batteryVoltage"]["unit"] == "V"
+    assert materialised.bundle === bundle
   end
 
   defp observation(frame) do
