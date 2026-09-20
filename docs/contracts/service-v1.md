@@ -575,15 +575,17 @@ contract neither selects APNs credentials nor equates provider acceptance with O
 delivery or a user read.
 
 The standalone host may select this composition with a separate private
-`WOTEX_TRACKER_APNS_CONFIG` file. The exact `wtr.apns-host.v1` document admits an
-Apple team ID, key ID, unencrypted P-256 key contents, sorted closed bundle-topic
-and service-scope sets, generic title/body copy, provider timeout, worker polling
-and retry intervals, batch ceiling and dispatch timeout. The same 0600 regular-
-file, 0700 parent, absolute-path, no-symlink and 64 KiB rules as the main host
-configuration apply. Missing configuration starts no dispatcher; malformed,
-unsafe or open documents fail startup. The authenticated capability status is
-`notification_delivery: configured` only for the admitted supervised
-composition, and `unconfigured` otherwise.
+`WOTEX_TRACKER_APNS_CONFIG` file. The Nerves appliance uses the same document at
+the fixed root-bound `/root/tracker/apns.json` path only when its closed build
+choice is enabled. The exact `wtr.apns-host.v1` document admits an Apple team ID,
+key ID, unencrypted P-256 key contents, sorted closed bundle-topic and service-
+scope sets, generic title/body copy, provider timeout, worker polling and retry
+intervals, batch ceiling and dispatch timeout. The same 0600 regular-file, 0700
+parent, absolute-path, no-symlink and 64 KiB rules as the main host configuration
+apply. Missing disabled configuration starts no dispatcher; a selected but
+missing, malformed, unsafe or open document fails startup. The authenticated
+capability status is `notification_delivery: configured` only for the admitted
+supervised composition, and `unconfigured` otherwise.
 
 `APNsAdapter` is the concrete opt-in token-authenticated provider boundary. Its
 constructor admits one Apple team ID, key ID, unencrypted P-256 private-key value,

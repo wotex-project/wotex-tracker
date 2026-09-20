@@ -5100,3 +5100,32 @@ This is host-composition evidence, not a physical push receipt. No production
 provider exchange, signed application entitlement, provisioning profile, OS
 delivery, notification presentation or cold/warm/background user-tap acceptance
 was executed.
+
+### Configured appliance notification delivery — 2026-09-20
+
+The Nerves source host now reuses the service package's closed APNs host
+configuration. An exact `WOTEX_TRACKER_APNS=1` build choice selects only the
+fixed private `/root/tracker/apns.json`; absence disables the composition and any
+other supplied flag value aborts configuration. The root-bound file goes through
+the same private-file and `wtr.apns-host.v1` admission as the standalone host.
+An enabled missing, unsafe, malformed or open document stops appliance startup.
+
+The appliance supervisor now composes the admitted dispatcher options into its
+actual service child and reports `notification_delivery: configured` through the
+authenticated capability endpoint. The same composition correction reports its
+already supervised cellular listener as `cellular: configured`. Integration tests
+start the appliance service and dispatcher, inspect the redacted host-only status,
+call the real loopback HTTP capability resource, and prove both processes stop
+with the appliance tree. The cellular test independently verifies its configured
+capability over that HTTP boundary.
+
+The complete headless host suite passed 46 tests; the UI-enabled host composition
+passed 49 tests. Both profiles passed strict Credo and Dialyzer with forced local-
+dependency PLT checks. APNs-enabled Pi 5 headless and kiosk source profiles
+compiled with warnings as errors on Elixir 1.20.4/Erlang/OTP 29.0.4. The
+implementation commit is
+`6a2d2f484725695c5dc6eb8bf2abcbf4eee74ad3`.
+
+This is source-level appliance composition evidence. No firmware artifact was
+built or booted, and no physical Pi, provider exchange, signed mobile
+entitlement, OS delivery or notification tap was exercised.

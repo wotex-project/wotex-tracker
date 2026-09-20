@@ -81,10 +81,10 @@ privileged host port also atomically persists transport-health state and stable
 event intents plus heartbeat, low-battery, motion/trip and geofence state and
 intents, with restart recovery and retry deduplication. The
 standalone CLI and bundled Darwin/Linux ARM64 service artifacts pass local probes.
-The standalone host can also admit a separate private APNs provider/dispatcher
-document, supervise that delivery worker and report the composition explicitly
-as configured or unconfigured. Provider acceptance, OS delivery and a user tap
-remain separate unpassed gates.
+The standalone and Nerves hosts can also admit a separate private APNs provider/
+dispatcher document, supervise that delivery worker and report the composition
+explicitly as configured or unconfigured. Provider acceptance, OS delivery and
+a user tap remain separate unpassed gates.
 See the [service contract](docs/contracts/service-v1.md). The first shared browser
 workflow now covers sign-in, bounded JSON capture import, evidence review,
 enrollment, later observation association, provisioning, retained measurements

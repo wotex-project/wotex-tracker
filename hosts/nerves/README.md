@@ -17,7 +17,7 @@ WOTEX_PATH_DEPS=1 MIX_TARGET=host MIX_ENV=test mise exec -- mix deps.get
 WOTEX_PATH_DEPS=1 MIX_TARGET=host MIX_ENV=test mise exec -- mix test --no-start
 WOTEX_PATH_DEPS=1 MIX_TARGET=host MIX_ENV=test mise exec -- mix format --check-formatted
 WOTEX_PATH_DEPS=1 MIX_TARGET=host MIX_ENV=test mise exec -- mix credo --strict
-WOTEX_PATH_DEPS=1 MIX_TARGET=host MIX_ENV=test mise exec -- mix dialyzer
+WOTEX_PATH_DEPS=1 MIX_TARGET=host MIX_ENV=test mise exec -- mix dialyzer --force-check
 WOTEX_PATH_DEPS=1 MIX_TARGET=rpi5 MIX_ENV=dev \
   mise exec elixir@1.20.4-otp-29 erlang@29.0.4 -- mix deps.get
 WOTEX_PATH_DEPS=1 MIX_TARGET=rpi5 MIX_ENV=dev \
@@ -53,6 +53,24 @@ firewall policy remain explicit operator responsibilities.
 The build flag is closed: omit it to disable cellular ingress or set it to the
 exact value `1`; any other supplied value aborts configuration instead of
 silently producing a headless image without the requested listener.
+
+Notification delivery is independently opt-in at build time. Add
+`WOTEX_TRACKER_APNS=1` to the selected target's dependency and firmware commands
+to require a private singly linked 0600 `/root/tracker/apns.json`. It uses the
+standalone host's exact `wtr.apns-host.v1` format for the provider identity and
+key, closed topics/scopes, generic copy and finite worker budgets. The appliance
+loads it only from that fixed root-bound path, validates the complete service and
+dispatcher composition, and supervises the dispatcher under the service. An
+enabled image fails startup when the file is missing, unsafe or malformed; an
+image built without the flag contains no configured dispatcher. Omit the flag or
+set it to the exact value `1`; every other supplied value aborts configuration.
+The flag can be combined with the independent cellular and kiosk choices.
+
+Authenticated capabilities report `cellular` and `notification_delivery` as
+`configured` only for their actually supervised appliance compositions. These
+values do not establish socket reachability, provider acceptance, OS delivery,
+notification presentation or a user tap. APNs still requires provisioned Apple
+credentials, an entitled signed application and physical-device evidence.
 
 Only loopback and direct TLS exposure are admitted. The image has no reverse
 proxy, so proxy mode is rejected. A TLS certificate and private key must each

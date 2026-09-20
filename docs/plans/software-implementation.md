@@ -420,6 +420,15 @@ shutdown through the composed appliance. This is software composition evidence;
 clear-TCP network policy and all board, modem, SIM, carrier and tracker evidence
 remain deployment work.
 
+The appliance source can now independently include notification delivery. Its
+closed build choice requires the fixed private `/root/tracker/apns.json`, admits
+the same `wtr.apns-host.v1` provider/dispatcher document as the standalone host
+and supervises that dispatcher under the service. The appliance reports both
+cellular ingress and notification delivery as configured only from their actual
+composition. APNs-enabled headless and kiosk source profiles compile on the
+pinned target runtime; no firmware artifact, provider exchange or physical push
+acceptance follows from that source check.
+
 The offline command can also create the kiosk's closed, loopback-only browser
 document with an independently generated session secret when the operator gives
 a distinct browser port. Its version-two document binds one configured scope to
