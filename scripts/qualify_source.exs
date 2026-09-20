@@ -420,12 +420,14 @@ defmodule Wotex.Tracker.SourceQualifier do
       do: raise("required WoTEx monorepo packages have uncommitted changes:\n#{changed}")
   end
 
-  defp clean_environment do
-    System.get_env()
+  @doc false
+  def clean_environment(environment \\ System.get_env()) do
+    environment
+    |> Map.new(fn {key, value} ->
+      if String.starts_with?(key, "WOTEX_TRACKER_"), do: {key, nil}, else: {key, value}
+    end)
     |> Map.merge(%{
       "WOTEX_PATH_DEPS" => nil,
-      "WOTEX_TRACKER_UI" => nil,
-      "WOTEX_TRACKER_UI_CONFIG" => nil,
       "MIX_BUILD_PATH" => nil,
       "MIX_DEPS_PATH" => nil,
       "MIX_ENV" => nil
