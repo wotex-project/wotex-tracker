@@ -3655,3 +3655,39 @@ This is a checked software bridge to Mob's text-sharing API, not physical-device
 evidence. No iPhone share sheet opened in this run, no receiving application was
 selected, and no handoff fidelity, cancellation, memory-pressure or accessibility
 behavior was observed. Those checks remain part of the signed-device gate.
+
+### Bounded iOS BLE central transport — 2026-09-20
+
+The mobile host now carries an app-owned CoreBluetooth plugin because the pinned
+first-party Bluetooth plugin exposes only the peripheral role. Its closed command
+contract provides filtered scan/stop, connect/disconnect, filtered service and
+characteristic discovery, read and confirmed write. Scans require one to eight
+canonical service UUIDs and a caller deadline of at most 30 seconds; every other
+native operation has a fixed 30-second deadline. The cache holds at most 64
+peripherals, returned values and writes are capped at 512 bytes, and native
+results cross back into the packaged UI only through a validated 16 KiB event
+envelope.
+
+The bridge retains only CoreBluetooth peripheral identifiers and operation
+owners. It does not accept BLE addresses, select a device, persist values,
+interpret a tracker protocol, decide identity or map GATT into WoT. Unexpected
+disconnects are reported to the connection owner and pending operations fail
+closed. The packaged browser asset can forward only the fixed command schema
+through the existing session-bound Mob screen; malformed, widened, noncanonical,
+oversized and native-failure inputs produce no widened native effect.
+
+Host tests exercise every admitted command and event, rejection and containment
+paths, manifest activation, fixed framework/usage description and native source
+bounds. The complete mobile-host gate passed 64 tests at 95.6% production line
+coverage, and the complete shared-UI gate passed 156 tests at 95.0%. Compiler,
+unused-dependency, formatter, dependency audit, strict Credo, ExDoc, Dialyzer,
+archive inspection, licences and the 516-file stack-language policy passed for
+their applicable profiles. Apple clang accepted the Objective-C NIF with ARC,
+blocks and warnings-as-errors against the installed macOS SDK and OTP 27 NIF
+headers.
+
+This is software-boundary evidence, not iPhone or tracker interoperability
+evidence. The development host has no iPhoneOS SDK, generated Xcode project,
+signed installation or selected target service/characteristic profile. Real
+permission behavior, radio lifecycle, provisioning and the upstream `wotex_ble`
+adapter remain explicit physical and integration gates.

@@ -470,8 +470,12 @@ request permission, register one installation-bound APNs endpoint through the
 current authorized session and route an exact opaque notification reference to
 the local shared alert screen. No provider token is persisted. Existing bounded,
 reauthorized JSON exports now keep browser downloads while an exact closed bridge
-routes their content to Mob's native text share sheet. Signed Xcode/APNs
-configuration and every physical native/device gate remain subsequent work.
+routes their content to Mob's native text share sheet. Because the pinned
+first-party Bluetooth plugin is peripheral-only, an app-owned CoreBluetooth
+plugin now supplies the closed iOS central scan/connect/discover/read/confirmed-
+write transport seam without duplicating tracker protocol or WoT mapping.
+Signed Xcode/APNs configuration, a qualified target profile and every physical
+native/device gate remain subsequent work.
 
 Acceptance: real iPhone secure storage, authorized BLE central provisioning,
 notification registration and cold/warm/background tap routing, suspend/resume,
