@@ -1,31 +1,33 @@
 {
   "boot_log_sha256": {
-    "first": "36507f3ad875c6ca09545b11593de0df2f1b1779bd69f8638de08f0ec0397afa",
-    "reboot": "032ad1e8e984ac09e12f8827487774c96421873d0e38a7be014d916979cb68d4"
+    "first": "499a6f2af9f2ee3fa5482422d5c6613b173ecec988740d808d0d3953ee3532bb",
+    "reboot": "9be27d916353053f62c9697de3cbb3ce105260c79290b17ae236beb0e539ee4f"
   },
   "checks": {
     "first_boot_formatted_fresh_partition": true,
+    "first_boot_native_resource_sample": true,
     "first_boot_private_store_and_loopback_http": true,
     "no_active_iex_or_distribution": true,
     "no_credentials_in_runtime_config": true,
     "no_ui_or_ssh_applications": true,
     "reboot_kept_existing_partition": true,
+    "reboot_native_resource_sample": true,
     "reboot_private_store_and_loopback_http": true,
     "sqlite_nif_aarch64": true
   },
   "firmware": {
-    "bytes": 57350288,
+    "bytes": 31186782,
     "metadata": {
       "meta-architecture": "arm",
       "meta-author": "The Nerves Team",
-      "meta-creation-date": "2026-09-16T22:49:16Z",
-      "meta-nickname": "grunt-craft",
+      "meta-creation-date": "2026-09-20T02:36:51Z",
+      "meta-nickname": "aim-ring",
       "meta-platform": "qemu_aarch64",
       "meta-product": "wotex_tracker_nerves",
-      "meta-uuid": "6b391a6f-9f33-599b-e58d-5d166a3cdde0",
+      "meta-uuid": "0ab042e4-847a-5edc-993b-3fc3d9b886e5",
       "meta-version": "0.1.0"
     },
-    "sha256": "bc10a2f8895f867fdeac4b04b7ccf0fb4a9ccb61fe99db149fdeb53bff3e9f38",
+    "sha256": "a2fbbb57b4d1ef86ac084ca7fdd8345150088b8b7033c46beed19611781e7dfe",
     "sqlite_nif": "ELF 64-bit LSB shared object, ARM aarch64, version 1 (SYSV), dynamically linked, BuildID[sha1]=a3dc0ce06a84ffe46914bb4a81e11c04c5f811c6, not stripped",
     "target_elixir": "1.20.4",
     "target_erts": "17.0.6"
@@ -84,20 +86,26 @@
   "schema": "wtr.nerves-qemu-boot.v1",
   "sources": {
     "wotex": {
-      "commit": "eadc6c9f9c285faf9324b8a7396a001381098b6c",
-      "tracked_changes": false
+      "commit": "cd73c5493d3453ae9ecd203c63b589676c9b9fd6",
+      "tracked_changes": false,
+      "tracked_paths": []
     },
     "wotex_binding_http": {
-      "commit": "4c0d9104e81079bfdef610c003a9c700549bdbd9",
-      "tracked_changes": false
+      "commit": "cd73c5493d3453ae9ecd203c63b589676c9b9fd6",
+      "tracked_changes": false,
+      "tracked_paths": []
     },
     "wotex_runtime": {
-      "commit": "65d0b521ccb6b7838fe37bf26bf9dac65b40cc68",
-      "tracked_changes": false
+      "commit": "cd73c5493d3453ae9ecd203c63b589676c9b9fd6",
+      "tracked_changes": false,
+      "tracked_paths": []
     },
     "wotex_tracker": {
-      "commit": "d06cf5f4d9a4bb14b05e0b58cd2c5d8fc321afca",
-      "tracked_changes": false
+      "commit": "228ddf0c52316443bc506d56e66e976bc720ce3e",
+      "tracked_changes": true,
+      "tracked_paths": [
+        "docs/specs/WTR.15-product-and-mobile-applications.md"
+      ]
     }
   },
   "virtual_system": {

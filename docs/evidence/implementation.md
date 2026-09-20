@@ -4023,3 +4023,31 @@ strict Credo, ExDoc, Dialyzer, OpenAPI, 100-member service archive, 58-member UI
 archive, licences and the 530-file stack-language policy passed. This is host
 software evidence; real Pi resource behavior, budgets and other native-surface
 adapters remain unpassed.
+
+### ARM64 virtual native-resource boot proof — 2026-09-20
+
+The Nerves QEMU-only boot fixture now withholds its success marker until three
+conditions hold together: the private SQLite file exists, the guest-loopback
+health endpoint answers and the service's supervised operational collector
+contains a `native.sample`. Its bounded poll runs after the application tree
+starts; an empty or unavailable collector fails the probe instead of treating
+process startup as resource evidence. Unit fixtures cover delayed arrival and
+each failed condition. The recorder requires the exact expanded success marker
+on both boot logs and records separate native-sample checks.
+
+The updated `qemu_aarch64` firmware cross-built with Elixir 1.20.4, ERTS 17.0.6,
+Nerves 1.15.0 and the pinned QEMU system/toolchain. Firmware SHA-256 is
+`a2fbbb57b4d1ef86ac084ca7fdd8345150088b8b7033c46beed19611781e7dfe`.
+QEMU 11.1.1 booted a freshly generated ignored disk, formatted its application
+partition, started the private store and passed the native-resource probe. A
+second boot of the same disk did not format the partition and passed the same
+probe. The two full serial-log digests and resolved release inventory are in
+`verification/nerves-qemu-boot.json`.
+
+The receipt identifies Tracker commit `228ddf0c52316443bc506d56e66e976bc720ce3e`
+and explicitly lists the pre-existing uncommitted WTR.15 documentation path; the
+boot/runtime source changes themselves were committed before the recorded run.
+All sibling WoTEx source cohorts were clean. Headless host verification passed 8
+tests and the kiosk composition passed 11 with warnings-as-errors and formatter
+checks. This is virtual ARM64 Linux evidence, not a Pi 5 boot, resource budget,
+display/radio test or hardware acceptance.
