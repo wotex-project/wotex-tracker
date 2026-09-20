@@ -291,6 +291,50 @@ defmodule Wotex.Tracker.Mobile.NativeBootstrapTest do
     assert (mode &&& 0o777) == 0o755
   end
 
+  test "canonicalizes system aliases above a direct native data root", c do
+    physical = Path.join(c.root, "private")
+    container = Path.join(physical, "container")
+    documents = Path.join(container, "Documents")
+    absolute_alias = Path.join(c.root, "var")
+    relative_alias = Path.join(physical, "mobile")
+    File.mkdir_p!(documents)
+    File.ln_s!(physical, absolute_alias)
+    File.ln_s!("container", relative_alias)
+
+    aliased_documents = Path.join([absolute_alias, "mobile", "Documents"])
+    canonical_directory = Path.join(documents, "wotex_tracker")
+    capability = Config.generate_capability()
+    {:ok, session} = WebSession.new("http://127.0.0.1:4321", capability)
+    owner = self()
+
+    assert {:ok, ^session} =
+             NativeBootstrap.configure("https://tracker.example",
+               data_directory: fn -> aliased_documents end,
+               port: 43_217,
+               replace_host: fn options ->
+                 send(owner, {:canonical_host, options})
+                 {:ok, owner}
+               end,
+               web_session: fn -> session end
+             )
+
+    assert_received {:canonical_host, options}
+    assert options[:directory] == canonical_directory
+    assert {:ok, %{type: :directory, mode: mode}} = File.lstat(canonical_directory)
+    assert (mode &&& 0o777) == 0o700
+    assert File.regular?(Path.join(canonical_directory, "native-configuration.json"))
+  end
+
+  test "contains cyclic native data ancestors", c do
+    first = Path.join(c.root, "first")
+    second = Path.join(c.root, "second")
+    File.ln_s!("second", first)
+    File.ln_s!("first", second)
+
+    assert {:error, :configuration_unavailable} =
+             NativeBootstrap.boot(data_directory: fn -> Path.join(first, "Documents") end)
+  end
+
   test "default native data lookup contains an unavailable application supervisor", c do
     previous = System.get_env("MOB_DATA_DIR")
     System.put_env("MOB_DATA_DIR", c.root)

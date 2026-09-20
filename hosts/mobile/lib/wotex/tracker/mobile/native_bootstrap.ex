@@ -13,6 +13,7 @@ defmodule Wotex.Tracker.Mobile.NativeBootstrap do
 
   @application_id "org.wotex.tracker"
   @directory_name "wotex_tracker"
+  @maximum_ancestor_links 32
 
   @doc "Starts the configured host or reports that first-run setup is required."
   @spec boot(keyword()) :: {:ok, WebSession.t()} | :missing | {:error, atom()}
@@ -77,6 +78,7 @@ defmodule Wotex.Tracker.Mobile.NativeBootstrap do
 
     with true <- is_binary(root) and byte_size(root) in 1..4_096,
          true <- Path.type(root) == :absolute and Path.expand(root) == root,
+         {:ok, root} <- canonical_root(root),
          directory = Path.join(root, @directory_name),
          :ok <- create_private_directory(root, directory) do
       {:ok, directory}
@@ -84,6 +86,65 @@ defmodule Wotex.Tracker.Mobile.NativeBootstrap do
       _ -> {:error, :configuration_unavailable}
     end
   end
+
+  defp canonical_root(root) do
+    with {:ok, parent} <- canonical_directory(Path.dirname(root), 0),
+         root = Path.join(parent, Path.basename(root)),
+         :ok <- bounded_path(root),
+         {:ok, %{type: :directory}} <- File.lstat(root) do
+      {:ok, root}
+    else
+      _ -> {:error, :configuration_unavailable}
+    end
+  end
+
+  defp canonical_directory(path, followed_links) do
+    path
+    |> Path.split()
+    |> Enum.reject(&(&1 == "/"))
+    |> resolve_components("/", followed_links)
+  end
+
+  defp resolve_components([], resolved, _followed_links), do: {:ok, resolved}
+
+  defp resolve_components([component | remaining], resolved, followed_links) do
+    candidate = Path.join(resolved, component)
+
+    case File.lstat(candidate) do
+      {:ok, %{type: :directory}} ->
+        resolve_components(remaining, candidate, followed_links)
+
+      {:ok, %{type: :symlink}} when followed_links < @maximum_ancestor_links ->
+        resolve_link(candidate, resolved, remaining, followed_links + 1)
+
+      _ ->
+        {:error, :configuration_unavailable}
+    end
+  end
+
+  defp resolve_link(candidate, resolved, remaining, followed_links) do
+    with {:ok, target} <- File.read_link(candidate),
+         :ok <- bounded_path(target),
+         target <- canonical_link_target(target, resolved),
+         :ok <- bounded_path(target) do
+      target
+      |> Path.split()
+      |> Enum.reject(&(&1 == "/"))
+      |> Kernel.++(remaining)
+      |> resolve_components("/", followed_links)
+    else
+      _ -> {:error, :configuration_unavailable}
+    end
+  end
+
+  defp canonical_link_target(target, resolved) do
+    if Path.type(target) == :absolute,
+      do: Path.expand(target),
+      else: Path.expand(target, resolved)
+  end
+
+  defp bounded_path(path),
+    do: if(byte_size(path) in 1..4_096, do: :ok, else: {:error, :configuration_unavailable})
 
   defp create_private_directory(root, directory) do
     with true <- real_directories(root),

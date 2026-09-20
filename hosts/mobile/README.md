@@ -39,11 +39,15 @@ options. On first launch it renders a native setup screen that accepts only an
 exact canonical HTTPS origin. It stores that non-secret selection as a bounded,
 versioned JSON document in a singly linked `0600` file under an app-private
 `0700` directory. Credentials, notification tokens, capabilities and signing
-secrets never enter that document. Every process start generates a new local
-port, capability and Phoenix signing secret, dynamically starts the loopback
-host, then mounts the sole bridge-bearing WebView. A changed service origin is
-rechecked by credential restoration, which purges a foreign credential and its
-account-bound cache before presenting a session.
+secrets never enter that document. Mob's Documents directory may arrive below
+an operating-system filesystem alias such as `/var`; the bootstrap resolves
+only that existing ancestor chain, still requires the Documents root itself to
+be a direct directory, and creates the app-owned child at `0700`. Every process
+start generates a new local port, capability and Phoenix signing secret,
+dynamically starts the loopback host, then mounts the sole bridge-bearing
+WebView. A changed service origin is rechecked by credential restoration, which
+purges a foreign credential and its account-bound cache before presenting a
+session.
 
 Remote calls remain bounded by the shared client and its exact configured HTTPS
 authority. The mobile transport invokes Mob's OS DNS seam before Mint without

@@ -5745,6 +5745,14 @@ Later launches load that origin from an app-private, atomic, mode-checked
 configuration file. Capability and signing secrets are generated afresh for
 each process and are never persisted with the origin.
 
+Mob passes Foundation's Documents path directly to the BEAM. The bootstrap now
+canonicalizes bounded existing filesystem aliases in that path's parent chain,
+including the `/var` alias used by physical iOS installations, before creating
+the private child. The selected Documents root must still be a direct directory,
+so an attacker-selected linked storage root remains rejected. Tests cover both
+absolute and relative system aliases, the resulting canonical host/cache path,
+a linked root and cyclic ancestors.
+
 The tracked iOS project, native Erlang launcher and example Mob configuration
 use bundle identifier `org.wotex.tracker`. The build activates only the trusted
 notification plugin and the repository-owned BLE and secure-store plugins.
