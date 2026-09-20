@@ -437,8 +437,10 @@ disclosure, through the same exact local or remote service contract; readers do
 not receive it, and invalid later pages preserve the last admitted snapshot. The shared package now
 also provides a bounded HTTPS client whose closed action mapping
 uses the same versioned service endpoints, validates exact envelopes and makes
-ambiguous mutations recoverable without automatic replay. Complete application,
-accessibility, Pi and mobile acceptance remain open.
+ambiguous mutations recoverable without automatic replay. The primary shared
+routes pass a reusable semantic-document accessibility audit with negative
+fixtures. Complete workflows and physical keyboard, screen-reader, contrast,
+zoom, touch and gesture acceptance on web, Pi and mobile remain open.
 
 Implement WTR.15's shared components and `hosts/app/` after Phase 3; use admitted
 fixtures before hardware is available. Do not wait for LoRaWAN or private AI.

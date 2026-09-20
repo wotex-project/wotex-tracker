@@ -3946,3 +3946,24 @@ complete shared-UI gate passed 168 tests at 95.0% production line coverage with
 its compiler, formatter, strict Credo, ExDoc, Dialyzer, dependency, licence,
 58-member archive and 525-file stack-language checks. The UI-enabled application-
 host gate passed 22 tests at 95.5% with every configured check.
+
+### Shared semantic accessibility baseline — 2026-09-20
+
+A reusable test-only document audit now parses the initial full HTML for 18
+primary shared routes: public safety, assets, setup, asset detail, analytics,
+route, trips, arming, asset rules/removal, dashboard detail/index, operational
+history, protection/alerts, activity, access and privacy. It requires an explicit
+document language, exactly one main landmark and page heading, non-skipping
+heading order, unique IDs, resolvable ARIA references, labelled controls, named
+links/buttons/regions, captions for every table and accessible alternatives for
+graphics. Wrapped labels and decorative empty-alt images retain their standard
+HTML semantics.
+
+Independent negative fixtures trigger every checked failure class together, so
+the acceptance is not a set of presence-only assertions. The complete shared-UI
+gate passed 171 tests at 95.0% production line coverage with compiler, formatter,
+strict Credo, ExDoc, Dialyzer, dependency audit, licences, 58-member archive
+inspection and the 527-file stack-language policy. The UI-enabled application-
+host gate passed 22 tests at 95.5% with every configured check. Manual keyboard,
+screen-reader, contrast, zoom, touch and gesture evidence on physical browser,
+Pi and iPhone surfaces remains unpassed.

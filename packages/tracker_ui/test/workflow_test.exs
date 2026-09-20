@@ -29,7 +29,16 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     Update
   }
 
-  alias Wotex.Tracker.UI.{ErrorHTML, Presenter, PromptPeer, Sessions, TestClient, TestEndpoint}
+  alias Wotex.Tracker.UI.{
+    AccessibilityAudit,
+    ErrorHTML,
+    Presenter,
+    PromptPeer,
+    Sessions,
+    TestClient,
+    TestEndpoint
+  }
+
   @endpoint TestEndpoint
 
   setup do
@@ -1022,6 +1031,41 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     {:ok, signed_in, _} = live(c.conn, "/safety")
     assert has_element?(signed_in, "h2", "Controls this deployment does provide")
     assert has_element?(signed_in, "h2", "If you suspect unauthorized tracking")
+  end
+
+  test "primary shared screens pass the semantic accessibility baseline", c do
+    thing = provisioned(c)
+    {dashboard, _} = saved_dashboard(c, thing)
+
+    paths = [
+      "/safety",
+      "/",
+      "/setup?operation=#{Identifier.uuid()}",
+      Presenter.path(:asset, thing) <> "?operation=#{Identifier.uuid()}",
+      Presenter.path(:asset, thing) <> "/analytics",
+      Presenter.path(:asset, thing) <> "/route",
+      Presenter.path(:asset, thing) <> "/trips",
+      Presenter.arming_path(thing),
+      Presenter.path(:asset, thing) <> "/protection?operation=#{Identifier.uuid()}",
+      Presenter.path(:asset, thing) <> "/remove?operation=#{Identifier.uuid()}",
+      Presenter.dashboard_path(dashboard),
+      "/dashboards",
+      "/operations",
+      "/protection",
+      "/protection/alerts",
+      "/activity",
+      "/access",
+      "/privacy"
+    ]
+
+    for path <- paths do
+      {:ok, _view, html} = live(c.conn, path)
+
+      case AccessibilityAudit.audit(html) do
+        :ok -> :ok
+        {:error, failures} -> flunk("#{path}: #{Enum.join(failures, "; ")}")
+      end
+    end
   end
 
   test "domain deletion recovers a lost reply without submitting twice", c do

@@ -196,9 +196,17 @@ The first cohort exercises real authorized services, duplicate prevention,
 lost-reply recovery, revocation, read-only denial, upload bounds, bounded
 lists/history, CSRF protection and credential custody. Device discovery and
 capture, basemaps, owner-presence capture, physical notification delivery,
-interactions, qualified hardware anti-stalking mechanisms and cross-surface accessibility remain
+interactions, qualified hardware anti-stalking mechanisms and physical cross-surface accessibility remain
 subsequent work. A
 responsive browser view does not qualify a mobile or Pi application.
+
+The test cohort applies one semantic document audit to 18 primary shared routes.
+It requires an explicit document language, one main landmark and page heading,
+ordered headings, unique IDs, valid ARIA references, labelled controls, named
+actions and regions, table captions, and accessible graphics. Negative fixtures
+prove each failure class. This automated baseline does not replace keyboard,
+screen-reader, contrast, zoom, touch or gesture acceptance on the physical web,
+Pi and iPhone surfaces.
 
 The route-history screen defaults to a one-day UTC window ending after the
 latest retained asset state. Readers can choose trusted-fix/receiver fallback,
