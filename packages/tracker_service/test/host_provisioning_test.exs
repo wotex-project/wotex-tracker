@@ -41,6 +41,31 @@ defmodule Wotex.Tracker.Service.HostProvisioningTest do
     assert Map.new([paths.config, paths.token_file], &{&1, File.read!(&1)}) == original
   end
 
+  test "creates one private staged direct-TLS configuration", c do
+    runtime = "/root/tracker"
+    input = tls_input(c.destination, runtime)
+
+    assert {:ok, paths} = HostProvisioning.initialize_tls(input)
+    document = paths.config |> File.read!() |> Codec.decode!()
+    token = paths.token_file |> File.read!() |> String.trim_trailing("\n")
+
+    assert document["listen"] == %{"ip" => "0.0.0.0", "port" => 443}
+    assert document["exposure"] == "tls"
+    assert document["public_origin"] == "https://tracker.example"
+
+    assert document["tls"] == %{
+             "certfile" => "/root/tracker/tls-cert.pem",
+             "keyfile" => "/root/tracker/tls-key.pem"
+           }
+
+    assert {:ok, hd(document["credentials"])["token_sha256"]} ==
+             Credentials.token_digest(token)
+
+    refute File.read!(paths.config) =~ token
+    assert {:ok, options} = FileConfig.load(paths.config)
+    assert options[:exposure] == :tls
+  end
+
   test "rejects unsafe roots, widened inputs and occupied targets", c do
     assert {:error, :invalid_configuration} = HostProvisioning.initialize(nil)
 
@@ -72,6 +97,23 @@ defmodule Wotex.Tracker.Service.HostProvisioningTest do
 
     refute File.exists?(Path.join(c.destination, "operator.token"))
     refute File.exists?(Path.join(c.destination, "data"))
+  end
+
+  test "rejects unsafe direct-TLS endpoints before creating paths", c do
+    input = tls_input(c.destination, "/root/tracker")
+
+    for invalid <- [
+          %{input | public_origin: "http://tracker.example"},
+          %{input | certfile: "/etc/cert.pem"},
+          %{input | keyfile: input.certfile},
+          %{input | ip: "not-an-address"}
+        ] do
+      assert {:error, :invalid_configuration} = HostProvisioning.initialize_tls(invalid)
+      refute File.exists?(c.destination)
+    end
+
+    assert {:error, :invalid_configuration} =
+             input |> Map.delete(:keyfile) |> HostProvisioning.initialize_tls()
   end
 
   test "uses an existing private root and leaves failed root targets untouched", c do
@@ -165,6 +207,17 @@ defmodule Wotex.Tracker.Service.HostProvisioningTest do
       port: 4000,
       expires_at: 1_700_086_400_000
     }
+  end
+
+  defp tls_input(destination, runtime) do
+    input(destination, runtime)
+    |> Map.merge(%{
+      ip: "0.0.0.0",
+      port: 443,
+      public_origin: "https://tracker.example",
+      certfile: Path.join(runtime, "tls-cert.pem"),
+      keyfile: Path.join(runtime, "tls-key.pem")
+    })
   end
 
   defp mode(path) do

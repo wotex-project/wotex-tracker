@@ -359,8 +359,11 @@ appliance runtime root. It also creates a private one-time storage marker. A
 successful SQLite startup advances that marker atomically; later missing,
 unsafe, corrupt or unsupported storage fails with `recovery_required` instead
 of becoming an empty store. Provisioning never replaces an occupied path or
-emits the bearer. Authenticated on-device setup, TLS provisioning and the exact
-physical media installation path remain required acceptance work.
+emits the bearer. An explicit all-or-nothing direct-TLS mode now validates a
+bounded supplied certificate chain and matching unencrypted key, copies private
+create-only material to fixed runtime paths and emits no contents. Certificate
+issuance/trust/renewal, authenticated on-device setup and the exact physical
+media installation path remain required acceptance work.
 Loopback startup remains available without NTP; direct TLS startup requires a
 positive synchronization result from the current NervesTime runtime before any
 store or listener starts. Hardware RTC and drift qualification remain physical

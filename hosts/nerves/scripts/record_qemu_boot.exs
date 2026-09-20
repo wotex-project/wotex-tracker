@@ -54,12 +54,30 @@ defmodule Wotex.Tracker.Nerves.QemuBootRecord do
         "lib/wotex_tracker_nerves-0.1.0/ebin/Elixir.Wotex.Tracker.Nerves.FirmwareHealth.beam"
       )
 
+    provisioner_beam =
+      Path.join(
+        release_root,
+        "lib/wotex_tracker_nerves-0.1.0/ebin/Elixir.Wotex.Tracker.Nerves.Provisioner.beam"
+      )
+
+    tls_provisioning_beam =
+      Path.join(
+        release_root,
+        "lib/wotex_tracker_nerves-0.1.0/ebin/Elixir.Wotex.Tracker.Nerves.TLSProvisioning.beam"
+      )
+
     true = File.regular?(firmware_health_beam)
+    true = File.regular?(tls_provisioning_beam)
 
     {:ok, {Wotex.Tracker.Nerves.Application, [imports: application_imports]}} =
       :beam_lib.chunks(String.to_charlist(application_beam), [:imports])
 
     true = {Wotex.Tracker.Nerves.FirmwareHealth, :check, 4} in application_imports
+
+    {:ok, {Wotex.Tracker.Nerves.Provisioner, [imports: provisioner_imports]}} =
+      :beam_lib.chunks(String.to_charlist(provisioner_beam), [:imports])
+
+    true = {Wotex.Tracker.Nerves.TLSProvisioning, :provision, 4} in provisioner_imports
 
     vm_args = File.read!(Path.join(release_root, "releases/0.1.0/vm.args"))
     true = String.contains?(vm_args, "-noshell")
@@ -157,6 +175,7 @@ defmodule Wotex.Tracker.Nerves.QemuBootRecord do
         "no_credentials_in_runtime_config" => true,
         "core_health_before_firmware_validation" => true,
         "firmware_startup_guard_with_finite_heart_timeout" => true,
+        "offline_direct_tls_provisioning" => true,
         "sqlite_nif_aarch64" => true
       },
       "boot_log_sha256" => %{"first" => digest(first_log), "reboot" => digest(reboot_log)},

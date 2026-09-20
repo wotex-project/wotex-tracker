@@ -1,6 +1,6 @@
 defmodule Wotex.Tracker.Service.HostProvisioning do
   @moduledoc """
-  Creates one private, loopback-only host configuration without exposing its token.
+  Creates one private host configuration without exposing its token.
 
   The destination is where files are written. The runtime root is the absolute
   path those files will have when the host starts, so an offline appliance image
@@ -17,6 +17,7 @@ defmodule Wotex.Tracker.Service.HostProvisioning do
 
   @grants ~w(read raw ingest enroll admin interact)
   @required ~w(destination_root runtime_root instance_id scope ip port expires_at)a
+  @tls_required @required ++ ~w(public_origin certfile keyfile)a
 
   @type paths :: %{
           config: String.t(),
@@ -36,13 +37,23 @@ defmodule Wotex.Tracker.Service.HostProvisioning do
              | :provisioning_failed}
   def initialize(input), do: initialize(input, &exclusive_write/2)
 
+  @doc "Creates a private direct-TLS configuration with caller-owned certificate paths."
+  @spec initialize_tls(term()) ::
+          {:ok, paths()}
+          | {:error,
+             :invalid_configuration
+             | :private_directory_required
+             | :configuration_exists
+             | :provisioning_failed}
+  def initialize_tls(input), do: initialize_tls(input, &exclusive_write/2)
+
   @doc false
   @spec initialize(term(), (String.t(), binary() -> :ok | {:error, atom()})) ::
           {:ok, paths()} | {:error, atom()}
   def initialize(input, writer)
       when is_map(input) and map_size(input) == length(@required) and is_function(writer, 2) do
     with true <- Enum.sort(Map.keys(input)) == Enum.sort(@required),
-         {:ok, context} <- validate(input) do
+         {:ok, context} <- validate(input, :loopback) do
       provision(Map.put(context, :writer, writer))
     else
       _ -> {:error, :invalid_configuration}
@@ -51,28 +62,101 @@ defmodule Wotex.Tracker.Service.HostProvisioning do
 
   def initialize(_, _), do: {:error, :invalid_configuration}
 
-  defp validate(input) do
-    with true <- private_root_name?(input.destination_root),
-         true <- private_root_name?(input.runtime_root),
-         true <- Codec.id?(input.instance_id) and Codec.id?(input.scope),
-         true <- input.ip in ["127.0.0.1", "::1"],
-         true <- is_integer(input.port) and input.port in 1..65_535,
-         true <- Codec.time?(input.expires_at) do
-      {:ok,
-       %{
-         destination_root: input.destination_root,
-         runtime_root: input.runtime_root,
-         instance_id: input.instance_id,
-         scope: input.scope,
-         ip: input.ip,
-         port: input.port,
-         expires_at: input.expires_at,
-         paths: paths(input.destination_root, input.runtime_root)
-       }}
+  @doc false
+  @spec initialize_tls(term(), (String.t(), binary() -> :ok | {:error, atom()})) ::
+          {:ok, paths()} | {:error, atom()}
+  def initialize_tls(input, writer)
+      when is_map(input) and map_size(input) == length(@tls_required) and is_function(writer, 2) do
+    with true <- Enum.sort(Map.keys(input)) == Enum.sort(@tls_required),
+         {:ok, context} <- validate(input, :tls) do
+      provision(Map.put(context, :writer, writer))
     else
       _ -> {:error, :invalid_configuration}
     end
   end
+
+  def initialize_tls(_, _), do: {:error, :invalid_configuration}
+
+  defp validate(input, exposure) do
+    with true <- private_root_name?(input.destination_root),
+         true <- private_root_name?(input.runtime_root),
+         true <- Codec.id?(input.instance_id) and Codec.id?(input.scope),
+         true <- address?(input.ip, exposure),
+         true <- is_integer(input.port) and input.port in 1..65_535,
+         true <- Codec.time?(input.expires_at),
+         {:ok, endpoint} <- endpoint(input, exposure) do
+      {:ok,
+       Map.merge(
+         %{
+           destination_root: input.destination_root,
+           runtime_root: input.runtime_root,
+           instance_id: input.instance_id,
+           scope: input.scope,
+           ip: input.ip,
+           port: input.port,
+           expires_at: input.expires_at,
+           exposure: exposure,
+           paths: paths(input.destination_root, input.runtime_root)
+         },
+         endpoint
+       )}
+    else
+      _ -> {:error, :invalid_configuration}
+    end
+  end
+
+  defp address?(ip, :loopback), do: ip in ["127.0.0.1", "::1"]
+
+  defp address?(ip, :tls) when is_binary(ip) do
+    match?({:ok, _}, :inet.parse_strict_address(String.to_charlist(ip)))
+  end
+
+  defp address?(_, _), do: false
+
+  defp endpoint(_input, :loopback), do: {:ok, %{public_origin: "listener", tls: nil}}
+
+  defp endpoint(input, :tls) do
+    if https_origin?(input.public_origin) and input.certfile != input.keyfile and
+         under_root?(input.certfile, input.runtime_root) and
+         under_root?(input.keyfile, input.runtime_root) do
+      {:ok,
+       %{
+         public_origin: input.public_origin,
+         tls: %{"certfile" => input.certfile, "keyfile" => input.keyfile}
+       }}
+    else
+      {:error, :invalid_configuration}
+    end
+  end
+
+  defp https_origin?(value) when is_binary(value) and byte_size(value) in 1..2_048 do
+    case URI.new(value) do
+      {:ok,
+       %URI{
+         scheme: "https",
+         userinfo: nil,
+         query: nil,
+         fragment: nil,
+         path: path,
+         host: host,
+         port: port
+       }}
+      when path in [nil, "", "/"] and is_binary(host) and host != "" and port in 1..65_535 ->
+        true
+
+      _ ->
+        false
+    end
+  end
+
+  defp https_origin?(_), do: false
+
+  defp under_root?(path, root) when is_binary(path),
+    do:
+      private_root_name?(path) and Path.expand(path) == path and
+        String.starts_with?(path, root <> "/")
+
+  defp under_root?(_, _), do: false
 
   defp private_root_name?(path) when is_binary(path) and byte_size(path) in 2..4_096,
     do: Path.type(path) == :absolute and Path.expand(path) == path and Path.dirname(path) != path
@@ -170,7 +254,7 @@ defmodule Wotex.Tracker.Service.HostProvisioning do
 
     case write(context, context.paths.config, Codec.encode!(document) <> "\n") do
       :ok ->
-        validate_created(context)
+        validate_created(context, document)
 
       {:error, reason} ->
         _ = [File.rm(context.paths.token_file), File.rmdir(context.paths.data_directory)]
@@ -178,12 +262,13 @@ defmodule Wotex.Tracker.Service.HostProvisioning do
     end
   end
 
-  defp validate_created(context) do
-    case FileConfig.load(context.paths.config) do
-      {:ok, options} ->
-        if options[:directory] == context.paths.runtime_data_directory,
-          do: {:ok, context.paths},
-          else: discard_created(context)
+  defp validate_created(context, expected) do
+    case {FileConfig.read_document(context.paths.config), FileConfig.load(context.paths.config)} do
+      {{:ok, ^expected}, {:ok, options}} ->
+        if options[:directory] == context.paths.runtime_data_directory and
+             options[:exposure] == context.exposure,
+           do: {:ok, context.paths},
+           else: discard_created(context)
 
       _ ->
         discard_created(context)
@@ -230,14 +315,14 @@ defmodule Wotex.Tracker.Service.HostProvisioning do
   end
 
   defp document(context, digest) do
-    %{
+    document = %{
       "schema" => "wtr.host.v1",
       "instance_id" => context.instance_id,
       "secret_key" => Base.encode64(:crypto.strong_rand_bytes(32)),
       "data_directory" => context.paths.runtime_data_directory,
       "listen" => %{"ip" => context.ip, "port" => context.port},
-      "exposure" => "loopback",
-      "public_origin" => "listener",
+      "exposure" => Atom.to_string(context.exposure),
+      "public_origin" => context.public_origin,
       "credentials" => [
         %{
           "id" => "operator",
@@ -248,6 +333,8 @@ defmodule Wotex.Tracker.Service.HostProvisioning do
         }
       ]
     }
+
+    if context.tls, do: Map.put(document, "tls", context.tls), else: document
   end
 
   defp write(context, path, bytes) do

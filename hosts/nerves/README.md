@@ -40,8 +40,9 @@ an empty history.
 Only loopback and direct TLS exposure are admitted. The image has no reverse
 proxy, so proxy mode is rejected. A TLS certificate and private key must each
 be a singly linked 0600 regular file under `/root/tracker`. Select an explicit
-HTTPS public origin and provision certificates and operator tokens outside the
-firmware. The local host test exercises this configuration policy and the
+HTTPS public origin. Certificate issuance, trust and renewal remain external;
+the offline command below can validate and copy supplied material into the
+appliance tree. The local host test exercises this configuration policy and the
 service/store supervision.
 
 Direct TLS exposure additionally requires `NervesTime.synchronized?/0` to be
@@ -92,15 +93,44 @@ The service and browser ports must differ. Output contains the browser file path
 never its secret. The headless artifact still has no browser or UI dependency;
 the extra document is used only by the explicitly selected kiosk profile.
 
+For an explicitly network-exposed direct-TLS service, supply all four TLS
+arguments together:
+
+```sh
+WOTEX_PATH_DEPS=1 MIX_TARGET=host MIX_ENV=test mise exec -- \
+  mix run --no-start scripts/provision.exs -- \
+  --directory /absolute/private/staging/tracker \
+  --instance-id workshop-pi --scope workshop \
+  --listen-ip 0.0.0.0 --public-origin https://tracker.example \
+  --tls-cert /absolute/private/source/fullchain.pem \
+  --tls-key /absolute/private/source/private-key.pem
+```
+
+TLS mode defaults to port 443; `--port` may override it. Both source files must
+be singly linked 0600 regular files below private, symlink-free directories.
+The certificate input is a bounded one-to-eight-entry PEM chain. The key must be
+one supported unencrypted PEM private key and must match the leaf certificate.
+Provisioning copies them to exclusive 0600 `tls-cert.pem` and `tls-key.pem`
+targets, syncs and verifies the copies, and writes only those fixed runtime paths
+to `config.json`. Any partial TLS argument set is rejected before creating the
+tree. A later failure removes only paths made by that attempt; occupied targets
+are retained. Output contains paths, never certificate or key contents.
+
+This stages operator-supplied material; it does not issue a certificate, decide
+which CA to trust, prove the public hostname, renew or rotate a certificate, or
+weaken the synchronized-clock startup gate. Authenticated on-device setup also
+remains separate.
+
 The generated configuration always names `/root/tracker/config.json` and
 `/root/tracker/data` as runtime paths. If `--directory` is a staging or mounted-
 media path, install its contents at exactly `/root/tracker` while preserving
 0700/0600 modes and ownership. That installation step is operator- and media-
-specific; the command does not flash a device. It also does not generate TLS or
-expose a network listener, rotate an existing credential or provide an
-authenticated on-device setup screen. Browser configuration is generated only
-when `--browser-port` is explicit. Those remaining operations stay separate
-gates.
+specific; the command does not flash a device. Loopback remains the default;
+only the complete explicit TLS argument set writes a network-exposed
+configuration. The command does not issue or renew TLS material, rotate an
+existing credential or provide an authenticated on-device setup screen. Browser
+configuration is generated only when `--browser-port` is explicit. Those
+remaining operations stay separate gates.
 
 ## Native operational resources
 

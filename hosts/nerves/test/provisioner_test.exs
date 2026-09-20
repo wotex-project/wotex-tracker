@@ -143,6 +143,71 @@ defmodule Wotex.Tracker.Nerves.ProvisionerTest do
              )
   end
 
+  test "stages explicit direct-TLS material without returning private contents", c do
+    {certificate, private_key} = test_pair()
+    certificate_source = Path.join(Path.dirname(c.root), "source-cert.pem")
+    key_source = Path.join(Path.dirname(c.root), "source-key.pem")
+    write_private(certificate_source, certificate)
+    write_private(key_source, private_key)
+
+    assert {:ok, result} =
+             Provisioner.run(
+               [
+                 "--directory",
+                 c.root,
+                 "--instance-id",
+                 "pi-tls",
+                 "--scope",
+                 "workshop",
+                 "--listen-ip",
+                 "0.0.0.0",
+                 "--public-origin",
+                 "https://tracker.example",
+                 "--tls-cert",
+                 certificate_source,
+                 "--tls-key",
+                 key_source
+               ],
+               1_700_000_000_000,
+               c.root
+             )
+
+    assert result["tls_certificate_file"] == Path.join(c.root, "tls-cert.pem")
+    assert result["tls_private_key_file"] == Path.join(c.root, "tls-key.pem")
+    assert result["runtime_tls_certificate_file"] == Path.join(c.root, "tls-cert.pem")
+    assert result["runtime_tls_private_key_file"] == Path.join(c.root, "tls-key.pem")
+    assert File.read!(result["tls_certificate_file"]) == certificate
+    assert File.read!(result["tls_private_key_file"]) == private_key
+
+    document = result["config_file"] |> File.read!() |> Codec.decode!()
+    assert document["listen"] == %{"ip" => "0.0.0.0", "port" => 443}
+    assert document["exposure"] == "tls"
+    assert document["public_origin"] == "https://tracker.example"
+    assert {:ok, options} = Config.load(result["config_file"], c.root)
+    assert options[:exposure] == :tls
+    refute Codec.encode!(result) =~ private_key
+  end
+
+  test "partial direct-TLS input fails before creating an appliance tree", c do
+    assert {:error, :invalid_arguments} =
+             Provisioner.run(
+               [
+                 "--directory",
+                 c.root,
+                 "--instance-id",
+                 "pi-tls",
+                 "--scope",
+                 "workshop",
+                 "--listen-ip",
+                 "0.0.0.0"
+               ],
+               1_700_000_000_000,
+               c.root
+             )
+
+    refute File.exists?(c.root)
+  end
+
   test "an occupied storage marker is retained and rolls back only new host paths", c do
     File.mkdir!(c.root)
     File.chmod!(c.root, 0o700)
@@ -200,5 +265,25 @@ defmodule Wotex.Tracker.Nerves.ProvisionerTest do
     refute File.exists?(Path.join(c.root, "storage.json"))
     refute File.exists?(Path.join(c.root, "operator.token"))
     refute File.exists?(Path.join(c.root, "data"))
+  end
+
+  defp test_pair do
+    configuration =
+      :public_key.pkix_test_data(%{
+        root: [key: {:rsa, 2_048, 65_537}],
+        peer: [key: {:rsa, 2_048, 65_537}]
+      })
+
+    certificate = Keyword.fetch!(configuration, :cert)
+    {key_type, key} = Keyword.fetch!(configuration, :key)
+
+    {
+      :public_key.pem_encode([{:Certificate, certificate, :not_encrypted}]),
+      :public_key.pem_encode([{key_type, key, :not_encrypted}])
+    }
+  end
+
+  defp write_private(path, bytes) do
+    with :ok <- File.write(path, bytes, [:exclusive]), do: File.chmod(path, 0o600)
   end
 end

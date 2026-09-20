@@ -15,9 +15,13 @@ data partition and its reboot before its serial probe can pass.
 An offline create-only host provisioner now prepares the exact private service
 tree for `/root/tracker` through the shared service configuration seam. It emits
 only private file paths and can target mounted media without embedding the mount
-path in runtime configuration. It is not an authenticated on-device setup UI,
-TLS provisioning or media installation. The same command can optionally create
-a private loopback browser document on a distinct port without adding UI
+path in runtime configuration. It is not an authenticated on-device setup UI or
+media installation. An explicit all-or-nothing direct-TLS mode validates a
+bounded operator-supplied PEM chain and matching unencrypted private key, copies
+them to fixed private create-only paths and writes the direct-TLS service
+configuration without returning contents. It does not issue, establish trust or
+renew certificates. The same command can optionally create a private loopback
+browser document on a distinct port without adding UI
 dependencies to the headless profile. It is not an on-device setup UI. Neither
 Pi image has booted on a Pi. A source-level storage marker now permits one
 prepared initialization and
@@ -90,6 +94,16 @@ workflow remains available offline. Direct TLS exposure instead requires
 listener starts. A persisted estimate, plausible wall time, exception or unknown
 status cannot satisfy that gate. This is a conservative exposure policy, not a
 hardware-RTC, long-duration drift or physical-network qualification.
+
+The offline provisioner selects direct TLS only when listen address, HTTPS
+public origin, certificate source and private-key source are all explicit. It
+requires private symlink-free source custody, decodes a bounded certificate
+chain and supported unencrypted key, proves that the leaf certificate and key
+match, then installs verified 0600 copies at fixed runtime paths. Partial input,
+malformed or mismatched material and occupied destinations fail closed, with
+rollback limited to paths created by that attempt. This is configuration and
+material staging, not certificate issuance, CA/hostname validation, renewal,
+network reachability or authenticated on-device setup.
 
 ## Local control panel and remote UI
 

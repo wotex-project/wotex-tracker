@@ -4,6 +4,7 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
   alias Wotex.Tracker.Nerves.Config
   alias Wotex.Tracker.Nerves.FirmwareHealth
   alias Wotex.Tracker.Nerves.NativeResourceSampler
+  alias Wotex.Tracker.Nerves.Provisioner
   alias Wotex.Tracker.Nerves.StoragePolicy
   alias Wotex.Tracker.Service.{Codec, Credentials}
   alias Wotex.Tracker.Service.HTTP.Server
@@ -209,6 +210,59 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
     assert {:error, :invalid_configuration} = Config.load(c.path, c.root)
   end
 
+  test "provisioned direct TLS completes an authenticated health request", c do
+    tls_root = Path.join(c.root, "tls-root")
+    certificate_source = Path.join(c.root, "source-cert.pem")
+    key_source = Path.join(c.root, "source-key.pem")
+    {certificate, private_key} = test_pair()
+    write_private(certificate_source, certificate)
+    write_private(key_source, private_key)
+    port = free_port()
+
+    assert {:ok, result} =
+             Provisioner.run(
+               [
+                 "--directory",
+                 tls_root,
+                 "--instance-id",
+                 "pi-tls",
+                 "--scope",
+                 "workshop",
+                 "--port",
+                 Integer.to_string(port),
+                 "--listen-ip",
+                 "127.0.0.1",
+                 "--public-origin",
+                 "https://127.0.0.1:#{port}",
+                 "--tls-cert",
+                 certificate_source,
+                 "--tls-key",
+                 key_source
+               ],
+               System.system_time(:millisecond),
+               tls_root
+             )
+
+    Application.put_env(:wotex_tracker_nerves, :config_path, result["config_file"])
+    Application.put_env(:wotex_tracker_nerves, :data_root, tls_root)
+    Application.put_env(:wotex_tracker_nerves, :clock_synchronized, fn -> true end)
+
+    assert {:ok, host} = HostApplication.start(:normal, [])
+    token = result["token_file"] |> File.read!() |> String.trim_trailing("\n")
+    url = ~c"https://127.0.0.1:#{port}/api/v1/scopes/workshop/health/ready"
+
+    assert {:ok, {{_, 200, _}, _, body}} =
+             :httpc.request(
+               :get,
+               {url, [{~c"authorization", ~c"Bearer #{token}"}]},
+               [ssl: [verify: :verify_none]],
+               body_format: :binary
+             )
+
+    assert {:ok, %{"data" => %{"writable" => true, "schema" => "8"}}} = Codec.decode(body)
+    assert :ok = Supervisor.stop(host)
+  end
+
   defp start_trapping_exit do
     previous = Process.flag(:trap_exit, true)
 
@@ -217,5 +271,32 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
     after
       Process.flag(:trap_exit, previous)
     end
+  end
+
+  defp test_pair do
+    configuration =
+      :public_key.pkix_test_data(%{
+        root: [key: {:rsa, 2_048, 65_537}],
+        peer: [key: {:rsa, 2_048, 65_537}]
+      })
+
+    certificate = Keyword.fetch!(configuration, :cert)
+    {key_type, key} = Keyword.fetch!(configuration, :key)
+
+    {
+      :public_key.pem_encode([{:Certificate, certificate, :not_encrypted}]),
+      :public_key.pem_encode([{key_type, key, :not_encrypted}])
+    }
+  end
+
+  defp write_private(path, bytes) do
+    with :ok <- File.write(path, bytes, [:exclusive]), do: File.chmod(path, 0o600)
+  end
+
+  defp free_port do
+    {:ok, socket} = :gen_tcp.listen(0, [:binary, active: false, ip: {127, 0, 0, 1}])
+    {:ok, {_, port}} = :inet.sockname(socket)
+    :ok = :gen_tcp.close(socket)
+    port
   end
 end
