@@ -74,7 +74,9 @@ end
   "publication.stop",
   "resource.stop",
   "runtime.sample",
-  "render.stop"
+  "render.stop",
+  "connection.stop",
+  "native.sample"
 ] =
   Enum.map(OperationalTelemetry.contracts(), & &1.name)
 
@@ -163,7 +165,7 @@ store = Store.handle(pid)
 {:ok, result} = Store.mutate(store, update)
 "committed" = result["outcome"]
 {:ok, ^result} = Store.mutate(store, update)
-{:ok, %{"schema" => "7", "sqlite" => "3.53.4"}} = Store.readiness(store)
+{:ok, %{"schema" => "9", "sqlite" => "3.53.4"}} = Store.readiness(store)
 
 transport_fact = fn id, predicate, kind ->
   {:ok, evidence} =

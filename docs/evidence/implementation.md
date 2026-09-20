@@ -5546,3 +5546,29 @@ checks. Recovery admits the complete schema-9 database, rejects version 10 and
 an incomplete schema-9 database, and the authenticated direct-TLS health response
 reports schema 9. This is host software evidence only; no firmware was built or
 booted on a Pi and no physical restore or rollback trial was performed.
+
+### Current production service-consumer contract — 2026-09-20
+
+The independent service consumer now requires the schema-9 readiness response
+and the complete operational telemetry contract, including `connection.stop`
+and `native.sample`. The service package documentation names the matching
+OpenAPI contract revision 1.39.0. Running that consumer from a disposable
+directory against the local path-dependency cohort passed on both required
+runtime lanes with no retained Tracker processes.
+
+The complete root gate passed 201 tests, 19 generated properties and one
+doctest at 95.1% production line coverage in both lanes. The complete service
+gate passed 384 tests and two generated properties at 95.0% on the floor lane
+and 95.1% on the upper lane. Compiler, dependency, formatter, vulnerability
+audit, strict Credo, ExDoc, Dialyzer, boundary, stack-language, documentation,
+archive, OpenAPI and licence checks passed where configured. The no-retry run
+also exposed a race in the active-probe dead-process fixture; it now installs
+the monitor before releasing the process, and the focused case passed 25
+consecutive runs.
+
+The immutable production source qualifier was also attempted. It stopped before
+assembling a cohort because the required packages in the adjacent WoTEx
+monorepo contain concurrent uncommitted work. No source or service-consumer
+receipt was changed, and this local-path result is not promoted as immutable
+production-archive evidence. That qualification remains pending until the
+adjacent package paths are clean and the complete qualifier is rerun.

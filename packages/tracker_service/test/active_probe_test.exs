@@ -222,8 +222,9 @@ defmodule Wotex.Tracker.Service.ActiveProbeTest do
     assert {:ok, %{"active" => 0}} = ActiveProbe.status(owner)
     assert inspect(:sys.get_status(owner)) =~ "redacted"
 
-    dead = spawn(fn -> :ok end)
+    dead = spawn(fn -> receive do: (:stop -> :ok) end)
     monitor = Process.monitor(dead)
+    send(dead, :stop)
     assert_receive {:DOWN, ^monitor, :process, ^dead, :normal}
     assert {:error, :unavailable} = ActiveProbe.status(dead)
     assert {:error, :unavailable} = ActiveProbe.cancel(dead, Identifier.uuid())
