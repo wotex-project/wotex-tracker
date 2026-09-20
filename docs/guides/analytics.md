@@ -44,7 +44,7 @@ inside a SQLite read transaction and pins the current scope generation. For each
 explicit series it extracts matching measurements from committed state history,
 then passes admitted rows and a scope-generation snapshot identity to the pure
 evaluator. The same operation is available as the read-only
-`POST …/analytics/query` endpoint in service contract 1.9.0.
+`POST …/analytics/query` endpoint in the current service contract.
 
 The optional shared browser exposes the first structured query at an asset's
 **Explore measurement history** link. It uses the current retained numeric

@@ -34,8 +34,10 @@ All constructor fields are explicit atom keys. Wire maps use string keys and
 `from_json/2` uses upstream bounded parsing and rejects duplicate members before
 map conversion. A caller supplying an already converted native map cannot claim
 that the original source was duplicate-free. Wide integers and native float/int
-distinctions survive the Elixir wire parser. Browser-safe projection is later
-host work; raw evidence must not travel through a lossy JavaScript re-encoder.
+distinctions survive the Elixir wire parser. Browser-safe projection belongs to
+a host boundary; the service supplies reviewed public projections while raw
+evidence remains behind its privileged export and never travels through a lossy
+JavaScript re-encoder.
 
 Limits are explicit positive keyword options; unknown/repeated/invalid options
 fail. Each metadata object and JSON payload obeys WTR.13's default JSON limits;
