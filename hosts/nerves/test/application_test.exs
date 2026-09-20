@@ -1,5 +1,6 @@
 defmodule Wotex.Tracker.Nerves.ApplicationTest do
   use ExUnit.Case, async: false
+  alias Config.Reader, as: ConfigReader
   alias Wotex.Tracker.Nerves.Application, as: HostApplication
   alias Wotex.Tracker.Nerves.Config
   alias Wotex.Tracker.Nerves.FirmwareHealth
@@ -198,6 +199,28 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
     assert {:error, :invalid_configuration} = Config.load_cellular("invalid", nil, :invalid)
   end
 
+  test "the target cellular build flag fails closed" do
+    previous = System.get_env("WOTEX_TRACKER_CELLULAR")
+
+    on_exit(fn ->
+      if previous,
+        do: System.put_env("WOTEX_TRACKER_CELLULAR", previous),
+        else: System.delete_env("WOTEX_TRACKER_CELLULAR")
+    end)
+
+    System.delete_env("WOTEX_TRACKER_CELLULAR")
+    assert target_config()[:cellular_config_path] == nil
+
+    System.put_env("WOTEX_TRACKER_CELLULAR", "1")
+    assert target_config()[:cellular_config_path] == "/root/tracker/cellular.json"
+
+    System.put_env("WOTEX_TRACKER_CELLULAR", "invalid")
+
+    assert_raise RuntimeError,
+                 "WOTEX_TRACKER_CELLULAR accepts only 1 when building cellular ingress",
+                 &target_config/0
+  end
+
   test "firmware health fails closed for invalid runtime state", c do
     Application.put_env(:wotex_tracker_nerves, :config_path, c.path)
     Application.put_env(:wotex_tracker_nerves, :data_root, c.root)
@@ -218,6 +241,12 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
              FirmwareHealth.check(self(), c.root, "pi-test", c.data)
 
     assert :ok = Supervisor.stop(host)
+  end
+
+  defp target_config do
+    "config/target.exs"
+    |> ConfigReader.read!()
+    |> Keyword.fetch!(:wotex_tracker_nerves)
   end
 
   test "unprovisioned, public and out-of-root material fails closed", c do
