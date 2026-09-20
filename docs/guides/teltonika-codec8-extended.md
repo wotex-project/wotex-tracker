@@ -43,7 +43,18 @@ alone is never permission to reply. The host must still admit the private login,
 serialize per-device commits and reconcile retransmission after an unknown
 outcome.
 
+The service package's explicitly started `Cellular.Ingress` process owns the
+next trusted-host boundary. A finite configuration maps the keyed digest to one
+private bearer, scope and operator label. It revalidates the decoded frame,
+serializes all packet admission and stores the complete frame as one cellular
+observation. Operation and observation identities are deterministically derived
+from the keyed device identity and exact frame. On reconnect it checks the
+durable receipt before submitting, so a commit whose response was lost becomes
+a duplicate full ACK rather than a second observation. Raw IMEI digits never
+enter the observation or process state.
+
 These pure slices cover TCP login, data framing and ACK decisions only.
-Configured device admission, socket ownership, deadlines, retransmission,
-command codecs, UDP, TAT140 IO semantics, a device profile and live hardware
-evidence remain separate acceptance work.
+The service bridge covers configured durable admission and retransmission
+reconciliation. Socket ownership, deadlines, connection loss, a software wire
+peer, command codecs, UDP, TAT140 IO semantics, a device profile and live
+hardware evidence remain separate acceptance work.

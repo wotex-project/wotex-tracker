@@ -65,6 +65,17 @@ one trusted unary callback for every decoder revision referenced by that
 catalogue. Extra, duplicate, missing or model-incompatible configuration fails
 before the service is built; observations never select executable code.
 
+`Wotex.Tracker.Service.Cellular.Ingress` is a separately started trusted-host
+bridge for decoded Teltonika packets. Its finite configuration maps keyed IMEI
+digests to private service credentials, scopes and operator device labels; raw
+IMEIs are transient and are not retained in state or observations. The bridge
+revalidates every frame, serializes admission, commits one byte-preserving
+cellular observation per packet and derives a deterministic UUID operation ID
+for reconnect reconciliation. Accepted and duplicate commits return full-record
+ACK dispositions, known non-commits return zero-ACK dispositions and unknown
+outcomes require connection close. The bridge owns no socket and supplies no
+device-specific profile or authentication claim.
+
 The facade supports imported observations, public inspection and paginated
 snapshots, encrypted event cursors, privileged byte-preserving raw exports,
 operator-confirmed enrollment and reassociation, materialisation, structured

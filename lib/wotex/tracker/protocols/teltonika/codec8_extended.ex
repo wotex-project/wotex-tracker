@@ -64,7 +64,8 @@ defmodule Wotex.Tracker.Protocols.Teltonika.Codec8Extended do
           data_length: pos_integer(),
           record_count: pos_integer(),
           records: [avl_record()],
-          crc16: non_neg_integer()
+          crc16: non_neg_integer(),
+          frame: binary()
         }
 
   @doc "Returns an empty bounded stream state for TCP data packets after IMEI admission."
@@ -154,7 +155,7 @@ defmodule Wotex.Tracker.Protocols.Teltonika.Codec8Extended do
 
   defp decode_complete(
          <<0::unsigned-big-32, length::unsigned-big-32, data::binary-size(length),
-           wire_crc::unsigned-big-32>>
+           wire_crc::unsigned-big-32>> = frame
        ) do
     calculated = crc16(data)
 
@@ -166,7 +167,8 @@ defmodule Wotex.Tracker.Protocols.Teltonika.Codec8Extended do
          data_length: length,
          record_count: count,
          records: records,
-         crc16: calculated
+         crc16: calculated,
+         frame: frame
        }}
     else
       false -> fail(:malformed_frame, "/crc16")

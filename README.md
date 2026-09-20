@@ -53,6 +53,10 @@ durable commit dispositions to explicit ACK-or-close decisions. This is an
 imported documentation-fixture boundary, not a TAT140 profile, listener or
 hardware qualification. See the
 [Codec 8 Extended guide](docs/guides/teltonika-codec8-extended.md).
+The service package adds explicitly started, serialized cellular admission:
+configured keyed IMEI lookup, exact raw-frame observation custody, deterministic
+retransmission receipts and commit-dependent ACK dispositions. It still opens no
+cellular socket and assigns no TAT140-specific semantics.
 
 The service accepts an exact host-configured catalogue/model/decoder set as an
 alternative to its packaged Ruuvi defaults. Position-capable decoder output is

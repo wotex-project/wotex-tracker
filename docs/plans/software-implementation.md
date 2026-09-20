@@ -196,9 +196,12 @@ incomplete frame, handles concatenated input, checks both record counts and
 CRC-16/IBM, and preserves unknown fixed and variable IO values without device
 semantics. The session seam derives a keyed private identity lookup and maps
 accepted, duplicate, rejected and unknown durable outcomes to full ACK, zero ACK
-or close-without-ACK. Configured device admission, socket/session ownership,
-durable submission, the TAT140 profile and all real-device evidence remain
-subsequent work.
+or close-without-ACK. An explicitly started service bridge now maps keyed IMEI
+digests to private credentials, serializes packet admission, retains the exact
+frame in one atomic observation and reconciles deterministic operation receipts
+before deciding the disposition. Socket ownership and deadlines, the independent
+wire peer, the TAT140 profile and all real-device evidence remain subsequent
+work.
 
 Acceptance: independent fixtures and software-peer tests for every split boundary,
 coalescing/truncation, counts, unknown fields, ACK outcomes, reconnect, duplicates

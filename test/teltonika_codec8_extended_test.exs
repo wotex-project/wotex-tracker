@@ -19,6 +19,7 @@ defmodule Wotex.Tracker.TeltonikaCodec8ExtendedTest do
     assert packet.data_length == 0x4A
     assert packet.record_count == 1
     assert packet.crc16 == context.vector["crc16"]
+    assert packet.frame == context.frame
 
     assert [record] = packet.records
     assert record.timestamp_ms == context.vector["timestamp_ms"]

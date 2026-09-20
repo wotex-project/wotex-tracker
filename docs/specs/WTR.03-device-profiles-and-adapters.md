@@ -10,9 +10,11 @@ framer now validates the manufacturer documentation vector, arbitrary split and
 coalesced frames, record/IO counts and CRC while preserving unknown IO bytes.
 The pure TCP session seam also bounds split/coalesced 15-digit IMEI negotiation,
 keyed private identity lookup and commit-dependent ACK-or-close decisions. It is
-not a TAT140 profile or listener. Configured device admission, socket ownership,
-device-specific mapping, live discovery, cellular/LoRaWAN adapters and lifecycle
-acceptance remain unfinished.
+paired with an explicitly started service bridge that revalidates frames,
+serializes configured keyed-device admission and reconciles deterministic
+operation receipts before returning an ACK disposition. It is not a TAT140
+profile or listener. Socket ownership, device-specific mapping, live discovery,
+cellular/LoRaWAN adapters and lifecycle acceptance remain unfinished.
 
 ## Device profile
 
