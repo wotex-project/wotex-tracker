@@ -4566,3 +4566,40 @@ This proves authenticated, decoded fixture ingress and durable idempotent replay
 inside the packaged virtual firmware. It does not exercise a physical radio,
 BLE, external network peer, Pi 5 storage or power interruption; those remain
 physical acceptance gates.
+
+### Bounded Teltonika Codec 8 Extended framing — 2026-09-20
+
+The imported cellular boundary now decodes documented Codec 8 Extended TCP AVL
+frames without owning a socket or admission policy. It bounds the documented
+data field at 1,280 bytes, retains less than one 1,292-byte frame between reads
+and emits at most 16 coalesced frames per feed. Before exposing any record it
+requires the zero preamble, declared length, `0x8E` codec, matching leading and
+trailing record counts and CRC-16/IBM to agree. EOF with retained bytes fails as
+an incomplete frame.
+
+The committed manufacturer example was copied byte-for-byte from the Teltonika
+AVL Protocols page after removing presentation spacing. Its decoded bytes have
+SHA-256
+`c577a70391f8cc65be9cb84f6c19553e2b49f3be388a9f842bc948f021f2bbae`.
+The dated provenance record notes that the source is a living page whose
+revision history was unavailable. Tests cover every split boundary of that
+frame, concatenated frames, incomplete EOF and oversized, malformed-preamble,
+codec, count, priority, IO and checksum inputs. They also preserve ordered fixed
+and variable-width IO values as raw bytes, retain unknown identifiers, mark
+zero-satellite GPS as unavailable and reject suspect coordinates from the
+normalized position.
+
+Both supported runtime lanes passed the complete repository gate. Elixir 1.18.4
+on Erlang/OTP 27.3.4.15 and Elixir 1.20.4 on Erlang/OTP 29.0.4 each passed 172
+tests and 19 generated properties at 95.4% production line coverage; the codec
+module reached 94.3%. Compiler, dependency, formatter, vulnerability audit,
+strict Credo, ExDoc, Dialyzer, stack-language, documentation-contract, archive
+and licence checks all passed. The implementation and compatibility commits are
+`25477eaf012ef819987a490980a3bea4b6252d2d` and
+`9614e03fb9a59cfd2286c833764b1f3531f2e9b6`.
+
+This proves bounded pure framing against one official vector and derived edge
+cases. It does not prove IMEI authentication, session negotiation, socket or
+reconnect behavior, durable commit-dependent acknowledgement, device-specific
+TAT140 IO semantics, an independent software peer or real hardware; those remain
+separate acceptance boundaries.
