@@ -49,13 +49,21 @@ defmodule Wotex.Tracker.Service.CellularIngressTest do
     assert {:ok, %{disposition: :accepted, record_count: 1} = first} =
              Ingress.submit(context.ingress, first_session, context.packet)
 
+    assert first.batch == :atomic
+
+    assert [%{index: 0, disposition: :accepted, operation_id: record_operation}] =
+             first.records
+
     assert {:ok, {:send, <<0, 0, 0, 1>>}} =
              TCPSession.data_reply(first.record_count, first.disposition)
 
-    assert {:ok, %{disposition: :duplicate, operation_id: operation}} =
+    assert {:ok, %{disposition: :duplicate, operation_id: operation} = duplicate} =
              Ingress.submit(context.ingress, first_session, context.packet)
 
     assert operation == first.operation_id
+
+    assert [%{index: 0, disposition: :duplicate, operation_id: ^record_operation}] =
+             duplicate.records
 
     assert {:ok, second_session} = Ingress.login(context.ingress, @imei)
 
@@ -112,8 +120,10 @@ defmodule Wotex.Tracker.Service.CellularIngressTest do
     ingress = start_ingress(context)
     assert {:ok, session} = Ingress.login(ingress, @imei)
 
-    assert {:ok, %{disposition: :unknown, record_count: 1}} =
+    assert {:ok, %{disposition: :unknown, record_count: 1} = receipt} =
              Ingress.submit(ingress, session, packet())
+
+    assert [%{index: 0, disposition: :unknown}] = receipt.records
 
     assert {:ok, :close} = TCPSession.data_reply(1, :unknown)
 
@@ -140,8 +150,10 @@ defmodule Wotex.Tracker.Service.CellularIngressTest do
     ingress = start_ingress(context)
     assert {:ok, session} = Ingress.login(ingress, @imei)
 
-    assert {:ok, %{disposition: :rejected, record_count: 1}} =
+    assert {:ok, %{disposition: :rejected, record_count: 1} = receipt} =
              Ingress.submit(ingress, session, packet())
+
+    assert [%{index: 0, disposition: :rejected}] = receipt.records
 
     assert {:ok, {:send, <<0, 0, 0, 0>>}} = TCPSession.data_reply(1, :rejected)
 

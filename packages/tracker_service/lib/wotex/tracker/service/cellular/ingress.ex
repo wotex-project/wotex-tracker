@@ -35,10 +35,17 @@ defmodule Wotex.Tracker.Service.Cellular.Ingress do
   end
 
   @type disposition :: :accepted | :duplicate | :rejected | :unknown
+  @type record_receipt :: %{
+          index: non_neg_integer(),
+          operation_id: String.t(),
+          disposition: disposition()
+        }
   @type receipt :: %{
           disposition: disposition(),
           operation_id: String.t(),
-          record_count: pos_integer()
+          record_count: pos_integer(),
+          batch: :atomic,
+          records: [record_receipt()]
         }
 
   @doc "Starts an explicitly configured serialized cellular admission owner."
@@ -238,7 +245,31 @@ defmodule Wotex.Tracker.Service.Cellular.Ingress do
         _ -> :rejected
       end
 
-    %{disposition: result, operation_id: operation, record_count: packet.record_count}
+    receipt(result, operation, packet.record_count)
+  end
+
+  defp receipt(disposition, operation, record_count) do
+    records =
+      for index <- 0..(record_count - 1) do
+        %{
+          index: index,
+          operation_id:
+            Codec.digest(%{
+              "schema" => "wtr.cellular-record-operation.v1",
+              "frame_operation_id" => operation,
+              "record_index" => index
+            }),
+          disposition: disposition
+        }
+      end
+
+    %{
+      disposition: disposition,
+      operation_id: operation,
+      record_count: record_count,
+      batch: :atomic,
+      records: records
+    }
   end
 
   defp current_time(clock) do

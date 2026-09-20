@@ -31,8 +31,17 @@ defmodule Wotex.Tracker.Service.CellularSemanticImportTest do
   test "one durable frame retains every semantic record and materialises its Thing", context do
     assert {:ok, session} = Ingress.login(context.ingress, @imei)
 
-    assert {:ok, %{disposition: :accepted, record_count: 2}} =
+    assert {:ok, %{disposition: :accepted, record_count: 2} = receipt} =
              Ingress.submit(context.ingress, session, context.packet)
+
+    assert receipt.batch == :atomic
+
+    assert Enum.map(receipt.records, &{&1.index, &1.disposition}) == [
+             {0, :accepted},
+             {1, :accepted}
+           ]
+
+    assert receipt.records |> Enum.map(& &1.operation_id) |> Enum.uniq() |> length() == 2
 
     assert {:ok, %{"generation" => "1", "items" => [%{"id" => observation_id}]}} =
              Service.list(
