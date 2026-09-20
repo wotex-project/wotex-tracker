@@ -46,6 +46,14 @@ the decoder wrapper binds each claim to its exact observation, catalogue,
 profile and decoder revisions. The built-in Ruuvi RAWv2 profile remains
 explicitly positionless.
 
+The optional service host also implements an authorized read-only BLE GATT probe
+boundary over the refactored `wotex_ble` package. Host configuration fixes a
+finite allowlist of profile/probe revisions, characteristic targets, deadlines
+and byte limits; an `interact` caller cannot choose a new target. Each read runs
+in a monitored worker and is cancelled on caller loss, explicit cancellation or
+deadline. The host supplies and owns the upstream session. This is candidate
+evidence plumbing, not passive scanning, peer identity or hardware qualification.
+
 The pure library also contains bounded Teltonika TCP IMEI negotiation, Codec 8
 Extended framing and record decoding. It validates the complete documented
 frame, preserves unknown IO values and maps durable commit dispositions to

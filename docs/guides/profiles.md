@@ -42,3 +42,34 @@ catalogue content identities and the exact selected profile. `validate/4`
 recomputes the result to reject stale or forged selections. Matching neither
 executes a probe nor invokes a decoder. Capabilities and qualification require
 the subsequent evidence-producing decoder and its independent acceptance.
+
+## Authorized active GATT probes
+
+The optional service package supplies an explicitly started
+`Wotex.Tracker.Service.ActiveProbe` owner. Its exact
+`wtr.active-probe-host.v1` configuration contains one to 32 immutable probe
+plans and a finite concurrency limit. Each plan binds an exact profile ID and
+version plus probe ID and revision to `ble_gatt`, the read operation, one closed
+service/characteristic target, a 100–30,000 ms deadline and a 1–512 byte value
+limit. Duplicate plan identities fail configuration. The target and its private
+BlueZ object path are host configuration, not caller-selected routing.
+
+A caller submits only `wtr.active-probe-request.v1`: a stable request UUID, the
+complete admitted observation content identity and one configured profile/probe
+identity. The owner rechecks current `interact` authority before starting a
+linked, monitored adapter worker. Duplicate active IDs and exhausted concurrency
+fail before transport. Caller loss, explicit cancellation and the plan deadline
+kill the worker. Adapter crashes, throws and malformed returns become a closed
+unavailable result; a transport permission denial remains distinct. The
+adapter receives no bearer token, access proof, service handle or retained
+observation.
+
+`Wotex.Tracker.Service.BLEProbeAdapter` maps the closed request to one byte-valued
+`Wotex.BLE.read/3` call on a session supplied and owned by the host. It never
+opens, selects, pairs, retries or closes a peer. A successful
+`wtr.active-probe-result.v1` binds the original observation, profile/probe
+revision, public GATT identity, a digest covering the full private target and
+canonical Base64 bytes. It is private candidate evidence only: no automatic
+enrollment, strengthened resolution, capability, Thing or Action follows.
+`wotex_ble` is optional, so absence leaves the probe owner unavailable and
+ordinary service operation intact. Loading either package starts no radio work.

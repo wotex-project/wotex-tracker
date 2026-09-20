@@ -5,10 +5,14 @@
 Implemented for bounded provider observations, closed declarative predicates,
 immutable catalogues, deterministic unknown/ambiguous/resolved outcomes and
 evidence-backed readable capabilities. Imported captures and the configured
-cellular ingress exercise that boundary. Live BLE scanning, authorized active
-probe adapters and physical capability qualification remain open. See the
+cellular ingress exercise that boundary. An optional service owner now executes
+only host-allowlisted, read-only BLE GATT probes through an explicit upstream
+session after current `interact` authorization, with finite concurrency,
+deadline and value bounds plus caller-loss cancellation. Live BLE scanning,
+probe-result admission into a new resolution and physical capability
+qualification remain open. See the
 [profile guide](../guides/profiles.md) and
-[executed evidence](../evidence/implementation.md#wtr02-resolution-and-wtr03-profile-values--2026-09-15).
+[executed evidence](../evidence/implementation.md#authorized-read-only-ble-active-probes--2026-09-20).
 
 ## Pipeline
 

@@ -170,6 +170,16 @@ The existing `wotex_ble` owns generic BLE/GATT. GATT discovery is not a passive
 scanner, and its accepted native backend target is not assumed finished. Missing
 upstream work remains explicit and must pass its own acceptance.
 
+The read-only active-probe software boundary is now implemented independently of
+passive scanning. An explicitly started service owner admits a finite host
+allowlist of exact profile/probe revisions, GATT targets, deadlines and byte
+limits, rechecks current `interact` authority and isolates each adapter call in a
+monitored worker. The optional concrete adapter performs one byte read on a
+host-owned `Wotex.BLE` session. Tests cover absence, permission denial,
+revocation, concurrency, deadlines, cancellation, caller and worker loss,
+malformed/oversized returns and target redaction. This neither selects a peer
+nor admits the result into profile resolution.
+
 Qualify one OS/controller/backend lane at a time. Linux, macOS and Nerves/Pi 5
 are separate claims. Imported captures remain available regardless of live support.
 

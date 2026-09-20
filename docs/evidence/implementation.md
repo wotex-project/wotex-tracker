@@ -5292,3 +5292,43 @@ This is a synthetic provider-neutral contract test, not a live public-model or
 private Refpath exchange. No private module, provider credential, physical
 Action, public availability or general interoperability was exercised or
 claimed.
+
+### Authorized read-only BLE active probes — 2026-09-20
+
+The optional service package now declares `wotex_ble` as an optional dependency
+and supplies an explicitly started active-probe owner. Its exact
+`wtr.active-probe-host.v1` configuration admits one to 32 unique immutable
+profile/probe plans. Each plan fixes the read-only BLE GATT transport operation,
+service and characteristic identity, optional handle/object-path/generation, a
+100–30,000 ms deadline and a 1–512 byte response ceiling. The configuration's
+inspection and status omit those private targets.
+
+`wtr.active-probe-request.v1` contains only a request UUID, admitted observation
+content identity and one configured profile/probe identity. Before transport,
+the owner rechecks the caller's current durable `interact` authority. The adapter
+receives neither bearer material nor the service/access values. Work runs in a
+linked and monitored process under finite concurrency. Duplicate active IDs,
+overload, lost or revoked authority, explicit cancellation, caller loss, worker
+death, deadline expiry, adapter raise/throw, malformed returns and oversized
+bytes all produce closed outcomes without stopping the owner.
+
+The optional concrete adapter performs exactly one byte-valued
+`Wotex.BLE.read/3` on a session selected and owned by the host. It does not open,
+select, pair, retry or close a peer. Upstream permission denial stays distinct;
+other upstream details are not projected. The successful result binds the
+observation and profile/probe revisions, returns only the non-private target,
+content-identifies the full target and returns canonical Base64 bytes. It does
+not modify resolution or canonical service state.
+
+The complete service gate passed on Elixir 1.18.4/Erlang/OTP 27.3.4.15 with 368
+tests and two generated properties at 95.1% production line coverage. The same
+gate passed on Elixir 1.20.4/Erlang/OTP 29.0.4 with 370 total cases at 95.1%.
+Compiler, unused-dependency, formatter, vulnerability audit, strict Credo,
+ExDoc, Dialyzer, boundary, stack-language, archive, OpenAPI and licence checks
+passed in both lanes. Ordinary package metadata includes the optional BLE
+dependency, and loading the service still starts no radio or probe process. The
+implementation commit is `e0322eb`.
+
+This is a synthetic software boundary over the current upstream GATT API. No
+passive advertisement scanner, physical controller/device, real Ruuvi probe,
+pairing flow or probe-result-to-resolution admission was exercised or claimed.

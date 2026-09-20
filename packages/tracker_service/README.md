@@ -49,6 +49,26 @@ provider document are bounded and validated. A closed
 primitive Action arguments as `pending_review`; every other proposal is
 `denied`. Neither disposition executes an Action. The public tests use only a
 synthetic adapter and make no Refpath interoperability claim.
+
+`Wotex.Tracker.Service.ActiveProbe` is a separate optional owner for read-only
+device probes. Its exact `wtr.active-probe-host.v1` document configures one to 32
+immutable profile/probe plans, each fixing the BLE GATT service/characteristic,
+optional concrete address identity, deadline and returned-byte limit. A caller
+can reference a plan but cannot supply or widen its target. Every request
+reauthorizes the current credential for `interact`; the adapter receives only
+the closed transport request, never the token, access proof, service or stored
+observation. Monitored workers enforce one to eight concurrent calls and are
+killed on explicit cancellation, deadline or caller loss. Results bind the
+original observation content identity and profile/probe revisions while omitting
+the private object path. They remain private candidate evidence and perform no
+enrollment, resolution update, Thing creation or Action.
+
+`Wotex.Tracker.Service.BLEProbeAdapter` is the optional concrete adapter for one
+byte-valued `Wotex.BLE.read/3` on a session selected and owned by the host. It
+does not open, pair, retry or close that session. `wotex_ble` is an optional
+package dependency; an absent package or adapter reports unavailable without
+preventing the service from starting. Loading the service starts no BLE work.
+
 `Service.access/4` and `GET …/access` return the current credential's non-secret
 ID, principal, exact scope permissions and expiry after the ordinary durable
 revocation check. Bearer material, its digest, the internal access proof and
