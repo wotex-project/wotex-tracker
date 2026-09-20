@@ -4,11 +4,20 @@ defmodule Wotex.Tracker.Service.CellularSemanticImportTest do
 
   import Wotex.Tracker.Service.Fixtures
 
-  alias Wotex.Tracker.{Catalogue, Model}
+  alias Wotex.Tracker.{
+    BatteryTransition,
+    Catalogue,
+    Evidence,
+    EvidenceBundle,
+    Model,
+    Observation
+  }
+
   alias Wotex.Tracker.Protocols.Teltonika.{Codec8Extended, TAT140, TAT140Import, TCPSession}
   alias Wotex.Tracker.Service
   alias Wotex.Tracker.Service.Cellular.Ingress
-  alias Wotex.Tracker.Service.{Codec, Identifier}
+  alias Wotex.Tracker.Service.{Codec, Identifier, RuleEvaluation}
+  alias Wotex.Tracker.Service.RuleFixtures
 
   @imei "123456789012345"
   @identity_key :binary.copy(<<9>>, 32)
@@ -182,6 +191,131 @@ defmodule Wotex.Tracker.Service.CellularSemanticImportTest do
              Service.get(context.service, context.reader, context.scope, "state", id, context.now)
   end
 
+  test "rule inputs follow the final cellular record instead of evidence hash order", context do
+    assert {:ok, session} = Ingress.login(context.ingress, @imei)
+
+    assert {:ok, %{disposition: :accepted}} =
+             Ingress.submit(context.ingress, session, context.packet)
+
+    assert {:ok, %{"items" => [%{"id" => id}]}} =
+             Service.list(
+               context.context.service,
+               context.context.admin,
+               context.context.scope,
+               "observations",
+               %{"limit" => 10},
+               context.context.now
+             )
+
+    assert {:ok, raw} =
+             Service.raw_observation(
+               context.context.service,
+               context.context.admin,
+               context.context.scope,
+               id,
+               context.context.now
+             )
+
+    assert {:ok, observation} = raw |> Codec.decode!() |> Observation.from_map()
+    assert {:ok, imported} = TAT140Import.run(observation, context.context.service.catalogue)
+    [earlier, latest] = imported.records
+
+    earlier_transport = imported.bundle.evidence[earlier.transport_evidence_id]
+    latest_transport = imported.bundle.evidence[latest.transport_evidence_id]
+
+    earlier_battery =
+      Enum.find_value(earlier.measurement_evidence_ids, fn id ->
+        evidence = imported.bundle.evidence[id]
+        if evidence.claim["kind"] == "batteryVoltage", do: evidence
+      end)
+
+    latest_battery =
+      Enum.find_value(latest.measurement_evidence_ids, fn id ->
+        evidence = imported.bundle.evidence[id]
+        if evidence.claim["kind"] == "batteryVoltage", do: evidence
+      end)
+
+    assert {:ok, earlier_transport} = rekey(earlier_transport, "record-00", [])
+    assert {:ok, latest_transport} = rekey(latest_transport, "record-01", [])
+    assert {:ok, earlier_battery} = rekey(earlier_battery, "a-battery", ["record-00"])
+    assert {:ok, latest_battery} = rekey(latest_battery, "z-battery", ["record-01"])
+
+    assert {:ok, ordered_bundle} =
+             EvidenceBundle.new(
+               [observation],
+               [earlier_transport, latest_transport, earlier_battery, latest_battery]
+             )
+
+    latest = List.last(imported.records)
+
+    assert {:ok, battery_policy} =
+             BatteryTransition.new(%{
+               id: "cellular-battery",
+               revision: "1",
+               measurement_kind: "batteryVoltage",
+               unit: "V",
+               low_threshold: 3.595,
+               clear_threshold: 3.6,
+               maximum_age_ms: 3_600_000,
+               future_skew_ms: 60_000,
+               accept_suspect: false
+             })
+
+    battery = %{kind: "battery", thing_id: "cellular-thing", policy: battery_policy}
+
+    assert {:ok, [transition]} =
+             RuleEvaluation.transitions(
+               context.context.service,
+               context.context.scope,
+               [battery],
+               observation,
+               ordered_bundle,
+               context.context.now
+             )
+
+    selected = transition.document["sample"]["evidence_id"]
+    assert selected == "z-battery"
+    assert ordered_bundle.evidence[selected].claim["value"] == 3.59
+    assert transition.document["status"] == "low"
+
+    motion = %{
+      kind: "motion",
+      thing_id: "cellular-thing",
+      policy: RuleFixtures.motion_policy()
+    }
+
+    assert latest.position_evidence_ids == []
+
+    assert {:ok, []} =
+             RuleEvaluation.transitions(
+               context.context.service,
+               context.context.scope,
+               [motion],
+               observation,
+               imported.bundle,
+               context.context.now
+             )
+
+    geofence = %{
+      kind: "geofence",
+      thing_id: "cellular-thing",
+      fence: RuleFixtures.fence(),
+      policy: RuleFixtures.geofence_policy()
+    }
+
+    _inside = RuleFixtures.commit_geofence(context.context.store, context.context.scope)
+
+    assert {:ok, []} =
+             RuleEvaluation.transitions(
+               context.context.service,
+               context.context.scope,
+               [geofence],
+               observation,
+               imported.bundle,
+               context.context.now
+             )
+  end
+
   defp cellular_service(options \\ []) do
     context = service(options)
     {:ok, profile} = TAT140.profile()
@@ -230,6 +364,13 @@ defmodule Wotex.Tracker.Service.CellularSemanticImportTest do
     start_supervised!(
       Supervisor.child_spec({Ingress, options}, id: make_ref(), restart: :temporary)
     )
+  end
+
+  defp rekey(evidence, id, parents) do
+    evidence
+    |> Map.from_struct()
+    |> Map.merge(%{id: id, evidence_ids: parents})
+    |> Evidence.new()
   end
 
   defp packet do

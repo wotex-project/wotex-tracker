@@ -147,19 +147,17 @@ defmodule Wotex.Tracker.Service.RuleEvaluation do
 
   # A Thing without the declared measurement in this evidence leaves the rule unchanged.
   defp sample(bundle, policy) do
-    bundle.evidence
-    |> Map.values()
-    |> Enum.filter(fn evidence ->
-      evidence.kind == :measurement and evidence.claim["kind"] == policy.measurement_kind and
-        evidence.claim["unit"] == policy.unit
-    end)
-    |> Enum.sort_by(& &1.id)
-    |> case do
-      [evidence | _] ->
-        MeasurementSample.new(evidence.id, bundle)
-
-      [] ->
-        :none
+    with {:ok, evidence} <- current_evidence(bundle, :measurement) do
+      evidence
+      |> Enum.filter(fn evidence ->
+        evidence.claim["kind"] == policy.measurement_kind and
+          evidence.claim["unit"] == policy.unit
+      end)
+      |> Enum.sort_by(& &1.id)
+      |> case do
+        [evidence | _] -> MeasurementSample.new(evidence.id, bundle)
+        [] -> :none
+      end
     end
   end
 
@@ -167,18 +165,84 @@ defmodule Wotex.Tracker.Service.RuleEvaluation do
   # an admitted selection policy, zero or multiple position claims leave the rule
   # unchanged instead of silently choosing a source.
   defp position_sample(bundle) do
-    bundle.evidence
-    |> Map.values()
-    |> Enum.filter(&(&1.kind == :position))
-    |> Enum.sort_by(& &1.id)
-    |> case do
-      [evidence] ->
-        with {:ok, position} <- Position.new(evidence.id, bundle),
-             do: PositionSample.new(position, bundle)
-
-      _ ->
-        :none
+    with {:ok, evidence} <- current_evidence(bundle, :position) do
+      evidence
+      |> Enum.sort_by(& &1.id)
+      |> selected_position(bundle)
     end
+  end
+
+  defp selected_position([evidence], bundle) do
+    with {:ok, position} <- Position.new(evidence.id, bundle),
+         do: PositionSample.new(position, bundle)
+  end
+
+  defp selected_position(_, _bundle), do: :none
+
+  # Record-aware imports retain samples for every AVL record. Their public current
+  # state is the final record, so rules must use that same record rather than an
+  # arbitrary evidence-ID order or an older fix omitted by the final record.
+  defp current_evidence(bundle, kind) do
+    evidence = Map.values(bundle.evidence)
+
+    case cellular_records(evidence) do
+      {:ok, []} ->
+        {:ok, Enum.filter(evidence, &(&1.kind == kind))}
+
+      {:ok, records} ->
+        select_current(evidence, kind, records)
+
+      error ->
+        error
+    end
+  end
+
+  defp select_current(evidence, kind, records) do
+    record_ids = MapSet.new(records, & &1.id)
+    latest = Enum.max_by(records, & &1.claim["index"])
+
+    evidence
+    |> Enum.filter(&(&1.kind == kind))
+    |> Enum.reduce_while(
+      {:ok, []},
+      &select_candidate(&1, &2, record_ids, latest.id)
+    )
+    |> then(fn
+      {:ok, selected} -> {:ok, Enum.reverse(selected)}
+      error -> error
+    end)
+  end
+
+  defp select_candidate(candidate, {:ok, selected}, record_ids, latest_id) do
+    parents = Enum.filter(candidate.evidence_ids, &MapSet.member?(record_ids, &1))
+
+    case parents do
+      [^latest_id] -> {:cont, {:ok, [candidate | selected]}}
+      [_earlier] -> {:cont, {:ok, selected}}
+      _ -> {:halt, {:error, :conflict}}
+    end
+  end
+
+  defp cellular_records(evidence) do
+    records =
+      Enum.filter(evidence, fn evidence ->
+        evidence.kind == :transport and
+          evidence.claim["schema"] == "wtr.teltonika-avl-record.v1"
+      end)
+
+    indices = Enum.map(records, & &1.claim["index"])
+
+    if Enum.all?(records, &cellular_record?/1) and length(indices) == length(Enum.uniq(indices)),
+      do: {:ok, records},
+      else: {:error, :conflict}
+  end
+
+  defp cellular_record?(evidence) do
+    claim = evidence.claim
+
+    claim["protocol"] == "teltonika-codec8-extended" and claim["codec"] == 0x8E and
+      is_integer(claim["index"]) and claim["index"] in 0..32 and
+      is_integer(claim["timestamp_ms"]) and claim["timestamp_ms"] >= 0
   end
 
   defp restore_evidence(claims) when is_list(claims) do
