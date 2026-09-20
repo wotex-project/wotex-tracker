@@ -70,14 +70,20 @@ defmodule Wotex.Tracker.ReleaseProbe do
   def main(arguments) do
     {options, rest, invalid} =
       OptionParser.parse(arguments,
-        strict: [readonly_directory: :string, native_consumer: :string, browser: :boolean]
+        strict: [
+          readonly_directory: :string,
+          native_consumer: :string,
+          browser: :boolean,
+          native_resource: :boolean
+        ]
       )
 
-    unless invalid == [] and length(rest) == 2,
-      do:
-        raise(
-          "usage: release_probe.exs RELEASE FIXTURES [--readonly-directory PATH] [--native-consumer PATH] [--browser]"
-        )
+    unless invalid == [] and length(rest) == 2 and
+             (options[:native_resource] != true or options[:browser] == true),
+           do:
+             raise(
+               "usage: release_probe.exs RELEASE FIXTURES [--readonly-directory PATH] [--native-consumer PATH] [--browser [--native-resource]]"
+             )
 
     [release, fixtures] = Enum.map(rest, &Path.expand/1)
     assert_clean_path!()
@@ -96,7 +102,12 @@ defmodule Wotex.Tracker.ReleaseProbe do
         "external_compiler_absent" => is_nil(System.find_executable("gcc"))
       }
       |> Map.merge(
-        lifecycle(release, Path.join(fixtures, "persistent"), options[:browser] == true)
+        lifecycle(
+          release,
+          Path.join(fixtures, "persistent"),
+          options[:browser] == true,
+          options[:native_resource] == true
+        )
       )
       |> Map.merge(failures(release, fixtures, options[:readonly_directory]))
       |> Map.merge(native_consumer(release, fixtures, options[:native_consumer]))
@@ -105,14 +116,14 @@ defmodule Wotex.Tracker.ReleaseProbe do
     IO.puts("RELEASE_PROBE_PASS " <> Jason.encode!(report))
   end
 
-  defp lifecycle(release, directory, browser?) do
+  defp lifecycle(release, directory, browser?, native_resource?) do
     instance = new_instance(release, directory, browser?)
 
     try do
       instance = start(instance)
       HTTPConsumer.main([instance.descriptor])
       thing = request(instance, "/things")["items"] |> hd() |> Map.fetch!("id")
-      browser_cookie = browser_workflow(instance, thing)
+      browser_cookie = browser_workflow(instance, thing, native_resource?)
       generation = request(instance, "/state")["generation"]
       first = cli_sample(instance, thing)
       expected_snapshot = "property:snapshot:#{generation}:#{generation}"
@@ -160,7 +171,8 @@ defmodule Wotex.Tracker.ReleaseProbe do
         "restart_and_idempotency" => "pass",
         "sigkill_recovery" => "pass",
         "retained_revocation" => "pass",
-        "browser" => if(browser_cookie, do: "pass", else: "not-in-artifact")
+        "browser" => if(browser_cookie, do: "pass", else: "not-in-artifact"),
+        "native_resource" => if(native_resource?, do: "pass", else: "not-requested")
       }
     after
       terminate(instance)
@@ -336,9 +348,9 @@ defmodule Wotex.Tracker.ReleaseProbe do
     %{config: config, origin: origin, secret: secret}
   end
 
-  defp browser_workflow(%{browser: nil}, _thing), do: nil
+  defp browser_workflow(%{browser: nil}, _thing, false), do: nil
 
-  defp browser_workflow(instance, thing) do
+  defp browser_workflow(instance, thing, native_resource?) do
     origin = instance.browser.origin
     {200, headers, sign_in} = browser_request(:get, origin <> "/sign-in", [], nil)
     [_, csrf] = Regex.run(~r/name="_csrf_token"[^>]*value="([^"]+)"/, sign_in)
@@ -355,6 +367,7 @@ defmodule Wotex.Tracker.ReleaseProbe do
     false = String.contains?(body, instance.token)
     false = String.contains?(inspect(login_headers), instance.token)
     cookie = browser_cookie(login_headers)
+    if native_resource?, do: await_native_resource!(instance, cookie, 50)
     {200, _headers, assets} = browser_request(:get, origin <> "/", [{~c"cookie", cookie}], nil)
     true = String.contains?(assets, thing)
 
@@ -459,6 +472,35 @@ defmodule Wotex.Tracker.ReleaseProbe do
     end
 
     cookie
+  end
+
+  defp await_native_resource!(_instance, _cookie, 0),
+    do: raise("Linux browser artifact did not expose its native resource sample")
+
+  defp await_native_resource!(instance, cookie, attempts) do
+    {200, _headers, body} =
+      browser_request(
+        :get,
+        instance.browser.origin <> "/operations",
+        [{~c"cookie", cookie}],
+        nil
+      )
+
+    expected = [
+      "native.sample",
+      "system_available_memory_bytes",
+      "process_rss_bytes",
+      "load_1m_milli",
+      "surface: service",
+      "source: linux_procfs"
+    ]
+
+    if Enum.all?(expected, &String.contains?(body, &1)) do
+      :ok
+    else
+      Process.sleep(100)
+      await_native_resource!(instance, cookie, attempts - 1)
+    end
   end
 
   defp browser_session_expired(%{browser: nil}, nil), do: :ok

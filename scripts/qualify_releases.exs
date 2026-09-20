@@ -245,7 +245,7 @@ defmodule Wotex.Tracker.ReleaseQualifier do
           "/var/lib/wotex",
           "--native-consumer",
           "/verification/#{@native_client}"
-        ] ++ if(ui?, do: ["--browser"], else: [])
+        ] ++ if(ui?, do: ["--browser", "--native-resource"], else: [])
 
       output =
         docker!([
