@@ -165,10 +165,25 @@ defmodule Wotex.Tracker.Service.RuleSchedulerTest do
     assert baseline_result["transport_status"] == "unknown"
     {:ok, baseline} = RuleTransition.new("workshop", nil, baseline_result)
     assert {:ok, %{"generation" => "1"}} = Store.commit_rule(store, baseline)
-    {clock, _wall} = advancing_clock(now)
+    wall = :atomics.new(1, [])
+    monotonic = :atomics.new(1, [])
+    :atomics.put(wall, 1, now)
 
     scheduler =
-      start_supervised!({RuleScheduler, store: store, clock: clock, refresh_interval: 1_000})
+      start_supervised!(
+        {RuleScheduler,
+         store: store,
+         clock: fn -> :atomics.get(wall, 1) end,
+         monotonic_clock: fn -> :atomics.get(monotonic, 1) end,
+         refresh_interval: 1_000}
+      )
+
+    assert :ok = RuleScheduler.refresh(scheduler)
+    [job] = scheduler |> :sys.get_state() |> Map.fetch!(:jobs) |> Map.values()
+    assert job.due_at == now + 60
+    :atomics.put(wall, 1, now + 60)
+    :atomics.put(monotonic, 1, 60)
+    send(scheduler, {:deadline, job.key, job.token})
 
     eventually(fn ->
       match?(
