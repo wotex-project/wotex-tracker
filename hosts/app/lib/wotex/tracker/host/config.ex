@@ -11,6 +11,7 @@ defmodule Wotex.Tracker.Host.Config do
   """
 
   alias Wotex.Tracker.Host.{BrowserConfig, PromptConfig}
+  alias Wotex.Tracker.Service.Cellular.HostConfig
   alias Wotex.Tracker.Service.HTTP.Config, as: ServerConfig
   alias Wotex.Tracker.Service.HTTP.FileConfig
   import Wotex.Tracker.Service.HTTP.FileConfig, only: [listen: 1, exposure: 1, tls: 1]
@@ -18,6 +19,23 @@ defmodule Wotex.Tracker.Host.Config do
   @doc "Loads validated service options from the shared private file format."
   @spec load(term()) :: {:ok, keyword()} | {:error, :invalid_configuration}
   defdelegate load(path), to: FileConfig
+
+  @doc "Loads an optional private cellular listener configuration."
+  @spec load_cellular(term(), keyword()) ::
+          {:ok, HostConfig.t() | nil} | {:error, :invalid_configuration}
+  def load_cellular(nil, _service_options), do: {:ok, nil}
+
+  def load_cellular(path, service_options) when is_list(service_options) do
+    with {:ok, document} <- FileConfig.read_document(path),
+         credentials when not is_nil(credentials) <- service_options[:credentials],
+         contract when not is_nil(contract) <- service_options[:contract] do
+      HostConfig.new(document, credentials, contract)
+    else
+      _ -> {:error, :invalid_configuration}
+    end
+  end
+
+  def load_cellular(_, _), do: {:error, :invalid_configuration}
 
   @doc "Loads an optional, separately private browser listener configuration."
   @spec load_browser(term(), keyword()) ::

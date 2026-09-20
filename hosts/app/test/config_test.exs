@@ -3,7 +3,11 @@ defmodule Wotex.Tracker.Host.ConfigTest do
   use ExUnit.Case, async: false
   alias Wotex.Tracker.Host.{Application, Config, NativeResourceSampler}
   alias Wotex.Tracker.Host.Supervisor, as: HostSupervisor
+  alias Wotex.Tracker.Protocols.Teltonika.{TAT140, TCPSession}
+  alias Wotex.Tracker.Service
+  alias Wotex.Tracker.Service.Cellular.Server, as: CellularServer
   alias Wotex.Tracker.Service.{Codec, Credentials}
+  alias Wotex.Tracker.Service.HTTP.Config, as: ServerConfig
   alias Wotex.Tracker.Service.HTTP.Server
 
   defmodule NativeSource do
@@ -43,7 +47,9 @@ defmodule Wotex.Tracker.Host.ConfigTest do
     write(path, document)
     previous = System.get_env("WOTEX_TRACKER_CONFIG")
     previous_browser = System.get_env("WOTEX_TRACKER_UI_CONFIG")
+    previous_cellular = System.get_env("WOTEX_TRACKER_CELLULAR_CONFIG")
     System.delete_env("WOTEX_TRACKER_UI_CONFIG")
+    System.delete_env("WOTEX_TRACKER_CELLULAR_CONFIG")
 
     on_exit(fn ->
       if previous,
@@ -53,6 +59,10 @@ defmodule Wotex.Tracker.Host.ConfigTest do
       if previous_browser,
         do: System.put_env("WOTEX_TRACKER_UI_CONFIG", previous_browser),
         else: System.delete_env("WOTEX_TRACKER_UI_CONFIG")
+
+      if previous_cellular,
+        do: System.put_env("WOTEX_TRACKER_CELLULAR_CONFIG", previous_cellular),
+        else: System.delete_env("WOTEX_TRACKER_CELLULAR_CONFIG")
 
       File.rm_rf!(directory)
     end)
@@ -223,6 +233,99 @@ defmodule Wotex.Tracker.Host.ConfigTest do
     refute Process.alive?(store)
   end
 
+  test "an optional private cellular listener admits complete semantic records", c do
+    imei = "123456789012345"
+    identity_key = :binary.copy(<<12>>, 32)
+    {:ok, identity_digest} = TCPSession.identity_digest(imei, identity_key)
+
+    cellular = %{
+      "schema" => "wtr.cellular-host.v1",
+      "transport" => "clear_tcp",
+      "listen" => %{"ip" => "127.0.0.1", "port" => 0},
+      "identity_key" => Base.encode64(identity_key),
+      "devices" => [
+        %{
+          "identity_digest" => identity_digest,
+          "token" => c.token,
+          "scope" => "workshop",
+          "id" => "asset-one",
+          "profile" => TAT140.configured_profile()
+        }
+      ]
+    }
+
+    cellular_path = Path.join(c.directory, "cellular.json")
+    write(cellular_path, cellular)
+    write(c.path, Map.put(c.document, "contract", "teltonika.tat140.codec8e"))
+
+    assert {:ok, service_options} = Config.load(c.path)
+    assert {:ok, cellular_config} = Config.load_cellular(cellular_path, service_options)
+    refute inspect(cellular_config) =~ c.token
+    refute inspect(cellular_config) =~ cellular["identity_key"]
+
+    System.put_env("WOTEX_TRACKER_CONFIG", c.path)
+    System.put_env("WOTEX_TRACKER_CELLULAR_CONFIG", cellular_path)
+    assert {:ok, host} = Application.start(:normal, [])
+    children = Supervisor.which_children(host)
+    assert {Server, api, :supervisor, _} = List.keyfind(children, Server, 0)
+
+    assert {CellularServer, listener, :supervisor, _} =
+             List.keyfind(children, CellularServer, 0)
+
+    assert {:ok, {{127, 0, 0, 1}, port}} = CellularServer.listener_info(listener)
+    {:ok, socket} = :gen_tcp.connect({127, 0, 0, 1}, port, [:binary, active: false], 1_000)
+    :ok = :gen_tcp.send(socket, <<byte_size(imei)::unsigned-big-16, imei::binary>>)
+    assert {:ok, <<1>>} = :gen_tcp.recv(socket, 1, 1_000)
+    :ok = :gen_tcp.send(socket, tat140_frame())
+    assert {:ok, <<0, 0, 0, 2>>} = :gen_tcp.recv(socket, 4, 1_000)
+    :ok = :gen_tcp.close(socket)
+
+    assert {:ok, server_config} = ServerConfig.new(service_options)
+    assert {:ok, service} = Server.context(api, server_config)
+
+    assert {:ok, %{"items" => [%{"id" => observation_id}]}} =
+             Service.list(
+               service,
+               c.token,
+               "workshop",
+               "observations",
+               %{"limit" => 10},
+               System.system_time(:millisecond)
+             )
+
+    assert {:ok, %{"value" => %{"records" => [moving, stopped]}}} =
+             Service.get(
+               service,
+               c.token,
+               "workshop",
+               "state",
+               observation_id,
+               System.system_time(:millisecond)
+             )
+
+    assert moving["index"]["value"] == 0
+    assert stopped["index"]["value"] == 1
+    assert stopped["positions"] == []
+
+    assert :ok = Supervisor.stop(host)
+    refute Process.alive?(api)
+    refute Process.alive?(listener)
+  end
+
+  test "cellular configuration is optional, private and contract-bound", c do
+    assert {:ok, options} = Config.load(c.path)
+    assert {:ok, nil} = Config.load_cellular(nil, options)
+    assert {:error, :invalid_configuration} = Config.load_cellular("relative", options)
+
+    path = Path.join(c.directory, "cellular.json")
+    write(path, %{})
+    assert {:error, :invalid_configuration} = Config.load_cellular(path, options)
+
+    File.chmod!(path, 0o644)
+    assert {:error, :invalid_configuration} = Config.load_cellular(path, options)
+    assert {:error, :invalid_configuration} = Config.load_cellular(path, :invalid)
+  end
+
   test "host supervision isolates an explicitly selected native resource adapter", c do
     assert {:ok, options} = Config.load(c.path)
 
@@ -353,5 +456,13 @@ defmodule Wotex.Tracker.Host.ConfigTest do
   defp write(path, document) do
     File.write!(path, Codec.encode!(document))
     File.chmod!(path, 0o600)
+  end
+
+  defp tat140_frame do
+    {:ok, fixture} =
+      Wotex.JSON.decode(File.read!("../../test/fixtures/teltonika/tat140.json"))
+
+    [vector] = fixture["vectors"]
+    Base.decode16!(vector["hex"])
   end
 end

@@ -14,10 +14,16 @@ defmodule Wotex.Tracker.Host.Application do
   @impl true
   def start(_type, _args) do
     with {:ok, options} <- Config.load(System.get_env("WOTEX_TRACKER_CONFIG")),
+         {:ok, cellular} <-
+           Config.load_cellular(System.get_env("WOTEX_TRACKER_CELLULAR_CONFIG"), options),
          {:ok, browser} <-
            Config.load_browser(System.get_env("WOTEX_TRACKER_UI_CONFIG"), options),
          true <- is_nil(browser) or Code.ensure_loaded?(Wotex.Tracker.Host.Browser) do
-      Wotex.Tracker.Host.Supervisor.start_link(service: options, browser: browser)
+      Wotex.Tracker.Host.Supervisor.start_link(
+        service: options,
+        browser: browser,
+        cellular: cellular
+      )
     else
       false -> {:error, :ui_not_in_artifact}
       error -> error

@@ -3,6 +3,8 @@ defmodule Wotex.Tracker.Host.Supervisor do
 
   use Supervisor
   alias Wotex.Tracker.Host.NativeResourceSampler
+  alias Wotex.Tracker.Service.Cellular.HostConfig
+  alias Wotex.Tracker.Service.Cellular.Server, as: CellularServer
   alias Wotex.Tracker.Service.HTTP.{Config, Server}
 
   def start_link(options), do: Supervisor.start_link(__MODULE__, options)
@@ -18,6 +20,8 @@ defmodule Wotex.Tracker.Host.Supervisor do
 
     server_provider = fn -> Server.child(parent, Server) end
 
+    cellular = cellular_children(options[:cellular], provider)
+
     browser =
       if options[:browser],
         do: [{Wotex.Tracker.Host.Browser, {options[:browser], provider, server_provider}}],
@@ -31,6 +35,14 @@ defmodule Wotex.Tracker.Host.Supervisor do
         source -> [{NativeResourceSampler, source: source}]
       end
 
-    Supervisor.init([{Server, options[:service]}] ++ browser ++ native, strategy: :rest_for_one)
+    Supervisor.init(
+      [{Server, options[:service]}] ++ cellular ++ browser ++ native,
+      strategy: :rest_for_one
+    )
   end
+
+  defp cellular_children(nil, _provider), do: []
+
+  defp cellular_children(%HostConfig{} = config, provider),
+    do: [{CellularServer, HostConfig.server_options(config, provider)}]
 end
