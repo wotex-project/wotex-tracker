@@ -16,6 +16,8 @@ configuration or token. The closed `wtr.host.v1` document contains:
 - `public_origin`: explicit origin, or `listener` in loopback mode;
 - `credentials`: 1–32 entries with `id`, `principal`, lowercase hexadecimal
   `token_sha256`, scope-to-grants map `grants`, and Unix-millisecond `expires_at`;
+- optional `contract`: `ruuvi.rawv2` (the default) or the packaged
+  `teltonika.tat140.codec8e` contract;
 - optional `tls`: exact `certfile` and `keyfile` absolute paths in TLS mode;
 - optional `storage_limits`: lower ceilings for `max_rows` (≤100000),
   `max_pages` (≤262144), `busy_timeout` (≤1000 ms) and `timeout` (≤5000 ms).
@@ -32,6 +34,48 @@ fixed error that contains no secret or path. The OS account is trusted.
 Development uses `WOTEX_PATH_DEPS=1 MIX_ENV=test mise exec -- mix check --no-retry`.
 Tests explicitly start dependencies and test host startup; the test runner does
 not boot an unconfigured service. Production rejects the path-dependency switch.
+
+## Optional cellular listener
+
+Selecting `teltonika.tat140.codec8e` in the main host document makes the HTTP
+API, enrollment and materialisation use the packaged cellular profile and Thing
+Model. It does not open a device port by itself. Set
+`WOTEX_TRACKER_CELLULAR_CONFIG` to a second absolute, regular 0600 JSON file in a
+0700 directory to start the listener under the same host supervisor:
+
+```json
+{
+  "schema": "wtr.cellular-host.v1",
+  "transport": "clear_tcp",
+  "listen": {"ip": "0.0.0.0", "port": 5027},
+  "identity_key": "<canonical Base64 of 32 random bytes>",
+  "devices": [
+    {
+      "identity_digest": "<lowercase keyed IMEI digest>",
+      "token": "<configured 256-bit service bearer>",
+      "scope": "workshop",
+      "id": "asset-one",
+      "profile": "teltonika.tat140.codec8e"
+    }
+  ]
+}
+```
+
+The file admits one to 32 devices. Identity digests and labels must be unique;
+the bearer must already match a main-config credential with `ingest` authority
+for the exact scope. Compute the digest offline through
+`Wotex.Tracker.Protocols.Teltonika.TCPSession.identity_digest/2`; do not retain
+the raw IMEI in either document. The listener uses the service package's bounded
+defaults: one acceptor, at most 32 connections, bounded socket buffers and finite
+login/frame/send/shutdown deadlines.
+
+The tracker protocol is explicitly `clear_tcp`: IMEI and CRC are routing and
+integrity fields, not authentication or encryption. Binding an external address
+therefore requires operator firewall, private-network and carrier controls. A
+malformed or unauthorized cellular document fails the whole host startup; an
+absent environment variable leaves the listener inert. Device admission resolves
+the current supervised HTTP service on every packet, so a service restart cannot
+leave the listener writing through a stale store handle.
 
 ## Command-line workflow
 

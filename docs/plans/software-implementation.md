@@ -214,8 +214,11 @@ service decoder entry atomically persists the raw frame, exact resolution,
 complete private bundle and ordered public record projections; retransmission
 still reconciles at the original packet boundary. The generic cellular Thing
 Model materialises position, motion and battery-voltage Properties from that
-bundle. Production host configuration, encrypted exposure and all real-device
-evidence remain subsequent work.
+bundle. The standalone host now admits a separate private cellular document,
+selects the fixed packaged TAT140 contract for both ingress and API operations,
+supervises the bounded listener and resolves the current service after restarts.
+Operator network/firewall controls, any protocol-level encrypted alternative and
+all real-device evidence remain subsequent work.
 
 Acceptance: independent fixtures and software-peer tests for every split boundary,
 coalescing/truncation, counts, unknown fields, ACK outcomes, reconnect, duplicates

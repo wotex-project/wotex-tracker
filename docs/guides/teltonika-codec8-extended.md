@@ -103,6 +103,10 @@ materialised with `position`, `motion` and `batteryVoltage` Properties.
 
 These slices now cover TCP login, data framing, bounded socket ownership,
 durable admission, ACK decisions, retransmission reconciliation, record-aware
-TAT140 mapping, semantic persistence and cellular Thing materialisation. Command
-codecs, UDP, exposed/TLS host deployment and live hardware evidence remain
-separate acceptance work.
+TAT140 mapping, semantic persistence, cellular Thing materialisation and an
+optional standalone-host deployment. The host uses separate private listener
+configuration, a fixed packaged contract and a lazy supervised service handoff;
+one real two-record TCP exchange proves the configured path and shutdown
+ownership. Command codecs, UDP, operator network/firewall qualification and live
+hardware evidence remain separate acceptance work. The physical protocol stays
+clear TCP and is not advertised as TLS or authenticated transport.

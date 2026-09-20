@@ -21,8 +21,10 @@ binds an optional configured profile ID into the durable raw observation. The
 record-aware import retains exact per-record evidence and the service atomically
 persists its ordered public projections and private bundle. The generic cellular
 Thing Model materialises the profile's position, motion and battery-voltage
-capabilities. Live discovery, production host deployment, LoRaWAN and physical
-lifecycle acceptance remain unfinished.
+capabilities. The standalone host can select that fixed packaged contract and
+supervise a separately private, finite cellular listener whose device bearers
+are checked against configured scope authority. Live discovery, operator-network
+qualification, LoRaWAN and physical lifecycle acceptance remain unfinished.
 
 ## Device profile
 

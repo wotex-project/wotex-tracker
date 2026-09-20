@@ -4834,3 +4834,43 @@ This proves transactional software persistence and materialisation for the
 fixture-backed TAT140 path. It does not prove physical hardware, firmware, a SIM
 or operator network, transport authentication/encryption, command support or a
 production host deployment.
+
+### Configured standalone cellular host — 2026-09-20
+
+The shared host document now selects one closed packaged service contract: the
+default Ruuvi RAWv2 path or `teltonika.tat140.codec8e`. That fixed host choice
+constructs the catalogue, model and trusted decoder registry used by cellular
+admission and later HTTP enrollment/materialisation; no field received from the
+device can select code.
+
+The standalone host may load a separate private `wtr.cellular-host.v1` file. Its
+closed form requires explicit clear-TCP transport, numeric bind address, a
+canonical 256-bit identity key and one to 32 unique device entries. Each entry
+contains only a keyed IMEI digest, operator label, exact TAT140 profile marker,
+scope and bearer already configured with `ingest` authority. Inspection redacts
+the key, digests and bearers. Missing configuration starts no listener; unsafe
+files, unknown fields, malformed keys, duplicate identities, mismatched contract
+or unauthorized tokens fail startup.
+
+The cellular ingress resolves the current supervised service through a trusted
+provider on every admission rather than retaining a stale store handle. A host
+integration test starts both listeners, performs the 15-digit IMEI login, sends
+the two-record TAT140 frame over a real TCP socket, receives the exact two-record
+ACK, and reads both ordered semantic records from the same durable HTTP service.
+Stopping the host terminates both listener trees.
+
+Both service runtime lanes passed 338 tests and two generated properties at
+95.1% production line coverage. Both standalone-host lanes passed 20 tests at
+98.0% coverage on Elixir 1.18.4/Erlang/OTP 27.3.4.15 and 98.1% on Elixir
+1.20.4/Erlang/OTP 29.0.4. Compiler, dependency, formatter, vulnerability audit,
+strict Credo, ExDoc, Dialyzer, boundary, stack-language, native helper, archive,
+OpenAPI and licence checks passed where configured. The packaged contract,
+private listener configuration and host supervision commits are
+`0b265e66852714517a4d5ae14e24730af32e280a`,
+`f896ee804a6a04dabcbe1a53a0e0a1b486decf64` and
+`0b9a9b77b3d9ec317b7012a62cb2c8ade68864e2`.
+
+This proves explicit standalone software deployment and restart-safe service
+resolution for the fixture path. It does not authenticate or encrypt the
+physical clear-TCP protocol and does not prove a tracker, firmware, SIM, carrier,
+firewall or production network.

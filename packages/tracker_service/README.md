@@ -98,6 +98,15 @@ rejected and unknown durable outcomes retain the bridge's full-count, zero-count
 or close behavior. This is operator-controlled ingress, not IMEI authentication
 or transport encryption.
 
+`Wotex.Tracker.Service.Cellular.HostConfig` admits the closed
+`wtr.cellular-host.v1` document used by explicit hosts. It accepts only the
+packaged TAT140 service contract, canonical 256-bit identity keys, numeric bind
+addresses, one to 32 unique keyed device identities and bearers already granted
+`ingest` for their exact scopes. Its inspection omits all routing and bearer
+material. An ingress may receive a trusted zero-arity service provider so a
+supervised host resolves the current store-backed service after restarts; invalid
+or failing providers reject before any commit.
+
 The facade supports imported observations, public inspection and paginated
 snapshots, encrypted event cursors, privileged byte-preserving raw exports,
 operator-confirmed enrollment and reassociation, materialisation, structured
