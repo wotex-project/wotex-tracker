@@ -299,10 +299,15 @@ is the closer virtual boot candidate.
 `nerves_system_qemu_aarch64` 0.4.2 and `mix.qemu.lock`. It is not a Pi artifact.
 This profile alone creates an unpredictable, inaccessible test credential on its
 first boot under the private `/root/tracker` mount together with the same prepared
-storage marker. Successful SQLite startup advances the marker before the probe.
-The listener remains guest loopback-only. It probes the private SQLite file and
-`/health/live`, reporting only pass or fail to the serial console. The Pi profiles
-never compile this fixture or turn on a serial logger.
+storage marker. The private credential is retained only on the virtual disk for
+the probe and never enters runtime configuration or serial output. Successful
+SQLite startup advances the marker before the probe. The listener remains guest
+loopback-only. The probe submits one deterministic Ruuvi RAWv2 observation over
+the authenticated HTTP interface with a fixed idempotency key, requires the
+decoded public state to report 24.3 °C, and receives the same durable operation
+replay after reboot. It also checks the private SQLite file, `/health/live` and
+one native resource sample, reporting only pass or fail to the serial console.
+The Pi profiles never compile this fixture or turn on a serial logger.
 
 ```sh
 WOTEX_PATH_DEPS=1 MIX_TARGET=qemu_aarch64 MIX_ENV=dev \
@@ -315,9 +320,10 @@ WOTEX_PATH_DEPS=1 MIX_TARGET=qemu_aarch64 MIX_ENV=dev \
 
 The last task creates the ignored `virtual-disk.img` and prints a QEMU command
 for the current host. Run it, wait for the probe to report the private store,
-loopback HTTP and native resources, stop QEMU, and run the same command again
-without regenerating the disk. The second boot must pass without formatting the
-application partition. `record_qemu_boot.exs`
+loopback HTTP, authenticated fixture ingress and native resources, stop QEMU,
+and run the same command again without regenerating the disk. The second boot
+must pass without formatting the application partition and must replay rather
+than recommit the fixture operation. `record_qemu_boot.exs`
 verifies both serial logs and writes
 `../../verification/nerves-qemu-boot.json`. On this macOS host, QEMU 11.1.1
 uses Hypervisor Framework acceleration. The Nerves virtual system is new and

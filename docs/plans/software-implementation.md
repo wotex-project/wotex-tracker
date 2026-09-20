@@ -395,6 +395,15 @@ runtime firmware validation cannot accept a pending image on a UI-only or
 storage-broken boot. Physical bad-image, interrupted-update and revert trials
 remain required.
 
+The isolated ARM64 QEMU profile now exercises a real software-peer ingress
+boundary rather than health alone. A random private QEMU-only credential submits
+one deterministic Ruuvi RAWv2 observation through authenticated loopback HTTP,
+the probe requires the decoded public state to contain the expected 24.3 °C
+temperature, and reboot repeats the exact idempotency key/body to require the
+durable operation replay. Neither Pi profile includes the fixture. This is
+virtual protocol, decode, persistence and replay evidence, not radio or physical
+network qualification.
+
 Complete both product profiles: durable headless service on `nerves_system_rpi5`
 and shared LiveView on `kiosk_system_rpi5` with local Cog display. Physical touch
 acceptance covers setup, map/history, graph gestures, keyboard/focus/scaling,

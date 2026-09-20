@@ -6,8 +6,11 @@ Accepted target contract. A separate headless host and Pi 5 development
 cross-build now exist under `hosts/nerves/`. A separately locked kiosk source
 profile reuses the shared LiveView package and has local endpoint/store-isolation
 tests. A separate ARM64 QEMU image exercises first boot, an existing data
-partition, private SQLite startup and loopback HTTP through Nerves. This is
-virtual software evidence only. Both profiles supervise a bounded Linux procfs
+partition, private SQLite startup and loopback HTTP through Nerves. Its private
+QEMU-only software peer submits one deterministic Ruuvi observation over the
+authenticated HTTP boundary, verifies the decoded temperature state and replays
+the same durable operation after reboot. This is virtual software evidence only.
+Both profiles supervise a bounded Linux procfs
 resource sampler beside the service; it contributes only system available
 memory, BEAM-process RSS and one-minute load to volatile operational history.
 The ARM64 QEMU boot gate now requires one such retained sample on both a fresh
@@ -86,6 +89,15 @@ name the controller, firmware, bus, permissions and backend; qualify ownership,
 scan bytes, reconnect and cleanup on that exact Nerves system. Reusing a desktop
 BlueZ build or assuming BlueHeron support from another Pi is insufficient.
 Generic BLE changes belong with `wotex_ble`, with its own native target rules.
+
+The QEMU-only source fixture owns a random private probe credential outside the
+runtime configuration. On both first boot and reboot it submits the same bounded
+Ruuvi RAWv2 observation through the real authenticated loopback HTTP interface,
+using one fixed idempotency key and generation-zero request. The first boot
+commits it; reboot receives the durable replay. Both require the resulting
+public state to contain the deterministic 24.3 °C decoded temperature before
+the serial probe passes. This proves software-peer ingress, decoding, storage
+and replay in the virtual image without claiming a radio or physical network.
 
 The host uses Nerves networking/time libraries only as host dependencies. Offline
 boot must expose unsynchronized time honestly and retain the explicit receiver
