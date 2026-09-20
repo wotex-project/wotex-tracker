@@ -2,7 +2,7 @@ defmodule Wotex.Tracker.Service.DecoderRegistry do
   @moduledoc false
 
   alias Wotex.Tracker.{Catalogue, Decoder, Error, Observation, Resolution}
-  alias Wotex.Tracker.Protocols.Teltonika.TAT140Import
+  alias Wotex.Tracker.Protocols.Teltonika.RecordImport
 
   @type revision :: {String.t(), String.t()}
   @type snapshot_callback :: (Observation.t() -> term())
@@ -71,9 +71,9 @@ defmodule Wotex.Tracker.Service.DecoderRegistry do
     do: Decoder.run(observation, resolution, catalogue, {revision, callback})
 
   defp decode_entry({:records, callback}, observation, resolution, catalogue, _revision) do
-    with {:ok, %TAT140Import{} = imported} <- callback.(observation, catalogue),
+    with {:ok, %RecordImport{} = imported} <- callback.(observation, catalogue),
          true <- imported.resolution === resolution do
-      TAT140Import.validate(imported, observation, catalogue, [])
+      RecordImport.validate(imported, observation, catalogue, [])
     else
       _ -> {:error, Error.new(:invalid_decoder_result, :decode)}
     end

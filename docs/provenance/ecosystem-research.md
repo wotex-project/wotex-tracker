@@ -163,12 +163,15 @@ as reliability measurements. Native libraries still require native platform test
 The Teltonika Codec wiki was inaccessible during the original review. A later
 2026-09-20 review obtained the manufacturer's current Codec 8 Extended layout,
 TAT140 codec-selection page and shared AVL ID table. The pure TCP frame decoder,
-exact protocol fixture and documentation-derived TAT140 movement/battery mapping
+exact protocol fixture and documentation-derived TAT140 and ATC700 mappings
 are implemented and separately provenanced in the
 [Codec record](teltonika-codec8e-fixtures.md) and
-[TAT140 record](teltonika-tat140-fixtures.md). This does not establish IMEI
+[TAT140 record](teltonika-tat140-fixtures.md) and
+[ATC700 record](teltonika-atc700-fixtures.md). This does not establish IMEI
 authentication, selected firmware, direct-endpoint behavior or physical
-qualification. Existing hardware names remain research candidates in the
+qualification. The ATC700 documentation supports operator-selected server
+domain/port and TCP/UDP plus Codec 8 Extended, but no live endpoint or device was
+tested. Existing hardware names remain research candidates in the
 qualification ledger.
 [Teltonika Codec reference](https://wiki.teltonika-gps.com/view/Codec).
 

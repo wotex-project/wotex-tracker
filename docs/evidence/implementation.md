@@ -5373,3 +5373,36 @@ OpenAPI and licence checks passed where configured. This remains synthetic
 software evidence: live passive scanning, a physical controller/device,
 authenticated peer identity and hardware capability qualification were not
 exercised or claimed.
+
+### Documentation-qualified ATC700 cellular profile — 2026-09-20
+
+The tracker now packages a distinct `teltonika.atc700.codec8e` profile from
+Teltonika's public ATC700 parameter and configuration documentation. The closed
+mapping admits Codec 8 Extended records only and recognises AVL IDs 240 for
+motion, 67 for battery voltage and 113 for battery level. Valid GNSS coordinates
+retain their source record and profile-specific conversion revision. Every IO
+element remains available as raw evidence; duplicate known IDs, unexpected
+widths and out-of-range values close to unavailable measurements instead of
+being guessed or silently discarded.
+
+The TAT140 and ATC700 profiles now share internal asset-profile and immutable
+record-import engines while retaining different public contracts, revisions and
+model bindings. Record import dispatch is closed by the configured contract; no
+wire value can select a callback. The ATC700 contract materialises the
+vendor-neutral `cellular-asset-tracker` model revision 1.1.0, whose added integer
+battery-level property is constrained to zero through 100 percent. The packaged
+service, file configuration and cellular host validation admit either supported
+contract and require its matching profile marker.
+
+The complete root gate passed 199 tests, 19 generated properties and one doctest
+(219 total cases) at 95.2% production line coverage on both Elixir
+1.18.4/Erlang/OTP 27.3.4.15 and Elixir 1.20.4/Erlang/OTP 29.0.4. The complete
+service gate passed 370 tests and two generated properties (372 total cases) at
+95.1% on the floor lane and 95.2% on the upper lane. Compiler,
+unused-dependency, formatter, vulnerability audit, strict Credo, ExDoc,
+Dialyzer, boundary, stack-language, documentation, archive, OpenAPI and licence
+checks passed where configured.
+
+The fixture is synthetic and derived from public documentation. No physical
+ATC700, firmware revision, SIM, carrier, live endpoint or passive BLE scanner
+was exercised or claimed.

@@ -219,19 +219,22 @@ and incomplete-frame deadlines. An independent Erlang peer imports no production
 domain modules and exercises coalescing, every login and official-frame split,
 concatenation and retransmission over real sockets. Wire tests also cover
 truncation, malformed and oversized frames, capacity, timeout and connection
-loss before and after commit. A documentation-qualified TAT140 profile now keeps
-every AVL record and unknown IO field while mapping only movement, battery
-voltage and valid GNSS positions. The durable cellular observation now carries
+loss before and after commit. Documentation-qualified TAT140 and ATC700 profiles
+now share one closed record engine while retaining distinct revisions. Both keep
+every AVL record and unknown IO field while mapping movement, battery voltage
+and valid GNSS positions; ATC700 additionally maps its documented battery-level
+IO. The durable cellular observation now carries
 an optional configured profile ID. A record-aware import builds stable capability
 claims plus per-record transport, measurement and position evidence. An explicit
 service decoder entry atomically persists the raw frame, exact resolution,
 complete private bundle and ordered public record projections; retransmission
 still reconciles at the original packet boundary. The bridge also returns an
 explicit atomic batch receipt whose stable per-record operation identities carry
-the accepted, duplicate, rejected or unknown frame outcome. The generic cellular Thing
-Model materialises position, motion and battery-voltage Properties from that
-bundle. The standalone host now admits a separate private cellular document,
-selects the fixed packaged TAT140 contract for both ingress and API operations,
+the accepted, duplicate, rejected or unknown frame outcome. Generic cellular
+Thing Model revisions materialise position, motion and battery-voltage
+Properties, plus ATC700 battery level, from that bundle. The standalone host now
+admits a separate private cellular document, selects one fixed packaged
+Teltonika profile contract for both ingress and API operations,
 supervises the bounded listener and resolves the current service after restarts.
 The Nerves source host can opt into the same root-bound document and supervision
 without adding the listener to its default image. Its host integration sends the

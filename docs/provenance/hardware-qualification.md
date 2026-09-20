@@ -6,7 +6,7 @@ This ledger separates research candidates from real hardware evidence. Nothing l
 |---|---|---|---|---|
 | RuuviTag | Passive BLE scan, deterministic fingerprint/decode, environmental Thing | research target | No | authoritative format revision, real capture, live scan, decoder fixture |
 | Teltonika TAT140 | Finished rugged direct cellular tracker -> operator listener -> tracking Thing | research target | No | exact hardware/firmware, direct endpoint configuration, real AVL capture/ack, Swedish SIM test |
-| Teltonika ATC700 | Compact rechargeable cellular/GNSS tracker | research target | No | exact firmware/config path, direct endpoint test, AVL evidence; separately prove any BLE capability before claiming it |
+| Teltonika ATC700 | Compact rechargeable cellular/GNSS tracker | documentation-fixture software profile; no hardware evidence | No | exact hardware/firmware, direct endpoint test, real AVL capture/ack and Swedish SIM test; separately prove any BLE capability before claiming it |
 | LoRaWAN tracker | Optional low-power wide-area path and fallback policy | unselected | No | choose finished compact hardware only after own-network-server/key control is proven |
 | Raspberry Pi 5 host | Required headless Nerves appliance and local LiveView touch panel | research target; no image or boot test | No | WTR.14 pinned profiles, physical boot/recovery, real display/touch, separate radio qualification and UI-enabled/absent tests |
 | iPhone companion | Required shared WebView application with native integrations | software loopback/Mob shell present; no mobile build or device test | No tracking vendor cloud | WTR.15 real secure storage, BLE central provisioning, push/lifecycle, offline/reconnect and signed distribution evidence |

@@ -25,9 +25,11 @@ are readable and have explicit units. Writable Properties and physical device
 Events remain unsupported. Host delivery of committed Property values requires
 the separate declaration below.
 
-The generic cellular asset-tracker model is selected by the configured TAT140
-profile but contains no vendor or model names. Its mandatory readable Properties
-are `position`, `motion` and `batteryVoltage`. The aggregate position capability
+The generic cellular asset-tracker 1.0.0 model is selected by the configured
+TAT140 profile; revision 1.1.0 is selected by ATC700 and adds a bounded integer
+`batteryLevel` Property. Neither revision contains vendor or model names. Their
+mandatory readable Properties include `position`, `motion` and
+`batteryVoltage`. The aggregate position capability
 uses `WGS84`; nested latitude/longitude use degrees, altitude and horizontal
 accuracy use metres, and speed uses metres per second. Motion is dimensionless
 and battery voltage uses volts. Latitude/longitude are required whenever a

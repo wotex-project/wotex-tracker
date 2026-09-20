@@ -3,11 +3,12 @@ defmodule Wotex.Tracker.Service.Cellular.HostConfig do
   Closed private host configuration for one Teltonika TCP listener.
 
   The configuration stores routing digests, a keyed-identity secret and service
-  bearers, so its inspection is deliberately redacted. It selects only the
-  packaged TAT140 contract; device traffic cannot choose a decoder.
+  bearers, so its inspection is deliberately redacted. It selects one closed
+  packaged Teltonika asset-tracker contract; device traffic cannot choose a
+  decoder.
   """
 
-  alias Wotex.Tracker.Protocols.Teltonika.TAT140
+  alias Wotex.Tracker.Protocols.Teltonika.{ATC700, TAT140}
   alias Wotex.Tracker.Service
   alias Wotex.Tracker.Service.{Codec, Credentials}
 
@@ -35,13 +36,15 @@ defmodule Wotex.Tracker.Service.Cellular.HostConfig do
           "devices" => devices
         } = document,
         credentials,
-        :teltonika_tat140_codec8e
+        contract
       )
-      when map_size(document) == 5 do
+      when map_size(document) == 5 and
+             contract in [:teltonika_tat140_codec8e, :teltonika_atc700_codec8e] do
     with {:ok, credentials} <- Credentials.validate(credentials),
          {:ok, ip, port} <- listen(listen),
          {:ok, identity_key} <- identity_key(encoded_key),
-         {:ok, devices} <- devices(devices, credentials) do
+         {:ok, profile} <- configured_profile(contract),
+         {:ok, devices} <- devices(devices, credentials, profile) do
       {:ok,
        %__MODULE__{
          ip: ip,
@@ -93,9 +96,9 @@ defmodule Wotex.Tracker.Service.Cellular.HostConfig do
 
   defp identity_key(_), do: {:error, :invalid_configuration}
 
-  defp devices(devices, credentials)
+  defp devices(devices, credentials, profile)
        when is_list(devices) and devices != [] and length(devices) <= 32 do
-    with {:ok, admitted} <- admit_devices(devices, credentials, []),
+    with {:ok, admitted} <- admit_devices(devices, credentials, profile, []),
          true <- unique?(admitted, :identity_digest),
          true <- unique?(admitted, :id) do
       {:ok, Enum.reverse(admitted)}
@@ -104,13 +107,13 @@ defmodule Wotex.Tracker.Service.Cellular.HostConfig do
     end
   end
 
-  defp devices(_, _), do: {:error, :invalid_configuration}
+  defp devices(_, _, _), do: {:error, :invalid_configuration}
 
-  defp admit_devices([], _credentials, admitted), do: {:ok, admitted}
+  defp admit_devices([], _credentials, _profile, admitted), do: {:ok, admitted}
 
-  defp admit_devices([device | rest], credentials, admitted) do
-    case device(device, credentials) do
-      {:ok, value} -> admit_devices(rest, credentials, [value | admitted])
+  defp admit_devices([device | rest], credentials, profile, admitted) do
+    case device(device, credentials, profile) do
+      {:ok, value} -> admit_devices(rest, credentials, profile, [value | admitted])
       error -> error
     end
   end
@@ -123,12 +126,13 @@ defmodule Wotex.Tracker.Service.Cellular.HostConfig do
            "id" => id,
            "profile" => profile
          } = device,
-         credentials
+         credentials,
+         configured_profile
        )
        when map_size(device) == 5 do
     with true <- digest?(digest),
          true <- Codec.id?(scope) and Codec.id?(id),
-         true <- profile == TAT140.configured_profile(),
+         true <- profile == configured_profile,
          true <- Credentials.configured?(credentials, token, scope, "ingest") do
       {:ok,
        %{
@@ -143,7 +147,13 @@ defmodule Wotex.Tracker.Service.Cellular.HostConfig do
     end
   end
 
-  defp device(_, _), do: {:error, :invalid_configuration}
+  defp device(_, _, _), do: {:error, :invalid_configuration}
+
+  defp configured_profile(:teltonika_tat140_codec8e),
+    do: {:ok, TAT140.configured_profile()}
+
+  defp configured_profile(:teltonika_atc700_codec8e),
+    do: {:ok, ATC700.configured_profile()}
 
   defp digest?(digest) when is_binary(digest) and byte_size(digest) == 64,
     do: match?({:ok, _}, Base.decode16(digest, case: :lower))

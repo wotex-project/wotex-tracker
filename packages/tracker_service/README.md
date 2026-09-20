@@ -108,7 +108,8 @@ compatible admitted `model`, and a bounded `decoders` list containing exactly
 one trusted entry for every decoder revision referenced by that catalogue. An
 ordinary unary callback produces one normalized snapshot. An explicit
 `{:records, callback}` entry receives the observation and immutable catalogue
-and must return a validated record-aware TAT140 import. Extra, duplicate,
+and must return a validated closed `RecordImport`. The packaged TAT140 and ATC700
+facades bind that value to their exact profile contract. Extra, duplicate,
 missing, malformed or model-incompatible configuration fails before the service
 is built; observations never select executable code.
 
@@ -123,7 +124,7 @@ commits one byte-preserving cellular observation per packet and derives a
 deterministic UUID operation ID for reconnect reconciliation. Accepted and
 duplicate commits return full-record ACK dispositions, known non-commits return
 zero-ACK dispositions and unknown outcomes require connection close. The bridge
-owns no socket. With the explicit TAT140 record entry, the same observation
+owns no socket. With an explicit packaged Teltonika record entry, the same observation
 commit retains every AVL record in order, its private trigger/GPS/IO evidence and
 its normalized measurements and positions. Public state exposes the ordered
 records under `records`; the last record also supplies the compatibility
@@ -144,7 +145,7 @@ or transport encryption.
 
 `Wotex.Tracker.Service.Cellular.HostConfig` admits the closed
 `wtr.cellular-host.v1` document used by explicit hosts. It accepts only the
-packaged TAT140 service contract, canonical 256-bit identity keys, numeric bind
+packaged TAT140 or ATC700 service contract, canonical 256-bit identity keys, numeric bind
 addresses, one to 32 unique keyed device identities and bearers already granted
 `ingest` for their exact scopes. Its inspection omits all routing and bearer
 material. An ingress may receive a trusted zero-arity service provider so a

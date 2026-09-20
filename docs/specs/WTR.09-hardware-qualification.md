@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted target contract. No implementation claim.
+Accepted target contract. Documentation-fixture software profiles exist for the
+initial Ruuvi, TAT140 and ATC700 targets, but no listed hardware is qualified and
+no physical implementation claim follows.
 
 ## Purpose
 
@@ -40,6 +42,11 @@ Purpose: rugged cellular asset-tracker ingress proof. Qualification requires dir
 ### Teltonika ATC700
 
 Purpose: compact rechargeable cellular/GNSS tracker profile and comparison target. BLE sensor-gateway capability MUST NOT be claimed unless current device documentation and a real-device test prove it.
+
+The current documentation fixture establishes only Codec 8 Extended framing,
+the documented movement/battery IO mappings and configurability of a direct
+operator-controlled TCP/UDP endpoint. Exact hardware/firmware, SIM/operator
+operation, endpoint behavior and any BLE capability still require physical evidence.
 
 ### LoRaWAN target
 

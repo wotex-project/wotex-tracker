@@ -17,7 +17,7 @@ configuration or token. The closed `wtr.host.v1` document contains:
 - `credentials`: 1–32 entries with `id`, `principal`, lowercase hexadecimal
   `token_sha256`, scope-to-grants map `grants`, and Unix-millisecond `expires_at`;
 - optional `contract`: `ruuvi.rawv2` (the default) or the packaged
-  `teltonika.tat140.codec8e` contract;
+  `teltonika.tat140.codec8e` or `teltonika.atc700.codec8e` contract;
 - optional `tls`: exact `certfile` and `keyfile` absolute paths in TLS mode;
 - optional `storage_limits`: lower ceilings for `max_rows` (≤100000),
   `max_pages` (≤262144), `busy_timeout` (≤1000 ms) and `timeout` (≤5000 ms).
@@ -37,9 +37,10 @@ not boot an unconfigured service. Production rejects the path-dependency switch.
 
 ## Optional cellular listener
 
-Selecting `teltonika.tat140.codec8e` in the main host document makes the HTTP
-API, enrollment and materialisation use the packaged cellular profile and Thing
-Model. It does not open a device port by itself. Set
+Selecting `teltonika.tat140.codec8e` or `teltonika.atc700.codec8e` in the main
+host document makes the HTTP API, enrollment and materialisation use the
+corresponding packaged cellular profile and Thing Model. It does not open a
+device port by itself. Set
 `WOTEX_TRACKER_CELLULAR_CONFIG` to a second absolute, regular 0600 JSON file in a
 0700 directory to start the listener under the same host supervisor:
 

@@ -21,7 +21,7 @@ defmodule Wotex.Tracker.Materialisation do
     Resolution
   }
 
-  alias Wotex.Tracker.Protocols.Teltonika.TAT140Import
+  alias Wotex.Tracker.Protocols.Teltonika.RecordImport
 
   @fields ~w(observation catalogue resolution decoded bundle capabilities identity model mapping_revision deployment)a
   @type t :: %__MODULE__{
@@ -72,8 +72,8 @@ defmodule Wotex.Tracker.Materialisation do
   defp resolved(%{status: :resolved}), do: :ok
   defp resolved(_), do: error(:unknown_resolution)
 
-  defp decoded(%TAT140Import{} = value, observation, catalogue, options),
-    do: TAT140Import.validate(value, observation, catalogue, options)
+  defp decoded(%RecordImport{} = value, observation, catalogue, options),
+    do: RecordImport.validate(value, observation, catalogue, options)
 
   defp decoded(value, observation, catalogue, options),
     do: Decoder.validate(value, observation, catalogue, options)

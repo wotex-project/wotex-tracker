@@ -10,7 +10,7 @@ defmodule Wotex.Tracker.Service do
 
   alias Wotex.Tracker.{Catalogue, Model, Observation, QuerySpec}
   alias Wotex.Tracker.Decoders.RuuviRawV2
-  alias Wotex.Tracker.Protocols.Teltonika.{TAT140, TAT140Import}
+  alias Wotex.Tracker.Protocols.Teltonika.{ATC700, ATC700Import, TAT140, TAT140Import}
 
   alias Wotex.Tracker.Service.{
     AgentProjection,
@@ -45,6 +45,7 @@ defmodule Wotex.Tracker.Service do
   }
 
   @maximum_time 9_007_199_254_740_991
+  @packaged_contracts [:ruuvi_raw_v2, :teltonika_tat140_codec8e, :teltonika_atc700_codec8e]
 
   @resources ~w(observations resolutions evidence state enrollments things saved_queries rules policies alerts arming owner_presence)
   @derive {Inspect, only: [:base_url]}
@@ -77,8 +78,7 @@ defmodule Wotex.Tracker.Service do
           contract: contract
         } = input
       )
-      when map_size(input) == 4 and
-             contract in [:ruuvi_raw_v2, :teltonika_tat140_codec8e],
+      when map_size(input) == 4 and contract in @packaged_contracts,
       do: packaged(store, credentials, base, contract)
 
   def new(
@@ -91,7 +91,7 @@ defmodule Wotex.Tracker.Service do
         } = input
       )
       when map_size(input) == 5 and
-             contract in [:ruuvi_raw_v2, :teltonika_tat140_codec8e] and
+             contract in @packaged_contracts and
              cellular_ingress in [:unconfigured, :configured] do
     with {:ok, service} <- packaged(store, credentials, base, contract),
          do: {:ok, %{service | cellular_ingress: cellular_ingress}}
@@ -108,7 +108,7 @@ defmodule Wotex.Tracker.Service do
         } = input
       )
       when map_size(input) == 6 and
-             contract in [:ruuvi_raw_v2, :teltonika_tat140_codec8e] and
+             contract in @packaged_contracts and
              cellular_ingress in [:unconfigured, :configured] and
              notification_delivery in [:unconfigured, :configured] do
     with {:ok, service} <- packaged(store, credentials, base, contract) do
@@ -155,6 +155,17 @@ defmodule Wotex.Tracker.Service do
       TAT140.profile(),
       "cellular-asset-tracker-1.0.0.tm.json",
       [{TAT140.revision(), {:records, &TAT140Import.run/2}}]
+    )
+  end
+
+  defp packaged(store, credentials, base, :teltonika_atc700_codec8e) do
+    packaged(
+      store,
+      credentials,
+      base,
+      ATC700.profile(),
+      "cellular-asset-tracker-1.1.0.tm.json",
+      [{ATC700.revision(), {:records, &ATC700Import.run/2}}]
     )
   end
 

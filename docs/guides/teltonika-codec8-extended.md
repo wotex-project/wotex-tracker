@@ -73,13 +73,16 @@ official fixture frame, concatenated frames and retransmission. Additional wire
 tests cover truncation, invalid CRC, oversized declarations, login/frame timeout,
 capacity exhaustion and connection loss before and after commit.
 
-`Wotex.Tracker.Protocols.Teltonika.TAT140` adds a record-aware semantic seam for
-an observation explicitly marked with the operator-configured
-`teltonika.tat140.codec8e` profile. It never flattens a multi-record frame. Each
-record retains its ordered IO evidence and trigger identifier; AVL 240 maps to a
-boolean `motion` measurement, AVL 67 maps to `batteryVoltage` in volts, and a
-valid Codec GPS fix maps to one closed `wtr.position.v1` claim. No-fix and
-suspect GPS fields remain explicit protocol evidence without a position claim.
+The shared internal asset-profile engine is a closed record mapper. Device
+traffic cannot select callbacks or mapping rules.
+`TAT140` and `ATC700` supply separate immutable configurations, profile markers,
+decoder revisions, model revisions and source provenance. Neither mapper
+flattens a multi-record frame. Every record retains ordered IO evidence and its
+trigger identifier; AVL 240 maps to boolean `motion`, AVL 67 maps to
+`batteryVoltage` in volts, and a valid Codec GPS fix maps to one closed
+`wtr.position.v1` claim. The ATC700 mapping also admits its documented one-byte
+AVL 113 `batteryLevel` value from zero through 100 percent. No-fix and suspect
+GPS fields remain explicit protocol evidence without a position claim.
 Duplicate mapped identifiers fail the message, while an invalid mapped value or
 width becomes an unavailable measurement with the raw bytes retained.
 
@@ -89,12 +92,13 @@ match depends on explicit operator configuration, the Teltonika adapter and
 Codec 8 Extended evidence. That is deterministic format/profile evidence, not
 authentication of a device or proof of a physical SKU.
 
-`Wotex.Tracker.Protocols.Teltonika.TAT140Import` converts that record output into
-one immutable evidence bundle without discarding a record that lacks a mapped
-sample. Stable capability claims describe the configured model support, each AVL
-record has its own private transport claim, and measurement/position claims
-point back to that record. Revalidation repeats the pure import from the exact
-observation and catalogue and rejects any changed result.
+`Wotex.Tracker.Protocols.Teltonika.RecordImport` converts either closed contract
+into one immutable evidence bundle without discarding a record that lacks a
+mapped sample. `TAT140Import` and `ATC700Import` are contract-binding facades.
+Stable capability claims describe the configured model support, each AVL record
+has its own private transport claim, and measurement/position claims point back
+to that record. Revalidation repeats the pure import from the exact observation,
+catalogue and closed contract and rejects any changed result.
 
 The service enables this path only through an explicit record-decoder entry for
 the exact catalogue revision. One transaction persists the raw observation,
@@ -103,7 +107,8 @@ listener may ACK. Public `records` contain only normalized timestamp, priority,
 measurement and position projections; triggers, IO identifiers and raw values
 remain privileged evidence. The final record also supplies the compatible
 current measurement/position view. The generic cellular Thing Model can then be
-materialised with `position`, `motion` and `batteryVoltage` Properties.
+materialised with `position`, `motion` and `batteryVoltage` Properties. Its
+1.1.0 revision adds the ATC700 profile's bounded integer `batteryLevel` Property.
 Rule evaluation follows that same current-record contract: battery selection is
 limited to the final record's measurement evidence, and motion/geofence
 selection is limited to its position evidence. An earlier evidence ID cannot win
@@ -113,7 +118,7 @@ without an explicit source-selection policy.
 
 These slices now cover TCP login, data framing, bounded socket ownership,
 durable admission, ACK decisions, retransmission reconciliation, record-aware
-TAT140 mapping, semantic persistence, cellular Thing materialisation and an
+TAT140/ATC700 mapping, semantic persistence, cellular Thing materialisation and an
 optional standalone and appliance host deployment. Each host uses separate
 private listener configuration, a fixed packaged contract and a lazy supervised
 service handoff; real two-record TCP exchanges prove each configured software

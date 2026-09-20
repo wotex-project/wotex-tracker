@@ -45,7 +45,7 @@ defmodule Wotex.Tracker.Service.HTTP.Config do
   end
 
   defp contract?(contract),
-    do: contract in [:ruuvi_raw_v2, :teltonika_tat140_codec8e]
+    do: contract in [:ruuvi_raw_v2, :teltonika_tat140_codec8e, :teltonika_atc700_codec8e]
 
   defp identity?(value),
     do:

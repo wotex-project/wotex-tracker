@@ -176,9 +176,9 @@ initial_profiles:
     mandatory_vendor_cloud: false
   teltonika_atc700:
     role: compact_rechargeable_cellular_tracker
-    implementation_status: not-started
-    current_evidence: research
-    evidence_refs: []
+    implementation_status: in-progress
+    current_evidence: fixture
+    evidence_refs: [docs/evidence/implementation.md]
     target_evidence: hardware-qualified
     mandatory_vendor_cloud: false
     caution: do_not_claim_ble_sensor_gateway_without_current_real-device_evidence

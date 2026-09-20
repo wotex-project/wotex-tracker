@@ -85,7 +85,15 @@ transformations and limitations are recorded in the
 [Codec 8 Extended](teltonika-codec8e-fixtures.md) and
 [TAT140 profile](teltonika-tat140-fixtures.md) provenance records. No real
 capture, hardware, firmware, SIM/operator or direct-endpoint compatibility
-claim follows from these documentation fixtures. Teltonika hardware and
+claim follows from these documentation fixtures.
+
+The official [ATC700 IO table](https://wiki.teltonika-gps.com/view/ATC700_Teltonika_Data_Sending_Parameters_ID),
+[tracking settings](https://wiki.teltonika-gps.com/view/ATC700_Tracking_settings)
+and [mobile-network settings](https://wiki.teltonika-gps.com/view/ATC700_Mobile_network),
+read 2026-09-20, define the distinct ATC700 mapping and direct-server
+configuration boundary. The exact synthetic transformation and limitations are
+recorded in the [ATC700 profile provenance](teltonika-atc700-fixtures.md).
+Teltonika hardware and
 LoRaWAN remain research targets in the
 [hardware ledger](hardware-qualification.md).
 

@@ -73,6 +73,10 @@ defmodule Wotex.Tracker.Service.HTTP.FileConfigTest do
     assert {:ok, cellular} = FileConfig.load(c.path)
     assert cellular[:contract] == :teltonika_tat140_codec8e
 
+    write(c.path, Map.put(c.document, "contract", "teltonika.atc700.codec8e"))
+    assert {:ok, compact_cellular} = FileConfig.load(c.path)
+    assert compact_cellular[:contract] == :teltonika_atc700_codec8e
+
     for change <- [
           %{"listen" => %{"ip" => "::1", "port" => 4000}},
           %{

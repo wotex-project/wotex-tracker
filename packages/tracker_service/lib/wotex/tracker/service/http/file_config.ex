@@ -138,6 +138,9 @@ defmodule Wotex.Tracker.Service.HTTP.FileConfig do
   defp contract("teltonika.tat140.codec8e"),
     do: {:ok, :teltonika_tat140_codec8e}
 
+  defp contract("teltonika.atc700.codec8e"),
+    do: {:ok, :teltonika_atc700_codec8e}
+
   defp contract(_), do: {:error, :invalid_configuration}
 
   defp entries(values) when is_list(values) and length(values) in 1..32 do

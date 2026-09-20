@@ -45,7 +45,7 @@ This is opt-in at build time; add `WOTEX_TRACKER_CELLULAR=1` to the `deps.get`
 and `firmware` commands for the selected target. The resulting image requires a
 private singly linked 0600 `/root/tracker/cellular.json` in the standalone
 host's closed `wtr.cellular-host.v1` format, and `config.json` must select
-`teltonika.tat140.codec8e`. Missing or invalid enabled configuration fails
+`teltonika.tat140.codec8e` or `teltonika.atc700.codec8e`. Missing or invalid enabled configuration fails
 startup; an image built without the flag starts no cellular listener. The
 cellular document chooses its numeric bind address and port. Clear TCP provides
 no transport authentication or encryption, so network reachability and

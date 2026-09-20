@@ -4,7 +4,7 @@ defmodule Wotex.Tracker.Service.Cellular.HostConfigTest do
 
   import Wotex.Tracker.Service.Fixtures
 
-  alias Wotex.Tracker.Protocols.Teltonika.{TAT140, TCPSession}
+  alias Wotex.Tracker.Protocols.Teltonika.{ATC700, TAT140, TCPSession}
   alias Wotex.Tracker.Service.Cellular.HostConfig
   alias Wotex.Tracker.Service.Credentials
 
@@ -76,6 +76,26 @@ defmodule Wotex.Tracker.Service.Cellular.HostConfigTest do
 
     assert {:error, :invalid_configuration} =
              HostConfig.new(document, nil, :teltonika_tat140_codec8e)
+  end
+
+  test "the ATC700 contract binds the same closed host document to its own profile" do
+    context = service()
+
+    document =
+      put_in(
+        document(context.admin),
+        ["devices", Access.at(0), "profile"],
+        ATC700.configured_profile()
+      )
+
+    assert {:ok, config} =
+             HostConfig.new(document, context.credentials, :teltonika_atc700_codec8e)
+
+    assert [device] = config.devices
+    assert device.profile == ATC700.configured_profile()
+
+    assert {:error, :invalid_configuration} =
+             HostConfig.new(document, context.credentials, :teltonika_tat140_codec8e)
   end
 
   test "duplicate routing identities and labels are rejected" do

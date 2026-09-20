@@ -2,7 +2,7 @@ defmodule Wotex.Tracker.Service.Projection do
   @moduledoc false
 
   alias Wotex.Tracker.Decoder
-  alias Wotex.Tracker.Protocols.Teltonika.TAT140Import
+  alias Wotex.Tracker.Protocols.Teltonika.RecordImport
   alias Wotex.Tracker.Service.{Arming, Codec, Credentials, OwnerPresence, RuleStatus}
 
   def public(_, _id, nil), do: {:ok, nil}
@@ -99,7 +99,7 @@ defmodule Wotex.Tracker.Service.Projection do
     }
   end
 
-  def decoded(%TAT140Import{records: records}) do
+  def decoded(%RecordImport{records: records}) do
     projected = Enum.map(records, &record/1)
     latest = List.last(projected) || %{"measurements" => [], "positions" => []}
 

@@ -59,10 +59,11 @@ identity, enrollment or hardware qualification.
 The pure library also contains bounded Teltonika TCP IMEI negotiation, Codec 8
 Extended framing and record decoding. It validates the complete documented
 frame, preserves unknown IO values and maps durable commit dispositions to
-explicit ACK-or-close decisions. A documentation-qualified TAT140 profile maps
-only the documented movement and battery-voltage IO fields plus valid GNSS
-fixes, preserving every record and unsupported IO value. This is not hardware
-qualification. See the
+explicit ACK-or-close decisions. Documentation-qualified TAT140 and ATC700
+profiles share one closed record pipeline while retaining distinct immutable
+revisions. Both map documented movement, battery voltage and valid GNSS fixes;
+ATC700 additionally maps its documented battery-level IO. Every record and
+unsupported IO value remains preserved. This is not hardware qualification. See the
 [Codec 8 Extended guide](docs/guides/teltonika-codec8-extended.md).
 The service package adds explicitly started, serialized cellular admission:
 configured keyed IMEI lookup, exact raw-frame observation custody, deterministic
@@ -271,7 +272,9 @@ The first profiles are intended to prove different topologies rather than one pr
 
 - **RuuviTag** — passive BLE advertisement discovery and environmental sensing using an openly documented wire format.
 - **Teltonika TAT140** — finished rugged cellular asset tracker sending directly to an operator-controlled server.
-- **Teltonika ATC700** — compact rechargeable cellular tracker using the same semantic asset-tracker model through a different profile.
+- **Teltonika ATC700** — compact rechargeable cellular tracker with a distinct
+  documentation-fixture profile and direct operator-server configuration path;
+  physical qualification remains open.
 - **LoRaWAN** — optional later profile/ingress lane, only for hardware and network paths that pass the project's no-vendor-lock gate.
 
 Hardware names in specifications are qualification targets, not architectural dependencies.
