@@ -3691,3 +3691,37 @@ evidence. The development host has no iPhoneOS SDK, generated Xcode project,
 signed installation or selected target service/characteristic profile. Real
 permission behavior, radio lifecycle, provisioning and the upstream `wotex_ble`
 adapter remain explicit physical and integration gates.
+
+### Shared notification-installation management — 2026-09-20
+
+The shared Access page now lists the administrator principal's registered mobile
+notification installations through the existing public service contract. It
+admits only the exact token-redacted endpoint projection and displays the opaque
+installation ID, application ID, APNs environment and registration/update times.
+Provider tokens and the service's pseudonymous internal record identity never
+reach the page. Readers cannot see or remove installations, and an administrator
+sees only installations owned by the current principal rather than a fictional
+scope-wide hardware inventory.
+
+Removal captures the current scope generation and a stable operation reference
+in the page address, explains that canonical alerts remain and requires explicit
+confirmation. A committed receipt is accepted only when it names the exact
+installation and a fresh authorized list proves that record absent. Stale writes,
+malformed projections, foreign or unrelated receipts and read-only attempts fail
+closed. A lost response remains unknown until durable receipt recovery and the
+fresh list agree; it is never submitted automatically. The local adapter now
+exposes the same closed removal action already supported by the remote mobile
+adapter.
+
+Tests cover token redaction, exact projection admission, reader denial, explicit
+confirmation, cancellation, stale generation, malformed lists, missing records,
+lost-reply recovery, unrelated operations and reconnect through the retained URL.
+The complete shared-UI gate passed 159 tests at 95.0% production line coverage.
+Compiler, unused-dependency, formatter, dependency audit, strict Credo, ExDoc,
+Dialyzer, 56-member archive inspection, licences and the 516-file stack-language
+policy passed.
+
+This manages only registered notification delivery installations for the current
+principal. It is not a general device inventory, remote device wipe or physical
+APNs-delivery claim. Complete access audit, retained-data deletion and retention
+management remain open privacy work.

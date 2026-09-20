@@ -646,6 +646,221 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert has_element?(view, "caption", "Browser sessions: 1")
   end
 
+  test "an administrator reviews and removes a notification installation after confirmation", c do
+    register_endpoint(c, "owner-phone")
+
+    {:ok, view, html} = live(c.conn, "/access")
+    assert has_element?(view, "h2", "Notification installations")
+    assert has_element?(view, "caption", "1 notification installations at scope version 1")
+    assert has_element?(view, "th", "owner-phone")
+    assert html =~ "org.wotex.tracker"
+    assert html =~ "APNs · sandbox"
+    refute html =~ "private-provider-token"
+
+    view
+    |> element(~s(button[phx-value-id="owner-phone"]), "Remove")
+    |> render_click()
+
+    patched = assert_patch(view)
+    query = patched |> URI.parse() |> Map.fetch!(:query) |> URI.decode_query()
+    assert query["endpoint"] == "owner-phone"
+    assert Identifier.operation?(query["endpoint_operation"])
+    assert has_element?(view, "#remove-notification-installation")
+
+    render_submit(view, "confirm-remove-endpoint", %{"endpoint" => %{}})
+    assert has_element?(view, "[role=alert]", "Check the required fields")
+
+    view
+    |> form("#remove-notification-installation", endpoint: %{confirmed: "yes"})
+    |> render_submit()
+
+    assert has_element?(view, "[role=status]", "Notification installation owner-phone removed")
+    assert has_element?(view, "caption", "0 notification installations at scope version 2")
+    refute has_element?(view, "#remove-notification-installation")
+
+    assert {:error, %{"code" => "not_found"}} =
+             Service.notification_endpoint(c.service, c.admin, c.scope, "owner-phone", c.now)
+
+    {:ok, resumed, _} = live(c.conn, patched)
+    assert has_element?(resumed, "[role=status]", "Notification installation owner-phone removed")
+    refute has_element?(resumed, "#remove-notification-installation")
+  end
+
+  test "notification installation removal recovers lost replies and rejects stale or forged work",
+       c do
+    register_endpoint(c, "owner-phone")
+    {:ok, view, _} = live(c.conn, "/access")
+
+    view
+    |> element(~s(button[phx-value-id="owner-phone"]), "Remove")
+    |> render_click()
+
+    stale_path = assert_patch(view)
+    commit_change(c, "endpoint-stale")
+
+    view
+    |> form("#remove-notification-installation", endpoint: %{confirmed: "yes"})
+    |> render_submit()
+
+    assert has_element?(view, "[role=alert]", "service changed")
+    refute has_element?(view, "#remove-notification-installation")
+
+    assert {:ok, _} =
+             Service.notification_endpoint(c.service, c.admin, c.scope, "owner-phone", c.now)
+
+    {:ok, lost, _} = live(c.conn, "/access")
+
+    lost
+    |> element(~s(button[phx-value-id="owner-phone"]), "Remove")
+    |> render_click()
+
+    lost_path = assert_patch(lost)
+    refute lost_path == stale_path
+    render_patch(lost, lost_path)
+    Agent.update(c.faults, &Map.put(&1, :unregister_notification_endpoint, :lost_reply))
+
+    lost
+    |> form("#remove-notification-installation", endpoint: %{confirmed: "yes"})
+    |> render_submit()
+
+    assert has_element?(lost, "[role=status]", "Removal outcome unknown")
+    refute has_element?(lost, "#remove-notification-installation")
+    Agent.update(c.faults, &Map.put(&1, :list, :unavailable))
+    lost |> element("button", "Check operation outcome") |> render_click()
+    assert has_element?(lost, "[role=status]", "Removal outcome unknown")
+    assert has_element?(lost, "[role=alert]")
+    lost |> element("button", "Check operation outcome") |> render_click()
+    assert has_element?(lost, "[role=status]", "Notification installation owner-phone removed")
+
+    Agent.update(c.faults, &Map.put(&1, :operation, :unavailable))
+    lost |> element("button", "Check operation outcome") |> render_click()
+    assert has_element?(lost, "[role=status]", "Notification installation owner-phone removed")
+    assert has_element?(lost, "[role=alert]")
+    render_submit(lost, "confirm-remove-endpoint", %{"endpoint" => %{"confirmed" => "yes"}})
+    assert has_element?(lost, "[role=status]", "Notification installation owner-phone removed")
+
+    {:ok, reconnect, _} = live(c.conn, lost_path)
+
+    assert has_element?(
+             reconnect,
+             "[role=status]",
+             "Notification installation owner-phone removed"
+           )
+
+    unrelated_operation = Identifier.uuid()
+
+    assert {:ok, _} =
+             Service.submit(
+               c.service,
+               c.admin,
+               c.scope,
+               unrelated_operation,
+               import_request(%{id: "endpoint-unrelated"}, generation(c)),
+               c.now
+             )
+
+    {:ok, unrelated, _} =
+      live(
+        c.conn,
+        "/access?" <>
+          URI.encode_query(%{
+            "endpoint" => "owner-phone",
+            "endpoint_operation" => unrelated_operation
+          })
+      )
+
+    assert has_element?(unrelated, "[role=alert]", "different workflow")
+    refute has_element?(unrelated, "#remove-notification-installation")
+
+    {:ok, invalid, _} =
+      live(c.conn, "/access?endpoint=owner-phone&endpoint_operation=not-a-uuid")
+
+    assert has_element?(invalid, "[role=alert]")
+    refute has_element?(invalid, "#remove-notification-installation")
+
+    {:ok, partial, _} = live(c.conn, "/access?endpoint=owner-phone")
+    assert has_element?(partial, "[role=alert]")
+  end
+
+  test "notification installations fail closed for readers and malformed service replies", c do
+    register_endpoint(c, "owner-phone")
+    {:ok, view, _} = live(c.conn, "/access")
+
+    Agent.update(c.faults, &Map.put(&1, :list, :unavailable))
+    view |> element("button", "Refresh access") |> render_click()
+    assert has_element?(view, "[role=status]", "Notification installations are unavailable")
+    refute has_element?(view, ~s(button[phx-value-id="owner-phone"]))
+
+    Agent.update(c.faults, &Map.put(&1, :list, {:reply, {:ok, %{"items" => []}}}))
+    view |> element("button", "Refresh access") |> render_click()
+    assert has_element?(view, "[role=status]", "Notification installations are unavailable")
+
+    Agent.update(
+      c.faults,
+      &Map.put(&1, :list, {:reply, {:ok, %{"generation" => "1", "items" => [%{}]}}})
+    )
+
+    view |> element("button", "Refresh access") |> render_click()
+    assert has_element?(view, "[role=status]", "Notification installations are unavailable")
+
+    view |> element("button", "Refresh access") |> render_click()
+    assert has_element?(view, ~s(button[phx-value-id="owner-phone"]))
+
+    render_click(view, "prepare-remove-endpoint", %{"id" => "missing-phone"})
+    assert has_element?(view, "[role=alert]", "service changed")
+
+    view
+    |> element(~s(button[phx-value-id="owner-phone"]), "Remove")
+    |> render_click()
+
+    assert_patch(view)
+    view |> element("button", "Cancel removal") |> render_click()
+    assert_patch(view, "/access")
+
+    view
+    |> element(~s(button[phx-value-id="owner-phone"]), "Remove")
+    |> render_click()
+
+    assert_patch(view)
+
+    assert {:ok, _} =
+             Service.unregister_notification_endpoint(
+               c.service,
+               c.admin,
+               c.scope,
+               Identifier.uuid(),
+               %{"id" => "owner-phone", "expected_generation" => generation(c)},
+               c.now
+             )
+
+    view |> element("button", "Refresh access") |> render_click()
+    assert render(view) =~ "is no longer registered for this principal"
+    render_submit(view, "confirm-remove-endpoint", %{"endpoint" => %{"confirmed" => "yes"}})
+    assert has_element?(view, "[role=alert]", "service changed")
+    render_click(view, "unknown-endpoint-event", %{})
+
+    {:ok, %{"id" => reader}} = Sessions.login(c.sessions, c.reader, c.scope)
+    conn = build_conn() |> init_test_session(%{"browser_session" => reader})
+    {:ok, reader_view, html} = live(conn, "/access")
+    refute html =~ "Notification installations"
+    render_click(reader_view, "prepare-remove-endpoint", %{"id" => "owner-phone"})
+    assert has_element?(reader_view, "[role=alert]", "does not permit")
+
+    {:ok, forged, _} =
+      live(
+        conn,
+        "/access?" <>
+          URI.encode_query(%{
+            "endpoint" => "owner-phone",
+            "endpoint_operation" => Identifier.uuid()
+          })
+      )
+
+    refute has_element?(forged, "#remove-notification-installation")
+    render_submit(forged, "confirm-remove-endpoint", %{"endpoint" => %{"confirmed" => "yes"}})
+    assert has_element?(forged, "[role=alert]", "does not permit")
+  end
+
   test "an administrator can revoke the current credential after explicit confirmation", c do
     {:ok, view, _} = live(c.conn, "/access")
     assert has_element?(view, "button", "Prepare revocation")
@@ -6227,6 +6442,25 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
       Service.list(c.service, c.admin, c.scope, "enrollments", %{"limit" => 1}, c.now)
 
     generation
+  end
+
+  defp register_endpoint(c, id) do
+    assert {:ok, %{"outcome" => "committed"}} =
+             Service.register_notification_endpoint(
+               c.service,
+               c.admin,
+               c.scope,
+               Identifier.uuid(),
+               %{
+                 "id" => id,
+                 "provider" => "apns",
+                 "app_id" => "org.wotex.tracker",
+                 "environment" => "sandbox",
+                 "token" => "private-provider-token",
+                 "expected_generation" => generation(c)
+               },
+               c.now
+             )
   end
 
   # Commits one unrelated observation so a following view sees a new scope event.

@@ -118,6 +118,12 @@ permissions, expiry and revocation status, and can revoke another active
 credential. That flow keeps the credential ID and an operation reference in the
 address, requires confirmation and counts a committed receipt only after the
 reloaded inventory shows the credential revoked.
+The same page lists the current principal's registered notification
+installations without provider tokens. An administrator can remove one after an
+explicit warning and generation check; lost replies retain the operation
+reference and count as committed only after the refreshed principal-owned list
+no longer contains that installation. Removal stops future push delivery to that
+installation without deleting canonical alerts, and the app may register again.
 An administrator can remove an enrolled asset from its detail page. The removal
 page states that the asset, its state and its rule definitions leave current
 views while history, evidence and alerts remain, then requires a prepared
@@ -164,8 +170,9 @@ test helpers. Root and service-only consumers do not depend on this package.
 The first cohort exercises real authorized services, duplicate prevention,
 lost-reply recovery, revocation, read-only denial, upload bounds, bounded
 lists/history, CSRF protection and credential custody. Device discovery and
-capture, basemaps, owner-presence capture, notification delivery, interactions,
-remaining privacy controls, mobile cache policy and cross-surface accessibility remain subsequent work. A
+capture, basemaps, owner-presence capture, physical notification delivery,
+interactions, remaining privacy controls and cross-surface accessibility remain
+subsequent work. A
 responsive browser view does not qualify a mobile or Pi application.
 
 The route-history screen defaults to a one-day UTC window ending after the

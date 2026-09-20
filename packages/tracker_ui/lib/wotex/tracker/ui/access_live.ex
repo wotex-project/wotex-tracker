@@ -1,6 +1,7 @@
 defmodule Wotex.Tracker.UI.AccessLive do
   @moduledoc """
-  Shows the browser's service access, the scope's credentials and administrator revocation.
+  Shows service access, browser sessions, registered notification installations
+  and administrator credential revocation.
 
   The page displays principal, scope, expiry, and grant categories without
   exposing the bearer token. Administrators also see the service's credential
@@ -21,7 +22,7 @@ defmodule Wotex.Tracker.UI.AccessLive do
 
   use Phoenix.LiveView, log: false
   import Wotex.Tracker.UI.Components
-  alias Wotex.Tracker.Service.Identifier
+  alias Wotex.Tracker.Service.{Codec, Identifier}
   alias Wotex.Tracker.UI.{Auth, Presenter}
   alias Wotex.Tracker.UI.Sessions
 
@@ -45,7 +46,16 @@ defmodule Wotex.Tracker.UI.AccessLive do
          other_error: nil,
          other_closed: false,
          browser_sessions: nil,
-         sessions_error: nil
+         sessions_error: nil,
+         endpoints: nil,
+         endpoints_generation: nil,
+         endpoints_error: nil,
+         endpoint_id: nil,
+         endpoint_operation: nil,
+         endpoint_generation: nil,
+         endpoint_outcome: nil,
+         endpoint_error: nil,
+         endpoint_closed: false
        )}
 
   @impl true
@@ -55,7 +65,9 @@ defmodule Wotex.Tracker.UI.AccessLive do
        socket
        |> load()
        |> activate_other(params["credential"], params["operation"])
-       |> recover_other()}
+       |> recover_other()
+       |> activate_endpoint(params["endpoint"], params["endpoint_operation"])
+       |> recover_endpoint()}
 
   @impl true
   def handle_event("refresh", _, socket),
@@ -207,6 +219,88 @@ defmodule Wotex.Tracker.UI.AccessLive do
     end
   end
 
+  def handle_event(
+        "prepare-remove-endpoint",
+        %{"id" => id},
+        %{
+          assigns: %{
+            endpoint_operation: nil,
+            other_operation: nil,
+            identity: %{"can_manage_queries" => true}
+          }
+        } = socket
+      )
+      when is_binary(id) do
+    socket = load_endpoints(socket)
+
+    if removable_endpoint?(socket.assigns.endpoints, id) do
+      socket = assign(socket, endpoint_generation: socket.assigns.endpoints_generation)
+
+      {:noreply,
+       push_patch(socket,
+         to:
+           "/access?" <>
+             URI.encode_query(%{
+               "endpoint" => id,
+               "endpoint_operation" => Identifier.uuid()
+             })
+       )}
+    else
+      {:noreply, assign(socket, endpoint_error: socket.assigns.endpoints_error || conflict())}
+    end
+  end
+
+  def handle_event("prepare-remove-endpoint", _, socket),
+    do: {:noreply, assign(socket, endpoint_error: %{"code" => "forbidden"})}
+
+  def handle_event(
+        "confirm-remove-endpoint",
+        %{"endpoint" => %{"confirmed" => "yes"}},
+        %{
+          assigns: %{
+            endpoint_id: id,
+            endpoint_operation: operation,
+            endpoint_generation: generation,
+            endpoint_outcome: nil,
+            endpoint_closed: false,
+            identity: %{"can_manage_queries" => true}
+          }
+        } = socket
+      )
+      when is_binary(id) and is_binary(operation) and is_binary(generation) do
+    if removable_endpoint?(socket.assigns.endpoints, id) do
+      result =
+        Auth.request(socket, :unregister_notification_endpoint, %{
+          "operation" => operation,
+          "request" => %{"id" => id, "expected_generation" => generation}
+        })
+
+      {:noreply, endpoint_result(socket, result)}
+    else
+      {:noreply, assign(socket, endpoint_error: conflict(), endpoint_closed: true)}
+    end
+  end
+
+  def handle_event(
+        "confirm-remove-endpoint",
+        %{"endpoint" => %{"confirmed" => "yes"}},
+        socket
+      ),
+      do:
+        {:noreply,
+         if(socket.assigns.endpoint_outcome,
+           do: socket,
+           else: assign(socket, endpoint_error: %{"code" => "forbidden"})
+         )}
+
+  def handle_event("confirm-remove-endpoint", _, socket),
+    do: {:noreply, assign(socket, endpoint_error: %{"code" => "invalid_request"})}
+
+  def handle_event("check-remove-endpoint", _, socket), do: {:noreply, recover_endpoint(socket)}
+
+  def handle_event("cancel-remove-endpoint", _, socket),
+    do: {:noreply, push_patch(socket, to: "/access")}
+
   def handle_event("cancel-revoke-other", _, socket),
     do: {:noreply, push_patch(socket, to: "/access")}
 
@@ -228,6 +322,7 @@ defmodule Wotex.Tracker.UI.AccessLive do
       <.notice error={@error} />
       <.notice error={@revoke_error} />
       <.notice error={@other_error} />
+      <.notice error={@endpoint_error} />
       <section :if={@access} class="panel">
         <h2>Current credential</h2>
         <dl>
@@ -264,6 +359,65 @@ defmodule Wotex.Tracker.UI.AccessLive do
           Sign out ends this browser session. The service credential remains valid until it expires
           or an administrator revokes it. The service checks authority again on each operation.
         </p>
+      </section>
+      <section
+        :if={@access && @identity["can_manage_queries"]}
+        class="panel"
+        aria-labelledby="notification-installations-title"
+      >
+        <h2 id="notification-installations-title">Notification installations</h2>
+        <p>
+          Mobile installations registered by this principal for alert notifications. Removing one
+          stops future pushes to that installation; canonical alerts remain in the service, and a
+          signed-in app may register again.
+        </p>
+        <.notice error={@endpoints_error} />
+        <p :if={is_nil(@endpoints)} role="status">
+          Notification installations are unavailable. Refresh access to retry.
+        </p>
+        <div
+          :if={@endpoints}
+          class="table-scroll"
+          tabindex="0"
+          role="region"
+          aria-labelledby="notification-installations-title"
+        >
+          <table>
+            <caption>
+              {length(@endpoints)} notification installations at scope version {@endpoints_generation}
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Installation</th><th scope="col">Application</th><th scope="col">
+                  Provider
+                </th><th scope="col">Registered</th><th scope="col">Last updated</th><th scope="col">
+                  Removal
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr :for={endpoint <- @endpoints}>
+                <th scope="row">{endpoint["id"]}</th>
+                <td>{endpoint["value"]["app_id"]}</td>
+                <td>{endpoint_provider(endpoint["value"])}</td>
+                <td>{Presenter.timestamp(%{"value" => endpoint["value"]["created_at"]})}</td>
+                <td>{Presenter.timestamp(%{"value" => endpoint["value"]["updated_at"]})}</td>
+                <td>
+                  <button
+                    :if={
+                      is_nil(@endpoint_operation) && is_nil(@other_operation) &&
+                        removable_endpoint?(@endpoints, endpoint["id"])
+                    }
+                    class="secondary"
+                    phx-click="prepare-remove-endpoint"
+                    phx-value-id={endpoint["id"]}
+                    aria-label={"Prepare to remove notification installation " <> endpoint["id"]}
+                  >Remove</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
       <section :if={@access} class="panel" aria-labelledby="browser-sessions-title">
         <h2 id="browser-sessions-title">Browser sessions with this credential</h2>
@@ -420,6 +574,49 @@ defmodule Wotex.Tracker.UI.AccessLive do
         <button class="secondary" phx-click="check-revoke-other">Check operation outcome</button>
         <a href="/access">Return to access</a>
       </section>
+      <section
+        :if={@endpoint_operation}
+        class="operation"
+        aria-labelledby="remove-endpoint-title"
+      >
+        <h2 id="remove-endpoint-title">Remove notification installation {@endpoint_id}</h2>
+        <p :if={
+          is_nil(@endpoint_outcome) && !@endpoint_closed && is_list(@endpoints) &&
+            !removable_endpoint?(@endpoints, @endpoint_id)
+        }>
+          Installation {@endpoint_id} is no longer registered for this principal, so it cannot be
+          removed here.
+        </p>
+        <.form
+          :if={
+            @endpoint_generation && is_nil(@endpoint_outcome) && !@endpoint_closed &&
+              removable_endpoint?(@endpoints, @endpoint_id)
+          }
+          for={%{}}
+          id="remove-notification-installation"
+          phx-submit="confirm-remove-endpoint"
+        >
+          <label>
+            <input type="checkbox" name="endpoint[confirmed]" value="yes" />
+            I understand this installation will stop receiving future push notifications.
+          </label>
+          <button type="submit" phx-disable-with="Removing…">Confirm removal</button>
+          <button type="button" class="secondary" phx-click="cancel-remove-endpoint">
+            Cancel removal
+          </button>
+        </.form>
+        <p :if={@endpoint_outcome} role="status">
+          {if @endpoint_outcome["outcome"] == "committed",
+            do: "Notification installation #{@endpoint_id} removed",
+            else: "Removal outcome unknown"}
+        </p>
+        <p :if={@endpoint_outcome && @endpoint_outcome["outcome"] != "committed"}>
+          Keep this page's address and check the operation outcome before trying again.
+        </p>
+        <p class="identifier">Operation {@endpoint_operation}</p>
+        <button class="secondary" phx-click="check-remove-endpoint">Check operation outcome</button>
+        <a href="/access">Return to access</a>
+      </section>
     </main>
     """
   end
@@ -441,7 +638,7 @@ defmodule Wotex.Tracker.UI.AccessLive do
           assign(socket, access: nil, error: %{"code" => "storage_unavailable"})
       end
 
-    socket |> load_credentials() |> load_browser_sessions()
+    socket |> load_credentials() |> load_browser_sessions() |> load_endpoints()
   end
 
   defp load_browser_sessions(%{assigns: %{access: nil}} = socket),
@@ -478,6 +675,169 @@ defmodule Wotex.Tracker.UI.AccessLive do
 
   defp load_credentials(socket),
     do: assign(socket, credentials: nil, credentials_generation: nil, credentials_error: nil)
+
+  defp load_endpoints(%{assigns: %{identity: %{"can_manage_queries" => true}}} = socket) do
+    case Auth.request(socket, :list, %{"resource" => "notification_endpoints"}) do
+      {:ok, %{"generation" => generation, "items" => items}}
+      when is_binary(generation) and is_list(items) and length(items) <= 8 ->
+        if valid_generation?(generation) and Enum.all?(items, &endpoint?/1) do
+          assign(socket,
+            endpoints: items,
+            endpoints_generation: generation,
+            endpoints_error: nil
+          )
+        else
+          invalid_endpoints(socket)
+        end
+
+      {:error, error} ->
+        assign(socket, endpoints: nil, endpoints_generation: nil, endpoints_error: error)
+
+      _ ->
+        invalid_endpoints(socket)
+    end
+  end
+
+  defp load_endpoints(socket),
+    do: assign(socket, endpoints: nil, endpoints_generation: nil, endpoints_error: nil)
+
+  defp invalid_endpoints(socket),
+    do:
+      assign(socket,
+        endpoints: nil,
+        endpoints_generation: nil,
+        endpoints_error: %{"code" => "storage_unavailable"}
+      )
+
+  defp endpoint?(%{"id" => id, "generation" => generation, "value" => value} = item)
+       when map_size(item) == 3 and is_map(value) and map_size(value) == 8 do
+    endpoint_identity?(id, generation, value) and endpoint_delivery?(value) and
+      endpoint_times?(value)
+  end
+
+  defp endpoint?(_), do: false
+
+  defp endpoint_identity?(id, generation, value),
+    do:
+      value["schema"] == "wtr.notification-endpoint.v1" and value["id"] == id and
+        Codec.id?(id) and valid_generation?(generation) and Codec.id?(value["app_id"]) and
+        Codec.id?(value["revision"])
+
+  defp endpoint_delivery?(value),
+    do: value["provider"] == "apns" and value["environment"] in ~w(sandbox production)
+
+  defp endpoint_times?(value),
+    do:
+      Codec.time?(value["created_at"]) and Codec.time?(value["updated_at"]) and
+        value["updated_at"] >= value["created_at"]
+
+  defp valid_generation?(value), do: match?({:ok, _}, Codec.generation(value))
+
+  defp endpoint_provider(%{"provider" => "apns", "environment" => environment}),
+    do: "APNs · #{environment}"
+
+  defp endpoint_provider(_), do: "Unavailable"
+
+  defp removable_endpoint?(endpoints, id) when is_list(endpoints) and is_binary(id),
+    do: Enum.any?(endpoints, &(&1["id"] == id))
+
+  defp removable_endpoint?(_, _), do: false
+
+  defp activate_endpoint(socket, nil, nil),
+    do:
+      assign(socket,
+        endpoint_id: nil,
+        endpoint_operation: nil,
+        endpoint_generation: nil,
+        endpoint_outcome: nil,
+        endpoint_error: nil,
+        endpoint_closed: false
+      )
+
+  defp activate_endpoint(socket, id, operation)
+       when is_binary(id) and is_binary(operation) do
+    cond do
+      not Codec.id?(id) or not Identifier.operation?(operation) ->
+        activate_endpoint(socket, nil, nil)
+        |> assign(endpoint_error: %{"code" => "invalid_request"})
+
+      socket.assigns.endpoint_operation == operation and socket.assigns.endpoint_id == id ->
+        socket
+
+      true ->
+        assign(socket,
+          endpoint_id: id,
+          endpoint_operation: operation,
+          endpoint_generation:
+            socket.assigns.endpoint_generation || socket.assigns.endpoints_generation,
+          endpoint_outcome: nil,
+          endpoint_error: nil,
+          endpoint_closed: false
+        )
+    end
+  end
+
+  defp activate_endpoint(socket, _, _),
+    do:
+      activate_endpoint(socket, nil, nil)
+      |> assign(endpoint_error: %{"code" => "invalid_request"})
+
+  defp recover_endpoint(%{assigns: %{endpoint_operation: nil}} = socket), do: socket
+
+  defp recover_endpoint(socket) do
+    case Auth.request(socket, :operation, %{"id" => socket.assigns.endpoint_operation}) do
+      {:error, %{"code" => "not_found"}} -> socket
+      result -> endpoint_result(socket, result)
+    end
+  end
+
+  defp endpoint_result(socket, {:ok, %{"outcome" => "committed", "data" => data} = receipt}) do
+    id = socket.assigns.endpoint_id
+
+    if data == %{"endpoint_id" => id, "action" => "unregistered"} do
+      socket = load_endpoints(socket)
+
+      cond do
+        is_nil(socket.assigns.endpoints) ->
+          assign(socket,
+            endpoint_outcome: %{"outcome" => "unknown"},
+            endpoint_error: socket.assigns.endpoints_error
+          )
+
+        not removable_endpoint?(socket.assigns.endpoints, id) ->
+          assign(socket, endpoint_outcome: receipt, endpoint_error: nil)
+
+        true ->
+          unrelated_endpoint(socket)
+      end
+    else
+      unrelated_endpoint(socket)
+    end
+  end
+
+  defp endpoint_result(socket, {:ok, %{"outcome" => "unknown"} = receipt}),
+    do: assign(socket, endpoint_outcome: receipt, endpoint_error: nil)
+
+  defp endpoint_result(socket, {:ok, _}), do: unrelated_endpoint(socket)
+
+  defp endpoint_result(
+         %{assigns: %{endpoint_outcome: %{"outcome" => "committed"}}} = socket,
+         {:error, error}
+       ),
+       do: assign(socket, endpoint_error: error)
+
+  defp endpoint_result(socket, {:error, %{"outcome" => "not_committed"} = error}),
+    do: assign(socket, endpoint_error: error, endpoint_closed: true)
+
+  defp endpoint_result(socket, {:error, error}),
+    do: assign(socket, endpoint_outcome: %{"outcome" => "unknown"}, endpoint_error: error)
+
+  defp unrelated_endpoint(socket),
+    do:
+      assign(socket,
+        endpoint_outcome: %{"outcome" => "unrelated"},
+        endpoint_error: %{"code" => "operation_mismatch"}
+      )
 
   defp activate_other(socket, nil, nil),
     do:

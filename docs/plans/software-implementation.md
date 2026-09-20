@@ -418,8 +418,11 @@ lists its live rule definitions, stops offering new rules at the service's
 eight-definition limit and pages the alerts those definitions recorded.
 Administrators can remove an enrolled asset from current views after a stated,
 confirmed and recoverable operation; data deletion remains open. An Activity page
-pages the credential's recent committed changes for recovery. The shared
-package now also provides a bounded HTTPS client whose closed action mapping
+pages the credential's recent committed changes for recovery. The shared Access
+page also lists the current principal's token-redacted mobile notification
+installations and removes one through an explicitly confirmed, generation-checked,
+recoverable operation without deleting canonical alerts. The shared package now
+also provides a bounded HTTPS client whose closed action mapping
 uses the same versioned service endpoints, validates exact envelopes and makes
 ambiguous mutations recoverable without automatic replay. Complete application,
 accessibility, Pi and mobile acceptance remain open.

@@ -89,6 +89,9 @@ defmodule Wotex.Tracker.UI.Local do
   defp dispatch(service, token, scope, :credentials, _, now),
     do: Service.credentials(service, token, scope, now)
 
+  defp dispatch(service, token, scope, :list, %{"resource" => "notification_endpoints"}, now),
+    do: Service.notification_endpoints(service, token, scope, now)
+
   defp dispatch(service, token, scope, :list, args, now),
     do: Service.list(service, token, scope, args["resource"], args["params"] || %{}, now)
 
@@ -185,6 +188,17 @@ defmodule Wotex.Tracker.UI.Local do
 
   defp dispatch(service, token, scope, :revoke, args, now),
     do: Service.revoke(service, token, scope, args["operation"], args["request"], now)
+
+  defp dispatch(service, token, scope, :unregister_notification_endpoint, args, now),
+    do:
+      Service.unregister_notification_endpoint(
+        service,
+        token,
+        scope,
+        args["operation"],
+        args["request"],
+        now
+      )
 
   defp dispatch(service, token, scope, :operation, args, now),
     do: Service.operation(service, token, scope, args["id"], now)
