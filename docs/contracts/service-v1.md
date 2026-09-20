@@ -680,9 +680,10 @@ This revision does not page query input, translate prompts or render graphs.
 Saved absolute and rolling queries are part of this contract.
 An explicitly enabled browser host bridges its LiveView render spans into the
 closed `render.stop` event and its marked reconnect attempts into the closed
-`connection.stop` event. The Nerves host emits a closed `native.sample` event
-from Linux procfs. Native resource families for other hosts remain visible
-product work rather than implied endpoint behavior.
+`connection.stop` event. The Nerves and standalone Linux service hosts emit a
+closed `native.sample` event from procfs. Native resource families for other
+operating systems remain visible product work rather than implied endpoint
+behavior.
 
 The HTTP host supervises one volatile `OperationalHistory` collector by default.
 It records the closed request, query, import-stage, store, forward-queue,
@@ -699,14 +700,16 @@ bytes, process count and port count on startup and every 30 seconds. The closed
 whole VM, including other host instances; they are not OS RSS or per-tenant
 measurements. The same volatile collector bounds and retains these samples.
 
-The Nerves host supervises a separate sampler after its service. On startup and
-every 30 seconds it reads only `/proc/meminfo`, `/proc/self/status` and
-`/proc/loadavg`, each bounded to 65,536 bytes. A sample is admitted only when it
-contains system available memory bytes, the BEAM OS-process RSS bytes and
-one-minute load multiplied by 1,000 as nonnegative integers. Missing, malformed
-or oversized input emits no partial sample and cannot affect the service. The
-closed `native.sample` metadata is exactly `nerves` surface and `linux_procfs`
-source; paths, scope, device and process identifiers are absent.
+The Nerves host and standalone Linux service host each supervise a separate
+sampler after their service. On startup and every 30 seconds it reads only
+`/proc/meminfo`, `/proc/self/status` and `/proc/loadavg`, each bounded to 65,536
+bytes. A sample is admitted only when it contains system available memory bytes,
+the BEAM OS-process RSS bytes and one-minute load multiplied by 1,000 as
+nonnegative integers. Missing, malformed or oversized input emits no partial
+sample and cannot affect the service. The closed `native.sample` metadata uses
+the exact `nerves` or `service` surface and `linux_procfs` source; paths, scope,
+device and process identifiers are absent. A non-Linux standalone host does not
+start this adapter.
 
 The optional browser host installs a render-and-connection handler before
 starting its endpoint. It records root Tracker LiveView render duration in

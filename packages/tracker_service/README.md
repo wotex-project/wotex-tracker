@@ -380,10 +380,10 @@ opened once; a reload starts another initial connection. The host accepts only
 its own endpoint event and retains duration plus closed surface, kind and
 outcome labels. Socket parameters and page data are discarded. Native
 host-resource coverage remains with the adapters that own those operations. The
-Nerves host uses the closed `native.sample` event for fixed Linux procfs system
-available memory, BEAM-process RSS and one-minute load. The service validates
-the complete nonnegative integer measurement set and retains only `nerves`
-surface and `linux_procfs` source labels.
+Nerves and standalone Linux service hosts use the closed `native.sample` event
+for fixed procfs system available memory, BEAM-process RSS and one-minute load.
+The service validates the complete nonnegative integer measurement set and
+retains only `nerves` or `service` surface and `linux_procfs` source labels.
 
 ## Explicit HTTP instance
 

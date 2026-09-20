@@ -1,9 +1,14 @@
 defmodule Wotex.Tracker.Host.ConfigTest do
   @moduledoc false
   use ExUnit.Case, async: false
-  alias Wotex.Tracker.Host.{Application, Config}
+  alias Wotex.Tracker.Host.{Application, Config, NativeResourceSampler}
+  alias Wotex.Tracker.Host.Supervisor, as: HostSupervisor
   alias Wotex.Tracker.Service.{Codec, Credentials}
   alias Wotex.Tracker.Service.HTTP.Server
+
+  defmodule NativeSource do
+    def sample(result), do: result
+  end
 
   setup do
     directory = Path.expand("_build/test/host/#{System.unique_integer([:positive])}")
@@ -205,7 +210,10 @@ defmodule Wotex.Tracker.Host.ConfigTest do
     assert {:error, :invalid_configuration} = Application.start(:normal, [])
     System.put_env("WOTEX_TRACKER_CONFIG", c.path)
     assert {:ok, host} = Application.start(:normal, [])
-    assert [{Server, server, :supervisor, _}] = Supervisor.which_children(host)
+
+    assert {Server, server, :supervisor, _} =
+             List.keyfind(Supervisor.which_children(host), Server, 0)
+
     assert {:ok, {{127, 0, 0, 1}, port}} = Server.listener_info(server)
     assert port > 0
     assert {:ok, store} = Server.child(server, :store)
@@ -213,6 +221,34 @@ defmodule Wotex.Tracker.Host.ConfigTest do
     Supervisor.stop(host)
     refute Process.alive?(server)
     refute Process.alive?(store)
+  end
+
+  test "host supervision isolates an explicitly selected native resource adapter", c do
+    assert {:ok, options} = Config.load(c.path)
+
+    source =
+      {NativeSource,
+       {:ok,
+        %{
+          system_available_memory_bytes: 4_096,
+          process_rss_bytes: 2_048,
+          load_1m_milli: 125
+        }}}
+
+    assert {:ok, host} =
+             HostSupervisor.start_link(service: options, browser: nil, native_resource: source)
+
+    children = Supervisor.which_children(host)
+    assert {Server, server, :supervisor, _} = List.keyfind(children, Server, 0)
+
+    assert {NativeResourceSampler, sampler, :worker, _} =
+             List.keyfind(children, NativeResourceSampler, 0)
+
+    assert Process.alive?(server)
+    assert Process.alive?(sampler)
+    Supervisor.stop(host)
+    refute Process.alive?(server)
+    refute Process.alive?(sampler)
   end
 
   test "optional browser configuration reuses the private-file and listener security boundary",

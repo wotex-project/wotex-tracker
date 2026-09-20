@@ -2,6 +2,7 @@ defmodule Wotex.Tracker.Host.Supervisor do
   @moduledoc false
 
   use Supervisor
+  alias Wotex.Tracker.Host.NativeResourceSampler
   alias Wotex.Tracker.Service.HTTP.{Config, Server}
 
   def start_link(options), do: Supervisor.start_link(__MODULE__, options)
@@ -22,6 +23,14 @@ defmodule Wotex.Tracker.Host.Supervisor do
         do: [{Wotex.Tracker.Host.Browser, {options[:browser], provider, server_provider}}],
         else: []
 
-    Supervisor.init([{Server, options[:service]}] ++ browser, strategy: :rest_for_one)
+    native =
+      case Keyword.get_lazy(options, :native_resource, fn ->
+             NativeResourceSampler.default_source(:os.type())
+           end) do
+        nil -> []
+        source -> [{NativeResourceSampler, source: source}]
+      end
+
+    Supervisor.init([{Server, options[:service]}] ++ browser ++ native, strategy: :rest_for_one)
   end
 end

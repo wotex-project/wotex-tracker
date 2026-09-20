@@ -190,6 +190,11 @@ samples under a unique restart epoch. The default HTTP host supervises that
 collector and host code reads it through `Server.operational_history/2`.
 Package loading remains inert, and collector failure cannot affect a committed
 observation or rule decision. An explicitly enabled browser host records
-sanitized root LiveView render durations in the same collector. Reconnect and
-native host-resource instrumentation remain required for the complete product
-contract.
+sanitized root LiveView render durations and marked reconnect attempts in the
+same collector. The Nerves and standalone Linux service hosts also emit the
+closed `native.sample` event from fixed procfs fields. It contains only system
+available-memory bytes, BEAM-process RSS bytes and one-minute load multiplied by
+1,000, labelled with the closed `nerves` or `service` surface and
+`linux_procfs` source. Missing or malformed source files emit no partial sample.
+Other operating-system adapters and physical resource acceptance remain required
+for the complete product contract.

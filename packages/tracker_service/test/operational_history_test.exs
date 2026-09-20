@@ -88,7 +88,7 @@ defmodule Wotex.Tracker.Service.OperationalHistoryTest do
              load_1m_milli: :milli_load
            }
 
-    assert native.metadata == %{surface: [:nerves], source: [:linux_procfs]}
+    assert native.metadata == %{surface: [:nerves, :service], source: [:linux_procfs]}
   end
 
   test "browser render samples keep only closed duration and status" do
@@ -166,6 +166,13 @@ defmodule Wotex.Tracker.Service.OperationalHistoryTest do
                load_1m_milli: 125
              })
 
+    assert :ok =
+             OperationalTelemetry.native_resource_sample(:service, :linux_procfs, %{
+               system_available_memory_bytes: 4_096,
+               process_rss_bytes: 2_048,
+               load_1m_milli: 75
+             })
+
     assert {:error, :invalid_sample} =
              OperationalTelemetry.native_resource_sample(:nerves, :linux_procfs, %{
                system_available_memory_bytes: 1,
@@ -179,21 +186,35 @@ defmodule Wotex.Tracker.Service.OperationalHistoryTest do
 
     eventually(fn ->
       match?(
-        {:ok, %{"samples" => [_]}},
+        {:ok, %{"samples" => [_, _]}},
         OperationalHistory.snapshot(collector, event: "native.sample")
       )
     end)
 
-    assert {:ok, %{"samples" => [sample]}} =
+    assert {:ok, %{"samples" => samples}} =
              OperationalHistory.snapshot(collector, event: "native.sample")
 
-    assert sample["measurements"] == %{
+    service_sample = Enum.find(samples, &(&1["metadata"]["surface"] == "service"))
+    nerves_sample = Enum.find(samples, &(&1["metadata"]["surface"] == "nerves"))
+
+    assert service_sample["measurements"] == %{
+             "system_available_memory_bytes" => 4_096,
+             "process_rss_bytes" => 2_048,
+             "load_1m_milli" => 75
+           }
+
+    assert service_sample["metadata"] == %{
+             "surface" => "service",
+             "source" => "linux_procfs"
+           }
+
+    assert nerves_sample["measurements"] == %{
              "system_available_memory_bytes" => 8_192,
              "process_rss_bytes" => 4_096,
              "load_1m_milli" => 125
            }
 
-    assert sample["metadata"] == %{
+    assert nerves_sample["metadata"] == %{
              "surface" => "nerves",
              "source" => "linux_procfs"
            }

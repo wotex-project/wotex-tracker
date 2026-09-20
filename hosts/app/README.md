@@ -178,6 +178,15 @@ A reload is another initial connection, not a reconnect. The host discards
 socket parameters, route data and credentials before collection.
 The route needs no external metrics service and is absent from the headless host.
 
+On Linux, both headless and browser-enabled artifacts also supervise a native
+resource sampler. At startup and every 30 seconds it reads only the fixed
+`/proc/meminfo`, `/proc/self/status` and `/proc/loadavg` files, accepting at most
+65,536 bytes from each. Complete samples expose system available-memory bytes,
+the BEAM OS-process RSS bytes and one-minute load multiplied by 1,000 under the
+closed `service`/`linux_procfs` labels. Missing or malformed input emits no
+partial sample and cannot affect service state. Non-Linux artifacts do not start
+this adapter.
+
 After creating `_build/local` with the CLI above, create a loopback browser
 configuration without printing its secret or replacing an existing file:
 

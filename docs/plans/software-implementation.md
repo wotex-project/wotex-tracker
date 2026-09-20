@@ -544,15 +544,17 @@ historical exploration. A valid/suspect quality selector feeds the same closed
 query and persists with a saved definition. The optional browser host records
 closed LiveView render durations and marked reconnect outcomes in the same
 volatile collector without retaining socket parameters or page data. Initial
-connections and reloads are not classified as reconnects. The Nerves host also
-records fixed Linux procfs available-memory, BEAM-process RSS and one-minute-load
-samples; native resource adapters for other surfaces remain. The unsaved
+connections and reloads are not classified as reconnects. The Nerves and
+standalone Linux service hosts also record fixed procfs available-memory,
+BEAM-process RSS and one-minute-load samples; native resource adapters for other
+operating systems remain. The unsaved
 per-asset analytics page can opt
 into a five-second committed-event check that reruns only after a change, keeps
 the selected duration while moving to the newest retained asset state, marks a
 temporary failure stale and stops on terminal denial or historical navigation.
-General dashboard composition and sharing, a recorded real public-provider
-prompt run and the physical UI acceptance gates remain.
+General dashboard composition and scope-authorized link sharing are implemented;
+a recorded real public-provider prompt run and the physical UI acceptance gates
+remain.
 The shared browser can also list saved query definitions and rerun one under
 current read authority. Administrators can save a displayed graph with a fixed
 or rolling window and recover a lost reply by operation reference.

@@ -4051,3 +4051,36 @@ All sibling WoTEx source cohorts were clean. Headless host verification passed 8
 tests and the kiosk composition passed 11 with warnings-as-errors and formatter
 checks. This is virtual ARM64 Linux evidence, not a Pi 5 boot, resource budget,
 display/radio test or hardware acceptance.
+
+### Bounded standalone Linux native-resource telemetry — 2026-09-20
+
+The standalone service host now selects a native resource adapter only when the
+runtime reports Linux. Both its headless and browser-enabled compositions
+supervise the adapter after the HTTP service, so service restart replaces the
+sampler while a handled source failure cannot reset the store or listener. A
+non-Linux host starts no substitute sampler and makes no inferred native-resource
+claim.
+
+At startup and every 30 seconds the production source reads only
+`/proc/meminfo`, `/proc/self/status` and `/proc/loadavg`, admitting at most 65,536
+bytes from each. It emits a sample only when system available-memory bytes, the
+BEAM OS-process RSS bytes and one-minute load multiplied by 1,000 are all
+nonnegative integers. Missing, malformed, oversized, raising or throwing source
+input emits no partial value. The service contract admits the existing exact
+measurement set under only the new `service` surface and existing
+`linux_procfs` source; paths, PID, scope and credentials remain absent.
+
+Tests exercise production source selection, exact parsing, every unavailable
+class, invalid sampler configuration, source exception isolation, closed-event
+retention and composed host supervision. The complete service gate passed 305
+tests and two generated properties at 95.1% production line coverage. The
+headless application-host gate passed 18 tests at 96.7%, and its browser-enabled
+gate passed 29 tests at 96.0%. Compiler, unused-dependency, formatter, dependency
+audit, strict Credo, ExDoc, Dialyzer, OpenAPI, archive, native CLI, licences and
+the 533-file stack-language policy passed wherever configured. Headless Nerves
+verification passed 8 tests and the kiosk composition passed 11 with warnings as
+errors and formatter checks.
+
+This is deterministic host-software evidence. An actual Linux release/container
+sample, Darwin or mobile native-resource adapter, measured capacity budget and
+physical-device acceptance remain separate gates.

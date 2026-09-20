@@ -52,7 +52,10 @@ defmodule Wotex.Tracker.Host.CLITest do
     System.put_env("WOTEX_TRACKER_CONFIG", config_path)
     {:ok, host} = Application.start(:normal, [])
     on_exit(fn -> if Process.alive?(host), do: Supervisor.stop(host) end)
-    [{Server, server, :supervisor, _}] = Supervisor.which_children(host)
+
+    {Server, server, :supervisor, _} =
+      List.keyfind(Supervisor.which_children(host), Server, 0)
+
     {:ok, {_, port}} = Server.listener_info(server)
     descriptor = Map.merge(descriptor, %{"url" => "http://127.0.0.1:#{port}", "cli" => cli})
     path = Path.join(directory, "client.json")
