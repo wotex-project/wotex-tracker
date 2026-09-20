@@ -133,8 +133,10 @@ The source host implements that boundary with a private `wtr.storage.v1` marker
 bound to the configured instance and data directory. Only a provisioned
 `prepared` marker admits a missing database. After the service opens the store,
 performs supported migrations and passes SQLite integrity checks, the marker is
-atomically advanced to `initialized`. Subsequent missing, empty, unsafe, corrupt
-or unsupported storage and interrupted marker transitions return
+atomically advanced to `initialized`. An interrupted transition is completed
+only when both private documents match exactly apart from that state change and
+the non-empty database remains present. Subsequent missing, empty, unsafe,
+corrupt or unsupported storage and malformed or mismatched transitions return
 `recovery_required`; startup does not delete or replace the database. This is a
 software policy, not evidence that selected Pi media survives or recovers from
 the physical failure matrix below.

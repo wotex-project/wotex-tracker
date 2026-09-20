@@ -92,10 +92,13 @@ The service may create `data/tracker.db` only while the private marker is in its
 one-time `prepared` state. After SQLite has opened, migrated its supported schema
 and passed `quick_check`, startup atomically replaces that state with
 `initialized`. Every later boot requires the same instance identity, data path,
-private non-empty database and an intact marker. A missing/empty/unsafe database,
-malformed or interrupted marker, SQLite corruption, storage failure or newer
-unsupported schema stops startup with `recovery_required`. It never deletes,
-renames or recreates that database during recovery admission.
+private non-empty database and an intact marker. If a power interruption leaves
+both marker generations, startup completes the transition only when the private
+documents match exactly apart from `prepared` → `initialized` and the database
+is present. A missing/empty/unsafe database, malformed or mismatched transition,
+SQLite corruption, storage failure or newer unsupported schema stops startup
+with `recovery_required`. It never deletes, renames or recreates that database
+during recovery admission.
 
 Recovery is operator-controlled: preserve the failed media, restore the complete
 private Tracker tree from a SQLite-consistent backup onto separate media, retain

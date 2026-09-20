@@ -4159,3 +4159,55 @@ This closes only offline software preparation of the private service tree. It
 does not prove transfer to selected media, an authenticated on-device bootstrap,
 browser/TLS provisioning, clock policy, physical durable-storage recovery or a
 physical Pi boot. Those gates remain explicit.
+
+### Fail-closed Nerves storage generation — 2026-09-20
+
+The appliance now requires a private `wtr.storage.v1` marker before it loads
+mutable configuration. Offline provisioning binds a random non-secret storage
+identity to the exact instance and `/root/tracker/data` path in `prepared`
+state. Only that state admits a missing database. A successful supervised SQLite
+startup, including supported migrations and `quick_check`, atomically advances
+the marker to `initialized`. Every later boot requires the same private,
+non-empty store. Missing, empty, unsafe, corrupt or unsupported storage returns
+the fixed `recovery_required` result instead of creating an empty history.
+
+The first virtual power-cycle attempt exposed a real F2FS ordering case: after
+the first probe passed and QEMU was stopped through its monitor, the reboot
+recovered the synced `storage.json.next` directory entry alongside the committed
+marker. The conservative first implementation stopped with
+`recovery_required`. The corrected policy completes that interrupted transition
+only when both private documents match field-for-field after changing
+`prepared` to `initialized`, the expected non-empty database is present and the
+next marker itself passes the closed shape/privacy checks. A malformed or
+mismatched next generation is retained for inspection and still fails closed.
+
+The regenerated ARM64 QEMU image then passed a fresh-partition boot and an
+abrupt-stop reboot of the same virtual disk. The first log recorded formatting;
+the reboot log did not. F2FS again reported recovery of `storage.json.next`, and
+the second boot reconciled it before passing the initialized-marker, private
+store, loopback HTTP and native-resource probe. The QEMU firmware SHA-256 is
+`11e7a7261a977de0f6c90582cdf2f24bda30ebbfd626fe5b6fd9978f466be031`;
+both complete serial-log digests and checks are in
+`verification/nerves-qemu-boot.json`.
+
+Both Pi 5 profiles were rebuilt from Tracker commit
+`3d6765d89ed7bf53fa1a7e1a37dc29d80f8c62ad` with target Elixir 1.20.4,
+ERTS 17.0.6 and an AArch64 SQLite NIF. The headless firmware SHA-256 is
+`417ccebd7daaca8f250a38b0aa10e5451463532fe7d86d6278b73eb84ac4843b`;
+the kiosk firmware SHA-256 is
+`df74894795831f951def888924ce5a5731295aec695f6eaf0dcb4c6162206d44`.
+Their complete application inventories and target metadata are retained in the
+two Nerves build receipts. Sibling WoTEx cohorts were clean. The receipts record
+the pre-existing concurrent WTR.15 documentation edit as the only Tracker source
+change outside the committed cohort.
+
+Headless host verification passed 19 tests; the kiosk composition passed 22.
+Both passed warnings-as-errors compilation and formatter checks. The repository
+gate passed 164 tests and 19 generated properties at 95.4% production line
+coverage together with its compiler, dependency, formatter, audit, strict Credo,
+ExDoc, Dialyzer, archive, licence, documentation and stack-language checks.
+
+This proves the source policy, both cross-builds and one virtual F2FS
+interruption/reboot. It is not a Pi 5 boot, actual power-loss/full-media/
+unmountable-partition trial, restored-backup proof, firmware-update validation or
+physical durability acceptance.

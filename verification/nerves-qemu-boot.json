@@ -1,33 +1,35 @@
 {
   "boot_log_sha256": {
-    "first": "499a6f2af9f2ee3fa5482422d5c6613b173ecec988740d808d0d3953ee3532bb",
-    "reboot": "9be27d916353053f62c9697de3cbb3ce105260c79290b17ae236beb0e539ee4f"
+    "first": "710eea2980ca55059620f6215b2dc8d2eeb95ca969881e97ac669ab10964920e",
+    "reboot": "47626762236e8662c3767effa721a2f41449b966bb66e803411ab347b6ccac2a"
   },
   "checks": {
     "first_boot_formatted_fresh_partition": true,
+    "first_boot_initialized_storage_marker": true,
     "first_boot_native_resource_sample": true,
     "first_boot_private_store_and_loopback_http": true,
     "no_active_iex_or_distribution": true,
     "no_credentials_in_runtime_config": true,
     "no_ui_or_ssh_applications": true,
+    "reboot_initialized_storage_marker": true,
     "reboot_kept_existing_partition": true,
     "reboot_native_resource_sample": true,
     "reboot_private_store_and_loopback_http": true,
     "sqlite_nif_aarch64": true
   },
   "firmware": {
-    "bytes": 31186782,
+    "bytes": 31196345,
     "metadata": {
       "meta-architecture": "arm",
       "meta-author": "The Nerves Team",
-      "meta-creation-date": "2026-09-20T02:36:51Z",
-      "meta-nickname": "aim-ring",
+      "meta-creation-date": "2026-09-20T03:46:50Z",
+      "meta-nickname": "chat-pudding",
       "meta-platform": "qemu_aarch64",
       "meta-product": "wotex_tracker_nerves",
-      "meta-uuid": "0ab042e4-847a-5edc-993b-3fc3d9b886e5",
+      "meta-uuid": "1abd789d-24aa-59c6-f70a-9d0aa340b43c",
       "meta-version": "0.1.0"
     },
-    "sha256": "a2fbbb57b4d1ef86ac084ca7fdd8345150088b8b7033c46beed19611781e7dfe",
+    "sha256": "11e7a7261a977de0f6c90582cdf2f24bda30ebbfd626fe5b6fd9978f466be031",
     "sqlite_nif": "ELF 64-bit LSB shared object, ARM aarch64, version 1 (SYSV), dynamically linked, BuildID[sha1]=a3dc0ce06a84ffe46914bb4a81e11c04c5f811c6, not stripped",
     "target_elixir": "1.20.4",
     "target_erts": "17.0.6"
@@ -101,7 +103,7 @@
       "tracked_paths": []
     },
     "wotex_tracker": {
-      "commit": "228ddf0c52316443bc506d56e66e976bc720ce3e",
+      "commit": "3d6765d89ed7bf53fa1a7e1a37dc29d80f8c62ad",
       "tracked_changes": true,
       "tracked_paths": [
         "docs/specs/WTR.15-product-and-mobile-applications.md"

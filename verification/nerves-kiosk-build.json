@@ -9,19 +9,19 @@
     "sqlite_nif_aarch64": true
   },
   "firmware": {
-    "bytes": 171835926,
+    "bytes": 145960251,
     "metadata": {
       "meta-architecture": "aarch64",
       "meta-author": "The Nerves Team",
-      "meta-creation-date": "2026-09-16T22:49:23Z",
-      "meta-nickname": "grunt-net",
+      "meta-creation-date": "2026-09-20T03:46:31Z",
+      "meta-nickname": "fox-truth",
       "meta-platform": "rpi5",
       "meta-product": "wotex_tracker_nerves",
-      "meta-uuid": "6b9b6265-6ff8-5077-1863-7aa2eaa8f763",
+      "meta-uuid": "64ed6544-1de7-5f45-07b0-d15396fa09fe",
       "meta-version": "0.1.0"
     },
     "myelin_web_extension": "ELF 64-bit LSB shared object, ARM aarch64, version 1 (SYSV), dynamically linked, BuildID[sha1]=18e52db95084d0f4aa91bc027116b55545819727, with debug_info, not stripped",
-    "sha256": "c30d60dbeeb25860261e7d0d4bdbb0f87da8ceef60c942d8aecb9c404610291b",
+    "sha256": "df74894795831f951def888924ce5a5731295aec695f6eaf0dcb4c6162206d44",
     "sqlite_nif": "ELF 64-bit LSB shared object, ARM aarch64, version 1 (SYSV), dynamically linked, BuildID[sha1]=a3dc0ce06a84ffe46914bb4a81e11c04c5f811c6, not stripped",
     "target_elixir": "1.20.4",
     "target_erts": "17.0.6"
@@ -101,20 +101,20 @@
   "schema": "wtr.nerves-kiosk-build.v1",
   "sources": {
     "wotex": {
-      "commit": "eadc6c9f9c285faf9324b8a7396a001381098b6c",
+      "commit": "cd73c5493d3453ae9ecd203c63b589676c9b9fd6",
       "tracked_changes": false
     },
     "wotex_binding_http": {
-      "commit": "4c0d9104e81079bfdef610c003a9c700549bdbd9",
+      "commit": "cd73c5493d3453ae9ecd203c63b589676c9b9fd6",
       "tracked_changes": false
     },
     "wotex_runtime": {
-      "commit": "65d0b521ccb6b7838fe37bf26bf9dac65b40cc68",
+      "commit": "cd73c5493d3453ae9ecd203c63b589676c9b9fd6",
       "tracked_changes": false
     },
     "wotex_tracker": {
-      "commit": "d06cf5f4d9a4bb14b05e0b58cd2c5d8fc321afca",
-      "tracked_changes": false
+      "commit": "3d6765d89ed7bf53fa1a7e1a37dc29d80f8c62ad",
+      "tracked_changes": true
     }
   }
 }
