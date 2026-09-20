@@ -4603,3 +4603,56 @@ cases. It does not prove IMEI authentication, session negotiation, socket or
 reconnect behavior, durable commit-dependent acknowledgement, device-specific
 TAT140 IO semantics, an independent software peer or real hardware; those remain
 separate acceptance boundaries.
+
+### Bounded Teltonika session and durable cellular admission — 2026-09-20
+
+The pure TCP session boundary now accepts the documented two-byte big-endian
+IMEI length followed by exactly 15 ASCII digits across every possible read
+split. It bounds a feed at 20,689 bytes, retains no more than 17 bytes of an
+incomplete login and returns a coalesced AVL tail without interpreting it. A
+configured 256-bit key converts the IMEI to a lowercase HMAC-SHA256 routing
+digest; the raw identifier is not retained. Login replies are exactly one byte,
+and data outcomes map accepted and duplicate frames to the full four-byte
+record count, a known rejection to zero and an unknown outcome to connection
+closure.
+
+The explicitly started service admission owner holds a finite set of keyed
+device identities and a maximum of 32 opaque live session handles. It redecodes
+every submitted frame from the exact raw bytes and rejects a caller-supplied
+packet that differs from that result. One atomic cellular observation preserves
+the raw frame, configured device label, keyed identity digest, codec and record
+count. A deterministic UUID operation identity binds the device digest and
+exact frame. Before a new submission the owner checks the retained operation
+receipt; generation conflicts retry at most three times. Accepted commits and
+content duplicates receive a full count, known pre-commit failures receive
+zero, and storage or post-commit uncertainty closes the connection. A retry or
+reconnect resolves a retained post-commit receipt as a duplicate. Calls are
+serialized, so eight concurrent sessions produced one accepted commit and seven
+duplicates. Expired receipts remain unknown instead of being guessed.
+
+Tests cover every IMEI split, invalid and oversized login input, coalesced login
+and frame bytes, keyed identity derivation, exact reply bytes, configuration and
+session limits, unknown identities, forged handles and packet claims, invalid or
+crashing clocks, concurrent submissions, accepted and duplicate commits, known
+rejection, post-commit reconciliation and operation expiry. The official frame
+remains byte-identical with SHA-256
+`c577a70391f8cc65be9cb84f6c19553e2b49f3be388a9f842bc948f021f2bbae`.
+
+Both supported runtime lanes passed the complete repository and service gates.
+Elixir 1.18.4 on Erlang/OTP 27.3.4.15 and Elixir 1.20.4 on Erlang/OTP 29.0.4
+each passed 176 repository tests and 19 generated properties at 95.4% production
+line coverage, plus 321 service tests and two generated properties at 95.0%.
+Compiler, dependency, formatter, vulnerability audit, strict Credo, ExDoc,
+Dialyzer, stack-language, documentation-contract, archive, OpenAPI and licence
+checks passed where configured. The pure session, durable admission and
+cross-runtime service compatibility commits are
+`f0d32e1088165367af40ad906a2f09132d90472d`,
+`4e31d939f6677e531cd78496a00eff45aedb332c` and
+`3866e64c92c152bed59649b8889f4224e2fd2aaa`.
+
+This proves bounded session parsing and durable commit-dependent admission at
+the service boundary. An IMEI is only a configured routing identifier, not
+cryptographic device authentication. This slice does not open a TCP listener,
+enforce socket deadlines, exercise an independent wire peer, map TAT140 IO
+identifiers into device-profile semantics or prove a real tracker and SIM; those
+remain separate acceptance boundaries.
