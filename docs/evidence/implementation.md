@@ -4304,3 +4304,64 @@ This proves offline generation and validation of the kiosk's local browser
 configuration without broadening the headless artifact. It does not generate or
 provision TLS, provide authenticated on-device setup, install physical media, or
 qualify a Pi display, touch panel, radio, clock or storage device.
+
+### Read-only appliance restore admission — 2026-09-20
+
+The service schema owner now exposes one read-only current-schema validation
+seam. It verifies the Tracker SQLite application identity, exact current schema
+version, complete current table contract and `quick_check` without migrating the
+database. Normal store startup reuses the same check after schema creation or
+migration, so the appliance validator and runtime cannot drift into separate
+definitions of a readable current store.
+
+The Nerves host adds an offline restore command for a staged private tree. It
+requires the 0700 root and data directory, 0600 closed service and initialized
+storage documents, matching service/marker instance, fixed `/root/tracker/data`
+runtime binding, a valid non-secret storage identity, no interrupted marker
+generation, one private non-empty `tracker.db` and no WAL/SHM sidecars. Direct-TLS
+paths are mapped from the runtime root into the staging root and their candidate
+files must satisfy the same private-file policy. Every failure collapses to
+`recovery_required`; output contains paths, schema and integrity facts only.
+
+The documented command was exercised against a disposable staging tree whose
+database was produced by the service's real SQLite-consistent `Store.backup/2`
+operation. Directory modes were 0700 and private file modes were 0600. Validation
+reported schema 8, initialized state and `integrity_check: ok`. Marker SHA-256
+remained
+`73332a137c4c636f05f3c6056b5dce74346a772616a147e9b397075fd5202f35`
+and database SHA-256 remained
+`251b1b5e63d2c5b7ddc94137985042c74a6bff12093ee245965ca2406ef6b145`
+before and after; the data directory still contained only `tracker.db`. The
+short-lived operator token was never recorded, and the complete temporary tree
+was moved to Trash afterward.
+
+Tests reject prepared, identity/path-mismatched, extra-field and interrupted
+markers; missing, public, sidecar-bearing, corrupt, newer-schema and logically
+incomplete databases; invalid arguments; and missing or public staged TLS
+material. Headless Nerves verification passed 32 tests and the kiosk composition
+passed 35 with warnings-as-errors and formatter checks. The service gate passed
+309 tests and two generated properties at 95.0% production line coverage with
+its compiler, dependency, formatter, audit, strict Credo, ExDoc, Dialyzer,
+OpenAPI, archive, licence, boundary and stack-language checks. Its first full run
+exposed an unrelated notification-dispatcher test race between durable completion
+and the worker's final state message. Commit `02a9cd5` makes that test await both
+conditions; the complete gate then passed. The repository gate passed 164 tests
+and 19 generated properties at 95.4% with all configured checks.
+
+All three target profiles rebuilt from Tracker commit
+`bafb2e0ea128bb262f2011fbec3e9f0124b6df94`. The headless Pi 5 firmware SHA-256
+is `4d7eb0986ee5cc8a7cd0e00ebf7245e8b7fb4f5a2f9fb35d038cae6998c7cdd5`;
+the kiosk SHA-256 is
+`a0f1edf2214c236f69d1fd454facbe1807fb02d8f85bb3c3732405a01c3f17f2`;
+and the QEMU firmware SHA-256 is
+`69c0434e37bd4bf3a72331b0da42112caa67ff88b51e2d21d8affa333d5f1135`.
+A fresh virtual partition and reboot of the same disk both passed the private
+store, loopback HTTP, native-resource and initialized-marker probe. The receipts
+retain exact manifests, target metadata, checks and serial-log digests. They also
+identify the concurrent uncommitted WTR.15 documentation path; implementation
+sources were committed before every recorded build.
+
+This proves current-image, pre-install, read-only software admission of an exact
+SQLite backup candidate. It does not prove copying or restoration on selected
+media, corrupt/unmountable-media recovery, power interruption, physical Pi boot,
+firmware validation or rollback.
