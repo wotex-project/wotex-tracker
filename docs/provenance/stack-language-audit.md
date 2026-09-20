@@ -7,6 +7,14 @@ runner or build harness is migration debt. A pinned upstream SDK generator that
 requires Python at build time is a narrower exception; it does not justify
 shipping an interpreter or writing our own orchestration in Python.
 
+Follow-up, 2026-09-20: a read-only inspection of committed monorepo source at
+[`1793303ffcdfd92e325856b2f44562448046f76a`](https://github.com/wotex-project/wotex/tree/1793303ffcdfd92e325856b2f44562448046f76a/packages/wotex-ble)
+finds no first-party Python source or requirements manifest under
+`packages/wotex-ble`. The native persistent backend and C++ software peer close
+the BLE migration item in the historical table below. This focused follow-up did
+not rerun the complete 17-repository inventory or establish Tracker passive
+scanning or hardware acceptance.
+
 ## Scope and result
 
 The 2026-09-16 rescan inspected 2,695 tracked and unignored files across all 17
