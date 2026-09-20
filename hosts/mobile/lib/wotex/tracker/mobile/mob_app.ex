@@ -2,11 +2,12 @@ defmodule Wotex.Tracker.Mobile.MobApp do
   @moduledoc """
   Native BEAM entry point for the local shared LiveView shell.
 
-  Production native bootstrap supplies the explicit host options before this
-  entry point runs. No development distribution listener or cookie is started.
+  A first run presents a native, non-secret service-origin setup. Later starts
+  reconstruct an ephemeral loopback host from that private selection. No
+  development distribution listener or cookie is started.
   """
 
-  alias Wotex.Tracker.Mobile.{MobScreen, Runtime, WebSession}
+  alias Wotex.Tracker.Mobile.{MobScreen, NativeBootstrap, WebSession}
 
   @doc "Installs explicit runtime options for the following native start."
   @spec configure(keyword()) :: :ok
@@ -25,18 +26,16 @@ defmodule Wotex.Tracker.Mobile.MobApp do
       end)
 
     start_registry = Keyword.get(options, :start_registry, &Mob.ComponentRegistry.start_link/0)
-    web_session = Keyword.get(options, :web_session, &Runtime.web_session/0)
+    bootstrap = Keyword.get(options, :bootstrap, &NativeBootstrap.boot/0)
+    configure = Keyword.get(options, :configure, &NativeBootstrap.configure/1)
 
-    start_root =
-      Keyword.get(options, :start_root, fn session ->
-        Mob.Screen.start_root(MobScreen, %{session: session})
-      end)
+    start_root = Keyword.get(options, :start_root, &Mob.Screen.start_root(MobScreen, &1))
 
     with :ok <- invoke(install_logger),
          {:ok, _} <- invoke(start_application),
          :ok <- ensure_component_registry(invoke(start_registry)),
-         %WebSession{} = session <- invoke(web_session) do
-      invoke(fn -> start_root.(session) end)
+         {:ok, params} <- root_params(invoke(bootstrap), configure) do
+      invoke(fn -> start_root.(params) end)
     else
       {:error, _} = error -> error
       _ -> {:error, :native_runtime_unavailable}
@@ -47,6 +46,15 @@ defmodule Wotex.Tracker.Mobile.MobApp do
   defp ensure_component_registry({:error, {:already_started, _}}), do: :ok
   defp ensure_component_registry({:error, _} = error), do: error
   defp ensure_component_registry(_), do: {:error, :native_runtime_unavailable}
+
+  defp root_params({:ok, %WebSession{} = session}, _configure),
+    do: {:ok, %{session: session}}
+
+  defp root_params(:missing, configure) when is_function(configure, 1),
+    do: {:ok, %{setup: configure}}
+
+  defp root_params({:error, _} = error, _configure), do: error
+  defp root_params(_, _), do: {:error, :native_runtime_unavailable}
 
   defp invoke(function) do
     function.()

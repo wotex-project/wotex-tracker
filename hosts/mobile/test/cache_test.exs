@@ -333,7 +333,11 @@ defmodule Wotex.Tracker.Mobile.CacheTest do
 
   test "starts the mobile host without starting another host application" do
     assert {:ok, supervisor} = Wotex.Tracker.Mobile.Application.start(:normal, [])
-    assert [] = Supervisor.which_children(supervisor)
+
+    assert [{_, host_supervisor, :supervisor, [DynamicSupervisor]}] =
+             Supervisor.which_children(supervisor)
+
+    assert [] = DynamicSupervisor.which_children(host_supervisor)
     assert :ok = Supervisor.stop(supervisor)
   end
 

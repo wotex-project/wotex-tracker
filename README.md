@@ -112,10 +112,12 @@ optional bounded, attributed [offline map pack](docs/contracts/map-pack-v1.md)
 can supply operator-controlled road, water and boundary context on the browser,
 Pi and mobile hosts without a map network request. A page outside complete pack
 coverage draws no partial background. Context never road-matches or invents a
-position. Live scanning and the rest of the application remain subsequent work.
+position. Live scanning and physical cross-surface qualification remain
+subsequent work.
 
-The independent mobile host now pins its Mob runtime cohort without changing the
-root library's Elixir floor. Its first executable boundary is a private SQLite
+The independent mobile host now pins its OTP 29 / Elixir 1.20.1 Mob runtime
+cohort without changing the root library's Elixir floor. Its first executable
+boundary is a private SQLite
 cache for bounded overview, history, dashboard and map projections. Cache reads
 identify offline source, synchronization age and completeness; exact server,
 account, scope, credential and installation changes, credential expiry and
@@ -128,9 +130,11 @@ after the mobile OS resolver seam, and external HTTPS navigation leaves the
 bridge-bearing WebView. An iOS Mob plugin now supplies two closed,
 device-only Keychain slots without a file fallback; credential/cache lifecycle
 wiring and closed native lifecycle, BLE-central, push-registration/tap-routing
-and share bridges are implemented in software. Physical secure-storage,
-suspend/resume, BLE, push/tap and share acceptance on a signed device, plus
-distribution gates, remain open.
+and share bridges are implemented in software. The committed native iOS tree
+boots that composition, and first launch selects an exact operator-controlled
+HTTPS service without developer tooling while keeping session secrets
+ephemeral. Physical secure-storage, suspend/resume, BLE, push/tap and share
+acceptance on a signed device, plus distribution gates, remain open.
 
 The WTR.05 pure foundation admits position evidence, freshness, deterministic
 selection, event ordering with modular sequence evidence, and bounded geofence

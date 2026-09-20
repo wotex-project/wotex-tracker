@@ -5732,3 +5732,45 @@ release then passed the black-box HTTP/SSE, restart, storage-failure and package
 CLI probe with `cli_analytics=pass`. This is deterministic software evidence;
 it does not satisfy the recorded real-provider or physical cross-surface
 analytics gates.
+
+### Native mobile bootstrap and iOS build seam — 2026-09-20
+
+The mobile host now has a complete native entry path instead of requiring a
+developer-supplied runtime configuration. The generated iOS delegate starts the
+embedded Erlang runtime, whose application entry calls the Elixir Mob
+application. A first launch presents one bounded operator-service-origin form;
+after an exact canonical HTTPS origin is admitted, the host starts on a free
+IPv4 loopback port and the same root screen transitions to the sole WebView.
+Later launches load that origin from an app-private, atomic, mode-checked
+configuration file. Capability and signing secrets are generated afresh for
+each process and are never persisted with the origin.
+
+The tracked iOS project, native Erlang launcher and example Mob configuration
+use bundle identifier `org.wotex.tracker`. The build activates only the trusted
+notification plugin and the repository-owned BLE and secure-store plugins.
+The generated iOS C driver table pins those static NIF entry points for the
+distribution preflight. Separate development and production APNs entitlement
+templates keep the selected signing environment explicit while the active file
+remains machine-local.
+Elixir 1.20.1, Erlang/OTP 29.0 and the Mob iOS runtimes are aligned in the local
+toolchain and CI lane. The monorepo dependency seam compiles the shared UI as a
+consumed development dependency, keeping its package-internal test dependencies
+out of the mobile host lock and gate.
+
+The complete mobile gate passed 77 tests at 95.0% production line coverage.
+Compiler, unused-dependency, formatter, vulnerability audit, strict Credo,
+ExDoc, Dialyzer, stack-language and licence checks passed. The native plugin
+inventory reported all three plugins activated and clean; its automated audit
+reported zero high, medium or low findings, while explicitly leaving the
+upstream notification plugin's Swift and Kotlin sources outside that scanner.
+The generated property list passed `plutil` validation, and static tests bind
+the bundle identifier, native entry call, plugin cohort and platform metadata.
+
+No simulator or signed-device build is claimed. Xcode is installed, but its SDK
+tools refuse access until the machine owner reviews and accepts Apple's Xcode
+licence. Signing team/profile selection, APNs entitlement qualification,
+simulator execution, physical BLE and notification behavior and installation
+therefore remain open physical-platform evidence. MobDev 0.7.1's generated
+distribution-signing script also omits `aps-environment`; no TestFlight artifact
+is acceptable until a repaired or upgraded path retains the production
+entitlement and the signed application passes explicit entitlement inspection.

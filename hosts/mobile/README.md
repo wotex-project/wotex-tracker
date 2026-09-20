@@ -1,9 +1,10 @@
 # WoTEx Tracker mobile host
 
 This independent host will compose the shared LiveView UI, its versioned remote
-service client and narrow iOS integrations inside a Mob WebView. It deliberately
-uses Elixir 1.19.5 on OTP 27 because Mob 0.9.1 requires Elixir 1.19; the root
-library and other hosts retain their Elixir 1.18 floor.
+service client and narrow iOS integrations inside a Mob WebView. Its native
+cohort is Elixir 1.20.1, OTP 29.0, Mob 0.9.1, MobDev 0.7.1 and the exact Zig
+development build pinned in `mise.toml`. Those versions match Mob's downloaded
+iOS runtime; the root library and other hosts retain their independent floors.
 
 The first executable seam is the bounded offline projection cache. It stores no
 bearer credential, access proof, raw evidence, mutation or physical Action. A
@@ -32,6 +33,17 @@ every later HTTP and LiveView admission. Login, logout and session renewal retai
 only that host-owned binding. The WebView allow-prefix is the exact local origin,
 foreign WebSocket origins fail, external canonical HTTPS links open through the
 OS, and no development distribution listener or cookie is configured.
+
+The committed native bootstrap no longer depends on developer-supplied host
+options. On first launch it renders a native setup screen that accepts only an
+exact canonical HTTPS origin. It stores that non-secret selection as a bounded,
+versioned JSON document in a singly linked `0600` file under an app-private
+`0700` directory. Credentials, notification tokens, capabilities and signing
+secrets never enter that document. Every process start generates a new local
+port, capability and Phoenix signing secret, dynamically starts the loopback
+host, then mounts the sole bridge-bearing WebView. A changed service origin is
+rechecked by credential restoration, which purges a foreign credential and its
+account-bound cache before presenting a session.
 
 Remote calls remain bounded by the shared client and its exact configured HTTPS
 authority. The mobile transport invokes Mob's OS DNS seam before Mint without
@@ -125,10 +137,74 @@ WOTEX_PATH_DEPS=1 MIX_ENV=test mise exec -- mix deps.get
 WOTEX_PATH_DEPS=1 MIX_ENV=test mise exec -- mix check --no-retry
 ```
 
-No Xcode project, signed installation, APNs entitlement or AppDelegate token
-forwarding has been generated or exercised here. The Objective-C BLE bridge is
-warnings-as-errors syntax-checked against the installed Apple SDK, but this host
-does not have the iPhoneOS SDK. Physical notification delivery,
+## Native iOS build path
+
+The committed `ios/` tree contains the Mob simulator/device Zig builds, scene
+bootstrap, APNs token forwarding and exact `org.wotex.tracker` bundle metadata.
+It intentionally declares no audio background mode or microphone permission.
+Plugin manifests add only CoreBluetooth, Security and UserNotifications during
+the native build. The app's Erlang entry calls
+`Wotex.Tracker.Mobile.MobApp.start/0` directly. The checked-in iOS C driver
+table fixes the exact static NIF cohort required by Mob's distribution build;
+the Android table emitted by the generator is ignored because this host is
+iOS-only.
+
+Machine-specific paths and Apple signing values remain in ignored `mob.exs`:
+
+```sh
+cp mob.exs.example mob.exs
+mise install
+WOTEX_PATH_DEPS=1 MIX_ENV=dev mise exec -- mix deps.get
+WOTEX_PATH_DEPS=1 MIX_ENV=dev mise exec -- mix mob.doctor
+```
+
+After accepting the installed Xcode licence manually and signing into the
+intended Apple team, boot a simulator or connect a named iPhone. A local native
+build is then. The local entitlement file is intentionally ignored so a
+development value cannot be mistaken for a production release value:
+
+```sh
+cp ios/WotexTrackerMobile.development.entitlements.example \
+  ios/WotexTrackerMobile.entitlements
+
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+  WOTEX_NOTIFICATION_ENVIRONMENT=sandbox \
+  WOTEX_PATH_DEPS=1 MIX_ENV=dev mise exec -- mix mob.provision
+
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+  WOTEX_NOTIFICATION_ENVIRONMENT=sandbox \
+  WOTEX_PATH_DEPS=1 MIX_ENV=dev mise exec -- \
+  mix mob.deploy --native --ios --device <device-udid>
+```
+
+Use `production` only with a production APNs entitlement and profile. Paid-team
+distribution preparation begins by copying
+`WotexTrackerMobile.production.entitlements.example` to the same ignored
+`WotexTrackerMobile.entitlements` path and running `mix mob.provision
+--distribution`. Keep team IDs, certificate names, profile UUIDs and API-key
+paths only in ignored local configuration or the CI secret store.
+
+Do not upload an IPA from the pinned MobDev 0.7.1 `mix mob.release` path yet.
+Its generated distribution-signing script currently omits `aps-environment`
+even when the App Store profile contains it. A qualified release path must first
+preserve the production entitlement and then pass both Mob's signature checks
+and this explicit inspection:
+
+```sh
+codesign -d --entitlements :- path/to/WotexTrackerMobile.app | plutil -p -
+```
+
+The output must include `"aps-environment" => "production"` before TestFlight
+upload. Upgrading or repairing that upstream release path is a software
+prerequisite; Apple signing authority is a separate user-managed prerequisite.
+
+This repository has generated and software-tested the native tree, but has not
+claimed a signed build. On the current machine the Xcode licence still requires
+manual acceptance, and no signing team/profile or physical iPhone is available.
+MobDev's published 0.7.1 constraint also predates Mob 0.9 even though the pinned
+override compiles and its current native templates target Mob 0.9; a physical
+build must qualify that exact override before release. The distribution
+entitlement defect above also remains open. Physical notification delivery,
 cold/warm/background tap distinction, secure-storage behavior, suspend/resume,
 network handoff, target-profile BLE provisioning, share-sheet behavior and all
 other physical-iPhone evidence remain explicitly open.

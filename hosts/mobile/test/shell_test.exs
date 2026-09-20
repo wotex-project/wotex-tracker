@@ -248,16 +248,16 @@ defmodule Wotex.Tracker.Mobile.ShellTest do
       install_logger: fn -> :ok end,
       start_application: fn -> {:ok, []} end,
       start_registry: fn -> {:ok, self()} end,
-      web_session: fn -> session end,
-      start_root: fn received ->
-        send(self(), {:started_root, received})
+      bootstrap: fn -> {:ok, session} end,
+      start_root: fn params ->
+        send(self(), {:started_root, params})
         {:ok, self()}
       end
     ]
 
     assert {:ok, pid} = MobApp.start(operations)
     assert pid == self()
-    assert_received {:started_root, ^session}
+    assert_received {:started_root, %{session: ^session}}
 
     assert {:ok, ^pid} =
              MobApp.start(
@@ -282,12 +282,72 @@ defmodule Wotex.Tracker.Mobile.ShellTest do
              )
 
     assert {:error, :native_runtime_unavailable} =
-             MobApp.start(Keyword.put(operations, :web_session, fn -> :invalid end))
+             MobApp.start(Keyword.put(operations, :bootstrap, fn -> :invalid end))
+
+    assert {:error, :bootstrap_failed} =
+             MobApp.start(
+               Keyword.put(operations, :bootstrap, fn -> {:error, :bootstrap_failed} end)
+             )
+
+    setup = Keyword.put(operations, :bootstrap, fn -> :missing end)
+    assert {:ok, ^pid} = MobApp.start(setup)
+    assert_received {:started_root, %{setup: configure}}
+    assert is_function(configure, 1)
 
     assert {:error, :native_runtime_unavailable} =
              MobApp.start(Keyword.put(operations, :install_logger, fn -> raise "failure" end))
 
     assert {:error, :native_runtime_unavailable} =
              MobApp.start(Keyword.put(operations, :install_logger, fn -> throw(:failure) end))
+  end
+
+  test "renders first-run server setup and enters the bound WebView after configuration" do
+    capability = Config.generate_capability()
+    {:ok, session} = WebSession.new("http://127.0.0.1:4321", capability)
+
+    configure = fn origin ->
+      send(self(), {:configured_origin, origin})
+      {:ok, session}
+    end
+
+    socket = Mob.Socket.new(MobScreen)
+    assert {:ok, setup} = MobScreen.mount(%{setup: configure}, %{}, socket)
+    assert setup.assigns.mode == :setup
+    assert setup.assigns.remote_origin == ""
+
+    rendered = MobScreen.render(setup.assigns)
+    assert rendered.type == :scroll
+    assert inspect(rendered) =~ "Connect WoTEx Tracker"
+    refute inspect(rendered) =~ "Use an exact HTTPS"
+
+    assert {:noreply, entered} =
+             MobScreen.handle_info({:change, :remote_origin, "https://tracker.example"}, setup)
+
+    assert {:noreply, ready} = MobScreen.handle_info({:tap, :connect}, entered)
+    assert_received {:configured_origin, "https://tracker.example"}
+    assert ready.assigns.mode == :web
+    assert MobScreen.render(ready.assigns).type == :web_view
+
+    failing = %{
+      entered
+      | assigns: Map.put(entered.assigns, :configure, fn _ -> {:error, :no} end)
+    }
+
+    assert {:noreply, rejected} = MobScreen.handle_info({:tap, :connect}, failing)
+    assert inspect(MobScreen.render(rejected.assigns)) =~ "Use an exact HTTPS"
+
+    for callback <- [fn _ -> raise "private failure" end, fn _ -> throw(:private_failure) end] do
+      failing = %{entered | assigns: Map.put(entered.assigns, :configure, callback)}
+      assert {:noreply, contained} = MobScreen.handle_info({:tap, :connect}, failing)
+      assert contained.assigns.setup_error == :invalid
+    end
+
+    assert {:noreply, oversized} =
+             MobScreen.handle_info(
+               {:change, :remote_origin, String.duplicate("x", 2_049)},
+               setup
+             )
+
+    assert oversized.assigns.setup_error == :invalid
   end
 end

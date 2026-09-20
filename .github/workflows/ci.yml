@@ -88,8 +88,8 @@ jobs:
           - profile: mobile
             directory: hosts/mobile
             ui: false
-            elixir: "1.19.5-otp-27"
-            otp: "27.3.4.15"
+            elixir: "1.20.1-otp-29"
+            otp: "29.0"
     defaults:
       run:
         working-directory: wotex-tracker/${{ matrix.directory }}

@@ -2,5 +2,11 @@
 /.mob/
 /ios/build/
 /ios/DerivedData/
+/ios/.zig-cache/
+/ios/zig-out/
+/ios/*.entitlements
+/ios/release_device.sh
+/_build/mob_release/
+/priv/generated/driver_tab_android.c
 /*.xcodeproj/xcuserdata/
 /*.xcworkspace/xcuserdata/

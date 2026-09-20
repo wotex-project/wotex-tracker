@@ -5,7 +5,7 @@ defmodule WotexTrackerMobile.MixProject do
     [
       app: :wotex_tracker_mobile,
       version: "0.1.0",
-      elixir: "~> 1.19",
+      elixir: "== 1.20.1",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       test_coverage: [tool: ExCoveralls],
@@ -28,7 +28,8 @@ defmodule WotexTrackerMobile.MixProject do
       ui(),
       {:wotex_mobile_ble, path: "plugins/wotex_mobile_ble"},
       {:wotex_mobile_secure_store, path: "plugins/wotex_mobile_secure_store"},
-      {:mob, "== 0.9.1"},
+      {:mob, "== 0.9.1", override: true},
+      {:mob_dev, "== 0.7.1", only: :dev, runtime: false},
       {:mob_notify, "== 0.1.2"},
       {:bandit, "== 1.12.5"},
       {:mint, "== 1.10.1"},
@@ -54,7 +55,7 @@ defmodule WotexTrackerMobile.MixProject do
         {:wotex_tracker_ui, "~> 0.1.0"}
 
       {"1", env} when env in [:dev, :test, :docs] ->
-        {:wotex_tracker_ui, path: "../../packages/tracker_ui", env: env}
+        {:wotex_tracker_ui, path: "../../packages/tracker_ui", env: :dev}
 
       _ ->
         raise "WOTEX_PATH_DEPS accepts only 1 in dev/test/docs; production requires artifacts"
