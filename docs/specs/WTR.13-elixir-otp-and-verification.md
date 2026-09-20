@@ -2,8 +2,14 @@
 
 ## Status
 
-Accepted target contract. No Tracker implementation or runtime-support claim.
-Applies to every implemented WTR capability, including the first pure slice.
+Implemented as the source/package verification floor for the root library,
+service, shared UI and applicable hosts. The declared Elixir 1.18.4 / OTP
+27.3.4.15 and Elixir 1.20.4 / OTP 29.0.4 lanes run their configured compiler,
+test/coverage, analysis, documentation, dependency, archive, contract, licence
+and language-policy gates as applicable. This does not claim every version
+allowed by Mix, every platform/toolchain, published package availability or any
+physical hardware lane. See the
+[executed evidence](../evidence/implementation.md#foundation--2026-09-15).
 
 ## Library application and ownership
 
