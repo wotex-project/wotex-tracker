@@ -180,7 +180,11 @@ defmodule Wotex.Tracker.SSEClientTest do
         {:ok, socket} = :gen_tcp.accept(listener, 2000)
         {:ok, _request} = :gen_tcp.recv(socket, 0, 2000)
         send(parent, {:accepted, self()})
-        :ok = :gen_tcp.send(socket, wire)
+
+        case :gen_tcp.send(socket, wire) do
+          :ok -> :ok
+          {:error, :closed} -> :ok
+        end
 
         if action != :immediate do
           receive do: (:release -> :ok)
