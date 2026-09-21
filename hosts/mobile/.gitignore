@@ -8,5 +8,6 @@
 /ios/release_device.sh
 /_build/mob_release/
 /priv/generated/driver_tab_android.c
+/priv/generated/driver_tab_android.zig
 /*.xcodeproj/xcuserdata/
 /*.xcworkspace/xcuserdata/

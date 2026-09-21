@@ -33,7 +33,8 @@ defmodule Wotex.Tracker.Mobile.NativeArtifactTest do
     config = read!("mob.exs.example")
     ble = read!("plugins/wotex_mobile_ble/priv/mob_plugin.exs")
     secure_store = read!("plugins/wotex_mobile_secure_store/priv/mob_plugin.exs")
-    driver_table = read!("priv/generated/driver_tab_ios.c")
+    driver_table = read!("priv/generated/driver_tab_ios.zig")
+    graph = read!("ios/build_graph.zig")
 
     assert config =~ ~s(platforms: [:ios])
     assert config =~ ~s(ios_bundle_id: "org.wotex.tracker")
@@ -57,12 +58,18 @@ defmodule Wotex.Tracker.Mobile.NativeArtifactTest do
       assert driver_table =~ entry
     end
 
-    for build <- ["ios/build.zig", "ios/build_device.zig"] do
-      source = read!(build)
-      assert source =~ "plugin_swift_files"
-      assert source =~ "plugin_frameworks"
-      assert source =~ "plugin_c_nifs"
-    end
+    assert driver_table =~ "export var erts_static_nif_tab"
+    assert driver_table =~ "callconv(.c)"
+    assert driver_table =~ "@import(\"build_options\")"
+    refute File.exists?(Path.join(@root, "priv/generated/driver_tab_ios.c"))
+
+    assert read!("ios/build.zig") =~ "graph.build(b, .simulator)"
+    assert read!("ios/build_device.zig") =~ "graph.build(b, .device)"
+    assert graph =~ "pub fn build(b: *std.Build, comptime flavor: Flavor)"
+    assert graph =~ "plugin_swift_files"
+    assert graph =~ "plugin_frameworks"
+    assert graph =~ "plugin_c_nifs"
+    assert graph =~ "plugin_static_libs"
   end
 
   test "APNs signing templates keep development and production explicit" do
@@ -100,7 +107,8 @@ defmodule Wotex.Tracker.Mobile.NativeArtifactTest do
           "/ios/*.entitlements",
           "/ios/release_device.sh",
           "/_build/mob_release/",
-          "/priv/generated/driver_tab_android.c"
+          "/priv/generated/driver_tab_android.c",
+          "/priv/generated/driver_tab_android.zig"
         ] do
       assert ignore =~ entry
     end

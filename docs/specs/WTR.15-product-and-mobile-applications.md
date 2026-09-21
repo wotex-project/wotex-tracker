@@ -6,9 +6,9 @@ This contract inherits WTR.12's independent completion axes and WTR.13's
 greenfield Zig policy. Missing Apple account, signing, device or registry access
 never blocks locally executable implementation.
 
-Accepted target contract. The shared browser workflows and their local
-accessibility acceptance are complete. The mobile software build has a bounded
-local development lane, while signed-device and distribution acceptance remain
+Accepted target contract. The shared browser workflows, accessibility checks,
+mobile software build graph and native development seams have complete bounded
+local acceptance. Signed-device qualification and distribution acceptance remain
 separate and incomplete.
 The asset page can read declared scalar Properties from the authorized committed
 service snapshot and discloses that the read does not contact the device.

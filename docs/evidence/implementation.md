@@ -6042,3 +6042,33 @@ Zig formatting/tests/ReleaseSafe compilation, the 671-file stack-language policy
 and the integrated product simulator. This closes the iOS companion's local APNs
 development item. Apple-provider acceptance, physical OS delivery, notification
 permission behavior and user-reading evidence remain qualification work.
+
+### Consolidated Zig mobile build graph and C-ABI table — 2026-09-21
+
+The mobile simulator and physical-device entry files now select one typed Zig
+build graph instead of carrying two diverging copies. The shared graph owns the
+Swift, Objective-C, C and Zig object cohort, project and plugin contributions,
+static-library linking and framework linking. Its platform value selects the
+SDK, target triple, deployment flag and simulator ABI. OTP bundling, static
+SQLite, in-process EPMD and the errno compatibility object remain explicit
+device-only branches. Both entry graphs were constructed with their complete
+required option sets, proving the simulator and device option surfaces without
+executing Apple tools.
+
+Mob's generated iOS static-driver table is now committed as Zig rather than C.
+It declares the BEAM driver/NIF layouts as extern structs, exports the C-ABI
+driver and static-NIF symbols, retains the three application plugin NIFs and
+uses typed build options for the optional SQLite, EMLX, NxEigen and TFLite rows.
+A repository-owned Zig build compiles that generated table as a standalone
+ReleaseSafe relocatable object on the development host. This checks the ABI
+surface and all unguarded symbols without an Apple SDK; unresolved BEAM symbols
+remain link inputs for the eventual native application. Android generator
+outputs are ignored because this host is iOS-only.
+
+The complete mobile gate passed 93 tests at 95.3% production line coverage,
+strict Credo, Dialyzer, documentation, dependency/security and license checks,
+Zig formatting, the standalone generated-table compile, native protocol tests
+and ReleaseSafe compilation, the 673-file stack-language policy and the
+integrated product simulator. This closes every repository-owned iOS companion
+development item. Physical CoreBluetooth, Keychain, APNs/OS lifecycle, signed
+installation and distribution remain on their separate qualification axes.

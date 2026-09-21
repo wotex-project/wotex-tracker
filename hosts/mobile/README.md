@@ -204,14 +204,16 @@ WOTEX_PATH_DEPS=1 MIX_ENV=test mise exec -- mix check --no-retry
 
 ## Native iOS build path
 
-The committed `ios/` tree contains the Mob simulator/device Zig builds, scene
+The committed `ios/` tree contains thin Mob simulator/device entry points over
+a shared Zig build graph, scene
 bootstrap, APNs token forwarding and exact `org.wotex.tracker` bundle metadata.
 It intentionally declares no audio background mode or microphone permission.
 Plugin manifests add only CoreBluetooth, Security and UserNotifications during
 the native build. The app's Erlang entry calls
-`Wotex.Tracker.Mobile.MobApp.start/0` directly. The checked-in iOS C driver
-table fixes the exact static NIF cohort required by Mob's distribution build;
-the Android table emitted by the generator is ignored because this host is
+`Wotex.Tracker.Mobile.MobApp.start/0` directly. The checked-in generated Zig
+driver table exports the exact C-ABI static NIF cohort required by Mob's
+distribution build and is compiled by the host-runnable software gate. The
+Android tables emitted by the generator are ignored because this host is
 iOS-only.
 
 Machine-specific paths and Apple signing values remain in ignored `mob.exs`:
