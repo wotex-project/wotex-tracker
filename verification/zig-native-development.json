@@ -13,6 +13,49 @@
     "native_protocol": "pass",
     "integrated_product": "pass"
   },
+  "final_composition": {
+    "tracker_commit": "3bd33411dfe93c2421f13a62d35564b87017926b",
+    "path_dependencies": "current_local_worktree",
+    "integrated_script_sha256": "87010a053b38d3436c78497f9e03ab9631a5bdb48827b96263ae0f86c32f4418",
+    "pi_kiosk_receipt_sha256": "7c8edb0ef2606cf88f494e19a9ed80fc2d56115e80ec428a1bbd90c1102deea1",
+    "mobile_gate": {
+      "status": "pass",
+      "tests": 93,
+      "production_line_coverage": "95.3%",
+      "stack_language_files": 676
+    },
+    "report": {
+      "schema": "wtr.integrated-product-development.v1",
+      "evidence_class": "simulator",
+      "surfaces": {
+        "web_remote": "pass",
+        "pi_local": "pass",
+        "mobile_native_cache": "pass",
+        "non_elixir_http": "pass"
+      },
+      "recovery": {
+        "service_restart": "pass",
+        "network_disconnect": "pass",
+        "credential_revocation": "pass",
+        "durable_history": "pass"
+      },
+      "ingress": {
+        "accepted": 1,
+        "duplicate": 2,
+        "generation_delta": 1
+      },
+      "physical_actions": {
+        "configured": false,
+        "intents": 0
+      },
+      "budgets": {
+        "passive_captures_in_flight": 1,
+        "service_connections": 16,
+        "mobile_cache_entries": 32,
+        "native_response_bytes": 4194304
+      }
+    }
+  },
   "linux_arm64": {
     "target": "aarch64-linux-musl",
     "linkage": "static",

@@ -206,12 +206,11 @@ delivery_targets:
     contracts: [WTR.07, WTR.09, WTR.12, WTR.14, WTR.15, WTR.16]
     requires: [core_library, headless_service, tracking_hardware, shared_application, analytics, pi5_headless, pi5_panel, ios_companion]
     implementation_status: in-progress
-    development_status: in-progress
-    local_acceptance_status: in-progress
+    development_status: complete
+    local_acceptance_status: passed
     qualification_status: not-started
     distribution_status: not-required
-    remaining_development:
-      - rerun the complete simulator composition after all development dependencies are complete
+    remaining_development: []
     evidence_refs: [docs/evidence/implementation.md]
     acceptance: same-tracker web/Pi/iPhone/non-Elixir scenario, resource budgets, failures and recovery
 

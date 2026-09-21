@@ -6111,3 +6111,31 @@ also passed locked resolution and warnings-as-errors ARM64 compilation. This
 closes the Pi panel development/local axes. A real Pi 5, DRM/display/touch,
 physical keyboard/focus behavior, radio, power/storage faults and firmware-slot
 revert retain their separate qualification records.
+
+### Final integrated product simulator rerun — 2026-09-21
+
+After every required development dependency reached complete/local-passed, the
+same-tracker composition was rebuilt and rerun against Tracker commit
+`3bd33411dfe93c2421f13a62d35564b87017926b` and the current monorepo path
+dependencies. The independent Zig consumer was rebuilt ReleaseSafe with
+`0.17.0-dev.269+ebff43698`; its Darwin ARM64 binary retained SHA-256
+`9d8c14ab6139dd4b7bb1ee4228ac3dda89d0d94fde926a6f645e3190882de8ea`.
+
+The executable report again passed the remote web, local Pi client, mobile
+native/cache and non-Elixir HTTP surfaces. Service restart, native network
+disconnect/reconnect, shared-reader revocation and durable Thing history all
+passed. One ingress was accepted, two replays remained duplicates, the data
+generation advanced once, and no physical Action was configured or retained.
+The finite budgets remained one passive capture in flight, 16 service
+connections, 32 mobile cache entries and 4,194,304 native response bytes.
+
+The complete mobile gate independently reran the scenario and passed 93 tests
+at 95.3% production line coverage, compiler, unused-dependency, formatter,
+vulnerability, strict Credo, ExDoc, Dialyzer, Zig format/test/ReleaseSafe
+compile, generated driver-table compile, the 676-file stack-language policy and
+licence checks. The final report, exact simulator-script digest and Pi kiosk
+receipt digest are retained in
+[`verification/zig-native-development.json`](../../verification/zig-native-development.json).
+This closes the integrated-product development/local axes; the physical Pi,
+tracker/radio, signed-iPhone, Apple-provider and distribution axes remain
+independent qualification records.
