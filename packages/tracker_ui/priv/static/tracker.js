@@ -14,13 +14,38 @@ const MobHook = {
     };
   }
 };
+const TargetBLEHook = {
+  mounted() {
+    this._receiveBLE = (event) => this.pushEvent("eye-ble-event", event.detail);
+    window.addEventListener("wotex:ble-central", this._receiveBLE);
+    this.handleEvent("eye-ble-command", (command) => {
+      if (nativeMob && command && typeof command === "object" && !Array.isArray(command)) {
+        try {
+          nativeMob.send(command);
+          return;
+        } catch (_) {
+          nativeMob = null;
+        }
+      }
+      this.pushEvent("eye-ble-event", {
+        schema: "wtr.mobile-ble-central-event.v1",
+        request_id: command.request_id,
+        event: "rejected",
+        data: { reason: "unsupported" }
+      });
+    });
+  },
+  destroyed() {
+    window.removeEventListener("wotex:ble-central", this._receiveBLE);
+  }
+};
 let socketOpened = false;
 const liveSocket = new window.LiveView.LiveSocket("/live", window.Phoenix.Socket, {
   params: () => ({
     _csrf_token: csrf,
     wotex_reconnect: socketOpened ? "1" : "0"
   }),
-  hooks: { MobHook }
+  hooks: { MobHook, TargetBLEHook }
 });
 const status = document.getElementById("connection-status");
 window.addEventListener("phx:page-loading-start", () => document.body.setAttribute("aria-busy", "true"));

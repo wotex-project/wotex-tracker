@@ -157,15 +157,22 @@ defmodule Wotex.Tracker.Protocols.Teltonika.TAT140Configuration do
 
   defp valid?(config) do
     sms_credentials?(config.sms_login, config.sms_password) and
-      parameter?(config.apn, 1..32, ~r/\A[A-Za-z0-9.-]+\z/) and
+      endpoint_parameters?(config) and sensor_parameters?(config) and bounded_commands?(config)
+  end
+
+  defp endpoint_parameters?(config) do
+    parameter?(config.apn, 1..32, ~r/\A[A-Za-z0-9.-]+\z/) and
       parameter?(config.apn_username, 0..32, ~r/\A[A-Za-z0-9._@+-]*\z/) and
       parameter?(config.apn_password, 0..32, ~r/\A[A-Za-z0-9._@+-]*\z/) and
       parameter?(config.server, 1..55, ~r/\A[A-Za-z0-9.-]+\z/) and
-      is_integer(config.port) and config.port in 1..65_535 and
-      Regex.match?(~r/\A[0-9A-F]{2}(?::[0-9A-F]{2}){5}\z/, config.sensor_mac) and
+      is_integer(config.port) and config.port in 1..65_535
+  end
+
+  defp sensor_parameters?(config) do
+    Regex.match?(~r/\A[0-9A-F]{2}(?::[0-9A-F]{2}){5}\z/, config.sensor_mac) and
       is_integer(config.ble_update_frequency_seconds) and
       config.ble_update_frequency_seconds in 30..65_535 and
-      is_boolean(config.lost_sensor_alarm) and bounded_commands?(config)
+      is_boolean(config.lost_sensor_alarm)
   end
 
   defp sms_credentials?("", ""), do: true

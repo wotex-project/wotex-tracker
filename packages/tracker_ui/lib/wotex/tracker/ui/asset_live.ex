@@ -199,10 +199,12 @@ defmodule Wotex.Tracker.UI.AssetLive do
         <h2>Identity and provisioning</h2>
         <p class="identifier">{@id}</p>
         <p>Ownership confirmed · {@enrollment["identity_strategy"]}</p>
-        <a href={Presenter.path(:observation, @enrollment["observation_id"])}>Inspect source evidence</a>
-        <a :if={@identity["can_enroll"]} href={Presenter.path(:asset, @id) <> "/observations"}>
-          Associate a later observation
-        </a>
+        <nav class="inline-links" aria-label="Asset evidence workflows">
+          <a href={Presenter.path(:observation, @enrollment["observation_id"])}>Inspect source evidence</a>
+          <a :if={@identity["can_enroll"]} href={Presenter.path(:asset, @id) <> "/observations"}>
+            Associate a later observation
+          </a>
+        </nav>
         <p :if={!@state}>
           This asset is enrolled. Provision its Thing to expose supported measurements through the service.
         </p>
@@ -214,9 +216,9 @@ defmodule Wotex.Tracker.UI.AssetLive do
           phx-click="provision"
           phx-disable-with="Provisioning…"
         >{if @state, do: "Update Thing", else: "Provision Thing"}</button>
-        <a :if={@needs_materialization && @outcome} href={Presenter.path(:asset, @id)}>
-          Start another Thing update
-        </a>
+        <div :if={@needs_materialization && @outcome}>
+          <a href={Presenter.path(:asset, @id)}>Start another Thing update</a>
+        </div>
         <p :if={@state && !@needs_materialization}>
           Provisioned. The service exposes the measurements supplied by this profile.
         </p>
@@ -246,31 +248,36 @@ defmodule Wotex.Tracker.UI.AssetLive do
           ]}
         </p>
       </section>
-      <a :if={@state} class="button" href={Presenter.path(:asset, @id) <> "/analytics"}>
-        Explore measurement history
-      </a>
-      <a :if={@state} class="button secondary" href={Presenter.path(:asset, @id) <> "/route"}>
-        Explore route history
-      </a>
-      <a :if={@state} class="button secondary" href={Presenter.path(:asset, @id) <> "/trips"}>
-        Explore trips and stops
-      </a>
-      <a :if={@thing} href={Presenter.path(:asset, @id) <> "/protection"}>
-        Protection rules
-      </a>
-      <a
-        :if={@thing && is_map(@thing["actions"]) && map_size(@thing["actions"]) > 0}
-        href={Presenter.interaction_path(@id)}
-      >
-        Interactions
-      </a>
-      <a
-        :if={@enrollment && @identity["can_manage_queries"]}
-        class="secondary"
-        href={Presenter.path(:asset, @id) <> "/remove"}
-      >
-        Remove asset
-      </a>
+      <nav class="asset-actions" aria-label="Asset workflows">
+        <a :if={@state} class="button" href={Presenter.path(:asset, @id) <> "/analytics"}>
+          Explore measurement history
+        </a>
+        <a :if={@state} class="button secondary" href={Presenter.path(:asset, @id) <> "/route"}>
+          Explore route history
+        </a>
+        <a :if={@state} class="button secondary" href={Presenter.path(:asset, @id) <> "/trips"}>
+          Explore trips and stops
+        </a>
+        <a :if={@enrollment} class="button secondary" href={Presenter.provisioning_path(@id)}>
+          Configure TAT140 and EYE Sensor
+        </a>
+        <a :if={@thing} href={Presenter.path(:asset, @id) <> "/protection"}>
+          Protection rules
+        </a>
+        <a
+          :if={@thing && is_map(@thing["actions"]) && map_size(@thing["actions"]) > 0}
+          href={Presenter.interaction_path(@id)}
+        >
+          Interactions
+        </a>
+        <a
+          :if={@enrollment && @identity["can_manage_queries"]}
+          class="button secondary"
+          href={Presenter.path(:asset, @id) <> "/remove"}
+        >
+          Remove asset
+        </a>
+      </nav>
       <section :if={@state} class="panel">
         <h2>Tracking capabilities</h2>
         <p :if={Map.get(@state, "positions", []) == []}>
@@ -313,9 +320,7 @@ defmodule Wotex.Tracker.UI.AssetLive do
                     <li :for={value <- row["value"]["measurements"]}>
                       {Presenter.label(value["kind"])}: {Presenter.scalar(value["value"])} {Presenter.unit(
                         value["unit"]
-                      )} · {value[
-                        "quality"
-                      ]}
+                      )} · {value["quality"]} · {Presenter.measurement_reason(value["reason"])}
                     </li>
                   </ul>
                 </td>

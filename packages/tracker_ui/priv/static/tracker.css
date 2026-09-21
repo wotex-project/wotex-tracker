@@ -177,6 +177,9 @@ td ul { margin: 0; padding-left: 1rem; }
 .map-controls button { margin: 0; }
 .property-controls { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1rem 0; }
 .property-controls button { margin: 0; }
+.asset-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; margin: 1.5rem 0; }
+.asset-actions .button, .asset-actions a { margin: 0; }
+.inline-links { display: flex; flex-wrap: wrap; gap: .5rem 1rem; margin: .75rem 0; }
 
 .skip {
   position: absolute;

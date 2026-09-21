@@ -87,9 +87,10 @@ defmodule Wotex.Tracker.Mobile.DevelopmentSimulatorTest do
       status.screen.app == :active and status.screen.network == :online and
         status.screen.shared and status.screen.webview_effect and
         Enum.all?(
-          ~w(ble_scan ble_stop_scan ble_connect ble_disconnect ble_discover ble_read ble_write)a,
+          ~w(ble_scan ble_stop_scan ble_connect ble_disconnect ble_discover ble_read)a,
           &(effects[&1] == 1)
-        ) and effects.webview_script >= 10 and effects.external_url == 1 and
+        ) and effects.ble_write == 3 and effects.webview_script >= 10 and
+        effects.external_url == 1 and
         effects.share == 1 and effects.emitted_event == 5
     end)
 
@@ -185,9 +186,16 @@ defmodule Wotex.Tracker.Mobile.DevelopmentSimulatorTest do
     start_supervised!(NativeSimulator)
     request = "123e4567-e89b-42d3-a456-426614174000"
     peripheral = "123e4567-e89b-12d3-a456-426614174000"
+    service = "e61c0000-7df2-4d4e-8e6d-c611745b92e9"
+    password = "e61c0008-7df2-4d4e-8e6d-c611745b92e9"
+    command = "e61c0007-7df2-4d4e-8e6d-c611745b92e9"
+    sensor_mask = "e61c0021-7df2-4d4e-8e6d-c611745b92e9"
 
-    assert :ok = NativeSimulator.scan(request, ["180a"], 1_000)
-    assert_receive {:ble_central, ^request, :scan_result, {^peripheral, _, -42, ["180a"]}}
+    assert :ok = NativeSimulator.scan(request, [service], 1_000)
+
+    assert_receive {:ble_central, ^request, :scan_result,
+                    {^peripheral, "EYE_1234567", -42, [^service]}}
+
     assert_receive {:ble_central, ^request, :scan_complete, nil}
 
     assert :ok = NativeSimulator.stop_scan(request)
@@ -197,22 +205,57 @@ defmodule Wotex.Tracker.Mobile.DevelopmentSimulatorTest do
     assert :ok = NativeSimulator.disconnect(request, peripheral)
     assert_receive {:ble_central, ^request, :disconnected, ^peripheral}
 
-    assert :ok = NativeSimulator.discover(request, peripheral, ["180a"])
-    assert_receive {:ble_central, ^request, :services, {^peripheral, ["180a"]}}
+    assert :ok = NativeSimulator.discover(request, peripheral, [service])
+    assert_receive {:ble_central, ^request, :services, {^peripheral, [^service]}}
 
     assert_receive {:ble_central, ^request, :characteristics,
-                    {^peripheral, "180a", [{"2a29", [:read, :write]}]}}
+                    {^peripheral, ^service,
+                     [
+                       {^command, [:write]},
+                       {^password, [:write]},
+                       {^sensor_mask, [:read, :write]}
+                     ]}}
 
     assert_receive {:ble_central, ^request, :discovery_complete, nil}
 
-    assert :ok = NativeSimulator.read(request, peripheral, "180a", "2a29")
-    assert_receive {:ble_central, ^request, :value, {^peripheral, "180a", "2a29", <<1, 2>>}}
+    assert :ok = NativeSimulator.read(request, peripheral, service, sensor_mask)
+    assert_receive {:ble_central, ^request, :value, {^peripheral, ^service, ^sensor_mask, <<15>>}}
 
-    assert :ok = NativeSimulator.write(request, peripheral, "180a", "2a29", <<3, 4>>)
-    assert_receive {:ble_central, ^request, :written, {^peripheral, "180a", "2a29", <<3, 4>>}}
+    assert :ok = NativeSimulator.write(request, peripheral, service, sensor_mask, <<15>>)
+
+    assert_receive {:ble_central, ^request, :written,
+                    {^peripheral, ^service, ^sensor_mask, <<15>>}}
 
     eventually(fn -> map_size(NativeSimulator.status().effects) == 7 end)
-    refute inspect(NativeSimulator.status()) =~ Base.encode16(<<3, 4>>)
+    refute inspect(NativeSimulator.status()) =~ Base.encode16(<<15>>)
+  end
+
+  test "the native EYE peer deterministically covers denial, timeout, disconnect and malformed data" do
+    start_supervised!(NativeSimulator)
+    request = "123e4567-e89b-42d3-a456-426614174000"
+    peripheral = "123e4567-e89b-12d3-a456-426614174000"
+    service = "e61c0000-7df2-4d4e-8e6d-c611745b92e9"
+
+    assert :ok = NativeSimulator.set_ble_scenario(:denied)
+    assert {:error, :unauthorized} = NativeSimulator.scan(request, [service], 1_000)
+    refute_received {:ble_central, ^request, _, _}
+
+    assert :ok = NativeSimulator.set_ble_scenario(:timeout)
+    assert :ok = NativeSimulator.scan(request, [service], 1_000)
+    refute_received {:ble_central, ^request, _, _}
+
+    assert :ok = NativeSimulator.set_ble_scenario(:malformed)
+    assert :ok = NativeSimulator.scan(request, [service], 1_000)
+
+    assert_receive {:ble_central, ^request, :scan_result,
+                    {^peripheral, "EYE malformed", -42, ["invalid"]}}
+
+    assert :ok = NativeSimulator.set_ble_scenario(:disconnect)
+    assert :ok = NativeSimulator.connect(request, peripheral)
+    assert_receive {:ble_central, ^request, :connected, ^peripheral}
+    assert_receive {:ble_central, ^request, :disconnected, ^peripheral}
+    assert NativeSimulator.status().ble_scenario == :disconnect
+    assert {:error, :invalid_scenario} = NativeSimulator.set_ble_scenario(:unknown)
   end
 
   test "the remote peer admits one development authority and bounded mutations" do

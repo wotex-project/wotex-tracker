@@ -203,7 +203,8 @@ defmodule Wotex.Tracker.Mobile.HostTest do
       request(:get, c.origin <> "/assets/tracker.js", [{~c"cookie", browser_cookie}], nil)
 
     assert script =~ "MobHook"
-    assert script =~ ~s(hooks: { MobHook })
+    assert script =~ "TargetBLEHook"
+    assert script =~ ~s(hooks: { MobHook, TargetBLEHook })
     assert script =~ "wtr.mobile-share.v1"
     assert script =~ "wtr.mobile-ble-central-command.v1"
     assert script =~ "wotex:ble-central-command"

@@ -81,7 +81,11 @@ defmodule Wotex.Tracker.UI.Components do
             {Presenter.scalar(measurement["value"])}
             <span>{Presenter.unit(measurement["unit"])}</span>
           </p>
-          <p class="muted">{measurement["availability"]} · quality: {measurement["quality"]}</p>
+          <p class="muted">
+            {measurement["availability"]} · quality: {measurement["quality"]} · reason: {Presenter.measurement_reason(
+              measurement["reason"]
+            )}
+          </p>
         </article>
       </div>
     </section>

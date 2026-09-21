@@ -5969,3 +5969,44 @@ This completes the tracking-hardware and headless-Pi development/local axes.
 Physical radio capture, TAT140/EYE interoperability, modem/SIM/carrier behavior,
 Pi 5 boot and power/storage fault qualification remain explicitly separate
 hardware evidence.
+
+### Target-specific tracker provisioning workflows — 2026-09-21
+
+Every enrolled asset now links to one shared setup screen with two deliberately
+separate boundaries. The TAT140 path constructs a transient, review-before-use
+plan containing only the documented SMS endpoint parameters and exact USB
+Configurator selections. Submitted credentials are cleared immediately and are
+neither committed to the service nor placed in the page address. The screen
+states that the phone does not configure a TAT140 over BLE.
+
+The associated Teltonika EYE Sensor path implements the published BTSMP1
+configuration service, six-digit password characteristic, four-bit sensor mask
+and `0x0010` write-to-flash command. Its native flow is closed and ordered:
+filtered scan, explicit peripheral selection, connect, required-characteristic
+discovery, password review, sensor-mask write, save, exact read-back and
+disconnect. UUID request and peripheral ownership, service and characteristic
+identities, value encoding and event field sets are validated at every step.
+Stale or malformed callbacks cannot advance the flow. Denial, timeout,
+disconnect, powered-off and unsupported-browser states remain explicit and
+recoverable.
+
+The development-only mobile peer now executes that exact target sequence against
+one deterministic EYE peripheral and separately exercises denial, timeout,
+disconnect and malformed-event paths through the production root-screen clauses.
+A disposable standalone-host script starts the real shared UI and service on
+numeric loopback, seeds the checksummed two-record TAT140/EYE fixture in a fresh
+private store and prints ephemeral access values for browser acceptance. The
+resulting shared screens label all target measurements, retain sensor-not-found
+and sensor-lost reasons, group workflow navigation semantically and preserve
+keyboard and screen-reader landmarks.
+
+The complete shared-UI gate passed 201 tests at 95.0% production line coverage.
+The complete root gate passed 217 tests, 19 generated properties and one doctest
+at 95.0%; the complete mobile gate passed 90 tests at 95.3% and reran its Zig
+native checks plus the integrated product simulator. The standalone-host gate
+passed 33 tests at 95.9%, and its disposable UI script was executed separately
+against a real browser. That browser traversed all 26 shared screens and captured
+full-page evidence outside version control. This closes the shared-application
+development/local axis and the iOS target-specific BLE development item. It does
+not claim physical radio permission behavior, EYE interoperability or a signed
+iPhone installation.

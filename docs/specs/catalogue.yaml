@@ -146,12 +146,11 @@ delivery_targets:
     contracts: [WTR.07, WTR.08, WTR.15]
     requires: [headless_service, analytics]
     implementation_status: in-progress
-    development_status: in-progress
-    local_acceptance_status: in-progress
+    development_status: complete
+    local_acceptance_status: passed
     qualification_status: not-required
     distribution_status: not-required
-    remaining_development:
-      - complete every browser workflow and accessibility assertion in WTR.15 against local service fixtures
+    remaining_development: []
     evidence_refs: [docs/evidence/implementation.md]
     acceptance: complete browser workflows, shared LiveView components, authorization, privacy and accessibility
   - id: analytics
@@ -201,7 +200,6 @@ delivery_targets:
     qualification_status: not-started
     distribution_status: not-started
     remaining_development:
-      - finish target-specific BLE provisioning screens and their closed native bridge commands
       - finish local APNs registration, dispatch and notification-tap simulation including failure paths
       - migrate safe standalone native and generated C-ABI surfaces to Zig and consolidate the Zig build graph
     evidence_refs: [docs/evidence/implementation.md]

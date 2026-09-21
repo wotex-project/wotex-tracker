@@ -5,13 +5,19 @@ defmodule Wotex.Tracker.Mobile.Development.NativeSimulator do
   The simulator implements the same narrow module callbacks used by the Mob
   screen and the two app-owned NIF wrappers. It stores only the two secure-store
   slots, emits a fixed BLE peripheral, grants notification permission and
-  records redacted effect counters. It is not compiled into production builds.
+  records redacted effect counters. Its EYE Sensor peer can deterministically
+  expose success, permission denial, timeout, disconnect and malformed-event
+  paths. It is not compiled into production builds.
   """
 
   use GenServer
 
   @peripheral "123e4567-e89b-12d3-a456-426614174000"
-  @characteristic "2a29"
+  @eye_service "e61c0000-7df2-4d4e-8e6d-c611745b92e9"
+  @eye_password "e61c0008-7df2-4d4e-8e6d-c611745b92e9"
+  @eye_command "e61c0007-7df2-4d4e-8e6d-c611745b92e9"
+  @eye_sensor_mask "e61c0021-7df2-4d4e-8e6d-c611745b92e9"
+  @ble_scenarios ~w(success denied timeout disconnect malformed)a
   @push_token "development-apns-token"
   @secure_keys ~w(credential installation_id)
   @event_references ~r/\A[^\x00]{1,256}\z/u
@@ -55,6 +61,18 @@ defmodule Wotex.Tracker.Mobile.Development.NativeSimulator do
   catch
     :exit, _ -> {:error, :invalid_event}
   end
+
+  @doc "Selects one finite BLE failure scenario for local development."
+  @spec set_ble_scenario(atom(), GenServer.server()) :: :ok | {:error, :invalid_scenario}
+  def set_ble_scenario(scenario, server \\ __MODULE__)
+
+  def set_ble_scenario(scenario, server) when scenario in @ble_scenarios do
+    GenServer.call(server, {:ble_scenario, scenario})
+  catch
+    :exit, _ -> {:error, :invalid_scenario}
+  end
+
+  def set_ble_scenario(_, _), do: {:error, :invalid_scenario}
 
   @doc false
   def fetch(key) when key in @secure_keys, do: GenServer.call(__MODULE__, {:fetch, key})
@@ -122,10 +140,31 @@ defmodule Wotex.Tracker.Mobile.Development.NativeSimulator do
   @doc false
   def scan(request, services, timeout) do
     record(:ble_scan, %{request: request, services: services, timeout_ms: timeout})
-    service = hd(services)
-    send(self(), {:ble_central, request, :scan_result, {@peripheral, "WoTEx simulator", -42, [service]}})
-    send(self(), {:ble_central, request, :scan_complete, nil})
-    :ok
+
+    case ble_scenario() do
+      :denied ->
+        {:error, :unauthorized}
+
+      :timeout ->
+        :ok
+
+      :malformed ->
+        send(
+          self(),
+          {:ble_central, request, :scan_result, {@peripheral, "EYE malformed", -42, ["invalid"]}}
+        )
+
+        :ok
+
+      _ ->
+        send(
+          self(),
+          {:ble_central, request, :scan_result, {@peripheral, "EYE_1234567", -42, [@eye_service]}}
+        )
+
+        send(self(), {:ble_central, request, :scan_complete, nil})
+        :ok
+    end
   end
 
   @doc false
@@ -139,6 +178,10 @@ defmodule Wotex.Tracker.Mobile.Development.NativeSimulator do
   def connect(request, peripheral) do
     record(:ble_connect, %{request: request, peripheral: peripheral})
     send(self(), {:ble_central, request, :connected, peripheral})
+
+    if ble_scenario() == :disconnect,
+      do: send(self(), {:ble_central, request, :disconnected, peripheral})
+
     :ok
   end
 
@@ -151,14 +194,18 @@ defmodule Wotex.Tracker.Mobile.Development.NativeSimulator do
 
   @doc false
   def discover(request, peripheral, services) do
-    service = hd(services)
     record(:ble_discover, %{request: request, peripheral: peripheral, services: services})
-    send(self(), {:ble_central, request, :services, {peripheral, services}})
+    send(self(), {:ble_central, request, :services, {peripheral, [@eye_service]}})
 
     send(
       self(),
       {:ble_central, request, :characteristics,
-       {peripheral, service, [{@characteristic, [:read, :write]}]}}
+       {peripheral, @eye_service,
+        [
+          {@eye_command, [:write]},
+          {@eye_password, [:write]},
+          {@eye_sensor_mask, [:read, :write]}
+        ]}}
     )
 
     send(self(), {:ble_central, request, :discovery_complete, nil})
@@ -174,7 +221,7 @@ defmodule Wotex.Tracker.Mobile.Development.NativeSimulator do
       characteristic: characteristic
     })
 
-    send(self(), {:ble_central, request, :value, {peripheral, service, characteristic, <<1, 2>>}})
+    send(self(), {:ble_central, request, :value, {peripheral, service, characteristic, <<15>>}})
     :ok
   end
 
@@ -195,7 +242,7 @@ defmodule Wotex.Tracker.Mobile.Development.NativeSimulator do
 
   @impl true
   def init(:ok) do
-    {:ok, %{secure: %{}, subscribers: %{}, effects: %{}, last: %{}}}
+    {:ok, %{secure: %{}, subscribers: %{}, effects: %{}, last: %{}, ble_scenario: :success}}
   end
 
   @impl true
@@ -205,7 +252,8 @@ defmodule Wotex.Tracker.Mobile.Development.NativeSimulator do
       secure_slots: state.secure |> Map.keys() |> Enum.sort(),
       subscriber_count: map_size(state.subscribers),
       effects: state.effects,
-      last: state.last
+      last: state.last,
+      ble_scenario: state.ble_scenario
     }
 
     {:reply, status, state}
@@ -238,6 +286,11 @@ defmodule Wotex.Tracker.Mobile.Development.NativeSimulator do
     Enum.each(Map.keys(state.subscribers), &send(&1, message))
     {:reply, :ok, effect(state, :emitted_event, %{kind: event_kind(message)})}
   end
+
+  def handle_call(:ble_scenario, _from, state), do: {:reply, state.ble_scenario, state}
+
+  def handle_call({:ble_scenario, scenario}, _from, state),
+    do: {:reply, :ok, %{state | ble_scenario: scenario}}
 
   @impl true
   def handle_cast({:effect, kind, metadata}, state),
@@ -273,6 +326,12 @@ defmodule Wotex.Tracker.Mobile.Development.NativeSimulator do
   end
 
   defp record(kind, metadata), do: GenServer.cast(__MODULE__, {:effect, kind, metadata})
+
+  defp ble_scenario do
+    GenServer.call(__MODULE__, :ble_scenario)
+  catch
+    :exit, _ -> :timeout
+  end
 
   defp effect(state, kind, metadata) do
     %{

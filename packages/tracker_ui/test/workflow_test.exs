@@ -17,6 +17,8 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     QuerySpec
   }
 
+  alias Wotex.Tracker.Protocols.Teltonika.EYESensorConfiguration
+
   alias Wotex.Tracker.Service
 
   alias Wotex.Tracker.Service.{
@@ -1342,6 +1344,7 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
       Presenter.arming_path(thing),
       Presenter.presence_path(thing),
       Presenter.interaction_path(thing),
+      Presenter.provisioning_path(thing),
       Presenter.path(:asset, thing) <> "/protection?operation=#{Identifier.uuid()}",
       Presenter.path(:asset, thing) <> "/remove?operation=#{Identifier.uuid()}",
       Presenter.dashboard_path(dashboard),
@@ -1362,6 +1365,424 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
         {:error, failures} -> flunk("#{path}: #{Enum.join(failures, "; ")}")
       end
     end
+  end
+
+  test "TAT140 setup renders exact transient SMS and USB plans without claiming phone-to-tracker BLE",
+       c do
+    thing = provisioned(c)
+
+    {:ok, asset, _} =
+      live(c.conn, Presenter.path(:asset, thing) <> "?operation=#{Identifier.uuid()}")
+
+    assert has_element?(
+             asset,
+             ~s(a[href="#{Presenter.provisioning_path(thing)}"]),
+             "Configure TAT140 and EYE Sensor"
+           )
+
+    {:ok, view, html} = live(c.conn, Presenter.provisioning_path(thing))
+    assert html =~ "phone does not configure the TAT140 over BLE"
+    assert html =~ "Teltonika Configurator over USB"
+
+    view
+    |> form("#tat140-plan",
+      tat140: %{
+        sms_login: "admin",
+        sms_password: "12345",
+        apn: "internet",
+        apn_username: "subscriber",
+        apn_password: "private",
+        server: "tracker.example",
+        port: "5027",
+        sensor_mac: "AA:BB:CC:DD:EE:FF",
+        update_frequency_seconds: "60",
+        lost_sensor_alarm: "true"
+      }
+    )
+    |> render_submit()
+
+    assert render(view) =~
+             "admin 12345 setparam 2001:internet;2002:subscriber;2003:private"
+
+    assert render(view) =~ "admin 12345 setparam 2004:tracker.example;2005:5027;2006:0"
+    assert render(view) =~ "admin 12345 getparam 2001;2004;2005;2006"
+    assert render(view) =~ "Codec 8 Extended"
+    assert render(view) =~ "EYE Sensor (Sensors)"
+    assert render(view) =~ "AA:BB:CC:DD:EE:FF"
+    assert render(view) =~ "Lost-sensor alarm"
+
+    view |> element("button", "Clear sensitive plan") |> render_click()
+    refute render(view) =~ "subscriber"
+    refute render(view) =~ "private"
+
+    view
+    |> form("#tat140-plan", tat140: %{port: "not-a-port"})
+    |> render_submit()
+
+    assert has_element?(view, "[role=alert]", "Check the required fields")
+  end
+
+  test "EYE Sensor setup closes scan through authenticated write, save and read-back", c do
+    thing = provisioned(c)
+    {:ok, view, _} = live(c.conn, Presenter.provisioning_path(thing))
+    peripheral = "123e4567-e89b-42d3-a456-426614174002"
+    service = EYESensorConfiguration.service_uuid()
+
+    view |> element("button", "Scan for EYE Sensors") |> render_click()
+    assert_push_event(view, "eye-ble-command", %{"operation" => "scan"} = scan)
+
+    render_hook(
+      view,
+      "eye-ble-event",
+      ble_event(scan, "scan_result", %{
+        "peripheral_id" => peripheral,
+        "name" => "EYE_1234567",
+        "rssi" => -42,
+        "service_uuids" => [service]
+      })
+    )
+
+    render_hook(view, "eye-ble-event", ble_event(scan, "scan_complete", %{}))
+    assert has_element?(view, "button", "Connect")
+
+    view
+    |> element("button[phx-click='eye-connect']")
+    |> render_click()
+
+    assert_push_event(view, "eye-ble-command", %{"operation" => "connect"} = connect)
+
+    render_hook(
+      view,
+      "eye-ble-event",
+      ble_event(connect, "connected", %{"peripheral_id" => peripheral})
+    )
+
+    assert_push_event(view, "eye-ble-command", %{"operation" => "discover"} = discover)
+
+    render_hook(
+      view,
+      "eye-ble-event",
+      ble_event(discover, "services", %{
+        "peripheral_id" => peripheral,
+        "service_uuids" => [service]
+      })
+    )
+
+    characteristics =
+      Enum.map(EYESensorConfiguration.required_characteristics(), fn uuid ->
+        %{
+          "uuid" => uuid,
+          "properties" =>
+            if(String.ends_with?(uuid, "0021-7df2-4d4e-8e6d-c611745b92e9"),
+              do: ["read", "write"],
+              else: ["write"]
+            )
+        }
+      end)
+
+    render_hook(
+      view,
+      "eye-ble-event",
+      ble_event(discover, "characteristics", %{
+        "peripheral_id" => peripheral,
+        "service_uuid" => service,
+        "characteristics" => characteristics
+      })
+    )
+
+    render_hook(view, "eye-ble-event", ble_event(discover, "discovery_complete", %{}))
+    assert has_element?(view, "#eye-settings")
+
+    view
+    |> form("#eye-settings",
+      eye: %{
+        password: "123456",
+        temperature: "true",
+        humidity: "true",
+        magnetic: "true",
+        movement: "true"
+      }
+    )
+    |> render_submit()
+
+    assert has_element?(view, "#eye-review", "sensor mask 15")
+    view |> element("button", "Apply and verify on EYE Sensor") |> render_click()
+
+    assert_push_event(
+      view,
+      "eye-ble-command",
+      %{
+        "operation" => "write",
+        "characteristic_uuid" => "e61c0008-7df2-4d4e-8e6d-c611745b92e9",
+        "value" => "MTIzNDU2"
+      } = authenticate
+    )
+
+    render_hook(view, "eye-ble-event", written_event(authenticate))
+
+    assert_push_event(
+      view,
+      "eye-ble-command",
+      %{
+        "operation" => "write",
+        "characteristic_uuid" => "e61c0021-7df2-4d4e-8e6d-c611745b92e9",
+        "value" => "Dw"
+      } = sensor_mask
+    )
+
+    render_hook(view, "eye-ble-event", written_event(sensor_mask))
+
+    assert_push_event(
+      view,
+      "eye-ble-command",
+      %{
+        "operation" => "write",
+        "characteristic_uuid" => "e61c0007-7df2-4d4e-8e6d-c611745b92e9",
+        "value" => "ABA"
+      } = save
+    )
+
+    render_hook(view, "eye-ble-event", written_event(save))
+
+    assert_push_event(
+      view,
+      "eye-ble-command",
+      %{
+        "operation" => "read",
+        "characteristic_uuid" => "e61c0021-7df2-4d4e-8e6d-c611745b92e9"
+      } = verify
+    )
+
+    render_hook(
+      view,
+      "eye-ble-event",
+      ble_event(verify, "value", %{
+        "peripheral_id" => peripheral,
+        "service_uuid" => service,
+        "characteristic_uuid" => verify["characteristic_uuid"],
+        "value" => "Dw"
+      })
+    )
+
+    assert render(view) =~ "written, saved and read back in this local session"
+    refute has_element?(view, "#eye-review")
+  end
+
+  test "EYE Sensor setup exposes denial, timeout, malformed data and disconnect states", c do
+    thing = provisioned(c)
+    {:ok, view, _} = live(c.conn, Presenter.provisioning_path(thing))
+
+    view |> element("button", "Scan for EYE Sensors") |> render_click()
+    assert_push_event(view, "eye-ble-command", %{"operation" => "scan"} = denied)
+
+    render_hook(
+      view,
+      "eye-ble-event",
+      ble_event(denied, "rejected", %{"reason" => "unauthorized"})
+    )
+
+    assert render(view) =~ "Bluetooth permission was denied"
+
+    view |> element("button", "Scan for EYE Sensors") |> render_click()
+    assert_push_event(view, "eye-ble-command", %{"operation" => "scan"} = timeout)
+    send(view.pid, {:eye_ble_timeout, timeout["request_id"]})
+    assert render(view) =~ "native BLE operation timed out"
+
+    view |> element("button", "Scan for EYE Sensors") |> render_click()
+    assert_push_event(view, "eye-ble-command", %{"operation" => "scan"} = malformed)
+
+    invalid =
+      ble_event(malformed, "scan_result", %{
+        "peripheral_id" => "123e4567-e89b-42d3-a456-426614174002",
+        "name" => "EYE_1234567",
+        "rssi" => -42,
+        "service_uuids" => ["180a"]
+      })
+
+    render_hook(view, "eye-ble-event", invalid)
+    assert render(view) =~ "malformed target data"
+
+    view |> element("button", "Scan for EYE Sensors") |> render_click()
+    assert_push_event(view, "eye-ble-command", %{"operation" => "scan"} = scan)
+    peripheral = "123e4567-e89b-42d3-a456-426614174002"
+
+    render_hook(
+      view,
+      "eye-ble-event",
+      ble_event(scan, "scan_result", %{
+        "peripheral_id" => peripheral,
+        "name" => nil,
+        "rssi" => -50,
+        "service_uuids" => [EYESensorConfiguration.service_uuid()]
+      })
+    )
+
+    render_hook(view, "eye-ble-event", ble_event(scan, "scan_complete", %{}))
+    view |> element("button[phx-click='eye-connect']") |> render_click()
+    assert_push_event(view, "eye-ble-command", %{"operation" => "connect"} = connect)
+
+    render_hook(
+      view,
+      "eye-ble-event",
+      ble_event(connect, "connected", %{"peripheral_id" => peripheral})
+    )
+
+    assert_push_event(view, "eye-ble-command", %{"operation" => "discover"})
+
+    render_hook(
+      view,
+      "eye-ble-event",
+      ble_event(connect, "disconnected", %{"peripheral_id" => peripheral})
+    )
+
+    assert render(view) =~ "disconnected before another operation"
+  end
+
+  test "target setup keeps invalid, stale and out-of-order UI events fail closed", c do
+    thing = provisioned(c)
+    path = Presenter.provisioning_path(thing)
+
+    Agent.update(c.faults, &Map.put(&1, :get, {:persistent, :unavailable}))
+    {:ok, unavailable, _} = live(c.conn, path)
+    assert has_element?(unavailable, "[role=alert]")
+    Agent.update(c.faults, &Map.delete(&1, :get))
+
+    {:ok, view, _} = live(c.conn, path)
+    render_hook(view, "build-tat140-plan", %{})
+    assert has_element?(view, "[role=alert]", "Check the required fields")
+
+    render_hook(view, "build-tat140-plan", %{"tat140" => %{"port" => 5027}})
+    assert has_element?(view, "[role=alert]", "Check the required fields")
+
+    render_hook(view, "eye-prepare", %{})
+    assert render(view) =~ "Connect and verify the EYE Sensor"
+    render_hook(view, "eye-apply", %{})
+    assert render(view) =~ "Review valid EYE settings"
+    render_hook(view, "eye-disconnect", %{})
+    render_hook(view, "unknown-target-event", %{})
+
+    view |> element("button", "Scan for EYE Sensors") |> render_click()
+    assert_push_event(view, "eye-ble-command", %{"operation" => "scan"} = scan)
+    send(view.pid, {:eye_ble_timeout, Identifier.uuid()})
+    assert render(view) =~ "Scanning for the documented EYE configuration service"
+
+    stale = Map.put(scan, "request_id", Identifier.uuid())
+    render_hook(view, "eye-ble-event", ble_event(stale, "scan_complete", %{}))
+    assert render(view) =~ "Scanning for the documented EYE configuration service"
+
+    render_hook(view, "eye-ble-event", %{
+      "schema" => "wtr.mobile-ble-central-event.v1",
+      "request_id" => Identifier.uuid(),
+      "event" => "unknown",
+      "data" => %{}
+    })
+
+    render_hook(
+      view,
+      "eye-ble-event",
+      ble_event(scan, "connected", %{
+        "peripheral_id" => "123e4567-e89b-42d3-a456-426614174002"
+      })
+    )
+
+    assert render(view) =~ "out of order for this target workflow"
+  end
+
+  test "EYE discovery exposes empty and incomplete scans and permits explicit disconnect", c do
+    thing = provisioned(c)
+    path = Presenter.provisioning_path(thing)
+    {:ok, empty, _} = live(c.conn, path)
+
+    empty |> element("button", "Scan for EYE Sensors") |> render_click()
+    assert_push_event(empty, "eye-ble-command", %{"operation" => "scan"} = empty_scan)
+    render_hook(empty, "eye-ble-event", ble_event(empty_scan, "scan_complete", %{}))
+    assert render(empty) =~ "No EYE Sensor exposed"
+
+    {:ok, view, _} = live(c.conn, path)
+    {peripheral, service, discover} = connect_eye(view)
+    [characteristic | _] = EYESensorConfiguration.required_characteristics()
+
+    render_hook(
+      view,
+      "eye-ble-event",
+      ble_event(discover, "characteristics", %{
+        "peripheral_id" => peripheral,
+        "service_uuid" => service,
+        "characteristics" => [%{"uuid" => characteristic, "properties" => ["write"]}]
+      })
+    )
+
+    render_hook(view, "eye-ble-event", ble_event(discover, "discovery_complete", %{}))
+    assert render(view) =~ "does not expose the complete EYE configuration surface"
+
+    view |> element("button", "Disconnect EYE Sensor") |> render_click()
+    assert_push_event(view, "eye-ble-command", %{"operation" => "disconnect"} = disconnect)
+    assert render(view) =~ "Disconnecting from the EYE Sensor"
+
+    render_hook(
+      view,
+      "eye-ble-event",
+      ble_event(disconnect, "disconnected", %{"peripheral_id" => peripheral})
+    )
+
+    assert render(view) =~ "disconnected before another operation"
+  end
+
+  test "EYE setup renders every bounded native rejection reason", c do
+    thing = provisioned(c)
+    {:ok, view, _} = live(c.conn, Presenter.provisioning_path(thing))
+
+    for {reason, message} <- [
+          {"powered_off", "Bluetooth is powered off"},
+          {"unsupported", "does not provide the required BLE central capability"},
+          {"not_connected", "disconnected before the operation completed"},
+          {"invalid_data", "rejected malformed EYE Sensor data"},
+          {"busy", "Another BLE operation is active"},
+          {"not_found", "no longer available"},
+          {"unavailable", "native BLE operation is unavailable"}
+        ] do
+      view |> element("button", "Scan for EYE Sensors") |> render_click()
+      assert_push_event(view, "eye-ble-command", %{"operation" => "scan"} = scan)
+      render_hook(view, "eye-ble-event", ble_event(scan, "rejected", %{"reason" => reason}))
+      assert render(view) =~ message
+    end
+  end
+
+  test "EYE read-back distinguishes mismatched and malformed masks", c do
+    thing = provisioned(c)
+    path = Presenter.provisioning_path(thing)
+
+    {:ok, mismatch, _} = live(c.conn, path)
+    {verify, peripheral, service} = eye_verification(mismatch)
+
+    render_hook(
+      mismatch,
+      "eye-ble-event",
+      ble_event(verify, "value", %{
+        "peripheral_id" => peripheral,
+        "service_uuid" => service,
+        "characteristic_uuid" => verify["characteristic_uuid"],
+        "value" => "Bw"
+      })
+    )
+
+    assert render(mismatch) =~ "did not match the reviewed sensor mask"
+
+    {:ok, malformed, _} = live(c.conn, path)
+    {verify, peripheral, service} = eye_verification(malformed)
+
+    render_hook(
+      malformed,
+      "eye-ble-event",
+      ble_event(verify, "value", %{
+        "peripheral_id" => peripheral,
+        "service_uuid" => service,
+        "characteristic_uuid" => verify["characteristic_uuid"],
+        "value" => "EA"
+      })
+    )
+
+    assert render(malformed) =~ "returned a malformed sensor mask"
   end
 
   test "domain deletion recovers a lost reply without submitting twice", c do
@@ -3930,6 +4351,14 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
       live(c.conn, Presenter.path(:asset, thing) <> "?operation=" <> Identifier.uuid())
 
     path = Presenter.path(:asset, thing) <> "/protection"
+
+    assert has_element?(
+             asset,
+             ~s(nav[aria-label="Asset evidence workflows"]),
+             "Inspect source evidence"
+           )
+
+    assert has_element?(asset, ~s(nav[aria-label="Asset workflows"]), "Protection rules")
     assert has_element?(asset, ~s(a[href="#{path}"]), "Protection rules")
 
     {:ok, view, _} = live(c.conn, path)
@@ -7895,5 +8324,103 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
       Service.save_query(c.service, c.admin, c.scope, Identifier.uuid(), request, c.now)
 
     {first, second, operation}
+  end
+
+  defp ble_event(command, event, data),
+    do: %{
+      "schema" => "wtr.mobile-ble-central-event.v1",
+      "request_id" => command["request_id"],
+      "event" => event,
+      "data" => data
+    }
+
+  defp written_event(command),
+    do:
+      ble_event(command, "written", %{
+        "peripheral_id" => command["peripheral_id"],
+        "service_uuid" => command["service_uuid"],
+        "characteristic_uuid" => command["characteristic_uuid"]
+      })
+
+  defp connect_eye(view) do
+    peripheral = "123e4567-e89b-42d3-a456-426614174002"
+    service = EYESensorConfiguration.service_uuid()
+
+    view |> element("button", "Scan for EYE Sensors") |> render_click()
+    assert_push_event(view, "eye-ble-command", %{"operation" => "scan"} = scan)
+
+    render_hook(
+      view,
+      "eye-ble-event",
+      ble_event(scan, "scan_result", %{
+        "peripheral_id" => peripheral,
+        "name" => "EYE_1234567",
+        "rssi" => -42,
+        "service_uuids" => [service]
+      })
+    )
+
+    render_hook(view, "eye-ble-event", ble_event(scan, "scan_complete", %{}))
+    view |> element("button[phx-click='eye-connect']") |> render_click()
+    assert_push_event(view, "eye-ble-command", %{"operation" => "connect"} = connect)
+
+    render_hook(
+      view,
+      "eye-ble-event",
+      ble_event(connect, "connected", %{"peripheral_id" => peripheral})
+    )
+
+    assert_push_event(view, "eye-ble-command", %{"operation" => "discover"} = discover)
+    {peripheral, service, discover}
+  end
+
+  defp eye_verification(view) do
+    {peripheral, service, discover} = connect_eye(view)
+
+    characteristics =
+      Enum.map(EYESensorConfiguration.required_characteristics(), fn uuid ->
+        %{
+          "uuid" => uuid,
+          "properties" =>
+            if(String.ends_with?(uuid, "0021-7df2-4d4e-8e6d-c611745b92e9"),
+              do: ["read", "write"],
+              else: ["write"]
+            )
+        }
+      end)
+
+    render_hook(
+      view,
+      "eye-ble-event",
+      ble_event(discover, "characteristics", %{
+        "peripheral_id" => peripheral,
+        "service_uuid" => service,
+        "characteristics" => characteristics
+      })
+    )
+
+    render_hook(view, "eye-ble-event", ble_event(discover, "discovery_complete", %{}))
+
+    view
+    |> form("#eye-settings",
+      eye: %{
+        password: "123456",
+        temperature: "true",
+        humidity: "true",
+        magnetic: "true",
+        movement: "true"
+      }
+    )
+    |> render_submit()
+
+    view |> element("button", "Apply and verify on EYE Sensor") |> render_click()
+    assert_push_event(view, "eye-ble-command", %{"operation" => "write"} = authenticate)
+    render_hook(view, "eye-ble-event", written_event(authenticate))
+    assert_push_event(view, "eye-ble-command", %{"operation" => "write"} = sensor_mask)
+    render_hook(view, "eye-ble-event", written_event(sensor_mask))
+    assert_push_event(view, "eye-ble-command", %{"operation" => "write"} = save)
+    render_hook(view, "eye-ble-event", written_event(save))
+    assert_push_event(view, "eye-ble-command", %{"operation" => "read"} = verify)
+    {verify, peripheral, service}
   end
 end

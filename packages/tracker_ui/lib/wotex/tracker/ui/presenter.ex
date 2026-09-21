@@ -46,13 +46,26 @@ defmodule Wotex.Tracker.UI.Presenter do
     "temperature" => "Temperature",
     "humidity" => "Humidity",
     "pressure" => "Pressure",
+    "motion" => "Motion",
     "accelerationX" => "Acceleration X",
     "accelerationY" => "Acceleration Y",
     "accelerationZ" => "Acceleration Z",
     "batteryVoltage" => "Battery voltage",
+    "bleSensorTemperature" => "EYE temperature",
+    "bleSensorBatteryLevel" => "EYE battery level",
+    "bleSensorHumidity" => "EYE humidity",
+    "bleSensorMovementCount" => "EYE movement count",
     "txPower" => "Transmit power",
     "movementCounter" => "Movement counter",
     "measurementSequence" => "Measurement sequence"
+  }
+
+  @measurement_reasons %{
+    "wire_value" => "decoded wire value",
+    "wire_value_out_of_range" => "wire value outside the declared range",
+    "unexpected_wire_width" => "unexpected wire width",
+    "sensor_not_found" => "sensor not found",
+    "sensor_lost" => "sensor connection lost"
   }
 
   @doc "Provides a readable label without changing the canonical measurement kind."
@@ -62,6 +75,13 @@ defmodule Wotex.Tracker.UI.Presenter do
   @doc "Displays known unit symbols without converting the measurement value."
   @spec unit(String.t()) :: String.t()
   def unit(unit), do: Map.get(%{"Cel" => "°C", "1" => ""}, unit, unit)
+
+  @doc "Names a closed measurement source or unavailability reason without hiding its canonical value."
+  @spec measurement_reason(term()) :: String.t()
+  def measurement_reason(reason) when is_binary(reason),
+    do: Map.get(@measurement_reasons, reason, reason)
+
+  def measurement_reason(_), do: "reason unavailable"
 
   @doc "Builds a local path using one encoded identifier segment."
   @spec path(:asset | :observation, String.t()) :: String.t()
@@ -92,6 +112,10 @@ defmodule Wotex.Tracker.UI.Presenter do
   @doc "Builds the local path for one asset's declared Actions."
   @spec interaction_path(String.t()) :: String.t()
   def interaction_path(thing) when is_binary(thing), do: path(:asset, thing) <> "/interactions"
+
+  @doc "Builds the local path for the TAT140 and associated EYE Sensor setup screen."
+  @spec provisioning_path(String.t()) :: String.t()
+  def provisioning_path(thing) when is_binary(thing), do: path(:asset, thing) <> "/provisioning"
 
   @doc "Builds the local path for one saved dashboard definition."
   @spec dashboard_path(String.t()) :: String.t()

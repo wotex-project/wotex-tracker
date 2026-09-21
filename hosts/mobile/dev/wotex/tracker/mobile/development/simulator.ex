@@ -11,6 +11,8 @@ defmodule Wotex.Tracker.Mobile.Development.Simulator do
   use Supervisor
   import Bitwise
 
+  alias Wotex.Tracker.Protocols.Teltonika.EYESensorConfiguration
+
   alias Wotex.Tracker.Mobile.{Config, CredentialManager, Host, NotificationRegistration, Runtime}
 
   alias Wotex.Tracker.Mobile.Development.{
@@ -24,14 +26,14 @@ defmodule Wotex.Tracker.Mobile.Development.Simulator do
     scan: "123e4567-e89b-42d3-a456-426614174001",
     connect: "123e4567-e89b-42d3-a456-426614174002",
     discover: "123e4567-e89b-42d3-a456-426614174003",
-    read: "123e4567-e89b-42d3-a456-426614174004",
-    write: "123e4567-e89b-42d3-a456-426614174005",
-    disconnect: "123e4567-e89b-42d3-a456-426614174006",
-    stop_scan: "123e4567-e89b-42d3-a456-426614174007"
+    authenticate: "123e4567-e89b-42d3-a456-426614174004",
+    sensor_mask: "123e4567-e89b-42d3-a456-426614174005",
+    save: "123e4567-e89b-42d3-a456-426614174006",
+    verify: "123e4567-e89b-42d3-a456-426614174007",
+    disconnect: "123e4567-e89b-42d3-a456-426614174008",
+    stop_scan: "123e4567-e89b-42d3-a456-426614174009"
   ]
   @peripheral "123e4567-e89b-12d3-a456-426614174000"
-  @service "180a"
-  @characteristic "2a29"
 
   @doc "Starts the finite simulator around one existing private data directory."
   @spec start_link(keyword()) :: Supervisor.on_start()
@@ -86,7 +88,8 @@ defmodule Wotex.Tracker.Mobile.Development.Simulator do
       connection: connection,
       credentials: CredentialManager.status(Wotex.Tracker.Mobile.CredentialManager),
       native: NativeSimulator.status(),
-      notifications: NotificationRegistration.status(Wotex.Tracker.Mobile.NotificationRegistration),
+      notifications:
+        NotificationRegistration.status(Wotex.Tracker.Mobile.NotificationRegistration),
       remote: RemoteService.status(),
       screen: ScreenSimulator.status()
     }
@@ -101,12 +104,14 @@ defmodule Wotex.Tracker.Mobile.Development.Simulator do
          :ok <- NativeSimulator.emit(:active),
          :ok <- ScreenSimulator.blocked("https://example.com/mobile-simulator"),
          :ok <- ScreenSimulator.message(scan_command()),
-         :ok <- ScreenSimulator.message(peripheral_command("connect", @requests[:connect])),
+         :ok <- ScreenSimulator.message(target_command(:connect_command, @requests[:connect])),
          :ok <- ScreenSimulator.message(discover_command()),
-         :ok <- ScreenSimulator.message(characteristic_command("read", @requests[:read])),
-         :ok <- ScreenSimulator.message(write_command()),
+         :ok <- ScreenSimulator.message(authenticate_command()),
+         :ok <- ScreenSimulator.message(sensor_mask_command()),
+         :ok <- ScreenSimulator.message(save_command()),
+         :ok <- ScreenSimulator.message(verify_command()),
          :ok <-
-           ScreenSimulator.message(peripheral_command("disconnect", @requests[:disconnect])),
+           ScreenSimulator.message(target_command(:disconnect_command, @requests[:disconnect])),
          :ok <- ScreenSimulator.message(base_command(@requests[:stop_scan], "stop_scan")),
          :ok <- ScreenSimulator.message(share_request()),
          :ok <- NativeSimulator.emit({:notification, "development-alert"}) do
@@ -175,32 +180,43 @@ defmodule Wotex.Tracker.Mobile.Development.Simulator do
     }
 
   defp scan_command do
-    Map.merge(base_command(@requests[:scan], "scan"), %{
-      "service_uuids" => [@service],
-      "timeout_ms" => 1_000
-    })
+    command!(EYESensorConfiguration.scan_command(@requests[:scan], 1_000))
   end
-
-  defp peripheral_command(operation, request),
-    do: Map.put(base_command(request, operation), "peripheral_id", @peripheral)
 
   defp discover_command do
-    Map.put(peripheral_command("discover", @requests[:discover]), "service_uuids", [@service])
+    command!(EYESensorConfiguration.discover_command(@requests[:discover], @peripheral))
   end
 
-  defp characteristic_command(operation, request) do
-    Map.merge(peripheral_command(operation, request), %{
-      "service_uuid" => @service,
-      "characteristic_uuid" => @characteristic
-    })
-  end
+  defp authenticate_command,
+    do:
+      command!(
+        EYESensorConfiguration.authenticate_command(
+          @requests[:authenticate],
+          @peripheral,
+          "123456"
+        )
+      )
 
-  defp write_command do
-    Map.merge(characteristic_command("write", @requests[:write]), %{
-      "encoding" => "base64url",
-      "value" => Base.url_encode64(<<9, 8, 7>>, padding: false)
-    })
-  end
+  defp sensor_mask_command,
+    do:
+      command!(
+        EYESensorConfiguration.sensor_mask_command(
+          @requests[:sensor_mask],
+          @peripheral,
+          [:temperature, :humidity, :magnetic, :movement]
+        )
+      )
+
+  defp save_command,
+    do: command!(EYESensorConfiguration.save_command(@requests[:save], @peripheral))
+
+  defp verify_command,
+    do: command!(EYESensorConfiguration.read_sensor_mask_command(@requests[:verify], @peripheral))
+
+  defp target_command(function, request),
+    do: command!(apply(EYESensorConfiguration, function, [request, @peripheral]))
+
+  defp command!({:ok, command}), do: command
 
   defp share_request do
     %{

@@ -433,6 +433,20 @@ operator token, then choose Setup. Choose a preformed Observation JSON capture
 up to 256 KiB to import it from the browser. The CLI and API accept the same
 admission contract. The browser presents retained evidence, explicit ownership
 confirmation, enrollment, later observation association and Thing provisioning.
+
+For a disposable, already-seeded TAT140/EYE Sensor UI instance, run:
+
+```sh
+WOTEX_PATH_DEPS=1 WOTEX_TRACKER_UI=1 MIX_ENV=test mise exec -- \
+  mix run --no-start scripts/ui_development.exs
+```
+
+The script starts only numeric loopback listeners, creates a private temporary
+store, imports and materializes the documentation-backed TAT140/EYE fixture, and
+prints the generated local origin, scope, token, Thing ID and provisioning URL.
+Stopping the process removes its temporary store. It is a development and
+screenshot fixture, not physical-device evidence.
+
 After association, the asset page identifies prior measurements and offers an
 explicit Thing update. Asset details show actual measurements,
 quality, UTC observation time and bounded measurement history. No physical
