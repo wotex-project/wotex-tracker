@@ -8,6 +8,7 @@ defmodule Wotex.Tracker.Mobile.DevelopmentSimulatorTest do
   alias Wotex.Tracker.Mobile.{Config, NativeAdapters, WebSession}
 
   alias Wotex.Tracker.Mobile.Development.{
+    APNsSimulator,
     NativeSimulator,
     RemoteService,
     ScreenSimulator,
@@ -80,6 +81,34 @@ defmodule Wotex.Tracker.Mobile.DevelopmentSimulatorTest do
 
     assert :ok = Simulator.exercise()
 
+    assert {:ok, warm_receipt} = Simulator.notify("development-warm-alert", :warm)
+    assert :ok = APNsSimulator.tap(warm_receipt, :warm)
+    assert :ok = APNsSimulator.mark_old(warm_receipt)
+    assert :ok = APNsSimulator.tap(warm_receipt, :background)
+    assert {:ok, _cold_receipt} = Simulator.notify("development-cold-alert", :cold)
+
+    assert :ok = NativeSimulator.emit({:push_token, :rotated})
+
+    eventually(fn ->
+      status = Simulator.status()
+      status.notifications.state == :registered and status.remote.generation >= 2
+    end)
+
+    assert :ok = APNsSimulator.set_scenario(:invalid_token)
+    assert {:invalid_token, _} = RemoteService.dispatch_notification("invalid-token-alert")
+
+    eventually(fn -> Simulator.status().remote.endpoint_count == 0 end)
+
+    assert :ok = NativeSimulator.emit({:push_token, :invalid})
+    eventually(fn -> Simulator.status().notifications.state == :unavailable end)
+
+    assert :ok = NativeSimulator.emit({:push_token, :rotated})
+
+    eventually(fn ->
+      status = Simulator.status()
+      status.notifications.state == :registered and status.remote.endpoint_count == 1
+    end)
+
     eventually(fn ->
       status = Simulator.status()
       effects = status.native.effects
@@ -91,10 +120,16 @@ defmodule Wotex.Tracker.Mobile.DevelopmentSimulatorTest do
           &(effects[&1] == 1)
         ) and effects.ble_write == 3 and effects.webview_script >= 10 and
         effects.external_url == 1 and
-        effects.share == 1 and effects.emitted_event == 5
+        effects.share == 1 and effects.emitted_event == 8
     end)
 
     status = Simulator.status()
+    assert status.apns.provider.accepted == 2
+    assert status.apns.provider.invalid_token == 1
+    assert status.apns.launches == %{cold: 1, warm: 2, background: 1}
+    assert status.apns.duplicate_taps == 2
+    assert status.apns.old_taps == 1
+    assert status.screen.notification_routes == %{cold: 1, warm: 2, background: 1}
     assert status.native.secure_slots == ~w(credential installation_id)
     refute inspect(status) =~ "development-token"
     refute inspect(status) =~ "development-apns-token"
@@ -150,7 +185,13 @@ defmodule Wotex.Tracker.Mobile.DevelopmentSimulatorTest do
     assert NativeSimulator.request(socket, :location) == socket
 
     assert %Mob.Socket{} = NativeSimulator.register_push(socket)
-    assert_receive {:push_token, :ios, "development-apns-token"}
+    assert_receive {:push_token, :ios, token}
+    assert token == String.duplicate("01", 32)
+    assert :ok = NativeSimulator.emit({:push_token, :rotated})
+    assert_receive {:push_token, :ios, rotated}
+    assert rotated == String.duplicate("02", 32)
+    assert :ok = NativeSimulator.emit({:push_token, :invalid})
+    assert_receive {:push_token, :ios, "not-a-provider-token"}
     assert NativeSimulator.register_push(:invalid) == :invalid
 
     assert %Mob.Socket{} = NativeSimulator.text(socket, "share")
@@ -265,6 +306,7 @@ defmodule Wotex.Tracker.Mobile.DevelopmentSimulatorTest do
     assert {:error, :invalid_configuration} = RemoteService.start_link(:invalid)
 
     start_supervised!(RemoteService)
+    assert {:error, :provider_unavailable} = RemoteService.dispatch_notification("alert")
     base = remote_request("GET", "access", "")
 
     assert {200, %{"data" => %{"schema" => "wtr.access.v1"}}} = remote(base)
@@ -308,12 +350,24 @@ defmodule Wotex.Tracker.Mobile.DevelopmentSimulatorTest do
 
     assert stored == Map.take(endpoint, ~w(id provider app_id environment))
 
+    assert {400, _} =
+             remote(
+               remote_request(
+                 "POST",
+                 "notification_endpoint_deletions",
+                 Jason.encode!(%{"id" => endpoint["id"], "expected_generation" => "0"})
+               )
+             )
+
     assert {200, _} =
              remote(
                remote_request(
                  "POST",
                  "notification_endpoint_deletions",
-                 Jason.encode!(%{"id" => endpoint["id"]})
+                 Jason.encode!(%{
+                   "id" => endpoint["id"],
+                   "expected_generation" => "1"
+                 })
                )
              )
 
@@ -331,6 +385,7 @@ defmodule Wotex.Tracker.Mobile.DevelopmentSimulatorTest do
     assert {:error, :invalid_configuration} = Simulator.start_link([])
     assert {:error, :invalid_configuration} = Simulator.start_link(:invalid)
     assert {:error, :invalid_configuration} = Simulator.start_link(directory: "relative")
+    assert {:error, :invalid_notification} = Simulator.notify("alert", :other)
 
     assert {:error, :invalid_configuration} =
              Simulator.start_link(directory: c.directory, port: 0)

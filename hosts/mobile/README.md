@@ -143,7 +143,8 @@ repository-owned peer supplies the two secure-storage slots, app/network events,
 notification permission and token callbacks, external navigation, sharing,
 WebView effects and one deterministic BLE central peripheral. A second peer
 implements the versioned remote-client seam with one empty `workshop` account.
-Neither peer replaces or weakens a production adapter.
+A finite APNs peer separately models provider acceptance, OS delivery and a user
+opening a notification. Neither peer replaces or weakens a production adapter.
 
 Start it from `hosts/mobile/` with the pinned toolchain:
 
@@ -158,15 +159,21 @@ Simulator.connection()
 # Open bootstrap_url, then sign in with scope workshop and token development-token.
 Simulator.exercise()
 Simulator.status()
+# After sign-in and endpoint registration:
+{:ok, _receipt} = Simulator.notify("development-alert", :cold)
 ```
 
 Run those expressions in `WOTEX_PATH_DEPS=1 MIX_ENV=dev mise exec -- iex -S
 mix`. `exercise/0` routes lifecycle recovery, a notification tap, an authorized
 JSON share and scan/connect/discover/read/write/disconnect BLE commands through
-the real root-screen clauses. Status contains counters, digests and slot names,
-not stored credentials, provider tokens or shared JSON. This is simulator-class
-software evidence; it makes no iOS permission, Keychain, radio, APNs delivery,
-share-sheet or suspension claim.
+the real root-screen clauses. `notify/2` dispatches, delivers and opens a minimal
+opaque-reference notification through cold, warm or background root-screen
+states. Tests additionally cover token rotation, malformed callbacks, provider
+invalid-token removal, rejection, rate limiting, offline retry, duplicate taps
+and old taps. Status contains counters, digests and slot names, not stored
+credentials, provider tokens, event references or shared JSON. This is
+simulator-class software evidence; it makes no iOS permission, Keychain, radio,
+Apple provider/OS delivery, share-sheet or suspension claim.
 
 The same host also owns the integrated local product scenario. It starts the
 real durable service, finite passive-ingress simulator and native-capability

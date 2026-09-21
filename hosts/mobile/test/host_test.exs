@@ -242,6 +242,7 @@ defmodule Wotex.Tracker.Mobile.HostTest do
   end
 
   test "rejects foreign WebSocket origins and validates retained session digests", c do
+    assert SessionGate.init(example: true) == [example: true]
     start_supervised!({Host, c.options})
 
     socket_headers = [
@@ -330,7 +331,7 @@ defmodule Wotex.Tracker.Mobile.HostTest do
     {cookie, csrf} = bootstrap_sign_in(c)
     assert {302, _, _} = sign_in(c, cookie, csrf, "notification-token")
 
-    provider_token = "private-apns-routing-token"
+    provider_token = String.duplicate("ab", 32)
     assert :ok = NotificationRegistration.register(NotificationRegistration, :ios, provider_token)
     assert %{state: :registered} = NotificationRegistration.status(NotificationRegistration)
 

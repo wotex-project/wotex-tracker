@@ -200,7 +200,6 @@ delivery_targets:
     qualification_status: not-started
     distribution_status: not-started
     remaining_development:
-      - finish local APNs registration, dispatch and notification-tap simulation including failure paths
       - migrate safe standalone native and generated C-ABI surfaces to Zig and consolidate the Zig build graph
     evidence_refs: [docs/evidence/implementation.md]
     acceptance: real iPhone, native secure storage/BLE/push/lifecycle, signed install and distribution evidence

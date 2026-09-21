@@ -6010,3 +6010,35 @@ full-page evidence outside version control. This closes the shared-application
 development/local axis and the iOS target-specific BLE development item. It does
 not claim physical radio permission behavior, EYE interoperability or a signed
 iPhone installation.
+
+### Local APNs registration, provider and tap simulation — 2026-09-21
+
+The development mobile composition now includes a finite APNs peer rather than
+jumping directly from a fake token to a notification callback. The native peer
+issues structurally valid hex device tokens; the registration owner rejects
+malformed native tokens, rotates the installation-bound endpoint under the
+service generation check and retains no token in status. The remote development
+service keeps the token only inside its redacted process state and conditionally
+removes the current endpoint after the provider returns `invalid_token`.
+
+Provider acceptance, simulated OS delivery and user opening are separate calls
+and counters. The peer covers acceptance, permanent rejection, invalid token,
+rate limiting and offline retry without claiming that acceptance proves device
+delivery or a user read. Accepted minimal payloads retain only a token digest
+and opaque event reference. Cold, warm and background opens all traverse the
+production `MobScreen` notification clause; duplicate and old taps remain
+observable and re-enter the shared alert route for current authorization rather
+than becoming a canonical event log.
+
+The iOS host now projects only the fixed schema and opaque event reference from
+launch options or a scene notification response into Mob's bounded cold-launch
+handoff. Alert copy and the APS envelope are excluded. The Elixir boundary also
+admits the exact nil APS residue produced by Mob's native delegate while still
+rejecting widened notification data.
+
+The complete mobile gate passed 93 tests at 95.3% production line coverage,
+strict Credo, Dialyzer, documentation, dependency/security and license checks,
+Zig formatting/tests/ReleaseSafe compilation, the 671-file stack-language policy
+and the integrated product simulator. This closes the iOS companion's local APNs
+development item. Apple-provider acceptance, physical OS delivery, notification
+permission behavior and user-reading evidence remain qualification work.

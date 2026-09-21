@@ -15,6 +15,9 @@ defmodule Wotex.Tracker.Mobile.NativeArtifactTest do
     assert delegate =~ "scene:willConnectToSession"
     assert delegate =~ "didRegisterForRemoteNotificationsWithDeviceToken"
     assert delegate =~ "mob_send_push_token"
+    assert delegate =~ "mob_set_launch_notification_json"
+    assert delegate =~ "connectionOptions.notificationResponse"
+    assert delegate =~ ~s(@"wtr.notification-reference.v1")
     assert delegate =~ "mob_boot_runtime"
     assert beam =~ ~s(#define APP_MODULE "wotex_tracker_mobile")
     assert bootstrap =~ "'Elixir.Wotex.Tracker.Mobile.MobApp':start()"

@@ -243,8 +243,8 @@ defmodule Wotex.Tracker.Mobile.NotificationRegistration do
       Keyword.keys(options) -- @keys == []
   end
 
-  defp provider_token(token) when is_binary(token) and byte_size(token) in 1..4_096 do
-    if token |> :binary.bin_to_list() |> Enum.all?(&(&1 in 0x21..0x7E)),
+  defp provider_token(token) when is_binary(token) and byte_size(token) in 2..4_096 do
+    if rem(byte_size(token), 2) == 0 and Regex.match?(~r/\A[0-9A-Fa-f]+\z/, token),
       do: :ok,
       else: {:error, :invalid_token}
   end

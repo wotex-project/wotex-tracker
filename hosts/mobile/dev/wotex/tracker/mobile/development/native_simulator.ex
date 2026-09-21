@@ -18,7 +18,8 @@ defmodule Wotex.Tracker.Mobile.Development.NativeSimulator do
   @eye_command "e61c0007-7df2-4d4e-8e6d-c611745b92e9"
   @eye_sensor_mask "e61c0021-7df2-4d4e-8e6d-c611745b92e9"
   @ble_scenarios ~w(success denied timeout disconnect malformed)a
-  @push_token "development-apns-token"
+  @push_token String.duplicate("01", 32)
+  @rotated_push_token String.duplicate("02", 32)
   @secure_keys ~w(credential installation_id)
   @event_references ~r/\A[^\x00]{1,256}\z/u
   @keys [:name]
@@ -366,11 +367,18 @@ defmodule Wotex.Tracker.Mobile.Development.NativeSimulator do
     end
   end
 
+  defp native_event({:push_token, :rotated}),
+    do: {:ok, {:push_token, :ios, @rotated_push_token}}
+
+  defp native_event({:push_token, :invalid}),
+    do: {:ok, {:push_token, :ios, "not-a-provider-token"}}
+
   defp native_event(_), do: {:error, :invalid_event}
 
   defp event_kind({:mob_device, event}), do: event
   defp event_kind({:mob_device, event, _}), do: event
   defp event_kind({:notification, _}), do: :notification
+  defp event_kind({:push_token, :ios, _}), do: :push_token
 
   defp digest(value), do: value |> then(&:crypto.hash(:sha256, &1)) |> Base.encode16(case: :lower)
 end

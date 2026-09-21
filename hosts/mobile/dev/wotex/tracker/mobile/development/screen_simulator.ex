@@ -36,6 +36,12 @@ defmodule Wotex.Tracker.Mobile.Development.ScreenSimulator do
   @spec blocked(term(), GenServer.server()) :: :ok | {:error, :unavailable}
   def blocked(url, server \\ __MODULE__), do: call(server, {:webview, :blocked, url})
 
+  @doc "Routes a simulated APNs tap through one real root-screen launch state."
+  @spec notification(GenServer.server(), map(), :cold | :warm | :background) ::
+          :ok | {:error, :unavailable}
+  def notification(server, payload, launch_state),
+    do: call(server, {:notification, payload, launch_state})
+
   @doc "Returns a redacted projection of the simulated root screen."
   @spec status(GenServer.server()) :: map()
   def status(server \\ __MODULE__) do
@@ -70,7 +76,8 @@ defmodule Wotex.Tracker.Mobile.Development.ScreenSimulator do
       notification_permission: socket.assigns[:simulated_notification_permission],
       push_registration: socket.assigns[:simulated_push_registration] == true,
       shared: socket.assigns[:simulated_share] == true,
-      webview_effect: socket.assigns[:simulated_webview_effect] == true
+      webview_effect: socket.assigns[:simulated_webview_effect] == true,
+      notification_routes: socket.assigns[:simulated_notification_routes] || %{}
     }
 
     {:reply, status, socket}
@@ -78,6 +85,25 @@ defmodule Wotex.Tracker.Mobile.Development.ScreenSimulator do
 
   def handle_call(:render, _from, socket),
     do: {:reply, MobScreen.render(socket.assigns), socket}
+
+  def handle_call({:notification, payload, launch_state}, _from, socket)
+      when launch_state in [:cold, :warm, :background] do
+    with {:ok, socket} <- launch_socket(socket, launch_state),
+         {:noreply, socket} <- MobScreen.handle_info({:notification, payload}, socket),
+         {:ok, socket} <- activate(socket, launch_state) do
+      routes =
+        Map.update(
+          socket.assigns[:simulated_notification_routes] || %{},
+          launch_state,
+          1,
+          &(&1 + 1)
+        )
+
+      {:reply, :ok, Mob.Socket.assign(socket, :simulated_notification_routes, routes)}
+    else
+      _ -> {:reply, {:error, :unavailable}, socket}
+    end
+  end
 
   def handle_call(event, _from, socket) do
     {:noreply, updated} = MobScreen.handle_info(event, socket)
@@ -102,6 +128,52 @@ defmodule Wotex.Tracker.Mobile.Development.ScreenSimulator do
     Keyword.keyword?(options) and length(options) == map_size(Map.new(options)) and
       Keyword.keys(options) -- @keys == []
   end
+
+  defp launch_socket(socket, :cold) do
+    fresh = Mob.Socket.new(MobScreen)
+
+    with {:ok, fresh} <-
+           MobScreen.mount(
+             %{session: socket.assigns.web_session, native: socket.assigns.native_adapters},
+             %{},
+             fresh
+           ) do
+      preserved =
+        Map.take(socket.assigns, [
+          :simulated_notification_permission,
+          :simulated_push_registration,
+          :simulated_share,
+          :simulated_webview_effect,
+          :simulated_notification_routes
+        ])
+
+      {:ok,
+       Enum.reduce(preserved, fresh, fn {key, value}, acc ->
+         Mob.Socket.assign(acc, key, value)
+       end)}
+    end
+  end
+
+  defp launch_socket(socket, :background) do
+    {:noreply, socket} = MobScreen.handle_info({:mob_device, :did_enter_background}, socket)
+    {:ok, socket}
+  end
+
+  defp launch_socket(socket, :warm), do: {:ok, socket}
+
+  defp activate(socket, :background) do
+    {:noreply, socket} = MobScreen.handle_info({:mob_device, :did_become_active}, socket)
+    {:ok, socket}
+  end
+
+  defp activate(socket, :cold) do
+    {:noreply, socket} =
+      MobScreen.handle_info({:mob_device, :connectivity_changed, %{online: true}}, socket)
+
+    {:ok, socket}
+  end
+
+  defp activate(socket, _), do: {:ok, socket}
 
   defp call(server, message) do
     GenServer.call(server, message)

@@ -78,8 +78,19 @@ defmodule Wotex.Tracker.Mobile.Notifications do
        when map_size(data) == 2,
        do: valid_reference(reference)
 
+  # Mob's iOS notification delegate intentionally projects unsupported nested
+  # APNs values to nil. Admit only that exact envelope residue in addition to
+  # the two application-owned custom fields.
+  defp reference_data(%{schema: @schema, event_ref: reference, aps: nil} = data)
+       when map_size(data) == 3,
+       do: valid_reference(reference)
+
   defp reference_data(%{"schema" => @schema, "event_ref" => reference} = data)
        when map_size(data) == 2,
+       do: valid_reference(reference)
+
+  defp reference_data(%{"schema" => @schema, "event_ref" => reference, "aps" => nil} = data)
+       when map_size(data) == 3,
        do: valid_reference(reference)
 
   defp reference_data(_), do: {:error, :invalid_notification}

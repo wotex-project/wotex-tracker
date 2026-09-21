@@ -125,7 +125,7 @@ defmodule Wotex.Tracker.Mobile.ShellTest do
     for event <- [
           {:permission, :notifications, :granted},
           {:permission, :notifications, :denied},
-          {:push_token, :ios, "provider-token"},
+          {:push_token, :ios, String.duplicate("ab", 32)},
           {:notification,
            %{
              data: %{

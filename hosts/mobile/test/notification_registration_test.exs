@@ -5,6 +5,8 @@ defmodule Wotex.Tracker.Mobile.NotificationRegistrationTest do
   alias Wotex.Tracker.Mobile.{MobScreen, NotificationRegistration, Notifications}
 
   @operation ~r/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+  @token String.duplicate("ab", 32)
+  @rotated_token String.duplicate("cd", 32)
 
   defmodule Credentials do
     def notification_context(agent), do: Agent.get(agent, & &1)
@@ -93,7 +95,7 @@ defmodule Wotex.Tracker.Mobile.NotificationRegistrationTest do
   end
 
   test "registers and rotates one installation-bound token without retaining it", c do
-    token = "private-apns-token"
+    token = @token
     assert :ok = NotificationRegistration.register(c.registrar, :ios, token)
     assert %{state: :registered} = NotificationRegistration.status(c.registrar)
 
@@ -119,7 +121,7 @@ defmodule Wotex.Tracker.Mobile.NotificationRegistrationTest do
     refute inspect(NotificationRegistration.status(c.registrar)) =~ token
 
     Agent.update(c.sessions, &%{&1 | generation: "5", result: {:ok, %{"outcome" => "unknown"}}})
-    assert :ok = NotificationRegistration.register(c.registrar, :ios, token <> "-rotated")
+    assert :ok = NotificationRegistration.register(c.registrar, :ios, @rotated_token)
     assert %{state: :unknown} = NotificationRegistration.status(c.registrar)
   end
 
@@ -152,7 +154,7 @@ defmodule Wotex.Tracker.Mobile.NotificationRegistrationTest do
     assert [] == calls(c.sessions)
 
     Agent.update(c.credentials, fn _ -> {:error, :unavailable} end)
-    assert :ok = NotificationRegistration.register(c.registrar, :ios, "valid-token")
+    assert :ok = NotificationRegistration.register(c.registrar, :ios, @token)
     assert %{state: :unavailable} = NotificationRegistration.status(c.registrar)
 
     Agent.update(c.credentials, fn _ -> context() end)
@@ -166,7 +168,7 @@ defmodule Wotex.Tracker.Mobile.NotificationRegistrationTest do
     assert %{state: :absent} = NotificationRegistration.status(c.registrar)
 
     Agent.update(c.sessions, &%{&1 | generation: "not-a-generation"})
-    assert :ok = NotificationRegistration.register(c.registrar, :ios, "valid-token")
+    assert :ok = NotificationRegistration.register(c.registrar, :ios, @token)
     assert %{state: :unavailable} = NotificationRegistration.status(c.registrar)
 
     Agent.update(c.sessions, &%{&1 | generation: 4})
@@ -222,6 +224,9 @@ defmodule Wotex.Tracker.Mobile.NotificationRegistrationTest do
   test "contains native permission APIs and routes only an exact opaque reference" do
     socket = Mob.Socket.new(MobScreen)
 
+    assert %Mob.Socket{} = Notifications.request_permission(socket)
+    assert %Mob.Socket{} = Notifications.register_push(socket)
+
     assert %{assigns: %{permission_requested: true}} =
              Notifications.request_permission(socket, Permissions)
 
@@ -250,6 +255,32 @@ defmodule Wotex.Tracker.Mobile.NotificationRegistrationTest do
                  "data" => %{
                    "schema" => "wtr.notification-reference.v1",
                    "event_ref" => "old-alert"
+                 }
+               },
+               WebView
+             )
+
+    assert %{assigns: %{notification_navigation: true}} =
+             Notifications.route(
+               socket,
+               %{
+                 data: %{
+                   schema: "wtr.notification-reference.v1",
+                   event_ref: "apns-envelope",
+                   aps: nil
+                 }
+               },
+               WebView
+             )
+
+    assert %{assigns: %{notification_navigation: true}} =
+             Notifications.route(
+               socket,
+               %{
+                 "data" => %{
+                   "schema" => "wtr.notification-reference.v1",
+                   "event_ref" => "string-apns-envelope",
+                   "aps" => nil
                  }
                },
                WebView

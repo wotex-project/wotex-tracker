@@ -16,6 +16,7 @@ defmodule Wotex.Tracker.Mobile.Development.Simulator do
   alias Wotex.Tracker.Mobile.{Config, CredentialManager, Host, NotificationRegistration, Runtime}
 
   alias Wotex.Tracker.Mobile.Development.{
+    APNsSimulator,
     NativeSimulator,
     RemoteService,
     ScreenSimulator
@@ -86,6 +87,7 @@ defmodule Wotex.Tracker.Mobile.Development.Simulator do
 
     %{
       connection: connection,
+      apns: APNsSimulator.status(),
       credentials: CredentialManager.status(Wotex.Tracker.Mobile.CredentialManager),
       native: NativeSimulator.status(),
       notifications:
@@ -94,6 +96,20 @@ defmodule Wotex.Tracker.Mobile.Development.Simulator do
       screen: ScreenSimulator.status()
     }
   end
+
+  @doc "Dispatches, delivers and opens one provider notification in a selected app state."
+  @spec notify(String.t(), :cold | :warm | :background) ::
+          {:ok, String.t()} | {:error, atom()} | {:retry, atom()}
+  def notify(event_reference, launch_state)
+      when launch_state in [:cold, :warm, :background] do
+    with {:accepted, receipt} <- RemoteService.dispatch_notification(event_reference),
+         :ok <- APNsSimulator.deliver(receipt),
+         :ok <- APNsSimulator.tap(receipt, launch_state) do
+      {:ok, receipt}
+    end
+  end
+
+  def notify(_, _), do: {:error, :invalid_notification}
 
   @doc "Runs one deterministic native capability walkthrough through the root screen."
   @spec exercise() :: :ok | {:error, :unavailable}
@@ -139,7 +155,8 @@ defmodule Wotex.Tracker.Mobile.Development.Simulator do
       {:ok, config} ->
         children = [
           {NativeSimulator, []},
-          {RemoteService, []},
+          {APNsSimulator, delivery: {ScreenSimulator, ScreenSimulator}},
+          {RemoteService, apns: {APNsSimulator, APNsSimulator}},
           {Host, config},
           {ScreenSimulator, session: config.web_session}
         ]

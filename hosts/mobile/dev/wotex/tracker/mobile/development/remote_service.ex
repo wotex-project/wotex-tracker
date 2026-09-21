@@ -3,8 +3,8 @@ defmodule Wotex.Tracker.Mobile.Development.RemoteService do
   Finite Responses-free service peer for the local mobile simulator.
 
   It admits one documented development credential, returns an empty authorized
-  asset projection and retains at most one redacted notification endpoint. No
-  bearer token or provider token is retained in process status.
+  asset projection and retains at most one notification endpoint for the local
+  APNs peer. No bearer token or provider token is retained in process status.
   """
 
   use GenServer
@@ -15,7 +15,7 @@ defmodule Wotex.Tracker.Mobile.Development.RemoteService do
   @token "development-token"
   @scope "workshop"
   @prefix "/api/v1/scopes/workshop/"
-  @keys [:name]
+  @keys ~w(name apns)a
 
   @doc "Returns the fixed credential accepted only by the development peer."
   @spec credential() :: %{scope: String.t(), token: String.t()}
@@ -27,10 +27,11 @@ defmodule Wotex.Tracker.Mobile.Development.RemoteService do
 
   def start_link(options) when is_list(options) do
     name = Keyword.get(options, :name, __MODULE__)
+    apns = Keyword.get(options, :apns)
 
     if Keyword.keyword?(options) and length(options) == map_size(Map.new(options)) and
-         Keyword.keys(options) -- @keys == [] and is_atom(name) do
-      GenServer.start_link(__MODULE__, :ok, name: name)
+         Keyword.keys(options) -- @keys == [] and is_atom(name) and optional_apns?(apns) do
+      GenServer.start_link(__MODULE__, apns, name: name)
     else
       {:error, :invalid_configuration}
     end
@@ -53,8 +54,19 @@ defmodule Wotex.Tracker.Mobile.Development.RemoteService do
     :exit, _ -> {:error, :offline}
   end
 
+  @doc "Dispatches one opaque notification reference through the local APNs peer."
+  @spec dispatch_notification(String.t(), GenServer.server()) ::
+          {:accepted | :invalid_token | :rejected, String.t()}
+          | {:retry, :rate_limited | :offline}
+          | {:error, atom()}
+  def dispatch_notification(event_reference, server \\ __MODULE__) do
+    GenServer.call(server, {:dispatch_notification, event_reference})
+  catch
+    :exit, _ -> {:retry, :offline}
+  end
+
   @impl true
-  def init(:ok), do: {:ok, %{requests: 0, endpoints: %{}}}
+  def init(apns), do: {:ok, %{requests: 0, generation: 0, endpoints: %{}, apns: apns}}
 
   @impl true
   def handle_call(:status, _from, state) do
@@ -62,8 +74,14 @@ defmodule Wotex.Tracker.Mobile.Development.RemoteService do
      %{
        mode: :development,
        request_count: state.requests,
-       endpoint_count: map_size(state.endpoints)
+       endpoint_count: map_size(state.endpoints),
+       generation: state.generation
      }, state}
+  end
+
+  def handle_call({:dispatch_notification, event_reference}, _from, state) do
+    {reply, state} = do_dispatch_notification(state, event_reference)
+    {:reply, reply, state}
   end
 
   def handle_call({:request, authority, request}, _from, state) do
@@ -113,8 +131,8 @@ defmodule Wotex.Tracker.Mobile.Development.RemoteService do
 
   defp route("GET", "notification_endpoints", "", state) do
     data = %{
-      "generation" => Integer.to_string(map_size(state.endpoints)),
-      "items" => Map.values(state.endpoints)
+      "generation" => Integer.to_string(state.generation),
+      "items" => Enum.map(Map.values(state.endpoints), &Map.delete(&1, "token"))
     }
 
     {response(data), state}
@@ -122,9 +140,16 @@ defmodule Wotex.Tracker.Mobile.Development.RemoteService do
 
   defp route("POST", "notification_endpoints", body, state) do
     with {:ok, %{"id" => id} = endpoint} <- mutation_request(body),
-         true <- is_binary(id) and byte_size(id) in 1..256 do
-      stored = Map.take(endpoint, ~w(id provider app_id environment))
-      state = %{state | endpoints: %{id => stored}}
+         true <- is_binary(id) and byte_size(id) in 1..256,
+         true <- expected_generation?(endpoint, state.generation),
+         stored = Map.take(endpoint, ~w(id provider app_id environment token)),
+         true <- map_size(stored) == 5 do
+      state = %{
+        state
+        | endpoints: %{id => stored},
+          generation: state.generation + 1
+      }
+
       {response(%{"outcome" => "committed"}), state}
     else
       _ -> {error_response(400, "invalid_request"), state}
@@ -132,9 +157,15 @@ defmodule Wotex.Tracker.Mobile.Development.RemoteService do
   end
 
   defp route("POST", "notification_endpoint_deletions", body, state) do
-    with {:ok, %{"id" => id}} <- mutation_request(body),
-         true <- is_binary(id) do
-      state = %{state | endpoints: Map.delete(state.endpoints, id)}
+    with {:ok, %{"id" => id} = request} <- mutation_request(body),
+         true <- is_binary(id),
+         true <- expected_generation?(request, state.generation) do
+      state = %{
+        state
+        | endpoints: Map.delete(state.endpoints, id),
+          generation: state.generation + 1
+      }
+
       {response(%{"outcome" => "committed"}), state}
     else
       _ -> {error_response(400, "invalid_request"), state}
@@ -160,6 +191,33 @@ defmodule Wotex.Tracker.Mobile.Development.RemoteService do
     end
   end
 
+  defp do_dispatch_notification(%{apns: nil} = state, _event_reference),
+    do: {{:error, :provider_unavailable}, state}
+
+  defp do_dispatch_notification(%{endpoints: endpoints} = state, event_reference)
+       when map_size(endpoints) == 1 do
+    [{id, endpoint}] = Map.to_list(endpoints)
+    result = invoke(state.apns, :dispatch, [endpoint, event_reference])
+
+    state =
+      case result do
+        {:invalid_token, _receipt} ->
+          %{state | endpoints: Map.delete(endpoints, id), generation: state.generation + 1}
+
+        _ ->
+          state
+      end
+
+    {result, state}
+  end
+
+  defp do_dispatch_notification(state, _event_reference),
+    do: {{:error, :no_endpoint}, state}
+
+  defp expected_generation?(request, generation) do
+    Map.get(request, "expected_generation") == Integer.to_string(generation)
+  end
+
   defp valid_request?(request) do
     Map.keys(request) |> Enum.sort() == ~w(body headers method path timeout_ms)a |> Enum.sort() and
       request.method in ~w(GET POST) and is_binary(request.path) and
@@ -177,6 +235,21 @@ defmodule Wotex.Tracker.Mobile.Development.RemoteService do
       [@prefix <> resource | _] when byte_size(resource) in 1..1_024 -> {:ok, resource}
       _ -> {:error, :invalid_path}
     end
+  end
+
+  defp optional_apns?(nil), do: true
+
+  defp optional_apns?({module, _context}) when is_atom(module),
+    do: Code.ensure_loaded?(module) and function_exported?(module, :dispatch, 3)
+
+  defp optional_apns?(_), do: false
+
+  defp invoke({module, context}, function, arguments) do
+    apply(module, function, arguments ++ [context])
+  rescue
+    _ -> {:retry, :offline}
+  catch
+    _, _ -> {:retry, :offline}
   end
 
   defp response(data), do: encoded(200, %{"schema" => "wtr.response.v1", "data" => data})

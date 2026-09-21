@@ -113,7 +113,10 @@ The service now provides principal-isolated APNs endpoint registration with
 encrypted token custody, rotation and removal. Live alert creation atomically
 stages a minimal opaque alert reference per endpoint, while replay alerts stage
 nothing and queue overflow cannot erase canonical alert history. Native
-registration, provider dispatch and notification tap routing remain open.
+registration, provider dispatch and notification tap routing now have a complete
+local peer lane with token rotation, invalid-token removal, provider failures and
+cold/warm/background opening. Apple provider, OS delivery and user-reading claims
+remain separate physical qualification evidence.
 These are required product deliverables and optional installations for consumers
 of the library. An incomplete backend or UI framework cannot waive a product gate.
 
