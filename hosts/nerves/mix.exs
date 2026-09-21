@@ -13,9 +13,10 @@ defmodule WotexTrackerNerves.MixProject do
       start_permanent: Mix.env() == :prod,
       elixirc_paths: code_paths(),
       test_paths: if(ui?(), do: ["test", "ui_test"], else: ["test"]),
-      lockfile: profile_path("mix.lock", "mix.ui.lock", "mix.qemu.lock"),
-      build_path: profile_path("_build", "_build/ui", "_build/qemu"),
-      deps_path: profile_path("deps", "_build/ui_deps", "_build/qemu_deps"),
+      lockfile: profile_path("mix.lock", "mix.ui.lock", "mix.qemu.lock", "mix.qemu-ui.lock"),
+      build_path: profile_path("_build", "_build/ui", "_build/qemu", "_build/qemu-ui"),
+      deps_path:
+        profile_path("deps", "_build/ui_deps", "_build/qemu_deps", "_build/qemu-ui-deps"),
       deps: deps(),
       releases: [{@app, release()}]
     ]
@@ -53,17 +54,19 @@ defmodule WotexTrackerNerves.MixProject do
     end
   end
 
-  defp profile_path(headless, ui, qemu) do
-    cond do
-      Mix.target() == :qemu_aarch64 -> qemu
-      ui?() -> ui
-      true -> headless
+  defp profile_path(headless, ui, qemu, qemu_ui) do
+    case {Mix.target(), ui?()} do
+      {:qemu_aarch64, true} -> qemu_ui
+      {:qemu_aarch64, false} -> qemu
+      {_, true} -> ui
+      _ -> headless
     end
   end
 
   defp code_paths do
     case {ui?(), Mix.target()} do
       {true, :rpi5} -> ["lib", "ui", "target_ui"]
+      {true, :qemu_aarch64} -> ["lib", "ui", "qemu"]
       {false, :qemu_aarch64} -> ["lib", "qemu"]
       {true, _} -> ["lib", "ui"]
       _ -> ["lib"]
@@ -72,10 +75,7 @@ defmodule WotexTrackerNerves.MixProject do
 
   defp system do
     case {Mix.target(), ui?()} do
-      {:qemu_aarch64, true} ->
-        raise "The QEMU software test target is headless only"
-
-      {:qemu_aarch64, false} ->
+      {:qemu_aarch64, _ui} ->
         {:nerves_system_qemu_aarch64, "== 0.4.2", runtime: false, targets: :qemu_aarch64}
 
       {_, true} ->

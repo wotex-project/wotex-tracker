@@ -346,11 +346,12 @@ private browser file remains capped at 64 KiB. The pack is admitted before the
 kiosk endpoint starts and never triggers a tile or map-provider request.
 
 The host test executes the HTTP exchange, authenticated setup render, replay
-denial and controlled presentation restart while retaining the store. This is
-software evidence for authenticated attached-display setup, not on-device
-credential creation or physical display evidence. GPU, touch, keyboard,
-orientation, offline workflow and physical fault isolation remain hardware
-acceptance work, not conclusions from the cross-build.
+denial and controlled presentation restart while retaining the store. The QEMU
+kiosk lane below additionally renders the complete shared workflow over the
+real ARM64 firmware's loopback endpoint. These remain software evidence, not
+on-device credential creation or physical display evidence. GPU, touch-panel,
+orientation and physical fault-isolation behavior remain hardware acceptance
+work, not conclusions from either local lane.
 
 `../../verification/nerves-kiosk-build.json` records the resolved kiosk
 artifact when generated. Raspberry Pi OS containers can exercise ARM64 userland
@@ -361,7 +362,9 @@ is the closer virtual boot candidate.
 ## Virtual ARM64 boot lane
 
 `MIX_TARGET=qemu_aarch64` builds a separate headless software-test image with
-`nerves_system_qemu_aarch64` 0.4.2 and `mix.qemu.lock`. It is not a Pi artifact.
+`nerves_system_qemu_aarch64` 0.4.2 and `mix.qemu.lock`. Adding
+`WOTEX_TRACKER_UI=1` selects a separately locked virtual-kiosk image using
+`mix.qemu-ui.lock` and `_build/qemu-ui`. Neither profile is a Pi artifact.
 This profile alone creates an unpredictable, inaccessible test credential on its
 first boot under the private `/root/tracker` mount together with the same prepared
 storage marker. The private credential is retained only on the virtual disk for
@@ -379,12 +382,38 @@ It also checks the private SQLite file, `/health/live` and one native resource
 sample, reporting only pass or fail to the serial console.
 The Pi profiles never compile this fixture or turn on a serial logger.
 
+The virtual-kiosk profile creates an additional private loopback browser
+configuration and starts the same Phoenix/LiveView endpoint used by the Pi
+kiosk. It exchanges a single-use launch nonce, enrolls and materializes the
+deterministic TAT140 fixture through the real browser session owner, and renders
+all 28 shared routes over HTTP. Every document must retain the accessible shell,
+use only local assets and omit the bearer, nonce and session token shape. The
+probe also requires the analytics and route forms, TAT140 provisioning plan and
+BLE companion hook, and runs the same bounded zoom/pan and analytics-window
+input state transitions used by the LiveViews. Finally it restarts only the
+browser supervisor, repeats authenticated activation and proves that the exact
+service store process and materialized asset survived. QEMU supplies no DRM or
+touch device, so Cog, Myelin and the physical display runtime are deliberately
+absent from this profile.
+
 ```sh
 WOTEX_PATH_DEPS=1 MIX_TARGET=qemu_aarch64 MIX_ENV=dev \
   mise exec elixir@1.20.4-otp-29 erlang@29.0.4 -- mix deps.get
 WOTEX_PATH_DEPS=1 MIX_TARGET=qemu_aarch64 MIX_ENV=dev \
   mise exec elixir@1.20.4-otp-29 erlang@29.0.4 -- mix firmware
 WOTEX_PATH_DEPS=1 MIX_TARGET=qemu_aarch64 MIX_ENV=dev \
+  mise exec elixir@1.20.4-otp-29 erlang@29.0.4 -- mix nerves.gen.qemu
+```
+
+For the virtual kiosk, use the same three commands with
+`WOTEX_TRACKER_UI=1`:
+
+```sh
+WOTEX_PATH_DEPS=1 WOTEX_TRACKER_UI=1 MIX_TARGET=qemu_aarch64 MIX_ENV=dev \
+  mise exec elixir@1.20.4-otp-29 erlang@29.0.4 -- mix deps.get
+WOTEX_PATH_DEPS=1 WOTEX_TRACKER_UI=1 MIX_TARGET=qemu_aarch64 MIX_ENV=dev \
+  mise exec elixir@1.20.4-otp-29 erlang@29.0.4 -- mix firmware
+WOTEX_PATH_DEPS=1 WOTEX_TRACKER_UI=1 MIX_TARGET=qemu_aarch64 MIX_ENV=dev \
   mise exec elixir@1.20.4-otp-29 erlang@29.0.4 -- mix nerves.gen.qemu
 ```
 
@@ -398,3 +427,18 @@ verifies both serial logs and writes
 `../../verification/nerves-qemu-boot.json`. On this macOS host, QEMU 11.1.1
 uses Hypervisor Framework acceleration. The Nerves virtual system is new and
 does not replace Pi 5 board, display, radio, power or storage-failure tests.
+
+For the virtual kiosk, retain the first-boot and same-disk reboot logs and run:
+
+```sh
+WOTEX_PATH_DEPS=1 WOTEX_TRACKER_UI=1 MIX_TARGET=host MIX_ENV=dev \
+  mise exec elixir@1.20.4-otp-29 erlang@29.0.4 -- \
+  mix run --no-start scripts/record_qemu_boot.exs \
+  _build/qemu-kiosk-first.log _build/qemu-kiosk-reboot.log
+```
+
+That profile writes
+`../../verification/nerves-qemu-kiosk-boot.json`. The record requires the
+28-route panel marker on both boots, the fresh-partition marker only on the
+first boot, durable replay and firmware validation on both boots, ARM64 SQLite,
+the UI release inventory and the absence of physical display applications.

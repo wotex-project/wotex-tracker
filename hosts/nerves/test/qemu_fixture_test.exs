@@ -19,13 +19,16 @@ defmodule Wotex.Tracker.Nerves.QemuFixtureTest do
     assert :ok = StoragePolicy.admit(root, "qemu-smoke", Path.join(root, "data"))
     assert File.stat!(root).mode |> Bitwise.band(0o777) == 0o700
     assert File.stat!(Path.join(root, "config.json")).mode |> Bitwise.band(0o777) == 0o600
-    token_path = Path.join(root, "qemu-probe.token")
+    token_path = Path.join(root, "operator.token")
     assert File.stat!(token_path).mode |> Bitwise.band(0o777) == 0o600
     cellular_path = Path.join(root, "cellular.json")
     assert File.stat!(cellular_path).mode |> Bitwise.band(0o777) == 0o600
     token = token_path |> File.read!() |> String.trim_trailing("\n")
     document = Path.join(root, "config.json") |> File.read!() |> Codec.decode!()
-    assert hd(document["credentials"])["grants"] == %{"smoke" => ["read", "ingest"]}
+
+    assert hd(document["credentials"])["grants"] == %{
+             "smoke" => ["admin", "enroll", "ingest", "interact", "raw", "read"]
+           }
 
     cellular = cellular_path |> File.read!() |> Codec.decode!()
     assert cellular["schema"] == "wtr.cellular-host.v1"
@@ -46,6 +49,25 @@ defmodule Wotex.Tracker.Nerves.QemuFixtureTest do
     assert File.read!(Path.join(root, "config.json")) == original
     assert File.read!(token_path) == original_token
     assert File.read!(cellular_path) == original_cellular
+  end
+
+  test "the virtual kiosk fixture adds only private loopback browser state" do
+    parent = Path.expand("_build/test/qemu_kiosk_fixture")
+    File.mkdir_p!(parent)
+    root = Path.join(parent, Integer.to_string(System.unique_integer([:positive])))
+    on_exit(fn -> File.rm_rf!(root) end)
+
+    assert :ok = QemuFixture.prepare(root, ui?: true)
+    browser_path = Path.join(root, "browser.json")
+    browser = browser_path |> File.read!() |> Codec.decode!()
+
+    assert File.stat!(browser_path).mode |> Bitwise.band(0o777) == 0o600
+    assert browser["schema"] == "wtr.browser.v3"
+    assert browser["listen"] == %{"ip" => "127.0.0.1", "port" => 4001}
+    assert browser["public_origin"] == "http://127.0.0.1:4001"
+    assert browser["device_session"] == %{"scope" => "smoke"}
+    assert get_in(browser, ["map_pack", "id"]) == "qemu-offline-map"
+    refute File.read!(browser_path) =~ File.read!(Path.join(root, "operator.token"))
   end
 
   test "the boot probe requires store, health and a retained native sample" do
@@ -113,6 +135,14 @@ defmodule Wotex.Tracker.Nerves.QemuFixtureTest do
             health: fn -> :ok end,
             ingress: fn -> :ok end,
             history: history
+          ],
+          [
+            regular?: fn -> true end,
+            initialized?: fn -> true end,
+            health: fn -> :ok end,
+            ingress: fn -> :ok end,
+            history: history,
+            panel: fn -> :error end
           ]
         ] do
       assert :error = QemuFixture.probe(options)

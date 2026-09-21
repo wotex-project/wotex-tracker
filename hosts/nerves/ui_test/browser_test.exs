@@ -7,6 +7,7 @@ defmodule Wotex.Tracker.Nerves.BrowserTest do
   alias Wotex.Tracker.Nerves.Browser.Endpoint
   alias Wotex.Tracker.Nerves.BrowserProvisioning
   alias Wotex.Tracker.Nerves.BrowserConfig
+  alias Wotex.Tracker.Nerves.PanelAcceptance
   alias Wotex.Tracker.Nerves.StoragePolicy
   alias Wotex.Tracker.Service.{Codec, Credentials}
   alias Wotex.Tracker.Service.HTTP.Server
@@ -226,6 +227,30 @@ defmodule Wotex.Tracker.Nerves.BrowserTest do
                :operational_history,
                %{"event" => nil, "cursor" => nil, "window_ms" => 300_000},
                System.system_time(:millisecond)
+             )
+  end
+
+  test "the virtual panel acceptance contract covers every shared route and rejects unsafe renders" do
+    routes = PanelAcceptance.routes("urn:uuid:11111111-1111-4111-8111-111111111111", "wtr1_obs")
+
+    assert length(routes) == 28
+    assert length(Enum.uniq(routes)) == 28
+    assert Enum.all?(routes, &String.starts_with?(&1, "/"))
+    assert Enum.any?(routes, &String.starts_with?(&1, "/dashboards/compare?operation="))
+    assert Enum.any?(routes, &String.ends_with?(&1, "/provisioning"))
+    assert Enum.any?(routes, &String.ends_with?(&1, "/interactions"))
+
+    document = """
+    <!DOCTYPE html><html lang="en"><body><a href="#main">Skip to content</a>
+    <main id="main"><h1>Panel</h1><a href="/setup">Setup</a></main></body></html>
+    """
+
+    assert :ok = PanelAcceptance.audit_document(document, ["private-token"])
+    assert {:error, :invalid_render} = PanelAcceptance.audit_document(document, ["Panel"])
+
+    assert {:error, :invalid_render} =
+             PanelAcceptance.audit_document(
+               String.replace(document, ~s(href="/setup"), ~s(href="https://outside.example"))
              )
   end
 

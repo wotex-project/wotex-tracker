@@ -6,8 +6,9 @@ defmodule Wotex.Tracker.Nerves.QemuFixture do
   data directory, and random private probe credential. The same virtual disk
   retains them for the reboot probe. `verify/0` reports only whether the private
   SQLite file, guest-loopback health endpoint, deterministic TAT140 cellular
-  peer and one closed native-resource sample are present. This fixture is absent
-  from Pi firmware profiles.
+  peer and one closed native-resource sample are present. The separately selected
+  QEMU kiosk profile also provisions and probes the real shared browser endpoint.
+  This fixture is absent from Pi firmware profiles.
   """
 
   import Bitwise
@@ -20,8 +21,9 @@ defmodule Wotex.Tracker.Nerves.QemuFixture do
   alias Wotex.Tracker.Service.HTTP.Server
 
   @root "/root/tracker"
-  @probe_token "qemu-probe.token"
+  @probe_token "operator.token"
   @cellular_config "cellular.json"
+  @browser_config "browser.json"
   @imei "123456789012345"
   @frame Base.decode16!(
            "00000000000000788E020000018BCFE73CC0010ABA9500232AAF80002A005A08002400190006000200F001001D570004001900F300430DFC005601C801CF002A0000000000000000018BCFE82720010ABA9500232AAF80002A005A08002401CF0005000100F000000400197FFF00430DF20056FFFF01CFBEEF000000000000020000F6CD"
@@ -29,9 +31,11 @@ defmodule Wotex.Tracker.Nerves.QemuFixture do
   @probe_attempts 50
   @probe_interval_ms 100
 
-  def prepare(root \\ @root) do
+  def prepare(root \\ @root, options \\ []) do
+    ui? = Keyword.get(options, :ui?, configured_ui?())
+
     case File.lstat(root) do
-      {:error, :enoent} -> create(root)
+      {:error, :enoent} -> create(root, ui?)
       {:ok, _} -> :ok
       _ -> {:error, :invalid_configuration}
     end
@@ -44,10 +48,7 @@ defmodule Wotex.Tracker.Nerves.QemuFixture do
       Task.start(fn ->
         case probe() do
           :ok ->
-            Logger.info(
-              "QEMU boot probe passed: private store, loopback HTTP, TAT140 cellular peer " <>
-                "and durable replay, native resources, initialized storage marker"
-            )
+            log_success()
 
           :error ->
             Logger.error("QEMU boot probe failed")
@@ -66,32 +67,52 @@ defmodule Wotex.Tracker.Nerves.QemuFixture do
     health = Keyword.get(options, :health, &default_health/0)
     ingress = Keyword.get(options, :ingress, &default_ingress/0)
     history = Keyword.get(options, :history, &default_history/0)
+    panel = Keyword.get(options, :panel, &default_panel/0)
     attempts = Keyword.get(options, :attempts, @probe_attempts)
     interval = Keyword.get(options, :interval_ms, @probe_interval_ms)
 
-    with true <- is_function(regular?, 0) and regular?.(),
-         true <- is_function(initialized?, 0) and initialized?.(),
-         true <- is_function(health, 0),
-         :ok <- health.(),
-         true <- is_function(ingress, 0),
-         :ok <- ingress.(),
-         true <- is_function(history, 0),
-         true <- is_integer(attempts) and attempts in 1..@probe_attempts,
-         true <- is_integer(interval) and interval in 0..@probe_interval_ms,
-         :ok <- await_native(history, attempts, interval) do
-      :ok
-    else
-      _ -> :error
+    result =
+      with {:store, true} <- {:store, is_function(regular?, 0) and regular?.()},
+           {:marker, true} <- {:marker, is_function(initialized?, 0) and initialized?.()},
+           {:health_owner, true} <- {:health_owner, is_function(health, 0)},
+           {:health, :ok} <- {:health, health.()},
+           {:ingress_owner, true} <- {:ingress_owner, is_function(ingress, 0)},
+           {:ingress, :ok} <- {:ingress, ingress.()},
+           {:history_owner, true} <- {:history_owner, is_function(history, 0)},
+           {:attempts, true} <-
+             {:attempts, is_integer(attempts) and attempts in 1..@probe_attempts},
+           {:interval, true} <-
+             {:interval, is_integer(interval) and interval in 0..@probe_interval_ms},
+           {:native_history, :ok} <-
+             {:native_history, await_native(history, attempts, interval)},
+           {:panel_owner, true} <- {:panel_owner, is_function(panel, 0)},
+           {:panel, :ok} <- {:panel, panel.()} do
+        :ok
+      else
+        {stage, _} -> {:error, stage}
+      end
+
+    case result do
+      :ok ->
+        :ok
+
+      {:error, stage} ->
+        Logger.error("QEMU boot probe failed at #{stage}")
+        :error
     end
   rescue
-    _ -> :error
+    _ ->
+      Logger.error("QEMU boot probe failed at exception")
+      :error
   catch
-    _, _ -> :error
+    _, _ ->
+      Logger.error("QEMU boot probe failed at exit")
+      :error
   end
 
   def probe(_), do: :error
 
-  defp create(root) do
+  defp create(root, ui?) do
     File.mkdir!(root)
     File.chmod!(root, 0o700)
     data = Path.join(root, "data")
@@ -114,7 +135,9 @@ defmodule Wotex.Tracker.Nerves.QemuFixture do
           "id" => "qemu-only",
           "principal" => "smoke",
           "token_sha256" => digest,
-          "grants" => %{"smoke" => ["read", "ingest"]},
+          "grants" => %{
+            "smoke" => ["admin", "enroll", "ingest", "interact", "raw", "read"]
+          },
           "expires_at" => 4_102_444_800_000
         }
       ]
@@ -145,8 +168,30 @@ defmodule Wotex.Tracker.Nerves.QemuFixture do
     }
 
     write_private(root, @cellular_config, Codec.encode!(cellular))
+    if ui?, do: write_private(root, @browser_config, Codec.encode!(browser_document()))
     {:ok, _marker} = StoragePolicy.provision(root, root, "qemu-smoke")
     :ok
+  end
+
+  defp browser_document do
+    %{
+      "schema" => "wtr.browser.v3",
+      "listen" => %{"ip" => "127.0.0.1", "port" => 4001},
+      "exposure" => "loopback",
+      "public_origin" => "http://127.0.0.1:4001",
+      "secret_key_base" => Base.encode64(:crypto.strong_rand_bytes(64)),
+      "device_session" => %{"scope" => "smoke"},
+      "map_pack" => %{
+        "schema" => "wtr.map-pack.v1",
+        "id" => "qemu-offline-map",
+        "revision" => "1",
+        "attribution" => "Deterministic QEMU fixture",
+        "coverage" => %{"west" => 17.0, "south" => 58.0, "east" => 19.0, "north" => 60.0},
+        "features" => [
+          %{"class" => "road", "points" => [[59.0, 18.0], [59.1, 18.1]]}
+        ]
+      }
+    }
   end
 
   defp write_private(root, name, bytes) do
@@ -172,10 +217,14 @@ defmodule Wotex.Tracker.Nerves.QemuFixture do
 
   defp default_ingress do
     with {:probe_token, {:ok, token}} <- {:probe_token, probe_token()},
+         {:before_generation, {:ok, before_generation}} <-
+           {:before_generation, observation_generation(token)},
          {:cellular_listener, {:ok, listener}} <- {:cellular_listener, cellular_listener()},
          {:codec8e_ack, :ok} <- {:codec8e_ack, submit_frame(listener)},
-         {:durable_observation, {:ok, observation_id}} <-
+         {:durable_observation, {:ok, generation, observation_id}} <-
            {:durable_observation, only_observation(token)},
+         {:durable_replay, true} <-
+           {:durable_replay, expected_generation?(before_generation, generation)},
          {:public_state, {:ok, state}} <- {:public_state, fixture_state(token, observation_id)},
          {:tracking_values, true} <- {:tracking_values, expected_tracking_state?(state)} do
       :ok
@@ -237,15 +286,37 @@ defmodule Wotex.Tracker.Nerves.QemuFixture do
            body_format: :binary
          ) do
       {:ok, {{_, 200, _}, _, response}} ->
-        with {:ok, %{"generation" => "1", "items" => [%{"id" => id}]}} <- decode_data(response),
-             true <- is_binary(id),
-             do: {:ok, id},
+        with {:ok, %{"generation" => generation, "items" => [%{"id" => id}]}} <-
+               decode_data(response),
+             true <- is_binary(generation) and is_binary(id),
+             do: {:ok, generation, id},
              else: (_ -> :error)
 
       _ ->
         :error
     end
   end
+
+  defp observation_generation(token) do
+    url = ~c"http://127.0.0.1:4000/api/v1/scopes/smoke/observations?limit=1"
+
+    case :httpc.request(:get, {url, request_headers(token)}, [timeout: 2_000],
+           body_format: :binary
+         ) do
+      {:ok, {{_, 200, _}, _, response}} ->
+        with {:ok, %{"generation" => generation}} when is_binary(generation) <-
+               decode_data(response),
+             do: {:ok, generation},
+             else: (_ -> :error)
+
+      _ ->
+        :error
+    end
+  end
+
+  defp expected_generation?("0", "1"), do: true
+  defp expected_generation?(generation, generation), do: generation in ["1", "3"]
+  defp expected_generation?(_, _), do: false
 
   defp fixture_state(token, observation_id) do
     encoded = URI.encode(observation_id, &URI.char_unreserved?/1)
@@ -315,6 +386,57 @@ defmodule Wotex.Tracker.Nerves.QemuFixture do
   defp default_history do
     with {:ok, server} <- Server.child(HostSupervisor, Server),
          do: Server.operational_history(server, event: "native.sample")
+  end
+
+  defp default_panel do
+    case Application.get_env(:wotex_tracker_nerves, :browser_config_path) do
+      nil ->
+        :ok
+
+      _path ->
+        module = Wotex.Tracker.Nerves.PanelAcceptance
+
+        result =
+          if Code.ensure_loaded?(module) do
+            :erlang.apply(module, :run, [
+              [
+                token_path: Path.join(@root, @probe_token),
+                scope: "smoke",
+                origin: "http://127.0.0.1:4001",
+                supervisor: HostSupervisor
+              ]
+            ])
+          end
+
+        case result do
+          {:ok, %{route_count: 28}} ->
+            Logger.info(
+              "QEMU kiosk panel probe passed: 28 shared routes, authenticated activation, " <>
+                "keyboard controls, offline assets and isolated browser restart"
+            )
+
+            :ok
+
+          _ ->
+            Logger.error("QEMU kiosk panel probe failed: #{inspect(result)}")
+            :error
+        end
+    end
+  end
+
+  defp configured_ui?,
+    do: not is_nil(Application.get_env(:wotex_tracker_nerves, :browser_config_path))
+
+  defp log_success do
+    suffix =
+      if configured_ui?(),
+        do: ", shared kiosk workflows and isolated browser restart",
+        else: ""
+
+    Logger.info(
+      "QEMU boot probe passed: private store, loopback HTTP, TAT140 cellular peer " <>
+        "and durable replay, native resources, initialized storage marker" <> suffix
+    )
   end
 
   defp await_native(_history, 0, _interval), do: :error

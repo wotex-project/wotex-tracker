@@ -182,12 +182,11 @@ delivery_targets:
     contracts: [WTR.08, WTR.14, WTR.15, WTR.16]
     requires: [pi5_headless, shared_application, analytics]
     implementation_status: in-progress
-    development_status: in-progress
-    local_acceptance_status: in-progress
+    development_status: complete
+    local_acceptance_status: passed
     qualification_status: not-started
     distribution_status: not-started
-    remaining_development:
-      - finish the complete shared workflow and kiosk input/render acceptance in the local Pi/QEMU lane
+    remaining_development: []
     evidence_refs: [docs/evidence/implementation.md]
     acceptance: physical display/touch, complete shared workflows, offline use and isolated browser failure
   - id: ios_companion

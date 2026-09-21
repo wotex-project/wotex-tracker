@@ -10,8 +10,8 @@ defmodule Wotex.Tracker.Nerves.ApplicationTest do
   alias Wotex.Tracker.Protocols.Teltonika.{TAT140, TCPSession}
   alias Wotex.Tracker.Service
   alias Wotex.Tracker.Service.Cellular.Server, as: CellularServer
-  alias Wotex.Tracker.Service.Development.PassiveSimulator
   alias Wotex.Tracker.Service.{Codec, Credentials, PassiveAdvertisement, PassiveScanner, Schema}
+  alias Wotex.Tracker.Service.Development.PassiveSimulator
   alias Wotex.Tracker.Service.HTTP.Config, as: ServerConfig
   alias Wotex.Tracker.Service.HTTP.Server
 

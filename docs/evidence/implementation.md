@@ -6072,3 +6072,42 @@ and ReleaseSafe compilation, the 673-file stack-language policy and the
 integrated product simulator. This closes every repository-owned iOS companion
 development item. Physical CoreBluetooth, Keychain, APNs/OS lifecycle, signed
 installation and distribution remain on their separate qualification axes.
+
+### ARM64 virtual kiosk workflow acceptance — 2026-09-21
+
+The Nerves host now has a fourth, separately locked build profile for the
+UI-enabled ARM64 QEMU system. It composes the real loopback Phoenix/LiveView
+endpoint with the durable service and deterministic TAT140 cellular peer, while
+deliberately excluding the Pi-only Cog, Myelin and DRM runtime. Its private
+first-boot fixture creates the browser document, embedded offline map pack and
+operator authority without writing credentials to runtime configuration or the
+serial log.
+
+The in-guest panel probe authenticates through the production single-use launch
+nonce, enrolls and materializes the fixture through the browser session owner,
+and renders all 28 shared routes over HTTP. Every response passed the accessible
+shell, local-asset and secret-exclusion audit. The probe found the analytics and
+route forms, TAT140 provisioning plan and BLE companion hook, exercised the
+shared bounded zoom/pan and query-window input models, restarted only the
+browser supervisor, reauthenticated and rendered the retained asset while the
+exact service-store process remained alive.
+
+A committed-source ARM64 firmware image then passed a clean first boot and a
+second boot from the same virtual disk. Only the first boot formatted the data
+partition. Both boots passed deterministic Codec 8 Extended ingress and replay,
+native-resource sampling, storage-marker admission, the 28-route kiosk probe
+and firmware startup validation. The firmware SHA-256 was
+`89bfca8576dffa124275a45659049a113144ec04573161dcb2e3b2ac4774c404`;
+the first/reboot serial-log SHA-256 values were
+`a683f77d3ed87ca6a2793655c1cfd315295c1fba9045ee9ff3110c520643f441`
+and `3ca7b22e4b534a04dede82de74235facd04a747033d63260e83c63b5edd3bf90`.
+The bounded receipt is
+[`verification/nerves-qemu-kiosk-boot.json`](../../verification/nerves-qemu-kiosk-boot.json).
+
+The headless host suite passed 52 tests and the UI-enabled host suite passed 56
+tests. Both profiles passed locked dependency resolution, formatting,
+warnings-as-errors compilation, strict Credo and Dialyzer; the UI QEMU target
+also passed locked resolution and warnings-as-errors ARM64 compilation. This
+closes the Pi panel development/local axes. A real Pi 5, DRM/display/touch,
+physical keyboard/focus behavior, radio, power/storage faults and firmware-slot
+revert retain their separate qualification records.

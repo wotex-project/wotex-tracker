@@ -9,7 +9,18 @@ executable implementation.
 Accepted target contract. A separate headless host and Pi 5 development
 cross-build now exist under `hosts/nerves/`. A separately locked kiosk source
 profile reuses the shared LiveView package and has local endpoint/store-isolation
-tests. A separate ARM64 QEMU image exercises first boot, an existing data
+tests. A separately locked ARM64 QEMU kiosk profile now boots the real shared
+endpoint alongside the service, performs authenticated single-use display
+activation, enrolls and materializes the deterministic TAT140 fixture, and
+renders all 28 shared routes through guest loopback HTTP. It requires the
+accessible application shell, local-only assets, analytics/route inputs,
+TAT140 provisioning and BLE companion controls, runs the shared bounded
+zoom/pan and query-window input transitions, rejects rendered credentials, and
+restarts only the browser supervisor while retaining the exact service store.
+Fresh-disk and same-disk reboot receipts prove the complete probe, durable
+replay and firmware validation in the ARM64 guest. This completes local kiosk
+workflow/input/render development acceptance; it does not claim DRM, touch or
+Pi hardware behavior. A separate headless ARM64 QEMU image exercises first boot, an existing data
 partition, private SQLite startup and loopback HTTP through Nerves. Its private
 QEMU-only software peer opens the real Teltonika TCP listener, negotiates one
 configured TAT140 IMEI and submits a deterministic two-record Codec 8 Extended
@@ -170,6 +181,15 @@ renewal. This implements authenticated attached-display setup from offline
 provisioned authority. It does not create authority on the device or prove the
 physical display path.
 
+The QEMU kiosk acceptance fixture uses the same browser/session composition
+with an embedded deterministic `wtr.map-pack.v1`. It visits every shared route
+through the real endpoint after activation, verifies that responses contain no
+bearer, nonce or opaque-session token shape, exercises the shared bounded input
+models and restarts the browser subtree without replacing the service store.
+The virtual profile intentionally omits Cog, Myelin and DRM ownership because
+QEMU provides no physical display or touch device; those remain explicit
+qualification gates rather than being inferred from a rendered HTTP document.
+
 Cog displays the local endpoint full-screen. Keep its process lifetime and
 restart budget separate from the ingestion service. Qualify GPU/DRM, the exact
 HDMI/DSI display path, touch controller, orientation, resolution, scaling, virtual
@@ -272,6 +292,7 @@ of a slot transition, bad-image revert or either physical deadline on a Pi.
 | Real ingress | Exact network or BLE backend; disconnect/reconnect and owner loss; observation -> TD -> Runtime proof; unsupported radio reported explicitly |
 | Local display | Real Pi/display/touch record; boot directly into authenticated setup/application; overview/history/graphs; keyboard, focus, scaling and gestures; offline operation and visible data gaps |
 | UI-enabled firmware | Same service API/results; revoked-session/mutation tests; bounded streams; browser crash/restart and presentation disabled without stopping ingestion; WTR.15 shared workflow scenario |
+| Virtual kiosk boot | Fresh and same-disk ARM64 boots; authenticated launch; all 28 shared routes; input surfaces/models; local-only assets; service-store retention across browser restart; no physical-display claim |
 | Recovery | Reboot, power interruption at transaction boundaries, full/unmountable storage, failed update/validation and firmware revert; truthful last-valid-state or recovery-required outcome |
 
 Both shipped profiles MUST pass their hardware gates. Separate artifacts permit

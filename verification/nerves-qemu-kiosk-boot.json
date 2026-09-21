@@ -1,0 +1,169 @@
+{
+  "boot_log_sha256": {
+    "first": "a683f77d3ed87ca6a2793655c1cfd315295c1fba9045ee9ff3110c520643f441",
+    "reboot": "3ca7b22e4b534a04dede82de74235facd04a747033d63260e83c63b5edd3bf90"
+  },
+  "checks": {
+    "analytics_and_route_input_forms": true,
+    "authenticated_single_use_display_activation": true,
+    "ble_companion_input_hook": true,
+    "bounded_zoom_and_pan_input_models": true,
+    "browser_restart_retained_service_store": true,
+    "core_health_before_firmware_validation": true,
+    "firmware_startup_guard_with_finite_heart_timeout": true,
+    "first_boot_formatted_fresh_partition": true,
+    "first_boot_initialized_storage_marker": true,
+    "first_boot_native_resource_sample": true,
+    "first_boot_private_store_and_loopback_http": true,
+    "first_boot_startup_guard_completed": true,
+    "first_boot_tat140_ble_sensor_state": true,
+    "first_boot_tat140_imei_codec8e_ingress": true,
+    "loopback_browser_and_local_assets_only": true,
+    "no_active_iex_or_distribution": true,
+    "no_credentials_in_runtime_config": true,
+    "no_physical_display_runtime": true,
+    "offline_direct_tls_provisioning": true,
+    "reboot_initialized_storage_marker": true,
+    "reboot_kept_existing_partition": true,
+    "reboot_native_resource_sample": true,
+    "reboot_private_store_and_loopback_http": true,
+    "reboot_startup_guard_completed": true,
+    "reboot_tat140_ble_sensor_state": true,
+    "reboot_tat140_durable_replay": true,
+    "shared_route_count": 28,
+    "sqlite_nif_aarch64": true,
+    "tat140_provisioning_input": true
+  },
+  "firmware": {
+    "bytes": 33200302,
+    "metadata": {
+      "meta-architecture": "arm",
+      "meta-author": "The Nerves Team",
+      "meta-creation-date": "2026-09-21T00:58:33Z",
+      "meta-nickname": "pig-indoor",
+      "meta-platform": "qemu_aarch64",
+      "meta-product": "wotex_tracker_nerves",
+      "meta-uuid": "b97b690a-cc33-5114-255c-e7c7459182f0",
+      "meta-version": "0.1.0"
+    },
+    "sha256": "89bfca8576dffa124275a45659049a113144ec04573161dcb2e3b2ac4774c404",
+    "sqlite_nif": "ELF 64-bit LSB shared object, ARM aarch64, version 1 (SYSV), dynamically linked, BuildID[sha1]=a3dc0ce06a84ffe46914bb4a81e11c04c5f811c6, not stripped",
+    "target_elixir": "1.20.4",
+    "target_erts": "17.0.6"
+  },
+  "hardware_acceptance": "not_executed",
+  "kind": "virtual_kiosk_firmware_boot",
+  "physical_boot": "not_executed",
+  "profile": "qemu_kiosk",
+  "release_applications": [
+    "asn1",
+    "bandit",
+    "beam_notify",
+    "circular_buffer",
+    "compiler",
+    "crypto",
+    "db_connection",
+    "decimal",
+    "eex",
+    "elixir",
+    "ex_json_schema",
+    "exqlite",
+    "hpax",
+    "iex",
+    "inets",
+    "jason",
+    "kernel",
+    "logger",
+    "mime",
+    "mint",
+    "muontrap",
+    "nerves_logging",
+    "nerves_runtime",
+    "nerves_time",
+    "nerves_uevent",
+    "phoenix",
+    "phoenix_html",
+    "phoenix_live_view",
+    "phoenix_pubsub",
+    "phoenix_template",
+    "plug",
+    "plug_crypto",
+    "property_table",
+    "public_key",
+    "ring_logger",
+    "sasl",
+    "shoehorn",
+    "ssl",
+    "stdlib",
+    "telemetry",
+    "thousand_island",
+    "uboot_env",
+    "vintage_net",
+    "vintage_net_ethernet",
+    "websock",
+    "websock_adapter",
+    "wotex",
+    "wotex_binding_http",
+    "wotex_runtime",
+    "wotex_tracker",
+    "wotex_tracker_nerves",
+    "wotex_tracker_service",
+    "wotex_tracker_ui"
+  ],
+  "schema": "wtr.nerves-qemu-kiosk-boot.v1",
+  "sources": {
+    "wotex": {
+      "commit": "9158efbdba99a0a45bb18d094f550d9c2aff3c8f",
+      "tracked_changes": true,
+      "tracked_paths": [
+        "packages/wotex/bin/check_package.exs",
+        "packages/wotex/mix.exs",
+        "packages/wotex/usage-rules.md"
+      ]
+    },
+    "wotex_binding_http": {
+      "commit": "9158efbdba99a0a45bb18d094f550d9c2aff3c8f",
+      "tracked_changes": true,
+      "tracked_paths": [
+        "packages/wotex-binding-http/CLAUDE.md",
+        "packages/wotex-binding-http/bin/check_archive.exs",
+        "packages/wotex-binding-http/mix.exs",
+        "packages/wotex-binding-http/usage-rules.md"
+      ]
+    },
+    "wotex_runtime": {
+      "commit": "9158efbdba99a0a45bb18d094f550d9c2aff3c8f",
+      "tracked_changes": true,
+      "tracked_paths": [
+        "packages/wotex-runtime/bin/check_package.exs",
+        "packages/wotex-runtime/mix.exs",
+        "packages/wotex-runtime/usage-rules.md"
+      ]
+    },
+    "wotex_tracker": {
+      "commit": "65f67a857b9c009cd02f8beebeb3f816f8eb7c27",
+      "tracked_changes": true,
+      "tracked_paths": [
+        "docs/evidence/implementation.md",
+        "docs/specs/WTR.14-nerves-and-liveview-hosts.md",
+        "docs/specs/catalogue.yaml",
+        "hosts/nerves/README.md",
+        "hosts/nerves/mix.exs",
+        "hosts/nerves/mix.ui.lock",
+        "hosts/nerves/qemu/qemu_fixture.ex",
+        "hosts/nerves/scripts/record_qemu_boot.exs",
+        "hosts/nerves/test/application_test.exs",
+        "hosts/nerves/test/qemu_fixture_test.exs",
+        "hosts/nerves/ui_test/browser_test.exs",
+        "hosts/nerves/mix.qemu-ui.lock",
+        "hosts/nerves/ui/panel_acceptance.ex"
+      ]
+    }
+  },
+  "virtual_system": {
+    "kernel_version": "6.18.34",
+    "nerves_system_qemu_aarch64": "0.4.2",
+    "nerves_toolchain_aarch64_nerves_linux_gnu": "15.3.1",
+    "qemu_version": "11.1.1"
+  }
+}
