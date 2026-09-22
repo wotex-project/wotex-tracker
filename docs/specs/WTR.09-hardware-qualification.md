@@ -80,8 +80,17 @@ be claimed unless current device documentation and a real-device test prove it.
 
 The current documentation fixture establishes only Codec 8 Extended framing,
 the documented movement/battery IO mappings and configurability of a direct
-operator-controlled TCP/UDP endpoint. Exact hardware/firmware, SIM/operator
-operation, endpoint behavior and any BLE capability still require physical evidence.
+operator-controlled TCP/UDP endpoint. The software provisioning adapter uses
+ATC700's password-only SMS syntax to disable Auto APN and set the documented
+manual APN and primary endpoint parameters, TCP, Codec 8 Extended and AVL server
+confirmation, with read-back commands and a matching TCT manifest. Its
+deterministic peer completes IMEI login, real-listener Codec 8 Extended ingress
+and AVL ACK before checking durable map/statistics state. These are software
+fixtures only. Exact regional SKU/firmware, SIM/APN and Swedish carrier
+operation, SMS/TCT behavior, a real IMEI and packet capture, ACK behavior,
+mapped sensors, sleep/wake, reporting, offline buffering and recovery still
+require a sanitized physical qualification record. No EYE Sensor or BLE gateway
+behavior belongs to this ATC700 contract.
 
 ### LoRaWAN target
 

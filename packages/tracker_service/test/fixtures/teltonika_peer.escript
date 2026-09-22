@@ -8,13 +8,14 @@ main([HostText, PortText, ImeiText, FrameHex]) ->
     Imei = list_to_binary(ImeiText),
     Frame = hex(FrameHex),
     Login = <<15:16/big-unsigned-integer, Imei/binary>>,
-    Ack = <<1:32/big-unsigned-integer>>,
+    <<0:32, _DataLength:32, _Codec, RecordCount, _/binary>> = Frame,
+    Ack = <<RecordCount:32/big-unsigned-integer>>,
 
     ok = coalesced(Host, Port, Login, Frame, Ack),
     ok = split_logins(Host, Port, Login, Frame, Ack, 1),
     ok = split_frames(Host, Port, Login, Frame, Ack, 1),
     ok = concatenated(Host, Port, Login, Frame, Ack),
-    io:format("ok 103 cases~n"),
+    io:format("ok ~B cases~n", [byte_size(Login) + byte_size(Frame)]),
     halt(0);
 main(_) ->
     io:format(standard_error, "usage: teltonika_peer HOST PORT IMEI FRAME_HEX~n", []),

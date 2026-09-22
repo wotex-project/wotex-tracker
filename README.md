@@ -175,6 +175,9 @@ the [analytics guide](docs/guides/analytics.md).
 
 The [Codec 8 Extended guide](docs/guides/teltonika-codec8-extended.md)
 documents the cellular framing, acknowledgements and preserved unknown fields.
+The [ATC700 provisioning guide](docs/guides/teltonika-atc700-provisioning.md)
+documents its separate password-only SMS/TCT plan, local demo mode and remaining
+physical qualification procedure.
 Hardware names describe qualification targets, not architectural dependencies.
 
 ## Design principles

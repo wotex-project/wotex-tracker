@@ -106,8 +106,14 @@ The official [ATC700 IO table](https://wiki.teltonika-gps.com/view/ATC700_Telton
 [tracking settings](https://wiki.teltonika-gps.com/view/ATC700_Tracking_settings)
 and [mobile-network settings](https://wiki.teltonika-gps.com/view/ATC700_Mobile_network),
 read 2026-09-20, define the distinct ATC700 mapping and direct-server
-configuration boundary. The exact synthetic transformation and limitations are
-recorded in the [ATC700 profile provenance](teltonika-atc700-fixtures.md).
+configuration boundary. Its
+[SMS/GPRS command list](https://wiki.teltonika-gps.com/view/ATC700_SMS/GPRS_Command_List),
+[SMS/call settings](https://wiki.teltonika-gps.com/view/ATC700_SMS/call_settings)
+and [parameter list](https://wiki.teltonika-gps.com/view/ATC700_Parameter_List),
+reviewed 2026-09-21, define the separate password-only provisioning syntax,
+read-back commands, Codec 8 Extended and AVL confirmation selections. The exact
+synthetic transformations and limitations are recorded in the
+[ATC700 profile provenance](teltonika-atc700-fixtures.md).
 Teltonika hardware and
 LoRaWAN remain research targets in the
 [hardware ledger](hardware-qualification.md).

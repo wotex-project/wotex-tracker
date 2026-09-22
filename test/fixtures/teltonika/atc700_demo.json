@@ -1,0 +1,29 @@
+{
+  "schema": "wtr.teltonika-atc700-demo-fixture.v1",
+  "sources": [
+    "https://wiki.teltonika-gps.com/view/ATC700_Teltonika_Data_Sending_Parameters_ID",
+    "https://wiki.teltonika-gps.com/view/ATC700_Tracking_settings",
+    "https://wiki.teltonika-gps.com/view/ATC700_Mobile_network"
+  ],
+  "read_at": "2026-09-21",
+  "qualification": "documentation-fixture",
+  "transformation": "Derived from the documented synthetic ATC700 contract vector by retaining its first complete Codec 8 Extended AVL record, changing both record counts to one, recalculating the data length and CRC-16/IBM, and making no claim of a hardware capture. The final record deliberately has valid GNSS, movement, battery voltage and battery percentage so map and statistics development surfaces remain inspectable.",
+  "vectors": [
+    {
+      "name": "development_position_movement_and_battery",
+      "hex": "00000000000000378E010000018BCFE56800010ABA9500232AAF80002A005A08002400F00004000200F001007148000200430E1003E7002A0000000000000100005432",
+      "sha256": "1baeb159591b7558271d50d91b5cc4ae5246c51b1edd22cf7a25ee0d3356e518",
+      "record_count": 1,
+      "records": [
+        {
+          "timestamp_ms": 1700000000000,
+          "motion": true,
+          "battery_voltage_v": 3.6,
+          "battery_level_percent": 72,
+          "longitude_deg": 18.0,
+          "latitude_deg": 59.0
+        }
+      ]
+    }
+  ]
+}

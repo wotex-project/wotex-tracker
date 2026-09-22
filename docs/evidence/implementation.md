@@ -6139,3 +6139,38 @@ receipt digest are retained in
 This closes the integrated-product development/local axes; the physical Pi,
 tracker/radio, signed-iPhone, Apple-provider and distribution axes remain
 independent qualification records.
+
+### ATC700 provisioning and wire-level development path — 2026-09-21
+
+The optional ATC700 comparison profile now has its own closed configuration
+module instead of inheriting the TAT140 form. It admits the documented single
+SMS password, APN credentials, operator domain/port, TCP transport, Codec 8
+Extended and AVL server confirmation. The output is an ordered 160-byte-bounded
+SMS batch, a non-secret read-back command with exact expectations and a
+reviewable transient TCT manifest. Invalid fields, command injection, TAT140's
+two-part SMS authentication, UDP, Codec 8 and TCP/IP confirmation fail closed.
+
+The shared target-setup LiveView now requires an explicit TAT140 or ATC700
+choice. The ATC700 branch renders its own password-only SMS/TCT instructions and
+no EYE Sensor controls; the existing TAT140/EYE flow remains separate. Secrets
+remain only in the current LiveView plan and the same clear operation removes
+them without a service mutation.
+
+The independent Erlang peer now derives the four-byte AVL ACK from the frame's
+actual record count. A dedicated ATC700 scenario crosses IMEI login, every TCP
+login/frame split and concatenated frames through the real shared listener,
+then verifies one duplicate-stable durable observation. It enrolls and
+materialises the ATC700 Thing, checks the valid GNSS coordinates used by the map
+surface and runs a battery-level statistics query over the committed state.
+
+The checksummed `atc700_demo.json` fixture is a one-record derivation of the
+existing documentation vector with recalculated counts, length and CRC. Setting
+`WOTEX_UI_DEVICE=atc700` on the disposable UI script selects the packaged ATC700
+contract and this fixture, making its asset, map, history, statistics and
+provisioning journey inspectable without hardware. The provisioning guide lists
+the exact local command and the remaining physical qualification procedure.
+
+This evidence covers only deterministic software. No regional ATC700 SKU,
+firmware, SIM, Swedish carrier, physical SMS/TCT write, live IMEI packet, modem
+ACK, sleep/wake, offline buffer, recovery or BLE behavior was exercised or
+claimed.

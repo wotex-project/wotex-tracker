@@ -28,7 +28,14 @@ counter fields, preserving documented not-found and lost-sensor sentinels as
 unavailable values. A closed TAT140 configuration plan renders only the
 documented APN/server SMS parameters and represents Codec 8 Extended plus EYE
 Sensor setup as Teltonika Configurator USB selections; it invents neither hidden
-parameter IDs nor an iPhone provisioning protocol. Cellular admission now
+parameter IDs nor an iPhone provisioning protocol. A separate closed ATC700
+plan models its password-only SMS prefix, manual-APN selection, parameters
+2001–2006, TCP, Codec 8 Extended and AVL server confirmation and emits matching
+non-secret read-back expectations plus a transient TCT manifest. It contains no
+BLE or EYE Sensor surface. The ATC700 development fixture is also exercised
+through the real IMEI login/listener/AVL-ACK path before its map-ready state and
+statistics are read.
+Cellular admission now
 binds an optional configured profile ID into the durable raw observation. The
 record-aware import retains exact per-record evidence and the service atomically
 persists its ordered public projections and private bundle. The generic cellular
