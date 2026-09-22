@@ -155,16 +155,46 @@ defmodule Wotex.Tracker.Mobile.IOSReleaseTest do
        do: {profile_plist(profile), 0}
 
   defp fake_command(
-         "/usr/bin/plutil" = executable,
-         arguments,
-         command_options,
+         "/usr/bin/plutil",
+         ["-extract", "CFBundleIdentifier", "raw", "-o", "-", _path],
+         _command_options,
          _owner,
          _profile,
+         bundle_id,
+         _failure,
+         _tamper?
+       ),
+       do: {bundle_id, 0}
+
+  defp fake_command(
+         "/usr/bin/plutil",
+         ["-extract", "Entitlements", "json", "-o", "-", _path],
+         _command_options,
+         _owner,
+         profile,
          _bundle_id,
          _failure,
          _tamper?
        ),
-       do: System.cmd(executable, arguments, command_options)
+       do: {Jason.encode!(profile_entitlements(profile)), 0}
+
+  defp fake_command(
+         "/usr/bin/plutil",
+         ["-convert", "json", "-o", "-", _path],
+         _command_options,
+         _owner,
+         profile,
+         _bundle_id,
+         _failure,
+         tamper?
+       ) do
+    entitlements = profile_entitlements(profile)
+
+    entitlements =
+      if tamper?, do: Map.put(entitlements, "aps-environment", "development"), else: entitlements
+
+    {Jason.encode!(entitlements), 0}
+  end
 
   defp fake_command(
          "/usr/bin/codesign",
@@ -213,20 +243,10 @@ defmodule Wotex.Tracker.Mobile.IOSReleaseTest do
          _profile,
          _bundle_id,
          _failure,
-         tamper?
+         _tamper?
        ) do
     signed = Path.join(app_path, "signed-entitlements.test")
     File.cp!(signed, output_path)
-
-    if tamper? do
-      System.cmd("/usr/bin/plutil", [
-        "-replace",
-        "aps-environment",
-        "-string",
-        "development",
-        output_path
-      ])
-    end
 
     {"", 0}
   end
@@ -286,5 +306,17 @@ defmodule Wotex.Tracker.Mobile.IOSReleaseTest do
     </dict>
     </plist>
     """
+  end
+
+  defp profile_entitlements(options) do
+    team_id = Keyword.get(options, :team_id, @team_id)
+
+    %{
+      "application-identifier" =>
+        Keyword.get(options, :application_id, team_id <> "." <> @bundle_id),
+      "aps-environment" => Keyword.get(options, :environment, "production"),
+      "beta-reports-active" => Keyword.get(options, :beta_reports_active, true),
+      "com.apple.developer.team-identifier" => team_id
+    }
   end
 end
