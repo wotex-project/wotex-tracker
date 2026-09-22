@@ -5,8 +5,11 @@ defmodule Wotex.Tracker.Service.PassiveHostConfigTest do
 
   import Wotex.Tracker.Service.Fixtures
 
+  alias Wotex.Tracker.Service.Credentials
   alias Wotex.Tracker.Service.Development.PassiveSimulator
-  alias Wotex.Tracker.Service.{Credentials, PassiveHostConfig, PassiveIngress, PassiveScanner}
+  alias Wotex.Tracker.Service.PassiveHostConfig
+  alias Wotex.Tracker.Service.PassiveIngress
+  alias Wotex.Tracker.Service.PassiveScanner
 
   test "a closed private document composes the common ingress and scanner" do
     context = service()

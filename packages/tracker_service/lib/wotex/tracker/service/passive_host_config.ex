@@ -64,7 +64,7 @@ defmodule Wotex.Tracker.Service.PassiveHostConfig do
   def new(_, _, _), do: {:error, :invalid_configuration}
 
   @doc false
-  @spec child_specs(t(), term(), atom()) :: [Supervisor.child_spec()]
+  @spec child_specs(t(), term(), atom()) :: [{module(), keyword()}]
   def child_specs(%__MODULE__{} = config, service, ingress_name)
       when is_atom(ingress_name) do
     [

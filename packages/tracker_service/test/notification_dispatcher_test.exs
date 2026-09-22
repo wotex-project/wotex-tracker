@@ -411,12 +411,15 @@ defmodule Wotex.Tracker.Service.NotificationDispatcherTest do
     send(dispatcher, :dispatch)
     send(dispatcher, :unexpected)
 
-    eventually(fn ->
-      match?(
-        {:ok, %{"running" => false, "last_result" => %{"failed" => 1}}},
-        NotificationDispatcher.snapshot(dispatcher)
-      )
-    end)
+    eventually(
+      fn ->
+        match?(
+          {:ok, %{"running" => false, "last_result" => %{"failed" => 1}}},
+          NotificationDispatcher.snapshot(dispatcher)
+        )
+      end,
+      1_000
+    )
 
     refute Process.alive?(worker)
     assert Process.alive?(dispatcher)
