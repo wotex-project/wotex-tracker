@@ -18,7 +18,7 @@ defmodule WotexTracker.MixProject do
       source_url: "https://github.com/wotex-project/wotex-tracker",
       docs: [
         main: "readme",
-        extras: ~w(README.md CONTRIBUTING.md SECURITY.md) ++ Path.wildcard("docs/**/*.md"),
+        extras: docs_extras(),
         formatters: ["html"]
       ],
       test_coverage: [tool: ExCoveralls],
@@ -59,5 +59,21 @@ defmodule WotexTracker.MixProject do
       _ ->
         raise "WOTEX_PATH_DEPS accepts only 1 in dev/test/docs; production requires artifacts"
     end
+  end
+
+  defp docs_extras do
+    readmes = %{
+      "docs/labs/README.md" => "hardware-labs",
+      "docs/labs/inventory/README.md" => "hardware-inventory",
+      "docs/labs/tat140/README.md" => "tat140-lab"
+    }
+
+    [{"README.md", filename: "readme"}, "CONTRIBUTING.md", "SECURITY.md"] ++
+      Enum.map(Path.wildcard("docs/**/*.md"), fn path ->
+        case readmes do
+          %{^path => filename} -> {path, filename: filename}
+          _ -> path
+        end
+      end)
   end
 end
