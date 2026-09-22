@@ -9,7 +9,7 @@ defmodule Wotex.Tracker.UI.Components do
   """
 
   use Phoenix.Component
-  alias Wotex.Tracker.UI.Presenter
+  alias Wotex.Tracker.UI.{Presenter, RouteViewport}
 
   attr(:error, :any, required: true)
 
@@ -118,6 +118,162 @@ defmodule Wotex.Tracker.UI.Components do
       <p :if={@positions != []} class="muted">
         Multiple claims remain distinct. This view does not choose a canonical position or infer a route.
       </p>
+    </section>
+    """
+  end
+
+  attr(:id, :string, required: true)
+  attr(:title, :string, required: true)
+  attr(:description, :string, required: true)
+  attr(:empty_message, :string, required: true)
+  attr(:map, :any, required: true)
+  attr(:map_context, :map, required: true)
+  attr(:viewport, :map, required: true)
+  attr(:event, :string, required: true)
+  attr(:primary, :boolean, default: false)
+
+  def tracker_map(assigns) do
+    ~H"""
+    <section
+      id={@id}
+      class={["tracker-map", @primary && "tracker-map-primary"]}
+      aria-labelledby={@id <> "-title"}
+    >
+      <div class="tracker-map-heading">
+        <div>
+          <p class="eyebrow">Location</p>
+          <h2 id={@id <> "-title"}>{@title}</h2>
+          <p>{@description}</p>
+        </div>
+        <p :if={@map} class="tracker-map-count" aria-label="Mapped position claim count">
+          <strong>{@map.claim_count}</strong>
+          {if @map.claim_count == 1, do: "position", else: "positions"}
+        </p>
+      </div>
+      <div :if={is_nil(@map)} class="tracker-map-empty">
+        <p>{@empty_message}</p>
+      </div>
+      <figure
+        :if={@map}
+        data-tracker-map
+        aria-labelledby={@id <> "-title"}
+        aria-describedby={@id <> "-description " <> @id <> "-status"}
+      >
+        <p id={@id <> "-description"} class="muted">
+          Every marker is a separate retained source claim. The map does not choose a canonical
+          location, infer movement or imply current connectivity.
+        </p>
+        <div class="tracker-map-canvas">
+          <svg
+            viewBox={RouteViewport.view_box(@viewport)}
+            role="img"
+            aria-label="Geographic map of last reported asset position claims; exact values follow"
+          >
+            <defs>
+              <clipPath id={@id <> "-context-clip"}>
+                <rect x="56" y="24" width="888" height="352" />
+              </clipPath>
+            </defs>
+            <g
+              :if={@map_context.status == :available}
+              class="route-map-context"
+              clip-path={"url(##{@id}-context-clip)"}
+              aria-hidden="true"
+            >
+              <path
+                :for={line <- @map_context.lines}
+                d={line.line}
+                class={["route-context-line", "route-context-#{line.class}"]}
+              />
+            </g>
+            <g class="route-graticule" aria-hidden="true">
+              <line
+                :for={tick <- @map.chart.longitude_ticks}
+                x1={tick.x}
+                y1="24"
+                x2={tick.x}
+                y2="376"
+                class="route-grid-line"
+              />
+              <line
+                :for={tick <- @map.chart.latitude_ticks}
+                x1="56"
+                y1={tick.y}
+                x2="944"
+                y2={tick.y}
+                class="route-grid-line"
+              />
+              <text
+                :for={tick <- @map.chart.longitude_ticks}
+                x={tick.x}
+                y="395"
+                text-anchor="middle"
+                class="route-grid-label"
+              >
+                {tick.label}
+              </text>
+              <text
+                :for={tick <- @map.chart.latitude_ticks}
+                x="64"
+                y={tick.y}
+                text-anchor="start"
+                dominant-baseline="middle"
+                class="route-grid-label"
+              >
+                {tick.label}
+              </text>
+            </g>
+            <line x1="56" y1="376" x2="944" y2="376" class="chart-axis" />
+            <line x1="56" y1="24" x2="56" y2="376" class="chart-axis" />
+            <g :for={marker <- @map.markers} class="tracker-map-marker">
+              <circle cx={marker.x} cy={marker.y} r="15" class="tracker-map-marker-halo" />
+              <circle cx={marker.x} cy={marker.y} r="9" class="tracker-map-marker-dot" />
+              <text
+                x={marker.x}
+                y={marker.y}
+                text-anchor="middle"
+                dominant-baseline="central"
+                class="tracker-map-marker-label"
+              >
+                {marker.index}
+              </text>
+              <title>
+                {marker.title} · {Presenter.position_summary(marker.position)} · reported {Presenter.timestamp(
+                  marker.observed_at
+                )}
+              </title>
+            </g>
+          </svg>
+        </div>
+        <figcaption>{map_context_label(@map_context)}</figcaption>
+        <div class="map-controls tracker-map-controls" role="group" aria-label="Location map controls">
+          <button class="secondary" phx-click={@event} phx-value-action="zoom-in">Zoom in</button>
+          <button class="secondary" phx-click={@event} phx-value-action="zoom-out">Zoom out</button>
+          <button class="secondary" phx-click={@event} phx-value-action="pan-left">Pan left</button>
+          <button class="secondary" phx-click={@event} phx-value-action="pan-right">Pan right</button>
+          <button class="secondary" phx-click={@event} phx-value-action="pan-up">Pan up</button>
+          <button class="secondary" phx-click={@event} phx-value-action="pan-down">Pan down</button>
+          <button class="secondary" phx-click={@event} phx-value-action="reset">Reset</button>
+        </div>
+        <p id={@id <> "-status"} class="muted" aria-live="polite">
+          {RouteViewport.label(@viewport)} · view changes presentation only.
+        </p>
+      </figure>
+      <ol :if={@map} class="tracker-map-list" aria-label="Mapped position claims">
+        <li :for={marker <- @map.markers}>
+          <span class="tracker-map-index" aria-hidden="true">{marker.index}</span>
+          <div>
+            <a :if={marker.href} href={marker.href}>{marker.title}</a>
+            <strong :if={is_nil(marker.href)}>{marker.title}</strong>
+            <p>{Presenter.position_summary(marker.position)}</p>
+            <p class="muted">
+              Last reported {Presenter.timestamp(marker.observed_at)} · fix {Presenter.timestamp(
+                marker.position["fix_at"]
+              )}
+            </p>
+          </div>
+        </li>
+      </ol>
     </section>
     """
   end
@@ -308,6 +464,18 @@ defmodule Wotex.Tracker.UI.Components do
   end
 
   defp timestamp(value), do: Presenter.timestamp(%{"value" => value})
+
+  defp map_context_label(%{status: :available, attribution: attribution}),
+    do:
+      "Offline map context · attribution: #{attribution}. Retained coordinates remain authoritative."
+
+  defp map_context_label(%{status: :outside_coverage}),
+    do:
+      "Retained coordinates are outside the configured offline map coverage; no background is drawn."
+
+  defp map_context_label(_),
+    do:
+      "Coordinate grid shown without a background map. Retained coordinates remain authoritative."
 
   defp points(%{"series" => [%{"points" => points}]}), do: points
   defp points(_), do: []

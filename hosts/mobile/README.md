@@ -81,6 +81,12 @@ Every fallback carries visible offline source, synchronization time, age,
 completeness and access-expiry metadata. Shared browse, asset, trip, route and
 dashboard views render that state explicitly. Mutations, raw evidence, access
 management and operation recovery are never cached or queued.
+The shared mobile landing screen is map-first: it plots every available retained
+claim for the visible asset page before the asset cards. Asset detail likewise
+puts its last-reported-position map before setup and readings. Numbered markers,
+exact coordinates, source, uncertainty, report/fix times and offline-map coverage
+remain usable in the WebView without selecting a canonical claim or requiring a
+network map provider.
 The shared Interactions route is therefore online-only: conservative offline
 identity denies the `interact` grant, invocation is never queued, and durable
 Action status is never replaced by a cached projection.

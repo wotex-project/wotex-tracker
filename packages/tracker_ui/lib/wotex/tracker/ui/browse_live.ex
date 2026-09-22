@@ -12,7 +12,7 @@ defmodule Wotex.Tracker.UI.BrowseLive do
   use Phoenix.LiveView, log: false
   import Wotex.Tracker.UI.Components
   alias Wotex.Tracker.Service.{Codec, Identifier}
-  alias Wotex.Tracker.UI.{Auth, Presenter}
+  alias Wotex.Tracker.UI.{Auth, LocationMap, MapContext, Presenter, RouteViewport}
 
   @page_back_limit 32
 
@@ -25,6 +25,9 @@ defmodule Wotex.Tracker.UI.BrowseLive do
        page_params: nil,
        page_back: [],
        summaries: %{},
+       location_map: nil,
+       map_context: MapContext.project(nil, nil),
+       map_viewport: RouteViewport.new(),
        operational_enabled: socket.endpoint.config(:tracker_ui)[:operational_history] == true,
        operation: nil,
        outcome: nil,
@@ -50,6 +53,9 @@ defmodule Wotex.Tracker.UI.BrowseLive do
          page_params: nil,
          page_back: [],
          summaries: %{},
+         location_map: nil,
+         map_context: MapContext.project(nil, nil),
+         map_viewport: RouteViewport.new(),
          error: %{"code" => "invalid_request"}
        )}
     end
@@ -129,12 +135,26 @@ defmodule Wotex.Tracker.UI.BrowseLive do
     end
   end
 
+  def handle_event(
+        "overview-map-view",
+        %{"action" => action},
+        %{assigns: %{location_map: %{}, map_viewport: viewport}} = socket
+      ) do
+    case RouteViewport.update(viewport, action) do
+      {:ok, viewport} -> {:noreply, assign(socket, map_viewport: viewport, error: nil)}
+      :error -> {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
+    end
+  end
+
+  def handle_event("overview-map-view", _, socket),
+    do: {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
+
   def handle_event(_, _, socket), do: {:noreply, socket}
 
   @impl true
   def render(assigns) do
     ~H"""
-    <main id="main" class="workspace">
+    <main id="main" class={["workspace", @live_action == :assets && "map-first-workspace"]}>
       <p class="eyebrow">Scope · {@identity["scope"]}</p>
       <div class="heading">
         <div>
@@ -146,11 +166,23 @@ defmodule Wotex.Tracker.UI.BrowseLive do
         </div>
         <button class="secondary" phx-click="refresh">Refresh</button>
       </div>
+      <.notice error={@error} />
+      <.offline_status projection={@page} />
+      <.tracker_map
+        :if={@live_action == :assets && @page}
+        id="asset-overview-map"
+        title="Where your trackers last reported"
+        description="Latest authorized position claims for the assets on this page. Select an asset below for its evidence and history."
+        empty_message="No retained position is available for the assets on this page yet. Their setup and sensor readings remain accessible below."
+        map={@location_map}
+        map_context={@map_context}
+        viewport={@map_viewport}
+        event="overview-map-view"
+        primary
+      />
       <a :if={@operational_enabled && @identity["can_manage_queries"]} href="/operations">
         Operational history
       </a>
-      <.notice error={@error} />
-      <.offline_status projection={@page} />
       <section
         :if={
           @live_action == :observations && @identity["can_ingest"] && @page && @operation &&
@@ -252,7 +284,9 @@ defmodule Wotex.Tracker.UI.BrowseLive do
       {:ok, page} ->
         case summaries(socket, page) do
           {:ok, summaries} ->
-            assign(socket, page: page, page_params: params, summaries: summaries)
+            socket
+            |> assign(page: page, page_params: params, summaries: summaries)
+            |> assign_location_map(page, summaries)
 
           {:error, error} ->
             assign(socket,
@@ -260,12 +294,24 @@ defmodule Wotex.Tracker.UI.BrowseLive do
               page_params: nil,
               page_back: [],
               summaries: %{},
+              location_map: nil,
+              map_context: MapContext.project(nil, nil),
+              map_viewport: RouteViewport.new(),
               error: error
             )
         end
 
       {:error, %{"code" => code} = error} when code in ~w(forbidden unauthorized) ->
-        assign(socket, page: nil, page_params: nil, page_back: [], summaries: %{}, error: error)
+        assign(socket,
+          page: nil,
+          page_params: nil,
+          page_back: [],
+          summaries: %{},
+          location_map: nil,
+          map_context: MapContext.project(nil, nil),
+          map_viewport: RouteViewport.new(),
+          error: error
+        )
 
       {:error, error} ->
         assign(socket, error: error)
@@ -302,6 +348,45 @@ defmodule Wotex.Tracker.UI.BrowseLive do
   end
 
   defp summaries(_, _), do: {:ok, %{}}
+
+  defp assign_location_map(%{assigns: %{live_action: :assets}} = socket, page, summaries) do
+    entries =
+      Enum.flat_map(page["items"], fn row ->
+        case Map.fetch!(summaries, row["id"]) do
+          %{status: :recorded, state: state} ->
+            [
+              %{
+                id: row["id"],
+                title: row["value"]["title"],
+                href: Presenter.path(:asset, row["id"]),
+                observed_at: state["observed_at"],
+                positions: Map.get(state, "positions", [])
+              }
+            ]
+
+          _ ->
+            []
+        end
+      end)
+
+    location_map = LocationMap.project(entries)
+
+    assign(socket,
+      location_map: location_map,
+      map_context: MapContext.project(map_pack(socket), location_map && location_map.chart),
+      map_viewport: RouteViewport.new()
+    )
+  end
+
+  defp assign_location_map(socket, _page, _summaries),
+    do:
+      assign(socket,
+        location_map: nil,
+        map_context: MapContext.project(nil, nil),
+        map_viewport: RouteViewport.new()
+      )
+
+  defp map_pack(socket), do: socket.endpoint.config(:tracker_ui)[:map_pack]
 
   # Rule status is secondary to readings, so its failure does not hide them.
   defp rules(socket, id, state) do

@@ -12,7 +12,15 @@ defmodule Wotex.Tracker.UI.AssetLive do
   use Phoenix.LiveView, log: false
   import Wotex.Tracker.UI.Components
   alias Wotex.Tracker.Service.Identifier
-  alias Wotex.Tracker.UI.{Auth, HistoryExport, Presenter}
+
+  alias Wotex.Tracker.UI.{
+    Auth,
+    HistoryExport,
+    LocationMap,
+    MapContext,
+    Presenter,
+    RouteViewport
+  }
 
   @history_back_limit 32
 
@@ -29,6 +37,9 @@ defmodule Wotex.Tracker.UI.AssetLive do
          history: nil,
          history_params: nil,
          history_back: [],
+         location_map: nil,
+         map_context: MapContext.project(nil, nil),
+         map_viewport: RouteViewport.new(),
          generation: nil,
          needs_materialization: false,
          operation: nil,
@@ -76,6 +87,20 @@ defmodule Wotex.Tracker.UI.AssetLive do
 
   def handle_event("refresh", _, socket),
     do: {:noreply, socket |> assign(error: nil) |> recover() |> load()}
+
+  def handle_event(
+        "asset-map-view",
+        %{"action" => action},
+        %{assigns: %{location_map: %{}, map_viewport: viewport}} = socket
+      ) do
+    case RouteViewport.update(viewport, action) do
+      {:ok, viewport} -> {:noreply, assign(socket, map_viewport: viewport, error: nil)}
+      :error -> {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
+    end
+  end
+
+  def handle_event("asset-map-view", _, socket),
+    do: {:noreply, assign(socket, error: %{"code" => "invalid_request"})}
 
   def handle_event("read-property", %{"name" => name}, socket) when is_binary(name) do
     properties = if socket.assigns.thing, do: socket.assigns.thing["properties"], else: nil
@@ -195,6 +220,18 @@ defmodule Wotex.Tracker.UI.AssetLive do
       </div>
       <.notice error={@error} />
       <.offline_status projection={@history} />
+      <.tracker_map
+        :if={@enrollment}
+        id="asset-location-map"
+        title="Last reported position"
+        description="Find this tracker from its latest retained position evidence. Multiple source claims stay separate and are numbered on the map."
+        empty_message="This tracker has not supplied an available position yet. Sensor readings and setup remain available below."
+        map={@location_map}
+        map_context={@map_context}
+        viewport={@map_viewport}
+        event="asset-map-view"
+        primary
+      />
       <section :if={@enrollment} class="panel">
         <h2>Identity and provisioning</h2>
         <p class="identifier">{@id}</p>
@@ -259,7 +296,7 @@ defmodule Wotex.Tracker.UI.AssetLive do
           Explore trips and stops
         </a>
         <a :if={@enrollment} class="button secondary" href={Presenter.provisioning_path(@id)}>
-          Configure TAT140 and EYE Sensor
+          Configure tracker hardware
         </a>
         <a :if={@thing} href={Presenter.path(:asset, @id) <> "/protection"}>
           Protection rules
@@ -373,6 +410,9 @@ defmodule Wotex.Tracker.UI.AssetLive do
         history: nil,
         history_params: nil,
         history_back: [],
+        location_map: nil,
+        map_context: MapContext.project(nil, nil),
+        map_viewport: RouteViewport.new(),
         generation: nil,
         needs_materialization: false,
         outcome: nil,
@@ -412,15 +452,18 @@ defmodule Wotex.Tracker.UI.AssetLive do
         is_nil(state) or
           state["value"]["observation_id"] != enrollment["value"]["observation_id"]
 
+      state_value = if(state, do: state["value"], else: nil)
+
       socket
       |> assign(
         enrollment: enrollment["value"],
-        state: if(state, do: state["value"], else: nil),
+        state: state_value,
         generation: page["generation"],
         needs_materialization: needs_materialization,
         property_result: nil,
         property_error: nil
       )
+      |> assign_location_map(enrollment["value"], state_value)
       |> assign(history_back: [])
       |> history(%{})
       |> load_thing()
@@ -440,6 +483,35 @@ defmodule Wotex.Tracker.UI.AssetLive do
       error -> error
     end
   end
+
+  defp assign_location_map(socket, enrollment, %{} = state) do
+    location_map =
+      LocationMap.project([
+        %{
+          id: socket.assigns.id,
+          title: enrollment["title"],
+          href: nil,
+          observed_at: state["observed_at"],
+          positions: Map.get(state, "positions", [])
+        }
+      ])
+
+    assign(socket,
+      location_map: location_map,
+      map_context: MapContext.project(map_pack(socket), location_map && location_map.chart),
+      map_viewport: RouteViewport.new()
+    )
+  end
+
+  defp assign_location_map(socket, _enrollment, nil),
+    do:
+      assign(socket,
+        location_map: nil,
+        map_context: MapContext.project(map_pack(socket), nil),
+        map_viewport: RouteViewport.new()
+      )
+
+  defp map_pack(socket), do: socket.endpoint.config(:tracker_ui)[:map_pack]
 
   defp load_thing(%{assigns: %{state: nil}} = socket), do: assign(socket, thing: nil)
 
@@ -491,6 +563,9 @@ defmodule Wotex.Tracker.UI.AssetLive do
       history: nil,
       history_params: nil,
       history_back: [],
+      location_map: nil,
+      map_context: MapContext.project(nil, nil),
+      map_viewport: RouteViewport.new(),
       generation: nil,
       needs_materialization: false,
       outcome: nil,

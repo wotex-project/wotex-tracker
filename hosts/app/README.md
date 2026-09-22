@@ -444,8 +444,20 @@ WOTEX_PATH_DEPS=1 WOTEX_TRACKER_UI=1 MIX_ENV=test mise exec -- \
 The script starts only numeric loopback listeners, creates a private temporary
 store, imports and materializes the documentation-backed TAT140/EYE fixture, and
 prints the generated local origin, scope, token, Thing ID and provisioning URL.
+It also admits bounded deterministic offline line work around the fixture so the
+map-first overview and asset detail can be reviewed without a tile provider; its
+attribution explicitly states that it is not navigation data.
 Stopping the process removes its temporary store. It is a development and
 screenshot fixture, not physical-device evidence.
+
+Set `WOTEX_UI_DEVICE=atc700` on the same command to select the packaged ATC700
+contract and seed the checksummed ATC700 development frame instead. That mode
+keeps valid GNSS, movement, battery-voltage and battery-percentage state
+available for the map, history and statistics screens and exposes the ATC700
+SMS/TCT setup choice. The script prints `WOTEX_UI_DEVICE=atc700` with its other
+connection details. Only `tat140` (the default) and `atc700` are admitted. The
+[ATC700 guide](https://github.com/wotex-project/wotex-tracker/blob/main/docs/guides/teltonika-atc700-provisioning.md)
+records the exact provisioning and hardware-qualification instructions.
 
 After association, the asset page identifies prior measurements and offers an
 explicit Thing update. Asset details show actual measurements,

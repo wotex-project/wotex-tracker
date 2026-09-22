@@ -113,7 +113,7 @@ defmodule Wotex.Tracker.UI.Presenter do
   @spec interaction_path(String.t()) :: String.t()
   def interaction_path(thing) when is_binary(thing), do: path(:asset, thing) <> "/interactions"
 
-  @doc "Builds the local path for the TAT140 and associated EYE Sensor setup screen."
+  @doc "Builds the local path for the target-specific tracker setup screen."
   @spec provisioning_path(String.t()) :: String.t()
   def provisioning_path(thing) when is_binary(thing), do: path(:asset, thing) <> "/provisioning"
 

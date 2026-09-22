@@ -2,11 +2,12 @@ defmodule Wotex.Tracker.Host.UIDevelopment do
   @moduledoc false
 
   alias Wotex.Tracker.Observation
-  alias Wotex.Tracker.Protocols.Teltonika.TAT140
+  alias Wotex.Tracker.Protocols.Teltonika.{ATC700, TAT140}
   alias Wotex.Tracker.Host.{Browser, BrowserConfig, Supervisor}
   alias Wotex.Tracker.Service
   alias Wotex.Tracker.Service.{Credentials, Identifier}
   alias Wotex.Tracker.Service.HTTP.{Config, Server}
+  alias Wotex.Tracker.UI.MapPack
 
   def run do
     ensure_apps!()
@@ -15,6 +16,8 @@ defmodule Wotex.Tracker.Host.UIDevelopment do
     directory = development_directory!()
     token = Credentials.generate_token()
     credentials = credentials!(token)
+    device = development_device!()
+    {:ok, map_pack} = MapPack.new(development_map_pack())
 
     service_options = [
       directory: directory,
@@ -23,7 +26,7 @@ defmodule Wotex.Tracker.Host.UIDevelopment do
       port: 0,
       public_origin: :listener,
       exposure: :loopback,
-      contract: :teltonika_tat140_codec8e,
+      contract: device.contract,
       cellular_ingress: :configured
     ]
 
@@ -35,7 +38,7 @@ defmodule Wotex.Tracker.Host.UIDevelopment do
       tls: nil,
       secret_key_base: Base.encode64(:crypto.strong_rand_bytes(64)),
       prompt: nil,
-      map_pack: nil
+      map_pack: map_pack
     }
 
     {:ok, host} =
@@ -44,16 +47,17 @@ defmodule Wotex.Tracker.Host.UIDevelopment do
     {:ok, api} = Server.child(host, Server)
     {:ok, config} = Config.new(service_options)
     {:ok, service} = Server.context(api, config)
-    thing = seed!(service, token)
+    thing = seed!(service, token, device)
     {:ok, {{127, 0, 0, 1}, ^port}} = Browser.Endpoint.server_info(:http)
 
     IO.puts("WOTEX_UI_ORIGIN=#{origin}")
     IO.puts("WOTEX_UI_SCOPE=workshop")
     IO.puts("WOTEX_UI_TOKEN=#{token}")
     IO.puts("WOTEX_UI_THING=#{thing}")
+    IO.puts("WOTEX_UI_DEVICE=#{device.name}")
 
     IO.puts(
-      "WOTEX_UI_PROVISIONING=#{origin}/assets/#{URI.encode(thing, &URI.char_unreserved?/1)}/provisioning"
+      "WOTEX_UI_PROVISIONING=#{origin}/assets/#{URI.encode(thing, &URI.char_unreserved?/1)}/provisioning?device=#{device.name}"
     )
 
     IO.puts("WOTEX_UI_READY=1")
@@ -114,11 +118,80 @@ defmodule Wotex.Tracker.Host.UIDevelopment do
     credentials
   end
 
-  defp seed!(service, token) do
+  defp development_map_pack do
+    %{
+      "schema" => "wtr.map-pack.v1",
+      "id" => "stockholm-development",
+      "revision" => "1",
+      "attribution" => "Deterministic development fixture — not navigation data",
+      "coverage" => %{"west" => 17.4, "south" => 58.4, "east" => 18.6, "north" => 59.6},
+      "features" => [
+        %{
+          "class" => "water",
+          "points" => [[58.5, 17.62], [58.78, 17.76], [59.02, 17.72], [59.45, 17.9]]
+        },
+        %{
+          "class" => "boundary",
+          "points" => [[58.62, 17.48], [58.9, 18.02], [59.42, 18.48]]
+        },
+        %{
+          "class" => "road",
+          "points" => [
+            [58.55, 17.72],
+            [58.82, 17.9],
+            [59.0, 18.0],
+            [59.34, 18.24],
+            [59.48, 18.42]
+          ]
+        },
+        %{
+          "class" => "road",
+          "points" => [
+            [58.65, 18.42],
+            [58.9, 18.18],
+            [59.0, 18.0],
+            [59.25, 17.82],
+            [59.46, 17.66]
+          ]
+        }
+      ]
+    }
+  end
+
+  defp development_device! do
+    case System.get_env("WOTEX_UI_DEVICE", "tat140") do
+      "tat140" ->
+        %{
+          name: "tat140",
+          contract: :teltonika_tat140_codec8e,
+          fixture: "tat140_ble_sensor.json",
+          observation_id: "ui-development-tat140",
+          source_device: "development-tat140",
+          configured_profile: TAT140.configured_profile(),
+          title: "Cargo bike tracker"
+        }
+
+      "atc700" ->
+        %{
+          name: "atc700",
+          contract: :teltonika_atc700_codec8e,
+          fixture: "atc700_demo.json",
+          observation_id: "ui-development-atc700",
+          source_device: "development-atc700",
+          configured_profile: ATC700.configured_profile(),
+          title: "Development ATC700"
+        }
+
+      _ ->
+        raise "WOTEX_UI_DEVICE accepts only tat140 or atc700"
+    end
+  end
+
+  defp seed!(service, token, device) do
     now = System.system_time(:millisecond)
 
     fixture_path =
-      Path.expand("../../../test/fixtures/teltonika/tat140_ble_sensor.json", __DIR__)
+      Path.expand("../../../test/fixtures/teltonika/#{device.fixture}", __DIR__)
 
     {:ok, fixture} = fixture_path |> File.read!() |> Wotex.JSON.decode()
     [vector] = fixture["vectors"]
@@ -127,17 +200,17 @@ defmodule Wotex.Tracker.Host.UIDevelopment do
 
     {:ok, observation} =
       Observation.new(%{
-        id: "ui-development-tat140",
+        id: device.observation_id,
         observed_at: now,
         ingress: "cellular",
-        source: %{"adapter" => "teltonika-tcp", "device" => "development-tat140"},
+        source: %{"adapter" => "teltonika-tcp", "device" => device.source_device},
         addressing: %{"identity_digest" => String.duplicate("a", 64)},
         payload: {:bytes, frame},
         radio: %{},
         transport: %{"codec" => 0x8E, "record_count" => record_count},
         provenance: %{
           "protocol" => "teltonika-codec8-extended",
-          "configured_profile" => TAT140.configured_profile(),
+          "configured_profile" => device.configured_profile,
           "identity_assurance" => "configured-routing-identifier"
         }
       })
@@ -162,7 +235,7 @@ defmodule Wotex.Tracker.Host.UIDevelopment do
         Identifier.uuid(),
         %{
           "observation_id" => imported["data"]["observation_id"],
-          "title" => "Cargo bike tracker",
+          "title" => device.title,
           "owner_confirmed" => true,
           "expected_generation" => "1"
         },

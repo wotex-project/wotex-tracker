@@ -146,6 +146,95 @@ td ul { margin: 0; padding-left: 1rem; }
 .route-context-road { stroke: #c3a56c; stroke-width: 5; }
 .route-context-water { stroke: #75a8be; stroke-width: 4; }
 .route-map-coverage span { display: block; }
+.tracker-map {
+  margin: 1.75rem 0;
+  padding: clamp(1.1rem, 3vw, 2rem);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: white;
+}
+.tracker-map-primary {
+  border-color: #9bbcaf;
+  box-shadow: 0 18px 45px rgb(20 99 81 / 10%);
+}
+.tracker-map-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+}
+.tracker-map-heading .eyebrow { margin-top: 0; }
+.tracker-map-heading h2 { margin: .15rem 0 .45rem; font-size: clamp(1.35rem, 3vw, 2rem); }
+.tracker-map-heading p { margin: 0; }
+.tracker-map-count {
+  min-width: 7rem;
+  padding: .65rem .9rem;
+  border-radius: 999px;
+  background: #e7f2ed;
+  color: #0e5142;
+  text-align: center;
+  white-space: nowrap;
+}
+.tracker-map-count strong { font-size: 1.2rem; margin-right: .3rem; }
+.tracker-map-empty {
+  min-height: 14rem;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+  border: 1px dashed #9bbcaf;
+  border-radius: .75rem;
+  background: linear-gradient(145deg, #edf5f1, #f8faf8);
+  color: var(--muted);
+  text-align: center;
+}
+.tracker-map figure { margin: 0; }
+.tracker-map-canvas {
+  overflow: hidden;
+  border: 1px solid #aebfb7;
+  border-radius: .75rem;
+  background:
+    radial-gradient(circle at 18% 22%, rgb(117 168 190 / 13%), transparent 25%),
+    linear-gradient(145deg, #edf5f1, #f8faf8);
+}
+.tracker-map-canvas svg {
+  display: block;
+  width: 100%;
+  min-height: 19rem;
+}
+.tracker-map-marker-halo { fill: rgb(20 99 81 / 20%); }
+.tracker-map-marker-dot { fill: var(--green); stroke: white; stroke-width: 3; }
+.tracker-map-marker-label { fill: white; font-size: 11px; font-weight: 800; }
+.tracker-map figcaption { color: var(--muted); font-size: .88rem; margin-top: .65rem; }
+.tracker-map-controls { margin-bottom: .65rem; }
+.tracker-map-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: .75rem;
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0 0;
+}
+.tracker-map-list li {
+  display: flex;
+  gap: .75rem;
+  padding: .85rem;
+  border: 1px solid var(--line);
+  border-radius: .65rem;
+  background: #f8faf8;
+}
+.tracker-map-list p { margin: .2rem 0 0; }
+.tracker-map-index {
+  display: grid;
+  place-items: center;
+  flex: 0 0 1.8rem;
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 50%;
+  background: var(--green);
+  color: white;
+  font-weight: 800;
+}
 .chart-line { fill: none; stroke: #146351; stroke-width: 3; stroke-linejoin: round; }
 .chart-area { fill: #a8d8cb; stroke: none; }
 .chart-point { fill: #146351; stroke: white; stroke-width: 2; }
@@ -195,10 +284,27 @@ td ul { margin: 0; padding-left: 1rem; }
 
 @media (max-width: 600px) {
   .topbar { align-items: flex-start; flex-direction: column; }
-  .topbar nav { gap: 1rem; width: 100%; }
+  .topbar nav {
+    gap: 1rem;
+    width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: .25rem;
+  }
   .heading { align-items: flex-start; flex-direction: column; }
   .workspace { padding-top: 1.5rem; }
+  .map-first-workspace { padding-top: .75rem; }
+  .map-first-workspace > .eyebrow { margin-top: .5rem; }
+  .map-first-workspace .heading { flex-direction: row; }
+  .map-first-workspace .heading h1 { margin-bottom: .5rem; }
+  .map-first-workspace .heading p { margin-bottom: 0; }
   .sign-in { margin: 2.5rem auto; }
   .operation button { display: block; margin: .6rem 0; }
   .panel { padding: 1.1rem; }
+  .tracker-map { margin: 1rem -1rem 1.5rem; border-radius: 0; border-inline: 0; }
+  .tracker-map-heading { display: block; }
+  .tracker-map-heading h2 { font-size: 1.45rem; }
+  .tracker-map-count { display: inline-block; margin-top: .75rem !important; }
+  .tracker-map-canvas svg { min-height: 17rem; }
+  .tracker-map-controls button { flex: 1 1 calc(33.333% - .5rem); padding-inline: .6rem; }
 }

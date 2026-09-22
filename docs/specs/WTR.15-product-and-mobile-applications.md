@@ -15,6 +15,13 @@ service snapshot and discloses that the read does not contact the device.
 The browser overview now reads each asset's latest authorized committed state
 separately, showing retained measurements and position claims with their source,
 uncertainty, clock and quality or an explicit unprovisioned/unavailable state.
+It presents those claims first on an interactive fleet map before the asset
+cards. Asset detail likewise presents its available last-reported claims before
+provisioning and measurements. Both surfaces keep multiple sources as numbered
+separate markers, pair the map with exact text, expose map-pack coverage and use
+the same bounded keyboard-operable pan/zoom model in browser, Pi and mobile
+hosts. An unavailable position produces an explicit map state rather than a
+fabricated marker.
 It separately shows armed, disarmed, unknown, unavailable or unsupported arming
 state and never treats a missing fact as disarmed.
 Asset details and retained state history expose the same redacted positions while

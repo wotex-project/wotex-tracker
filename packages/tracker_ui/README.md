@@ -17,6 +17,13 @@ confirmed enrollment, later observation association, explicit Thing updates,
 retained measurements, resource history and per-asset measurement graphs with
 an exact table. Retained position projections appear on overview, asset-detail
 and state-history surfaces when supplied; an empty collection remains explicit.
+Location is the first product surface on both the asset overview and asset
+detail. The overview plots every available latest claim for the current asset
+page before its cards, and the detail page plots that asset before setup and
+measurements. Claims are numbered and listed with their exact source, coordinate,
+uncertainty and report/fix times. Multiple claims remain separate instead of
+silently choosing a canonical position. The same bounded pan/zoom model and
+admitted offline map pack work in the browser, Pi kiosk and mobile WebView.
 An asset route screen submits the service's closed replay policy, draws only its
 page-local segments in a coordinate plot and pairs them with exact points,
 rejections, exclusions and gap details. The screens do not choose a canonical
@@ -127,6 +134,13 @@ The Activity page pages the changes committed with the browser's credential in
 the last seven days, newest first, describes each from its receipt data and
 links the asset, observation, dashboard or alert it changed.
 This is not full application, Pi or mobile acceptance.
+
+The target setup page explicitly selects TAT140 or ATC700. TAT140 retains its
+separate SMS/USB and associated EYE Sensor workflow. ATC700 uses its own
+password-only SMS contract and reviewable TCT plan for manual APN, the primary
+TCP endpoint, Codec 8 Extended and AVL server confirmation; it exposes no EYE
+Sensor or BLE gateway controls. All cellular credentials and generated commands
+remain transient LiveView state and can be cleared without a service mutation.
 
 `Wotex.Tracker.UI.Local` calls only the public authorized service facade.
 For Property reads it creates a bounded Runtime request context before calling

@@ -1,17 +1,24 @@
 defmodule Wotex.Tracker.UI.ProvisioningLive do
   @moduledoc """
-  Presents the honest TAT140 endpoint/USB setup and associated EYE Sensor BLE flow.
+  Presents target-specific TAT140 and ATC700 provisioning workflows.
 
-  TAT140 secrets remain only in the current LiveView while a plan is shown. EYE
-  commands cross the closed mobile bridge one at a time and are admitted only
-  when their request, phase, peripheral and characteristic match the current
-  state. No result is persisted as proof of physical qualification.
+  Cellular secrets remain only in the current LiveView while a plan is shown.
+  The TAT140 path may additionally configure its associated EYE Sensor; the
+  ATC700 path makes no BLE claim. EYE commands cross the closed mobile bridge
+  one at a time and are admitted only when their request, phase, peripheral and
+  characteristic match the current state. No result is persisted as proof of
+  physical qualification.
   """
 
   use Phoenix.LiveView, log: false
   import Wotex.Tracker.UI.Components
 
-  alias Wotex.Tracker.Protocols.Teltonika.{EYESensorConfiguration, TAT140Configuration}
+  alias Wotex.Tracker.Protocols.Teltonika.{
+    ATC700Configuration,
+    EYESensorConfiguration,
+    TAT140Configuration
+  }
+
   alias Wotex.Tracker.Service.Identifier
   alias Wotex.Tracker.UI.{Auth, Presenter}
 
@@ -25,6 +32,7 @@ defmodule Wotex.Tracker.UI.ProvisioningLive do
      assign(socket,
        id: nil,
        enrollment: nil,
+       device: :tat140,
        plan: nil,
        error: nil,
        ble_state: :idle,
@@ -41,8 +49,11 @@ defmodule Wotex.Tracker.UI.ProvisioningLive do
   end
 
   @impl true
-  def handle_params(%{"id" => id}, _, socket) do
-    socket = assign(socket, id: id, enrollment: nil, error: nil)
+  def handle_params(%{"id" => id} = params, _, socket) do
+    socket =
+      socket
+      |> reset_ble()
+      |> assign(id: id, enrollment: nil, device: selected_device(params), plan: nil, error: nil)
 
     case Auth.request(socket, :get, %{"resource" => "enrollments", "id" => id}) do
       {:ok, %{"value" => enrollment}} -> {:noreply, assign(socket, enrollment: enrollment)}
@@ -51,14 +62,30 @@ defmodule Wotex.Tracker.UI.ProvisioningLive do
   end
 
   @impl true
+  def handle_event("select-device", %{"device" => %{"model" => model}}, socket)
+      when model in ["tat140", "atc700"] do
+    device = String.to_existing_atom(model)
+
+    {:noreply,
+     socket
+     |> reset_ble()
+     |> assign(device: device, plan: nil, error: nil)}
+  end
+
+  def handle_event("select-device", _, socket),
+    do: {:noreply, assign(socket, plan: nil, error: %{"code" => "invalid_request"})}
+
   def handle_event("build-tat140-plan", %{"tat140" => input}, socket) when is_map(input) do
-    with true <- socket.assigns.identity["can_enroll"],
+    with true <- socket.assigns.device == :tat140,
+         true <- socket.assigns.identity["can_enroll"],
          {:ok, port} <- integer(input["port"]),
          {:ok, frequency} <- integer(input["update_frequency_seconds"]),
-         {:ok, config} <- TAT140Configuration.new(configuration(input, port, frequency)) do
+         {:ok, config} <-
+           TAT140Configuration.new(tat140_configuration(input, port, frequency)) do
       plan = %{
+        device: :tat140,
         commands: TAT140Configuration.endpoint_sms_commands(config),
-        verification: TAT140Configuration.endpoint_verification_sms(config),
+        verification: [TAT140Configuration.endpoint_verification_sms(config)],
         expectations: TAT140Configuration.endpoint_expectations(config),
         manifest: TAT140Configuration.configurator_manifest(config)
       }
@@ -75,8 +102,33 @@ defmodule Wotex.Tracker.UI.ProvisioningLive do
   def handle_event("clear-tat140-plan", _, socket),
     do: {:noreply, assign(socket, plan: nil, error: nil)}
 
+  def handle_event("build-atc700-plan", %{"atc700" => input}, socket) when is_map(input) do
+    with true <- socket.assigns.device == :atc700,
+         true <- socket.assigns.identity["can_enroll"],
+         {:ok, port} <- integer(input["port"]),
+         {:ok, config} <- ATC700Configuration.new(atc700_configuration(input, port)) do
+      plan = %{
+        device: :atc700,
+        commands: ATC700Configuration.endpoint_sms_commands(config),
+        verification: [ATC700Configuration.endpoint_verification_sms(config)],
+        expectations: ATC700Configuration.endpoint_expectations(config),
+        manifest: ATC700Configuration.configurator_manifest(config)
+      }
+
+      {:noreply, assign(socket, plan: plan, error: nil)}
+    else
+      _ -> {:noreply, assign(socket, plan: nil, error: %{"code" => "invalid_request"})}
+    end
+  end
+
+  def handle_event("build-atc700-plan", _, socket),
+    do: {:noreply, assign(socket, plan: nil, error: %{"code" => "invalid_request"})}
+
+  def handle_event("clear-atc700-plan", _, socket),
+    do: {:noreply, assign(socket, plan: nil, error: nil)}
+
   def handle_event("eye-scan", _, socket) do
-    if socket.assigns.identity["can_enroll"] do
+    if socket.assigns.device == :tat140 and socket.assigns.identity["can_enroll"] do
       request = Identifier.uuid()
 
       socket =
@@ -99,12 +151,12 @@ defmodule Wotex.Tracker.UI.ProvisioningLive do
          @scan_timeout_ms
        )}
     else
-      {:noreply, ble_failure(socket, "This credential cannot provision local hardware.")}
+      {:noreply, ble_unavailable(socket)}
     end
   end
 
   def handle_event("eye-connect", %{"peripheral" => peripheral}, socket) do
-    if socket.assigns.identity["can_enroll"] and
+    if socket.assigns.device == :tat140 and socket.assigns.identity["can_enroll"] and
          Enum.any?(socket.assigns.ble_peripherals, &(&1["peripheral_id"] == peripheral)) do
       request = Identifier.uuid()
 
@@ -117,11 +169,15 @@ defmodule Wotex.Tracker.UI.ProvisioningLive do
          EYESensorConfiguration.connect_command(request, peripheral)
        )}
     else
-      {:noreply, ble_failure(socket, "Select an EYE Sensor from the current scan.")}
+      {:noreply, ble_unavailable(socket, "Select an EYE Sensor from the current scan.")}
     end
   end
 
-  def handle_event("eye-prepare", %{"eye" => input}, %{assigns: %{ble_state: :ready}} = socket)
+  def handle_event(
+        "eye-prepare",
+        %{"eye" => input},
+        %{assigns: %{device: :tat140, ble_state: :ready}} = socket
+      )
       when is_map(input) do
     sensors =
       for name <- @sensor_names, input[name] == "true", do: String.to_existing_atom(name)
@@ -157,6 +213,7 @@ defmodule Wotex.Tracker.UI.ProvisioningLive do
         _,
         %{
           assigns: %{
+            device: :tat140,
             ble_state: :ready,
             ble_review: %{mask: _},
             ble_password: password,
@@ -178,7 +235,11 @@ defmodule Wotex.Tracker.UI.ProvisioningLive do
   def handle_event("eye-apply", _, socket),
     do: {:noreply, ble_failure(socket, "Review valid EYE settings before applying them.")}
 
-  def handle_event("eye-disconnect", _, %{assigns: %{ble_peripheral: peripheral}} = socket)
+  def handle_event(
+        "eye-disconnect",
+        _,
+        %{assigns: %{device: :tat140, ble_peripheral: peripheral}} = socket
+      )
       when is_binary(peripheral) do
     request = Identifier.uuid()
 
@@ -193,7 +254,8 @@ defmodule Wotex.Tracker.UI.ProvisioningLive do
 
   def handle_event("eye-disconnect", _, socket), do: {:noreply, socket}
 
-  def handle_event("eye-ble-event", event, socket) when is_map(event) do
+  def handle_event("eye-ble-event", event, %{assigns: %{device: :tat140}} = socket)
+      when is_map(event) do
     {:noreply, accept_ble_event(socket, event)}
   end
 
@@ -219,7 +281,26 @@ defmodule Wotex.Tracker.UI.ProvisioningLive do
       </div>
       <.notice error={@error} />
 
-      <section :if={@enrollment} class="panel" aria-labelledby="tat140-title">
+      <section :if={@enrollment} class="panel" aria-labelledby="device-choice-title">
+        <h2 id="device-choice-title">Choose the tracker being configured</h2>
+        <form id="device-choice" phx-change="select-device">
+          <label>Tracker model
+          <select name="device[model]">
+            <option value="tat140" selected={@device == :tat140}>Teltonika TAT140</option>
+            <option value="atc700" selected={@device == :atc700}>Teltonika ATC700</option>
+          </select></label>
+        </form>
+        <p class="muted">
+          Each model has a separate bounded configuration contract. Selecting ATC700 does not
+          enable or imply an EYE Sensor or another BLE gateway.
+        </p>
+      </section>
+
+      <section
+        :if={@enrollment && @device == :tat140}
+        class="panel"
+        aria-labelledby="tat140-title"
+      >
         <h2 id="tat140-title">TAT140 endpoint and EYE gateway plan</h2>
         <p>
           The phone does not configure the TAT140 over BLE. Endpoint parameters use authenticated SMS.
@@ -283,21 +364,74 @@ defmodule Wotex.Tracker.UI.ProvisioningLive do
         </p>
       </section>
 
+      <section
+        :if={@enrollment && @device == :atc700}
+        class="panel"
+        aria-labelledby="atc700-title"
+      >
+        <h2 id="atc700-title">ATC700 SMS and TCT provisioning plan</h2>
+        <p>
+          ATC700 SMS authentication is password-only. The generated commands set the APN,
+          operator-controlled TCP endpoint, Codec 8 Extended and AVL server confirmation.
+        </p>
+        <p class="notice">
+          Generate this plan only for an ATC700 you control. Review the destination and the TCT
+          selections before applying either path. Values and commands remain in this page only.
+          This workflow makes no ATC700 BLE or physical-qualification claim.
+        </p>
+        <form :if={@identity["can_enroll"]} id="atc700-plan" phx-submit="build-atc700-plan">
+          <fieldset>
+            <legend>Password-only SMS and cellular endpoint</legend>
+            <label>SMS password
+            <input
+              name="atc700[sms_password]"
+              type="password"
+              minlength="5"
+              maxlength="10"
+              pattern="[A-Za-z0-9]{5,10}"
+              autocomplete="new-password"
+            /></label>
+            <label>Cellular APN <input name="atc700[apn]" value="internet" maxlength="32" required /></label>
+            <label>APN username
+            <input name="atc700[apn_username]" maxlength="32" autocomplete="off" /></label>
+            <label>APN password
+            <input
+              name="atc700[apn_password]"
+              type="password"
+              maxlength="32"
+              autocomplete="new-password"
+            /></label>
+            <label>Operator server
+            <input name="atc700[server]" value="tracker.example" maxlength="55" required /></label>
+            <label>TCP port
+            <input name="atc700[port]" type="number" min="1" max="65535" value="5027" required /></label>
+          </fieldset>
+          <button type="submit">Generate ATC700 setup plan</button>
+        </form>
+        <p :if={!@identity["can_enroll"]} class="notice">
+          This credential can inspect the setup path but cannot prepare hardware changes.
+        </p>
+      </section>
+
       <section :if={@plan} class="panel" aria-labelledby="plan-title">
         <h2 id="plan-title">Review the exact plan</h2>
         <h3>1. Send the SMS commands in order</h3>
         <ol>
           <li :for={command <- @plan.commands}><code>{command}</code></li>
         </ol>
-        <h3>2. Read back non-secret endpoint fields</h3>
-        <p><code>{@plan.verification}</code></p>
+        <h3>2. Read back non-secret configured fields</h3>
+        <p :for={command <- @plan.verification}><code>{command}</code></p>
         <dl>
           <%= for {parameter, value} <- Enum.sort(@plan.expectations) do %>
             <dt>Parameter {parameter}</dt><dd>{value}</dd>
           <% end %>
         </dl>
-        <h3>3. Connect over USB with Teltonika Configurator</h3>
-        <dl>
+        <h3>
+          3. Connect over USB with {if @plan.device == :atc700,
+            do: "Teltonika Configurator (TCT)",
+            else: "Teltonika Configurator"}
+        </h3>
+        <dl :if={@plan.device == :tat140}>
           <dt>Data protocol</dt><dd>{@plan.manifest["system"]["data_protocol"]}</dd>
           <dt>BLE feature</dt><dd>{@plan.manifest["bluetooth"]["ble_feature"]}</dd>
           <dt>Sensor preset</dt><dd>{hd(@plan.manifest["bluetooth"]["sensor_table"])["preset"]}</dd>
@@ -312,10 +446,53 @@ defmodule Wotex.Tracker.UI.ProvisioningLive do
               else: "Disabled"}
           </dd>
         </dl>
-        <button class="secondary" phx-click="clear-tat140-plan">Clear sensitive plan</button>
+        <dl :if={@plan.device == :atc700}>
+          <dt>SMS authentication</dt><dd>
+            {@plan.manifest["sms_call"]["sms_security"]["authentication"]}
+          </dd>
+          <dt>Auto APN</dt><dd>
+            {@plan.manifest["mobile_network"]["mobile_data"]["auto_apn"]}
+          </dd>
+          <dt>APN</dt><dd>{@plan.manifest["mobile_network"]["mobile_data"]["apn"]}</dd>
+          <dt>APN username</dt><dd>
+            {@plan.manifest["mobile_network"]["mobile_data"]["apn_username"]}
+          </dd>
+          <dt>Primary server</dt><dd>
+            {@plan.manifest["mobile_network"]["primary_server"]["domain"]}:{@plan.manifest[
+              "mobile_network"
+            ]["primary_server"]["port"]}
+          </dd>
+          <dt>Transport</dt><dd>
+            {@plan.manifest["mobile_network"]["primary_server"]["data_protocol"]}
+          </dd>
+          <dt>Data protocol</dt><dd>
+            {@plan.manifest["tracking"]["records"]["data_protocol"]}
+          </dd>
+          <dt>Server confirmation</dt><dd>
+            {@plan.manifest["tracking"]["records"]["server_confirmation_method"]}
+          </dd>
+        </dl>
+        <button
+          :if={@plan.device == :tat140}
+          class="secondary"
+          phx-click="clear-tat140-plan"
+        >
+          Clear sensitive plan
+        </button>
+        <button
+          :if={@plan.device == :atc700}
+          class="secondary"
+          phx-click="clear-atc700-plan"
+        >
+          Clear sensitive plan
+        </button>
       </section>
 
-      <section :if={@enrollment} class="panel" aria-labelledby="eye-title">
+      <section
+        :if={@enrollment && @device == :tat140}
+        class="panel"
+        aria-labelledby="eye-title"
+      >
         <h2 id="eye-title">Associated EYE Sensor</h2>
         <p>
           In the iOS companion, configure the EYE Sensor directly through its documented GATT service.
@@ -387,7 +564,7 @@ defmodule Wotex.Tracker.UI.ProvisioningLive do
     """
   end
 
-  defp configuration(input, port, frequency) do
+  defp tat140_configuration(input, port, frequency) do
     %{
       "schema" => "wtr.tat140-configuration.v1",
       "provisioning_path" => "teltonika_configurator_usb",
@@ -412,6 +589,26 @@ defmodule Wotex.Tracker.UI.ProvisioningLive do
     }
   end
 
+  defp atc700_configuration(input, port) do
+    %{
+      "schema" => "wtr.atc700-configuration.v1",
+      "provisioning_path" => "sms_and_teltonika_configurator_tct",
+      "sms" => %{"password" => input["sms_password"] || ""},
+      "cellular" => %{
+        "apn" => input["apn"],
+        "username" => input["apn_username"] || "",
+        "password" => input["apn_password"] || "",
+        "server" => input["server"],
+        "port" => port,
+        "transport" => "tcp"
+      },
+      "protocol" => %{
+        "data" => "codec8_extended",
+        "server_confirmation" => "avl"
+      }
+    }
+  end
+
   defp integer(value) when is_binary(value) do
     case Integer.parse(value) do
       {parsed, ""} -> {:ok, parsed}
@@ -420,6 +617,9 @@ defmodule Wotex.Tracker.UI.ProvisioningLive do
   end
 
   defp integer(_), do: {:error, :invalid_integer}
+
+  defp selected_device(%{"device" => "atc700"}), do: :atc700
+  defp selected_device(_), do: :tat140
 
   defp dispatch(socket, state, request, command, timeout \\ @ble_timeout_ms)
 
@@ -614,6 +814,29 @@ defmodule Wotex.Tracker.UI.ProvisioningLive do
 
   defp clear_ble_secret(socket),
     do: assign(socket, ble_password: nil, ble_expected_mask: nil)
+
+  defp reset_ble(socket) do
+    assign(socket,
+      ble_state: :idle,
+      ble_message: nil,
+      ble_request: nil,
+      ble_phase: nil,
+      ble_peripherals: [],
+      ble_peripheral: nil,
+      ble_characteristics: [],
+      ble_review: nil,
+      ble_password: nil,
+      ble_expected_mask: nil
+    )
+  end
+
+  defp ble_unavailable(%{assigns: %{device: :atc700}} = socket, _message),
+    do: assign(socket, error: %{"code" => "invalid_request"})
+
+  defp ble_unavailable(socket, message), do: ble_failure(socket, message)
+
+  defp ble_unavailable(socket),
+    do: ble_unavailable(socket, "This credential cannot provision local hardware.")
 
   defp ble_failure(socket, message, state \\ :failed) do
     socket

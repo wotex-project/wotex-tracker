@@ -546,17 +546,36 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
 
     assert {:ok, _} = Store.mutate(c.store, update)
     {:ok, overview, _} = live(c.conn, "/")
+    assert has_element?(overview, "#asset-overview-map h2", "Where your trackers last reported")
+    assert has_element?(overview, "#asset-overview-map figure[data-tracker-map]")
+
+    assert has_element?(
+             overview,
+             "#asset-overview-map .tracker-map-marker title",
+             "Workshop sensor"
+           )
+
+    assert has_element?(overview, "#asset-overview-map .tracker-map-list a", "Workshop sensor")
     assert has_element?(overview, ".position-summary li", "GNSS: 59.3293, 18.0686")
     assert render(overview) =~ "Retained readings and positions"
+
+    overview |> element("#asset-overview-map button", "Zoom in") |> render_click()
+    assert has_element?(overview, "#asset-overview-map-status", "Map zoom 2×")
 
     {:ok, asset, _} =
       live(c.conn, Presenter.path(:asset, thing) <> "?operation=" <> Identifier.uuid())
 
+    assert has_element?(asset, "#asset-location-map h2", "Last reported position")
+    assert has_element?(asset, "#asset-location-map figure[data-tracker-map]")
+    assert has_element?(asset, "#asset-location-map .tracker-map-marker title", "Workshop sensor")
     assert has_element?(asset, "#positions-title", "Recorded positions")
     assert has_element?(asset, ".position .coordinates", "bound accuracy 5.0 m")
     assert render(asset) =~ "has not selected a canonical source"
     assert has_element?(asset, "tbody td li", "GNSS: 59.3293, 18.0686")
     refute render(asset) =~ "private-position-source"
+
+    asset |> element("#asset-location-map button", "Zoom in") |> render_click()
+    assert has_element?(asset, "#asset-location-map-status", "Map zoom 2×")
   end
 
   test "terminal read denials clear retained detail and setup evidence", c do
@@ -1377,7 +1396,7 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
     assert has_element?(
              asset,
              ~s(a[href="#{Presenter.provisioning_path(thing)}"]),
-             "Configure TAT140 and EYE Sensor"
+             "Configure tracker hardware"
            )
 
     {:ok, view, html} = live(c.conn, Presenter.provisioning_path(thing))
@@ -1417,6 +1436,65 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
 
     view
     |> form("#tat140-plan", tat140: %{port: "not-a-port"})
+    |> render_submit()
+
+    assert has_element?(view, "[role=alert]", "Check the required fields")
+  end
+
+  test "ATC700 setup uses password-only SMS, Codec 8E, AVL confirmation and no BLE claim", c do
+    thing = provisioned(c)
+    {:ok, view, _} = live(c.conn, Presenter.provisioning_path(thing) <> "?device=atc700")
+
+    assert has_element?(view, "#atc700-plan")
+
+    view
+    |> form("#device-choice", device: %{model: "tat140"})
+    |> render_change()
+
+    assert has_element?(view, "#tat140-plan")
+    assert has_element?(view, "#eye-title")
+
+    view
+    |> form("#device-choice", device: %{model: "atc700"})
+    |> render_change()
+
+    assert has_element?(view, "#atc700-title", "ATC700 SMS and TCT provisioning plan")
+    assert has_element?(view, "#atc700-plan")
+    refute has_element?(view, "#tat140-plan")
+    refute has_element?(view, "#eye-title")
+    assert render(view) =~ "makes no ATC700 BLE"
+    render_hook(view, "eye-scan", %{})
+    assert has_element?(view, "[role=alert]", "Check the required fields")
+
+    view
+    |> form("#atc700-plan",
+      atc700: %{
+        sms_password: "12345",
+        apn: "internet",
+        apn_username: "subscriber",
+        apn_password: "private",
+        server: "tracker.example",
+        port: "5027"
+      }
+    )
+    |> render_submit()
+
+    html = render(view)
+    assert html =~ "12345 setparam 2025:0;2001:internet;2002:subscriber;2003:private"
+    assert html =~ "12345 setparam 2004:tracker.example;2005:5027;2006:0"
+    assert html =~ "12345 setparam 1004:1;113:0"
+    assert html =~ "12345 getparam 2025;2001;2004;2005;2006;1004;113"
+    assert html =~ "Codec 8 Extended"
+    assert html =~ "Server confirmation"
+    assert html =~ "AVL"
+    assert html =~ "Password only"
+
+    view |> element("button", "Clear sensitive plan") |> render_click()
+    refute render(view) =~ "subscriber"
+    refute render(view) =~ "private"
+
+    view
+    |> form("#atc700-plan", atc700: %{port: "not-a-port"})
     |> render_submit()
 
     assert has_element?(view, "[role=alert]", "Check the required fields")
@@ -6977,6 +7055,8 @@ defmodule Wotex.Tracker.UI.WorkflowTest do
              ~s(a[href="#{Presenter.path(:asset, thing)}/route"]),
              "Explore route history"
            )
+
+    assert has_element?(asset, "#asset-location-map .tracker-map-empty", "not supplied")
 
     path = Presenter.path(:asset, thing) <> "/route"
     {:ok, route, html} = live(c.conn, path)
