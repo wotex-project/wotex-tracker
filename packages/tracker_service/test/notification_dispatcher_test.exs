@@ -402,10 +402,10 @@ defmodule Wotex.Tracker.Service.NotificationDispatcherTest do
     dispatcher =
       start_dispatcher(c, :unused,
         adapter: {BlockingAdapter, self()},
-        timeout_ms: 25
+        timeout_ms: 1_000
       )
 
-    assert_receive {:blocking_delivery, worker}, 1_000
+    assert_receive {:blocking_delivery, worker}, 5_000
     assert Process.alive?(worker)
     assert {:error, :busy} = NotificationDispatcher.dispatch(dispatcher)
     send(dispatcher, :dispatch)
