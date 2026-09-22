@@ -25,3 +25,18 @@ Future labs may add other finished trackers or transport combinations only when 
 - Generic BLE/HTTP/MQTT semantics remain owned by WoTEx packages; Tracker owns tracker-specific fingerprints, evidence and Things.
 - LoRaWAN is optional and belongs in a later tracker lab only if a suitable open device/network path is selected.
 - Refpath is optional and never required for hardware qualification.
+
+## Documentation map
+
+- [Tracker lab template](TEMPLATE.md)
+- [Inventory](inventory/README.md)
+- [Photo and identification checklist](photo-and-identification-checklist.md)
+- [Network and credential security](network-security.md)
+- [TAT140 lab](tat140/README.md)
+  - [Physical setup and first run](tat140/setup.md)
+  - [Evidence checklist](tat140/evidence-checklist.md)
+  - [Nano 33 IoT discovery fixtures](tat140/nano-fixtures.md)
+
+The generic multi-protocol physical programme belongs to WoTEx Lab. Tracker
+labs consume those protocol capabilities but own tracker-specific hardware
+qualification.

@@ -21,6 +21,12 @@ TAT140
 
 No vendor cloud is part of the required path.
 
+## Runbook
+
+- [Physical setup and first qualification run](setup.md)
+- [Hardware evidence checklist](evidence-checklist.md)
+- [Nano 33 IoT discovery fixtures](nano-fixtures.md)
+
 ## Required hardware
 
 - TAT140 EU regional variant suitable for Sweden;

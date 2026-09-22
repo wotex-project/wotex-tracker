@@ -112,6 +112,7 @@ and [evidence policy](docs/specs/WTR.12-evidence-and-graduation.md).
 | Integrate with the headless API | [Service contract](docs/contracts/service-v1.md) |
 | Work on the product surfaces | [Application contract](docs/specs/WTR.15-product-and-mobile-applications.md) |
 | Understand maps and offline context | [Map-pack contract](docs/contracts/map-pack-v1.md) |
+| Run physical tracker qualification | [Physical lab catalogue](docs/labs/README.md) |
 | Review the implementation sequence | [Software implementation plan](docs/plans/software-implementation.md) |
 | Audit what has actually run | [Implementation evidence](docs/evidence/implementation.md) |
 

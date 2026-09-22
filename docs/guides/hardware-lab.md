@@ -2,6 +2,12 @@
 
 Status: operator build and hardware-qualification guide. Software support is not physical-device qualification.
 
+## Structured lab documents
+
+This guide is the overview. Maintained qualification procedures live in the
+[physical lab catalogue](../labs/README.md), beginning with the
+[TAT140 lab](../labs/tat140/README.md).
+
 ## Goal
 
 Qualify the real product path with a finished Teltonika TAT140 while reusing the existing bench for gateway, BLE and synthetic-device evidence.
@@ -28,12 +34,13 @@ The TAT140 is the tracker under qualification. Arduino boards are test peers/sen
 
 | Hardware | Tracker-lab use |
 | --- | --- |
-| Raspberry Pi 3-class Model B in case | Local Tracker service/gateway, BlueZ scanner, TCP endpoint on LAN/VPN side, SQLite and evidence capture. Exact B/B+ revision needs PCB confirmation. |
+| Raspberry Pi 3 Model B v1.2 in case with fitted fan | Local Tracker service/gateway, BlueZ scanner, TCP endpoint on LAN/VPN side, SQLite and evidence capture. The PCB revision is confirmed; fan rating and occupied GPIO power pins still need verification. |
 | 2 x Arduino Nano 33 IoT | Open BLE/Wi-Fi sensor/tag simulators; onboard IMU; deterministic owner-presence/sensor fixtures. |
 | Arduino Uno R3 | USB serial/GPIO fault and sensor simulator. |
 | Shelly Motion 2 | Finished Wi-Fi motion source for cross-transport capability tests after local API/firmware verification. |
 | ESP8266 ESP-01S + programming hardware | Optional tiny Wi-Fi peer. |
-| Bagged sensor/PIR-style modules | Physical fixtures after exact identification. |
+| Adafruit ADA189 PIR | Confirmed motion fixture; verify authoritative electrical characteristics before Nano wiring. |
+| Additional bagged sensor modules | Future fixtures only after exact identification. |
 | Breadboard/electronics kit | Wiring, buttons, LEDs and passive components. |
 | Delock smart plug | Generic WoT control only after exact model/local protocol verification. |
 | USB cables/adapters/power | Bench support after voltage/function verification. |
