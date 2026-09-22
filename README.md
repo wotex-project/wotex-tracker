@@ -1,5 +1,8 @@
 # Wotex Tracker
 
+[![CI](https://github.com/wotex-project/wotex-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/wotex-project/wotex-tracker/actions/workflows/ci.yml)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+
 **Your trackers. Your infrastructure.**
 
 WoTEx Tracker is a self-hosted asset-tracking system built around W3C Web of
