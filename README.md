@@ -2,6 +2,16 @@
 
 [![CI](https://github.com/wotex-project/wotex-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/wotex-project/wotex-tracker/actions/workflows/ci.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+![Status: Experimental](https://img.shields.io/badge/status-experimental-orange.svg)
+
+> [!WARNING]
+> **WoTEx Tracker is experimental and is not yet physically qualified or
+> certified.** Software acceptance covers simulated targets; physical tracker
+> and Pi tests, on-device iPhone tests, provider acceptance and distribution
+> evidence remain outstanding. The [specifications](docs/specs/WTR-index.md)
+> define the intended product, while
+> [implementation evidence](docs/evidence/implementation.md) records what has
+> been proven. Missing qualification must not reduce the product contract.
 
 **Your trackers. Your infrastructure.**
 
