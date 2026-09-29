@@ -68,7 +68,7 @@ defmodule WotexTracker.MixProject do
       "docs/labs/tat140/README.md" => "tat140-lab"
     }
 
-    [{"README.md", filename: "readme"}, "CONTRIBUTING.md", "SECURITY.md"] ++
+    [{"README.md", filename: "readme"}, "LICENSE", "CONTRIBUTING.md", "SECURITY.md"] ++
       Enum.map(Path.wildcard("docs/**/*.md"), fn path ->
         case readmes do
           %{^path => filename} -> {path, filename: filename}
