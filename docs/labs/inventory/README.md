@@ -20,13 +20,17 @@ still unsafe to wire.
 | Small round USB dongle | USB | Unknown | Identify from label and `lsusb` |
 | Additional bagged green boards/modules | Unknown | Future sensor fixtures | Do not wire until identified |
 | Breadboard/electronics kit | Passive/mixed | Low-voltage fixture construction | Available |
-| Teltonika TAT140 EU | Finished rugged LTE/GNSS/BLE tracker | Primary real tracker | **Missing / procure** |
+| Teltonika TAT140 EU | Finished LTE/GNSS/BLE tracker | Planned baseline cellular tracker | Not owned; correct model still needed |
 
-## Required next purchase
+The TAT100 was supplied in error and is being returned. No inspection or
+qualification work is planned for it.
 
-The **TAT140 EU** plus a Swedish data SIM is the purchase that changes the
-Tracker hardware-evidence class. Pi 5 and LoRaWAN hardware are not required for
-the first TAT140 qualification lane.
+## Next tracker-lab prerequisites
+
+Acquire the actual TAT140 EU variant, a compatible Swedish data SIM and access
+to an operator-controlled endpoint for the first cellular/GNSS run. A supported
+EYE Sensor is also required for the complete BLE-sensor baseline. Pi 5 and
+LoRaWAN hardware are not prerequisites for this tracker lab.
 
 ## Admission rule
 

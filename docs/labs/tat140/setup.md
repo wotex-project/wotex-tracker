@@ -133,10 +133,11 @@ Take the tracker outdoors with reasonable sky view. Expect:
 - Prove late records remain historical evidence without becoming a false current alarm.
 - Verify that a lost reply does not cause an uncontrolled physical Action retry.
 
-## 8. Optional BLE through TAT140
+## 8. BLE sensor baseline through TAT140
 
-Only after the exact TAT140 firmware and documented sensor capability are
-confirmed:
+This can follow the first cellular/GNSS run, but remains required for complete
+baseline qualification. After the exact TAT140 firmware and documented sensor
+capability are confirmed:
 
 ```text
 qualified BLE sensor

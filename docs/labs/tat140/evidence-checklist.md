@@ -48,6 +48,13 @@
 - [ ] profile revision
 - [ ] generated or associated Thing Description digest
 
+## BLE sensor baseline
+
+- [ ] EYE Sensor model and firmware
+- [ ] TAT140 firmware and supported sensor mode
+- [ ] real EYE Sensor record received through TAT140
+- [ ] decoded sensor values and loss behavior checked against the capture
+
 ## Durability
 
 - [ ] service restart

@@ -2,6 +2,9 @@
 
 Status: operator build and hardware-qualification guide. Software support is not physical-device qualification.
 
+The TAT140 is not yet on the bench. The incorrectly supplied device is being
+returned, so the procedure below remains planned and has not been run.
+
 ## Structured lab documents
 
 This guide is the overview. Maintained qualification procedures live in the
@@ -53,9 +56,10 @@ The Pi 3 is enough for the first Tracker gateway/hardware qualification. Pi 5 is
 
 1. Teltonika TAT140 EU variant suitable for Swedish LTE bands.
 2. Micro-SIM/data subscription with the required APN and outbound data.
-3. Operator-controlled reachable TCP endpoint. The Pi can terminate it only when the network/VPN topology securely makes it reachable.
-4. Known-good Pi microSD and correctly rated supply if the photographed ones cannot be verified.
-5. Multimeter before mixed-voltage bench wiring.
+3. Supported Teltonika EYE Sensor for the complete TAT140 BLE-sensor baseline.
+4. Operator-controlled reachable TCP endpoint. The Pi can terminate it only when the network/VPN topology securely makes it reachable.
+5. Known-good Pi microSD and correctly rated supply if the photographed ones cannot be verified.
+6. Multimeter before mixed-voltage bench wiring.
 
 ### Useful later
 
@@ -153,18 +157,19 @@ Use it as a cross-transport finished-device experiment, not the tracker. Keep it
 
 1. Existing Teltonika fixture/software tests pass.
 2. Pi 3 service starts with no hardware and reports exact composition.
-3. Nano BLE physical capture -> evidence -> Thing.
+3. Record the TAT140's exact regional SKU, firmware and private device identity.
 4. TAT140 direct TCP login/IMEI -> Codec 8 Extended frame -> durable admission -> ACK.
 5. TAT140 real GNSS/movement/battery record -> normalized evidence -> Thing state.
 6. Restart Pi/service -> retained state and retransmission dedupe.
 7. Temporarily remove upstream reachability -> observe device/store/retry behavior without inventing delivery.
 8. Restore connectivity -> prove recovery.
-9. Exercise BLE sensor support only after the exact TAT140 firmware/profile and sensor protocol are qualified.
-10. Record all receipts under the repository's existing evidence model.
+9. Complete the EYE Sensor baseline after the exact TAT140 firmware/profile and sensor protocol are qualified.
+10. Use the Nano BLE fixture as a separate, optional physical discovery exercise.
+11. Record all receipts under the repository's existing evidence model.
 
 ## What not to buy yet
 
-Do not buy a Pi 5 merely to qualify TAT140 ingress. Do not buy LoRa hardware until a LoRa profile is selected. Do not buy vendor-cloud gateways. The missing item that changes the current evidence state is the real TAT140 plus connectivity.
+Do not buy a Pi 5 merely to qualify tracker ingress. Do not buy LoRa hardware until a LoRa profile is selected. Do not buy vendor-cloud gateways. TAT140 LTE qualification requires the actual TAT140, a compatible SIM, connectivity and real device captures.
 
 ## Bench information still needed
 

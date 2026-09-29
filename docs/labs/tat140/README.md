@@ -1,5 +1,8 @@
 # TAT140 qualification lab
 
+Status: planned; the TAT140 and a supported EYE Sensor are not on the bench.
+No physical TAT140 qualification run has been recorded.
+
 ## Purpose
 
 Qualify a Teltonika TAT140 as the first finished Tracker hardware target using an operator-controlled data path.
@@ -33,7 +36,8 @@ No vendor cloud is part of the required path.
 - Swedish data SIM;
 - Raspberry Pi 3 Model B v1.2 is sufficient as the development/service host;
 - reliable microSD/power/network;
-- optional Nano 33 IoT BLE fixture for secondary sensor/profile tests.
+- a supported Teltonika EYE Sensor for the complete baseline BLE-sensor gate;
+- optional Nano 33 IoT BLE fixture for separate discovery experiments.
 
 ## Acceptance phases
 
@@ -69,8 +73,11 @@ No vendor cloud is part of the required path.
 - restore connectivity;
 - prove no invented delivery or location.
 
-### 5. Optional BLE
-Only after the exact TAT140 firmware and supported sensor mode are physically qualified, test any BLE sensor path separately from Pi-direct BLE discovery.
+### 5. BLE sensor qualification
+The first cellular, GNSS, movement and battery run can finish before this phase.
+Complete baseline qualification also requires an EYE Sensor record through the
+TAT140's supported sensor mode. Keep that path separate from Pi-direct BLE
+discovery, and record the exact tracker and sensor firmware.
 
 ## Evidence
 
