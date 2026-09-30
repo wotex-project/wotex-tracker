@@ -53,7 +53,13 @@ button + button { margin-left: .5rem; }
 .brand span { font-weight: 400; }
 .topbar nav { display: flex; align-items: center; flex-wrap: wrap; gap: 1.2rem; }
 .topbar nav form, .topbar nav button { margin: 0; }
-.workspace { max-width: 1180px; margin: auto; padding: 2.5rem clamp(1rem, 4vw, 3rem) 5rem; }
+.workspace {
+  container-name: task-surface;
+  container-type: inline-size;
+  max-width: 1180px;
+  margin: auto;
+  padding: 2.5rem clamp(1rem, 4vw, 3rem) 5rem;
+}
 .narrow { max-width: 900px; }
 .sign-in { max-width: 580px; margin: 5rem auto; padding: 0 1.5rem; }
 
@@ -88,7 +94,7 @@ h3 { text-transform: capitalize; font-size: .9rem; font-weight: 650; margin: 0; 
   background: white;
   border: 1px solid var(--line);
   border-radius: .65rem;
-  padding: 1.5rem;
+  padding: 1rem;
 }
 
 .panel { margin: 1.5rem 0; }
@@ -282,6 +288,31 @@ td ul { margin: 0; padding-left: 1rem; }
 .skip:focus { top: 1rem; }
 [hidden] { display: none !important; }
 
+@container task-surface (min-width: 600px) {
+  .card, .measurement, .position, .panel, .empty { padding: 1.25rem; }
+  .cards, .measurements, .positions { gap: 1.25rem; }
+}
+
+@container task-surface (min-width: 840px) {
+  .card, .measurement, .position, .panel, .empty { padding: 1.5rem; }
+  .cards, .measurements, .positions { gap: 1.5rem; }
+}
+
+@container task-surface (max-width: 599px) {
+  .heading { align-items: flex-start; flex-direction: column; }
+  .map-first-workspace > .eyebrow { margin-top: .5rem; }
+  .map-first-workspace .heading { flex-direction: row; }
+  .map-first-workspace .heading h1 { margin-bottom: .5rem; }
+  .map-first-workspace .heading p { margin-bottom: 0; }
+  .operation button { display: block; margin: .6rem 0; }
+  .tracker-map { margin: 1rem -1rem 1.5rem; border-radius: 0; border-inline: 0; }
+  .tracker-map-heading { display: block; }
+  .tracker-map-heading h2 { font-size: 1.45rem; }
+  .tracker-map-count { display: inline-block; margin-top: .75rem !important; }
+  .tracker-map-canvas svg { min-height: 17rem; }
+  .tracker-map-controls button { flex: 1 1 calc(33.333% - .5rem); padding-inline: .6rem; }
+}
+
 @media (max-width: 600px) {
   .topbar { align-items: flex-start; flex-direction: column; }
   .topbar nav {
@@ -291,20 +322,7 @@ td ul { margin: 0; padding-left: 1rem; }
     overflow-x: auto;
     padding-bottom: .25rem;
   }
-  .heading { align-items: flex-start; flex-direction: column; }
   .workspace { padding-top: 1.5rem; }
   .map-first-workspace { padding-top: .75rem; }
-  .map-first-workspace > .eyebrow { margin-top: .5rem; }
-  .map-first-workspace .heading { flex-direction: row; }
-  .map-first-workspace .heading h1 { margin-bottom: .5rem; }
-  .map-first-workspace .heading p { margin-bottom: 0; }
   .sign-in { margin: 2.5rem auto; }
-  .operation button { display: block; margin: .6rem 0; }
-  .panel { padding: 1.1rem; }
-  .tracker-map { margin: 1rem -1rem 1.5rem; border-radius: 0; border-inline: 0; }
-  .tracker-map-heading { display: block; }
-  .tracker-map-heading h2 { font-size: 1.45rem; }
-  .tracker-map-count { display: inline-block; margin-top: .75rem !important; }
-  .tracker-map-canvas svg { min-height: 17rem; }
-  .tracker-map-controls button { flex: 1 1 calc(33.333% - .5rem); padding-inline: .6rem; }
 }
