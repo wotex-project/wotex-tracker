@@ -162,6 +162,43 @@ smart-bike product gate nevertheless requires actual qualified hardware covering
 its required positioning, battery, movement and local provisioning workflows;
 showing every required capability as unavailable does not pass that gate.
 
+## Task-first adaptive composition
+
+Each shared route starts from a task brief rather than a device mockup. Classify
+the route as primarily inspect, compare, act, monitor or compose, name its
+decision or completion condition, and identify the evidence, authority and
+recovery information that must remain visible. `/safety` is a public guidance
+surface and follows editorial reading rules; authenticated setup, tracking,
+protection, analytics and privacy routes follow application rules. Neither
+boundary may silently borrow the other's navigation, authority or density.
+
+The shared LiveView implementation adapts to its content container with compact
+(below 600 CSS px), medium (600--839 CSS px) and expanded (840 CSS px and above)
+profiles. Profiles control arrangement and progressive disclosure only. They do
+not fork domain behavior by browser, Pi or phone, and the mobile native shell may
+add capabilities without becoming a second source of product state. CSS
+container queries and shared HEEx components are preferred; no separate SPA or
+Svelte composition is introduced.
+
+Every profile carries one explicit presentation envelope: current resource and
+revision, selected map/table item, viewport, filters, drafts, focus and history;
+position source, age, uncertainty, gaps, exclusions and evidence provenance;
+authority and confirmation scope; cache age/completeness, connection state and
+resume cursor; and the exact lifecycle of pending work. In particular, queued or
+protocol-accepted Actions remain distinct from a committed service result and
+from confirmed device completion. A compact profile MUST NOT remove required
+risk, evidence, error, approval or recovery information. Maps and charts retain
+exact table alternatives. Cards represent independently selectable/actionable
+assets, not arbitrary sections, and dashboards are used only for recurring
+monitoring or decision work.
+
+Acceptance covers the same task fixtures at the 599/600 and 839/840 CSS-pixel
+edges in browser, Pi-panel and mobile-host compositions. Record rendered layout,
+task completion, keyboard and screen-reader navigation, focus continuity,
+coarse-pointer behavior and reduced-motion behavior, including disconnect,
+resume, stale data, missing tiles, unknown Action outcome and denied/revoked
+authority. A screenshot alone is not completion evidence.
+
 ## Shared implementation and host layout
 
 Use independent Mix projects, not an umbrella that makes every consumer compile

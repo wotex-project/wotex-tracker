@@ -4,6 +4,23 @@ Shared LiveView screens over the authorized Tracker service. This package has
 no application callback, endpoint, listener or automatic session store.
 Hosts own and explicitly supervise those resources.
 
+The UI is task-first and adaptive without becoming device-specific. Shared HEEx
+routes classify their primary work as inspect, compare, act, monitor or compose,
+then arrange the same semantic state for compact (below 600 CSS px), medium
+(600--839 CSS px) and expanded (840 CSS px and above) content containers. Browser,
+Pi kiosk and mobile WebView reuse that implementation. The native shell adds
+capabilities only; it does not own a second product state, and this package does
+not introduce a separate SPA or Svelte runtime.
+
+Profile changes preserve selected map/table identity, viewport, filters, drafts,
+focus, revisions, authority, age, uncertainty, evidence provenance, cache and
+resume state, and the distinction between queued, accepted, committed, unknown
+and device-confirmed work. Compact layouts never hide required risk, approval,
+error or recovery information. Maps and charts keep exact table alternatives;
+cards are for independently selectable/actionable assets, while dashboards are
+reserved for recurring monitoring or decision tasks. `/safety` remains a public
+editorial surface rather than inheriting authenticated application chrome.
+
 The shared `/safety` page is available without an account so the unwanted-tracker
 limitation and response guidance do not depend on service availability or
 authorization. It identifies the implemented enrollment, access, audit and

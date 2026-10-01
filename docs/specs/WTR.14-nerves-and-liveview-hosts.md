@@ -160,6 +160,27 @@ No separate SPA runtime is required. Minimal JavaScript hooks may support browse
 features such as a map, but do not own identity, evidence, policy or canonical
 state. Streams and history requests are bounded; socket assigns are projections.
 
+The attached display is one presentation of the shared product contract, not a
+separate dashboard. Compose each route around its current task: inspect an asset
+or evidence, compare claims or history, perform an authorized change, monitor
+attention state, or compose a query, rule or geofence. Adapt against the content
+container rather than a device label, using compact (below 600 CSS px), medium
+(600--839 CSS px) and expanded (840 CSS px and above) profiles. The profiles may
+move supporting regions between inline, disclosure and adjacent presentation,
+but they MUST preserve the same semantic state and available recovery path.
+
+Across every profile, retain the exact asset, Thing, observation, trip, rule,
+query or Action operation identity and revision; selected map/table item,
+viewport, filters, drafts and focus; position source, age, uncertainty, gaps and
+evidence provenance; current authority and confirmation scope; connection and
+SSE-resume state; cache age/completeness; and queued, protocol-accepted,
+committed, failed, denied, unknown and device-confirmed outcomes. Compactness
+MUST NOT hide uncertainty, age, exclusions, evidence source, required approval,
+errors, offline/reconnect recovery or the distinction between a service commit
+and a physical effect. Cards are reserved for independently selectable or
+actionable assets. A dashboard layout is justified only for a recurring
+monitoring or decision task, never as the default application shell.
+
 Ship separate tested headless and UI-enabled build profiles. A headless artifact
 contains no Phoenix/LiveView dependency, display stack or UI endpoint; its machine
 API remains available under WTR.07. A UI-enabled host starts the presentation
@@ -290,7 +311,7 @@ of a slot transition, bad-image revert or either physical deadline on a Pi.
 | Headless firmware build | Pinned system/toolchain/dependency digests, artifact manifest, native target architecture, models included, secrets/UI/private modules excluded |
 | Physical headless boot | Real Pi 5 board/EEPROM/storage record; deterministic fixture result matches desktop; service supervision and local inspection; bounded startup with network/AI absent |
 | Real ingress | Exact network or BLE backend; disconnect/reconnect and owner loss; observation -> TD -> Runtime proof; unsupported radio reported explicitly |
-| Local display | Real Pi/display/touch record; boot directly into authenticated setup/application; overview/history/graphs; keyboard, focus, scaling and gestures; offline operation and visible data gaps |
+| Local display | Real Pi/display/touch record; boot directly into authenticated setup/application; overview/history/graphs; compact, medium and expanded content-container edges at 599/600 and 839/840 CSS px; keyboard, screen-reader, focus, scaling, coarse-pointer and gesture behavior; offline operation, reconnect recovery and visible data gaps |
 | UI-enabled firmware | Same service API/results; revoked-session/mutation tests; bounded streams; browser crash/restart and presentation disabled without stopping ingestion; WTR.15 shared workflow scenario |
 | Virtual kiosk boot | Fresh and same-disk ARM64 boots; authenticated launch; all 28 shared routes; input surfaces/models; local-only assets; service-store retention across browser restart; no physical-display claim |
 | Recovery | Reboot, power interruption at transaction boundaries, full/unmountable storage, failed update/validation and firmware revert; truthful last-valid-state or recovery-required outcome |
