@@ -20,6 +20,31 @@ contents =
 names = Enum.map(files, fn {name, _} -> List.to_string(name) end)
 project_root = Mix.Project.project_file() |> Path.dirname() |> Path.expand()
 
+if Enum.uniq(names) != names, do: Mix.raise("Archive contains duplicate members")
+
+allowed_files =
+  Mix.Project.config()[:package][:files]
+  |> Enum.flat_map(fn pattern ->
+    path = Path.join(project_root, pattern)
+    if File.regular?(path), do: [path], else: Path.wildcard("#{path}/**/*", match_dot: true)
+  end)
+  |> Enum.filter(&File.regular?/1)
+  |> Map.new(&{Path.relative_to(&1, project_root), File.read!(&1)})
+
+for {name, bytes} <- files do
+  name = List.to_string(name)
+
+  case allowed_files do
+    %{^name => ^bytes} -> :ok
+    %{^name => _} -> Mix.raise("Archive member differs from source: #{name}")
+    _ -> Mix.raise("Archive member outside package allowlist: #{name}")
+  end
+end
+
+for required <- Map.keys(allowed_files) do
+  if required not in names, do: Mix.raise("Archive missing allowed source: #{required}")
+end
+
 package_sources =
   ~w(lib priv)
   |> Enum.flat_map(fn directory ->
@@ -50,7 +75,7 @@ for required <- required_files do
 end
 
 for name <- names do
-  if String.starts_with?(name, ~w(hosts/ packages/ _build/ deps/ test/ .git/ .env)) or
+  if String.starts_with?(name, ~w(hosts/ packages/ _build/ deps/ test/ .git/ .env docs/tasks/)) or
        String.ends_with?(name, ~w(.db .db-wal .db-shm .pem)) do
     Mix.raise("Forbidden archive member #{name}")
   end

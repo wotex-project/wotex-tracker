@@ -1,6 +1,11 @@
 defmodule WotexTracker.MixProject do
   use Mix.Project
 
+  @published_docs ~w(
+    docs/contracts docs/decisions docs/evidence docs/guides docs/labs
+    docs/plans docs/provenance docs/security docs/specs
+  )
+
   def project do
     [
       app: :wotex_tracker,
@@ -13,7 +18,8 @@ defmodule WotexTracker.MixProject do
         licenses: ["Apache-2.0"],
         links: %{"GitHub" => "https://github.com/wotex-project/wotex-tracker"},
         files:
-          ~w(lib priv mix.exs .formatter.exs README.md LICENSE NOTICE SECURITY.md CONTRIBUTING.md docs)
+          ~w(lib priv mix.exs .formatter.exs README.md LICENSE NOTICE SECURITY.md CONTRIBUTING.md) ++
+            @published_docs
       ],
       source_url: "https://github.com/wotex-project/wotex-tracker",
       docs: [
@@ -69,11 +75,17 @@ defmodule WotexTracker.MixProject do
     }
 
     [{"README.md", filename: "readme"}, "LICENSE", "CONTRIBUTING.md", "SECURITY.md"] ++
-      Enum.map(Path.wildcard("docs/**/*.md"), fn path ->
+      Enum.map(published_markdown(), fn path ->
         case readmes do
           %{^path => filename} -> {path, filename: filename}
           _ -> path
         end
       end)
+  end
+
+  defp published_markdown do
+    @published_docs
+    |> Enum.flat_map(&Path.wildcard("#{&1}/**/*.md"))
+    |> Enum.sort()
   end
 end

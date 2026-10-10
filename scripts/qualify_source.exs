@@ -48,6 +48,9 @@ defmodule Wotex.Tracker.SourceQualifier do
   @lanes [{"1.18.4-otp-27", "27.3.4.15"}, {"1.20.4-otp-29", "29.0.4"}]
   @base_packages ~w(jason-1.4.5 ex_json_schema-0.11.5 decimal-3.1.1 jason-1.4.0 ex_json_schema-0.11.0 decimal-2.0.0)
   @service_packages ~w(exqlite-0.40.0 db_connection-2.10.2 telemetry-1.4.2 elixir_make-0.10.0 cc_precompiler-0.1.11 bandit-1.12.5 plug-1.20.3 thousand_island-1.5.0 hpax-1.0.4 mime-2.0.7 plug_crypto-2.2.0 websock-0.5.3 mint-1.10.0)
+  @archive_byte_limit 128 * 1024 * 1024
+  @decoded_byte_limit 256 * 1024 * 1024
+  @member_byte_limit 16 * 1024 * 1024
 
   def main(arguments) do
     {options, rest, invalid} =
@@ -62,17 +65,34 @@ defmodule Wotex.Tracker.SourceQualifier do
 
     suffix = :crypto.strong_rand_bytes(12) |> Base.encode16(case: :lower)
     workspace = Path.join(System.tmp_dir!(), "wtr-source-cohort-#{suffix}")
+    destination = Path.join(@root, "_build/verification/source-cohort-#{suffix}")
 
-    File.mkdir_p!(workspace)
+    File.mkdir_p!(Path.dirname(destination))
+    File.mkdir!(destination)
 
     try do
-      qualify(workspace, service?, host?, ui?)
+      File.mkdir!(workspace)
+      qualify(workspace, destination, service?, host?, ui?)
+    rescue
+      error ->
+        stacktrace = __STACKTRACE__
+
+        try do
+          retain_failure(workspace, destination, error)
+        rescue
+          retention_error ->
+            IO.warn(
+              "Failure receipt could not be written: #{inspect(retention_error.__struct__)}"
+            )
+        end
+
+        reraise error, stacktrace
     after
       File.rm_rf!(workspace)
     end
   end
 
-  defp qualify(workspace, service?, host?, ui?) do
+  defp qualify(workspace, destination, service?, host?, ui?) do
     environment = clean_environment()
     registry = Path.join(workspace, "registry")
     tarballs = Path.join(registry, "tarballs")
@@ -142,7 +162,7 @@ defmodule Wotex.Tracker.SourceQualifier do
       url = "http://127.0.0.1:#{port}"
       results = consumers(workspace, registry, url, environment, service?, ui?)
       host_result = if host?, do: qualify_host(workspace, registry, url, environment, ui?)
-      write_report(tarballs, revisions, results, host_result, service?, host?, ui?)
+      write_report(workspace, destination, revisions, results, host_result, service?, host?, ui?)
     after
       Process.exit(server, :shutdown)
     end
@@ -355,25 +375,23 @@ defmodule Wotex.Tracker.SourceQualifier do
     ReleaseQualifier.verify(workspace, registry, url, environment, ui?)
   end
 
-  defp write_report(tarballs, revisions, results, host_result, service?, host?, ui?) do
+  defp write_report(workspace, destination, revisions, results, host_result, service?, host?, ui?) do
+    evidence = retain_archives!(workspace, destination)
+
     archives =
-      tarballs
-      |> Path.join("*.tar")
-      |> Path.wildcard()
-      |> Enum.sort()
-      |> Map.new(&{Path.basename(&1), file_digest(&1)})
+      Map.new(evidence, fn {name, entry} -> {name, entry["archive_sha256"]} end)
 
     report = %{
       "scope" => "local-source-cohort-not-public-release",
       "upstream_revision" => revisions["wotex"],
       "upstream_revisions" => revisions,
       "archives" => archives,
+      "evidence_directory" => destination,
+      "archive_evidence_sha256" => file_digest(Path.join(destination, "archive-evidence.json")),
       "consumers" => results
     }
 
     report = if host_result, do: Map.put(report, "host", host_result), else: report
-    destination = Path.join(@root, "_build/verification")
-    File.mkdir_p!(destination)
 
     name =
       cond do
@@ -383,8 +401,210 @@ defmodule Wotex.Tracker.SourceQualifier do
         true -> "source-consumer.json"
       end
 
-    File.write!(Path.join(destination, name), Jason.encode!(report, pretty: true) <> "\n")
-    IO.puts("Recorded _build/verification/#{name}; temporary registry and keys removed on exit")
+    bytes = Jason.encode!(report, pretty: true) <> "\n"
+    File.write!(Path.join(destination, name), bytes, [:exclusive])
+    File.write!(Path.join(@root, "_build/verification/#{name}"), bytes)
+    IO.puts("Recorded #{destination}/#{name}; temporary registry and keys removed on exit")
+  end
+
+  @doc false
+  def retain_archives!(workspace, destination) do
+    archives = Path.wildcard(Path.join(workspace, "registry/tarballs/*.tar")) |> Enum.sort()
+    if length(archives) > 512, do: raise("archive inventory count exceeds limit")
+    total = Enum.reduce(archives, 0, &(File.stat!(&1).size + &2))
+    if total > 512 * 1024 * 1024, do: raise("archive inventory bytes exceed limit")
+    retained = Path.join(destination, "archives")
+    File.mkdir!(retained)
+
+    evidence =
+      Map.new(archives, fn archive ->
+        name = Path.basename(archive)
+        bytes = bounded_read!(archive, @archive_byte_limit)
+        File.write!(Path.join(retained, name), bytes, [:exclusive])
+        entry = %{"archive_sha256" => digest(bytes), "bytes" => byte_size(bytes)}
+
+        inspected =
+          try do
+            Map.merge(entry, inspect_archive!(bytes, source_owner(workspace, name)))
+          rescue
+            error ->
+              Map.merge(entry, %{
+                "result" => "failed",
+                "failure_class" => inspect(error.__struct__)
+              })
+          end
+
+        {name, inspected}
+      end)
+
+    File.write!(
+      Path.join(destination, "archive-evidence.json"),
+      Jason.encode!(evidence, pretty: true) <> "\n",
+      [:exclusive]
+    )
+
+    if Enum.any?(evidence, fn {_, entry} -> entry["result"] != "pass" end),
+      do: raise("retained archive inspection failed; see archive-evidence.json")
+
+    evidence
+  end
+
+  @doc false
+  def retain_failure(workspace, destination, error) do
+    unless File.exists?(Path.join(destination, "archive-evidence.json")) do
+      try do
+        retain_archives!(workspace, destination)
+      rescue
+        retention_error ->
+          IO.warn("Archive retention failed: #{inspect(retention_error.__struct__)}")
+      end
+    end
+
+    File.write!(
+      Path.join(destination, "failure.json"),
+      Jason.encode!(%{"result" => "failed", "failure_class" => inspect(error.__struct__)}) <>
+        "\n",
+      [:exclusive]
+    )
+  end
+
+  defp source_owner(workspace, name) do
+    Map.get(
+      %{
+        "wotex-0.1.0.tar" => Path.join(workspace, "wotex/packages/wotex"),
+        "wotex_runtime-0.1.0.tar" => Path.join(workspace, "wotex/packages/wotex-runtime"),
+        "wotex_binding_http-0.1.0.tar" =>
+          Path.join(workspace, "wotex/packages/wotex-binding-http"),
+        "wotex_tracker-0.1.0.tar" => @root,
+        "wotex_tracker_service-0.1.0.tar" => Path.join(@root, "packages/tracker_service"),
+        "wotex_tracker_ui-0.1.0.tar" => Path.join(@root, "packages/tracker_ui")
+      },
+      name
+    )
+  end
+
+  defp inspect_archive!(bytes, source) do
+    {outer, outer_members} = regular_members!(bytes)
+
+    unless Enum.sort(Map.keys(outer)) == ~w(CHECKSUM VERSION contents.tar.gz metadata.config),
+      do: raise("unexpected Hex outer members")
+
+    unless outer["VERSION"] == "3", do: raise("unexpected Hex archive version")
+    checksum = outer["CHECKSUM"] |> String.trim() |> String.downcase()
+
+    unless checksum ==
+             digest([outer["VERSION"], outer["metadata.config"], outer["contents.tar.gz"]]),
+           do: raise("Hex inner checksum differs")
+
+    contents = bounded_gunzip!(outer["contents.tar.gz"])
+    {files, members} = regular_members!(contents)
+
+    members =
+      Map.new(members, fn {name, member} ->
+        if source do
+          path = Path.join(source, name)
+
+          comparison =
+            try do
+              source_sha = path |> bounded_read!(@member_byte_limit) |> digest()
+              source_mode = rem(File.lstat!(path).mode, 0o10000)
+
+              %{
+                "source_sha256" => source_sha,
+                "source_mode" => source_mode,
+                "source_matches" =>
+                  source_sha == digest(files[name]) and
+                    source_mode == rem(member["mode"], 0o10000)
+              }
+            rescue
+              error ->
+                %{"source_matches" => false, "source_failure_class" => inspect(error.__struct__)}
+            end
+
+          {name, Map.merge(member, comparison)}
+        else
+          {name, member}
+        end
+      end)
+
+    matches = is_nil(source) or Enum.all?(members, fn {_, member} -> member["source_matches"] end)
+
+    %{
+      "result" => if(matches, do: "pass", else: "failed"),
+      "source_comparison" =>
+        if(source, do: "local-owner", else: "registry-dependency-not-compared"),
+      "source_root" => source,
+      "hex_inner_checksum" => checksum,
+      "contents_tar_gz_sha256" => digest(outer["contents.tar.gz"]),
+      "contents_tar_sha256" => digest(contents),
+      "outer_members" => outer_members,
+      "regular_members" => members
+    }
+  end
+
+  defp regular_members!(bytes) do
+    {:ok, entries} = :erl_tar.table({:binary, bytes}, [:verbose])
+    if length(entries) > 10_000, do: raise("archive member count exceeds limit")
+    names = Enum.map(entries, fn {name, _, _, _, _, _, _} -> List.to_string(name) end)
+    unless Enum.uniq(names) == names, do: raise("duplicate archive members")
+
+    Enum.each(entries, fn {name, type, size, _, _, _, _} ->
+      name = List.to_string(name)
+
+      unless type in [:regular, :directory] and size <= @member_byte_limit and
+               Path.type(name) == :relative and name != "" and
+               not Enum.any?(Path.split(name), &(&1 in [".", ".."])) and
+               byte_size(name) <= 1024,
+             do: raise("invalid archive member")
+    end)
+
+    {:ok, files} = :erl_tar.extract({:binary, bytes}, [:memory])
+    files = Map.new(files, fn {name, payload} -> {List.to_string(name), payload} end)
+
+    members =
+      entries
+      |> Enum.filter(fn {_, type, _, _, _, _, _} -> type == :regular end)
+      |> Map.new(fn {name, _, size, _, mode, _, _} ->
+        name = List.to_string(name)
+        payload = Map.fetch!(files, name)
+        unless byte_size(payload) == size, do: raise("archive member size differs")
+        {name, %{"bytes" => size, "mode" => mode, "sha256" => digest(payload)}}
+      end)
+
+    {files, members}
+  end
+
+  defp bounded_read!(path, limit) do
+    unless File.lstat!(path).type == :regular and File.stat!(path).size <= limit,
+      do: raise("file exceeds archive evidence limit")
+
+    bytes = File.read!(path)
+    if byte_size(bytes) > limit, do: raise("file exceeds archive evidence limit")
+    bytes
+  end
+
+  defp bounded_gunzip!(bytes) do
+    stream = :zlib.open()
+
+    try do
+      :ok = :zlib.inflateInit(stream, 31, :reset)
+      result = inflate_chunks(stream, :zlib.safeInflate(stream, bytes), [], 0)
+      :ok = :zlib.inflateEnd(stream)
+      IO.iodata_to_binary(result)
+    after
+      :zlib.close(stream)
+    end
+  end
+
+  defp inflate_chunks(stream, {status, chunk}, chunks, total)
+       when status in [:continue, :finished] do
+    total = total + IO.iodata_length(chunk)
+    if total > @decoded_byte_limit, do: raise("decoded archive exceeds evidence limit")
+    chunks = [chunk | chunks]
+
+    if status == :finished,
+      do: Enum.reverse(chunks),
+      else: inflate_chunks(stream, :zlib.safeInflate(stream, []), chunks, total)
   end
 
   defp snapshot(repository, destination) do
@@ -429,7 +649,9 @@ defmodule Wotex.Tracker.SourceQualifier do
     |> Map.merge(%{
       "WOTEX_PATH_DEPS" => nil,
       "MIX_BUILD_PATH" => nil,
+      "MIX_BUILD_ROOT" => nil,
       "MIX_DEPS_PATH" => nil,
+      "MIX_LOCKFILE" => nil,
       "MIX_ENV" => nil
     })
     |> Map.put("MIX_ENV", "prod")
