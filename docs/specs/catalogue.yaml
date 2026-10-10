@@ -3,7 +3,7 @@ package: wotex_tracker
 status: target-contracts
 implementation_status: in-progress
 executed_evidence: [docs/evidence/implementation.md]
-updated: 2026-09-21
+updated: 2026-10-10
 
 principles:
   - headless-first
@@ -46,7 +46,7 @@ contracts:
     depends_on: [WTR.01]
   - id: WTR.03
     file: WTR.03-device-profiles-and-adapters.md
-    owns: profiles, decoders, vertical adapters
+    owns: profiles, decoders, vertical adapters and independent-delivery promotion gates
     depends_on: [WTR.01, WTR.02, WTR.06]
   - id: WTR.04
     file: WTR.04-thing-materialisation.md

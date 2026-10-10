@@ -66,3 +66,4 @@ and its executable evidence without promoting implementation status.
 - [Architecture decision: headless core](../decisions/0001-headless-core.md)
 - [Architecture decision: evidence before inference](../decisions/0002-evidence-before-inference.md)
 - [Architecture decision: vendor independence](../decisions/0003-vendor-independent-hardware.md)
+- [Decoder-artifact research](../provenance/portable-decoder-artifacts.md) — bounded validation consumed by WTR.03; executable installation and replacement remain unapproved

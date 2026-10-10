@@ -150,6 +150,37 @@ Decoded output carries a declared measurement kind, native value when available,
 
 Ruuvi RAWv2 uses the exact manufacturer-data slice defined by the [source record](../provenance/primary-sources.md), separating the company identifier from its 24-byte format-5 payload. Match length/version before bit-syntax decoding; test both manufacturer-byte ordering and signed field ordering. Required cases include ordinary, minimum, maximum, unavailable and mixed-availability vectors; independent battery/TX sentinels; truncated/extra bytes; unsupported versions; and counter rollover. Preserve anomalous humidity as suspect evidence. Do not infer battery percentage, authenticated identity, movement state or a movement event from this frame alone. Record exact units and source-derived expectations with the fixtures, separately from any real-device qualification.
 
+## Independent decoder delivery decision
+
+Independent decoder delivery remains a bounded-validation proposal. The current
+`Decoder.run/5` accepts an explicitly supplied trusted callback and exact revision;
+profile references do not load code. No executable artifact loader, hot replacement
+or shared plugin runtime is approved by this contract. Prefer a bounded declarative
+mapping when it expresses the required interpretation.
+
+Before an executable profile can become an accepted target, its owner MUST define
+the exact implementation/dependency bytes, input and result schemas, compatible
+profile/mapping revisions, target, limits and independent conformance corpus.
+Metadata validation MUST remain inert. Decoder output cannot select its own
+profile, initiate a probe, enroll a Thing, grant authority or write service state.
+Any isolated helper must demonstrate enforced I/O/resource limits and actual
+termination on each supported host; a caller timeout is insufficient evidence.
+
+Replacement MUST pin the original profile/decoder pair for in-flight work and
+retain the evidence needed to interpret historical receipts. Reprocessing creates
+a new interpretation linked to the original observation; it cannot silently
+rewrite accepted history. Stale preparation, conflicting bytes under one revision,
+ambiguous resolution and unsupported isolation refuse admission. Installed
+qualified inputs must remain usable offline without a registry.
+
+Promotion requires identical bounded input/result/refusal fixtures across the
+reference and candidate implementations, negative authority/probe tests,
+replacement/replay/offline recovery cases and a measured independent-delivery
+benefit on declared hosts. These are open research gates, separate from WTR.12's
+existing product completion axes and physical qualification. The dated rationale
+and proposed experiments are retained in the
+[decoder-artifact research](../provenance/portable-decoder-artifacts.md).
+
 ## Vendor cloud prohibition
 
 A vendor REST API is not a device protocol qualification merely because it exposes telemetry. A profile may document optional vendor-cloud interoperability, but support status requires a qualified operator-controlled path from physical device to Tracker.
