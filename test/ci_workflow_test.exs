@@ -2,7 +2,7 @@ defmodule Wotex.Tracker.CIWorkflowTest do
   use ExUnit.Case, async: true
 
   @workflow Path.expand("../.github/workflows/ci.yml", __DIR__) |> File.read!()
-  @monorepo_revision "960d8c12ced1c18b885652cfeadf16c7f3961e6e"
+  @monorepo_revision "ba8ea373244ce57987f47a731b8eca3ccae9b45f"
 
   test "CI checks out one exact WoTEx monorepo cohort per job" do
     assert occurrences(@workflow, "repository: wotex-project/wotex\n") == 2

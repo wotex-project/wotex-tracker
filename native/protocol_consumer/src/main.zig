@@ -808,7 +808,7 @@ fn headerContains(head: []const u8, expected_name: []const u8, expected_value: [
         const name = std.mem.trim(u8, line[0..colon], " \t");
         const value = std.mem.trim(u8, line[colon + 1 ..], " \t");
         if (std.ascii.eqlIgnoreCase(name, expected_name) and
-            std.ascii.indexOfIgnoreCase(value, expected_value) != null) return true;
+            std.ascii.findIgnoreCase(value, expected_value) != null) return true;
     }
     return false;
 }

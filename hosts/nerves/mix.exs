@@ -7,9 +7,12 @@ defmodule WotexTrackerNerves.MixProject do
   def project do
     [
       app: @app,
+      # Bandit has no patched Hex release for its HTTP/2 send deadline advisory.
+      # Every Tracker listener disables HTTP/2; recheck the upstream release feed.
+      hex: [ignore_advisories: ["EEF-CVE-2026-105659"]],
       version: "0.1.0",
       elixir: "~> 1.18",
-      archives: [nerves_bootstrap: "~> 1.17"],
+      archives: [nerves_bootstrap: "~> 1.17.3"],
       start_permanent: Mix.env() == :prod,
       elixirc_paths: code_paths(),
       test_paths: if(ui?(), do: ["test", "ui_test"], else: ["test"]),
@@ -34,14 +37,14 @@ defmodule WotexTrackerNerves.MixProject do
   defp deps do
     [
       service(),
-      {:nerves, "~> 1.15", runtime: false},
-      {:doctest_formatter, "~> 0.4", only: [:dev, :test], runtime: false},
+      {:nerves, "~> 1.15.0", runtime: false},
+      {:doctest_formatter, "~> 0.4.1", only: [:dev, :test], runtime: false},
       {:nerves_runtime, "~> 0.13.13", targets: @device_targets},
-      {:shoehorn, "~> 0.9.1", targets: @device_targets},
-      {:ring_logger, "~> 0.11.0", targets: @device_targets},
-      {:vintage_net, "~> 0.13.12", targets: @device_targets},
+      {:shoehorn, "~> 0.9.3", targets: @device_targets},
+      {:ring_logger, "~> 0.11.7", targets: @device_targets},
+      {:vintage_net, "~> 0.13.14", targets: @device_targets},
       {:vintage_net_ethernet, "~> 0.11.2", targets: @device_targets},
-      {:nerves_time, "~> 0.4.12", targets: @device_targets},
+      {:nerves_time, "~> 0.4.13", targets: @device_targets},
       system()
     ] ++ ui_deps()
   end
@@ -90,7 +93,7 @@ defmodule WotexTrackerNerves.MixProject do
     if ui?() do
       [
         ui(),
-        {:muontrap, "~> 1.8", targets: @device_targets},
+        {:muontrap, "~> 2.0.1", targets: @device_targets},
         {:myelin, "~> 0.1.1", targets: :rpi5}
       ]
     else

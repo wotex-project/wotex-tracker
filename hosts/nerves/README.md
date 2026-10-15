@@ -10,7 +10,7 @@ The source build uses `nerves_system_rpi5` 2.1.2, Nerves 1.15.0, and the target
 system's OTP 29. Development builds use the local Tracker and WoTEx checkouts;
 production builds require published, independently resolved packages. Install
 the Nerves build tools described in the [official installation guide](https://nerves.hexdocs.pm/installation.html),
-including `fwup` and SquashFS. On this repository's macOS toolchain:
+including `fwup` and SquashFS. With the pinned host toolchain:
 
 ```sh
 WOTEX_PATH_DEPS=1 MIX_TARGET=host MIX_ENV=test mise exec -- mix deps.get
@@ -19,9 +19,9 @@ WOTEX_PATH_DEPS=1 MIX_TARGET=host MIX_ENV=test mise exec -- mix format --check-f
 WOTEX_PATH_DEPS=1 MIX_TARGET=host MIX_ENV=test mise exec -- mix credo --strict
 WOTEX_PATH_DEPS=1 MIX_TARGET=host MIX_ENV=test mise exec -- mix dialyzer --force-check
 WOTEX_PATH_DEPS=1 MIX_TARGET=rpi5 MIX_ENV=dev \
-  mise exec elixir@1.20.4-otp-29 erlang@29.0.4 -- mix deps.get
+  mise exec elixir@1.20.4-otp-29 erlang@29.1.2 -- mix deps.get
 WOTEX_PATH_DEPS=1 MIX_TARGET=rpi5 MIX_ENV=dev \
-  mise exec elixir@1.20.4-otp-29 erlang@29.0.4 -- mix firmware
+  mise exec elixir@1.20.4-otp-29 erlang@29.1.2 -- mix firmware
 ```
 
 The output is `_build/rpi5_dev/nerves/images/wotex_tracker_nerves.fw`. Building
@@ -303,9 +303,9 @@ WOTEX_PATH_DEPS=1 WOTEX_TRACKER_UI=1 MIX_TARGET=host MIX_ENV=test \
 WOTEX_PATH_DEPS=1 WOTEX_TRACKER_UI=1 MIX_TARGET=host MIX_ENV=test \
   mise exec -- mix test --no-start
 WOTEX_PATH_DEPS=1 WOTEX_TRACKER_UI=1 MIX_TARGET=rpi5 MIX_ENV=dev \
-  mise exec elixir@1.20.4-otp-29 erlang@29.0.4 -- mix deps.get
+  mise exec elixir@1.20.4-otp-29 erlang@29.1.2 -- mix deps.get
 WOTEX_PATH_DEPS=1 WOTEX_TRACKER_UI=1 MIX_TARGET=rpi5 MIX_ENV=dev \
-  mise exec elixir@1.20.4-otp-29 erlang@29.0.4 -- mix firmware
+  mise exec elixir@1.20.4-otp-29 erlang@29.1.2 -- mix firmware
 ```
 
 The firmware is `_build/ui/rpi5_dev/nerves/images/wotex_tracker_nerves.fw`.
@@ -398,11 +398,11 @@ absent from this profile.
 
 ```sh
 WOTEX_PATH_DEPS=1 MIX_TARGET=qemu_aarch64 MIX_ENV=dev \
-  mise exec elixir@1.20.4-otp-29 erlang@29.0.4 -- mix deps.get
+  mise exec elixir@1.20.4-otp-29 erlang@29.1.2 -- mix deps.get
 WOTEX_PATH_DEPS=1 MIX_TARGET=qemu_aarch64 MIX_ENV=dev \
-  mise exec elixir@1.20.4-otp-29 erlang@29.0.4 -- mix firmware
+  mise exec elixir@1.20.4-otp-29 erlang@29.1.2 -- mix firmware
 WOTEX_PATH_DEPS=1 MIX_TARGET=qemu_aarch64 MIX_ENV=dev \
-  mise exec elixir@1.20.4-otp-29 erlang@29.0.4 -- mix nerves.gen.qemu
+  mise exec elixir@1.20.4-otp-29 erlang@29.1.2 -- mix nerves.gen.qemu
 ```
 
 For the virtual kiosk, use the same three commands with
@@ -410,11 +410,11 @@ For the virtual kiosk, use the same three commands with
 
 ```sh
 WOTEX_PATH_DEPS=1 WOTEX_TRACKER_UI=1 MIX_TARGET=qemu_aarch64 MIX_ENV=dev \
-  mise exec elixir@1.20.4-otp-29 erlang@29.0.4 -- mix deps.get
+  mise exec elixir@1.20.4-otp-29 erlang@29.1.2 -- mix deps.get
 WOTEX_PATH_DEPS=1 WOTEX_TRACKER_UI=1 MIX_TARGET=qemu_aarch64 MIX_ENV=dev \
-  mise exec elixir@1.20.4-otp-29 erlang@29.0.4 -- mix firmware
+  mise exec elixir@1.20.4-otp-29 erlang@29.1.2 -- mix firmware
 WOTEX_PATH_DEPS=1 WOTEX_TRACKER_UI=1 MIX_TARGET=qemu_aarch64 MIX_ENV=dev \
-  mise exec elixir@1.20.4-otp-29 erlang@29.0.4 -- mix nerves.gen.qemu
+  mise exec elixir@1.20.4-otp-29 erlang@29.1.2 -- mix nerves.gen.qemu
 ```
 
 The last task creates the ignored `virtual-disk.img` and prints a QEMU command
@@ -424,15 +424,16 @@ and run the same command again without regenerating the disk. The second boot
 must pass without formatting the application partition and must replay rather
 than recommit the fixture operation. `record_qemu_boot.exs`
 verifies both serial logs and writes
-`../../verification/nerves-qemu-boot.json`. On this macOS host, QEMU 11.1.1
-uses Hypervisor Framework acceleration. The Nerves virtual system is new and
+`../../verification/nerves-qemu-boot.json`. The generated command selects
+Hypervisor Framework on compatible macOS hosts and can use software emulation
+on Linux. The record includes the actual QEMU version. The virtual system is new and
 does not replace Pi 5 board, display, radio, power or storage-failure tests.
 
 For the virtual kiosk, retain the first-boot and same-disk reboot logs and run:
 
 ```sh
 WOTEX_PATH_DEPS=1 WOTEX_TRACKER_UI=1 MIX_TARGET=host MIX_ENV=dev \
-  mise exec elixir@1.20.4-otp-29 erlang@29.0.4 -- \
+  mise exec elixir@1.20.4-otp-29 erlang@29.1.2 -- \
   mix run --no-start scripts/record_qemu_boot.exs \
   _build/qemu-kiosk-first.log _build/qemu-kiosk-reboot.log
 ```

@@ -6,8 +6,26 @@ defmodule ArchiveBrowserClient do
   @behaviour Wotex.Tracker.UI.Client
 
   @impl true
-  def request(:fixture, "archive-test-token", "archive", :authorize, %{}, _) do
-    {:ok, %{"scope" => "archive", "can_enroll" => false, "can_ingest" => false}}
+  def request(:fixture, "archive-test-token", "archive", :session_context, %{}, now) do
+    {:ok,
+     %{
+       "identity" => %{
+         "scope" => "archive",
+         "can_enroll" => false,
+         "can_ingest" => false,
+         "can_read_raw" => false,
+         "can_manage_queries" => false,
+         "can_interact" => false
+       },
+       "access" => %{
+         "schema" => "wtr.access.v1",
+         "credential_id" => "archive-reader",
+         "principal" => "archive-reader",
+         "scope" => "archive",
+         "permissions" => ["read"],
+         "expires_at" => now + 3_600_000
+       }
+     }}
   end
 
   def request(:fixture, "archive-test-token", "archive", :list, %{"resource" => "things"}, _) do

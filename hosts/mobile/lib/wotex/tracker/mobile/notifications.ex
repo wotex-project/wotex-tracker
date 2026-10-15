@@ -70,6 +70,12 @@ defmodule Wotex.Tracker.Mobile.Notifications do
     _, _ -> socket
   end
 
+  defp reference(%{presentation: presentation}) when presentation != :tap,
+    do: {:error, :invalid_notification}
+
+  defp reference(%{"presentation" => presentation}) when presentation != "tap",
+    do: {:error, :invalid_notification}
+
   defp reference(%{data: data}) when is_map(data), do: reference_data(data)
   defp reference(%{"data" => data}) when is_map(data), do: reference_data(data)
   defp reference(_), do: {:error, :invalid_notification}
@@ -78,9 +84,8 @@ defmodule Wotex.Tracker.Mobile.Notifications do
        when map_size(data) == 2,
        do: valid_reference(reference)
 
-  # Mob's iOS notification delegate intentionally projects unsupported nested
-  # APNs values to nil. Admit only that exact envelope residue in addition to
-  # the two application-owned custom fields.
+  # Preserve the exact pre-0.9.8 iOS envelope residue for existing callers.
+  # Current Mob drops APNs metadata before delivering the custom fields.
   defp reference_data(%{schema: @schema, event_ref: reference, aps: nil} = data)
        when map_size(data) == 3,
        do: valid_reference(reference)

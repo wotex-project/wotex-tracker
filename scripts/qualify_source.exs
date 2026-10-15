@@ -5,7 +5,9 @@ defmodule Wotex.Tracker.Command do
 
   def run!(arguments, directory, environment, lane \\ @floor) do
     {elixir, erlang} = lane
-    command = ["exec", "elixir@#{elixir}", "erlang@#{erlang}", "--" | arguments]
+    runtime = ["exec", "elixir@#{elixir}", "erlang@#{erlang}", "--"]
+    verify_runtime!(runtime, directory, environment, lane)
+    command = runtime ++ arguments
 
     {output, status} =
       System.cmd("mise", command,
@@ -20,6 +22,25 @@ defmodule Wotex.Tracker.Command do
     end
 
     output
+  end
+
+  defp verify_runtime!(runtime, directory, environment, {elixir, erlang}) do
+    probe = """
+    otp = Path.join([to_string(:code.root_dir()), "releases", System.otp_release(), "OTP_VERSION"])
+    IO.write(System.version() <> "|" <> String.trim(File.read!(otp)))
+    """
+
+    {output, status} =
+      System.cmd("mise", runtime ++ ["elixir", "-e", probe],
+        cd: directory,
+        env: environment,
+        stderr_to_stdout: true
+      )
+
+    expected = hd(String.split(elixir, "-otp-")) <> "|" <> erlang
+
+    unless status == 0 and String.trim(output) == expected,
+      do: raise("required runtime #{expected} unavailable or mismatched:\n#{output}")
   end
 
   def plain!(executable, arguments, options \\ []) do
@@ -45,9 +66,12 @@ defmodule Wotex.Tracker.SourceQualifier do
 
   @root Path.expand("..", __DIR__)
   @wotex_workspace Path.expand("../wotex", @root)
-  @lanes [{"1.18.4-otp-27", "27.3.4.15"}, {"1.20.4-otp-29", "29.0.4"}]
-  @base_packages ~w(jason-1.4.5 ex_json_schema-0.11.5 decimal-3.1.1 jason-1.4.0 ex_json_schema-0.11.0 decimal-2.0.0)
-  @service_packages ~w(exqlite-0.40.0 db_connection-2.10.2 telemetry-1.4.2 elixir_make-0.10.0 cc_precompiler-0.1.11 bandit-1.12.5 plug-1.20.3 thousand_island-1.5.0 hpax-1.0.4 mime-2.0.7 plug_crypto-2.2.0 websock-0.5.3 mint-1.10.0)
+  @lanes [{"1.18.4-otp-27", "27.3.4.15"}, {"1.20.4-otp-29", "29.1.2"}]
+  # Upstream source gates use its canonical formatter/analyser toolchain.
+  # The isolated archive consumers below still prove both Tracker runtimes.
+  @source_lane {"1.20.2-otp-29", "29.0.4"}
+  @base_packages ~w(jason-1.4.5 ex_json_schema-0.11.5 decimal-3.2.0)
+  @service_packages ~w(exqlite-0.42.0 db_connection-2.10.2 telemetry-1.4.2 elixir_make-0.10.0 cc_precompiler-0.1.11 bandit-1.12.5 plug-1.20.3 thousand_island-1.5.0 hpax-1.1.0 mime-2.0.7 plug_crypto-2.2.0 websock-0.5.3 mint-1.11.0)
   @archive_byte_limit 128 * 1024 * 1024
   @decoded_byte_limit 256 * 1024 * 1024
   @member_byte_limit 16 * 1024 * 1024
@@ -106,14 +130,11 @@ defmodule Wotex.Tracker.SourceQualifier do
     core_lock = File.read!(Path.join(source, "mix.lock"))
 
     for command <- [
-          ~w(mix deps.get),
-          ~w(mix format --check-formatted),
-          ~w(mix compile --warnings-as-errors),
-          ~w(mix test),
-          ~w(mix docs --warnings-as-errors)
+          ~w(mix deps.get --check-locked),
+          ~w(mix check --no-retry)
         ] do
       IO.puts("Upstream: #{Enum.join(command, " ")}")
-      Command.run!(command, source, core_environment)
+      Command.run!(command, source, core_environment, @source_lane)
     end
 
     if File.read!(Path.join(source, "mix.lock")) != core_lock,
@@ -122,7 +143,8 @@ defmodule Wotex.Tracker.SourceQualifier do
     Command.run!(
       ["mix", "hex.build", "--output", Path.join(tarballs, "wotex-0.1.0.tar")],
       source,
-      environment
+      environment,
+      @source_lane
     )
 
     {revisions, packages} =
@@ -178,8 +200,8 @@ defmodule Wotex.Tracker.SourceQualifier do
         fn {repository, package}, result ->
           target = Path.join([source_root, "packages", repository])
           head = revision
-          lock = File.read!(Path.join(target, "mix.lock"))
           snapshot_environment = Map.put(core_environment, "WOTEX_PATH_DEPS", "1")
+          lock = File.read!(Path.join(target, "mix.lock"))
 
           for command <- [
                 ~w(mix deps.get),
@@ -188,7 +210,7 @@ defmodule Wotex.Tracker.SourceQualifier do
                 ~w(elixir bin/check_boundary.exs)
               ] do
             IO.puts("Upstream #{package}@#{head}: #{Enum.join(command, " ")}")
-            Command.run!(command, target, snapshot_environment)
+            Command.run!(command, target, snapshot_environment, @source_lane)
           end
 
           if File.read!(Path.join(target, "mix.lock")) != lock,
@@ -197,7 +219,8 @@ defmodule Wotex.Tracker.SourceQualifier do
           Command.run!(
             ["mix", "hex.build", "--output", Path.join(tarballs, "#{package}-0.1.0.tar")],
             target,
-            environment
+            environment,
+            @source_lane
           )
 
           Map.put(result, package, head)
@@ -314,8 +337,8 @@ defmodule Wotex.Tracker.SourceQualifier do
 
     dependencies =
       if mode == "minimum" do
-        ~s([{:#{dependency}, "~> 0.1.0"}, {:jason, "1.4.0"}, ) <>
-          ~s({:ex_json_schema, "0.11.0"}, {:decimal, "2.0.0"}])
+        ~s([{:#{dependency}, "~> 0.1.0"}, {:jason, "1.4.5"}, ) <>
+          ~s({:ex_json_schema, "0.11.5"}, {:decimal, "3.2.0"}])
       else
         ~s([{:#{dependency}, "~> 0.1.0"}])
       end
@@ -385,6 +408,10 @@ defmodule Wotex.Tracker.SourceQualifier do
       "scope" => "local-source-cohort-not-public-release",
       "upstream_revision" => revisions["wotex"],
       "upstream_revisions" => revisions,
+      "upstream_verification_runtime" => %{
+        "elixir" => elem(@source_lane, 0),
+        "otp" => elem(@source_lane, 1)
+      },
       "archives" => archives,
       "evidence_directory" => destination,
       "archive_evidence_sha256" => file_digest(Path.join(destination, "archive-evidence.json")),

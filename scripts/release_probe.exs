@@ -60,6 +60,8 @@ end
 defmodule Wotex.Tracker.ReleaseProbe do
   @moduledoc false
 
+  alias Wotex.Tracker.Host.Config, as: HostConfig
+  alias Wotex.Tracker.Host.Development.PassiveSimulatorConfig
   alias Wotex.Tracker.HTTPConsumer
   alias Wotex.Tracker.ReleaseProcess
   alias Wotex.Tracker.Service.{Codec, Identifier}
@@ -81,20 +83,21 @@ defmodule Wotex.Tracker.ReleaseProbe do
         ]
       )
 
-    unless invalid == [] and length(rest) == 2 and
-             options[:native_resource] in [nil | @native_resource_sources] and
-             (options[:native_resource] == nil or options[:browser] == true) and
-             (options[:native_only] != true or
-                (is_binary(options[:native_consumer]) and options[:browser] != true and
-                   is_nil(options[:readonly_directory]) and is_nil(options[:native_resource]))),
-           do:
-             raise(
-               "usage: release_probe.exs RELEASE FIXTURES [--readonly-directory PATH] [--native-consumer PATH [--native-only]] [--browser [--native-resource SOURCE]]"
-             )
+    unless valid_options?(options, rest, invalid),
+      do:
+        raise(
+          "usage: release_probe.exs RELEASE FIXTURES [--readonly-directory PATH] [--native-consumer PATH [--native-only]] [--browser [--native-resource SOURCE]]"
+        )
 
     [release, fixtures] = Enum.map(rest, &Path.expand/1)
     assert_clean_path!()
     assert_licenses!(release)
+    false = Code.ensure_loaded?(PassiveSimulatorConfig)
+    {:ok, nil} = HostConfig.load_passive_simulator(nil, [])
+
+    {:error, :invalid_configuration} =
+      HostConfig.load_passive_simulator("unavailable-development-config", [])
+
     File.mkdir_p!(fixtures)
     File.chmod!(fixtures, 0o700)
     release = File.cd!(release, fn -> File.cwd!() end)
@@ -124,11 +127,31 @@ defmodule Wotex.Tracker.ReleaseProbe do
           |> Map.merge(native_consumer(release, fixtures, options[:native_consumer]))
         end
 
+      report =
+        Map.put(report, "runtime", %{
+          "elixir" => System.version(),
+          "otp" => System.otp_release(),
+          "erts" => :erlang.system_info(:version) |> to_string()
+        })
+
       write_json(Path.join(fixtures, "result.json"), report)
       IO.puts("RELEASE_PROBE_PASS " <> Jason.encode!(report))
     after
       terminate_tracked()
     end
+  end
+
+  defp valid_options?(options, rest, invalid) do
+    invalid == [] and length(rest) == 2 and
+      options[:native_resource] in [nil | @native_resource_sources] and
+      (options[:native_resource] == nil or options[:browser] == true) and
+      valid_native_only?(options)
+  end
+
+  defp valid_native_only?(options) do
+    options[:native_only] != true or
+      (is_binary(options[:native_consumer]) and options[:browser] != true and
+         is_nil(options[:readonly_directory]) and is_nil(options[:native_resource]))
   end
 
   defp lifecycle(release, directory, browser?, native_resource_source) do
@@ -883,7 +906,7 @@ defmodule Wotex.Tracker.ReleaseProbe do
   defp consume_ready(stream) do
     case :binary.match(stream.buffer, ["\n\n", "\r\n\r\n"]) do
       {index, length} ->
-        <<frame::binary-size(index), _separator::binary-size(length), rest::binary>> =
+        <<frame::binary-size(^index), _separator::binary-size(^length), rest::binary>> =
           stream.buffer
 
         true = String.contains?(frame, "event: ready")
@@ -949,7 +972,7 @@ defmodule Wotex.Tracker.ReleaseProbe do
 
   defp assert_licenses!(release) do
     components =
-      ~w(wotex_tracker_host wotex_tracker wotex_tracker_service wotex wotex_runtime wotex_binding_http exqlite mint elixir erlang-OTP-27.3.4.15)
+      ~w(wotex_tracker_host wotex_tracker wotex_tracker_service wotex wotex_runtime wotex_binding_http exqlite mint elixir erlang-OTP-29.1.2)
 
     components =
       if Path.wildcard(Path.join(release, "lib/wotex_tracker_ui-*")) != [],

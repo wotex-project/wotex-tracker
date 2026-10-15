@@ -4,6 +4,9 @@ defmodule WotexTrackerUI.MixProject do
   def project do
     [
       app: :wotex_tracker_ui,
+      # Bandit has no patched Hex release for its HTTP/2 send deadline advisory.
+      # Every Tracker listener disables HTTP/2; recheck the upstream release feed.
+      hex: [ignore_advisories: ["EEF-CVE-2026-105659"]],
       version: "0.1.0",
       elixir: "~> 1.18",
       description: "Shared authorized LiveView workflows for WoTEx Tracker",
@@ -27,20 +30,20 @@ defmodule WotexTrackerUI.MixProject do
     [
       service(),
       runtime(),
-      {:phoenix, "== 1.8.14"},
-      {:phoenix_live_view, "== 1.2.11"},
+      {:phoenix, "== 1.8.15"},
+      {:phoenix_live_view, "== 1.2.12"},
       {:phoenix_html, "== 4.3.0"},
       {:jason, "== 1.4.5"},
-      {:mint, "== 1.10.1"},
-      {:lazy_html, "~> 0.1", only: :test},
-      {:stream_data, "~> 1.3", only: :test},
-      {:excoveralls, "~> 0.18", only: :test},
-      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
-      {:ex_check, "~> 0.16", only: [:dev, :test], runtime: false},
-      {:ex_doc, "~> 0.38", only: [:dev, :test, :docs], runtime: false},
-      {:doctest_formatter, "~> 0.4", only: [:dev, :test], runtime: false},
-      {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false}
+      {:mint, "== 1.11.0"},
+      {:lazy_html, "~> 0.1.13", only: :test},
+      {:stream_data, "~> 1.4.0", only: :test},
+      {:excoveralls, "~> 0.18.5", only: :test},
+      {:credo, "~> 1.7.19", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.4.8", only: [:dev, :test], runtime: false},
+      {:ex_check, "~> 0.17.0", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.40.4", only: [:dev, :test, :docs], runtime: false},
+      {:doctest_formatter, "~> 0.4.1", only: [:dev, :test], runtime: false},
+      {:mix_audit, "~> 2.1.5", only: [:dev, :test], runtime: false}
     ]
   end
 

@@ -1460,7 +1460,7 @@ defmodule Wotex.Tracker.HTTPConsumer do
   defp take_frame(bytes) do
     case :binary.match(bytes, ["\n\n", "\r\n\r\n"]) do
       {index, length} ->
-        <<frame::binary-size(index), _separator::binary-size(length), rest::binary>> = bytes
+        <<frame::binary-size(^index), _separator::binary-size(^length), rest::binary>> = bytes
         {:ok, frame, rest}
 
       :nomatch ->

@@ -117,7 +117,7 @@ Security failures block the profile independently of performance. No new infrast
 
 ## Sources and promotion
 
-- S1: [Repository contract](../../AGENTS.md).
+- S1: [Repository contract](https://github.com/wotex-project/wotex-tracker/blob/main/AGENTS.md).
 - S2: [README](../../README.md), evidence pipeline and host distinctions.
 - S3: [Declarative profiles and resolution](../guides/profiles.md), including active probe boundary.
 - Owner destinations: [specification index](../specs/WTR-index.md), [materialisation](../guides/materialisation.md), [service contract](../contracts/service-v1.md), [hardware qualification](../specs/WTR.09-hardware-qualification.md), [evidence policy](../specs/WTR.12-evidence-and-graduation.md).

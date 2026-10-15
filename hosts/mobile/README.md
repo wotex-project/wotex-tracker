@@ -2,9 +2,10 @@
 
 This independent host will compose the shared LiveView UI, its versioned remote
 service client and narrow iOS integrations inside a Mob WebView. Its native
-cohort is Elixir 1.20.1, OTP 29.0, Mob 0.9.1, MobDev 0.7.1 and the exact Zig
-development build pinned in `mise.toml`. Those versions match Mob's downloaded
-iOS runtime; the root library and other hosts retain their independent floors.
+development cohort is Elixir 1.20.4, OTP 29.1.2, Mob 0.9.18, MobDev 0.7.25
+and stable Zig 0.17.0. Mob's downloaded iOS runtime is a separate target artifact;
+host compilation alone does not qualify that runtime. The root library and
+other hosts retain their independent compatibility floors.
 
 The first executable seam is the bounded offline projection cache. It stores no
 bearer credential, access proof, raw evidence, mutation or physical Action. A
@@ -189,11 +190,11 @@ restores the native network, revokes the common reader, replays ingress across
 restart and verifies durable history without a physical Action:
 
 ```sh
-mise exec -- zig build --build-file ../../native/protocol_consumer/build.zig \
+ZIG_GLOBAL_CACHE_DIR=../../_build/zig-global-cache mise exec -- \
+  zig build --build-file ../../native/protocol_consumer/build.zig \
   -Doptimize=ReleaseSafe \
   --prefix ../../_build/native/protocol-consumer/darwin \
-  --cache-dir ../../_build/zig-cache/protocol-consumer \
-  --global-cache-dir ../../_build/zig-global-cache
+  --cache-dir ../../_build/zig-cache/protocol-consumer
 WOTEX_PATH_DEPS=1 MIX_ENV=test mise exec -- \
   mix run --no-start scripts/integrated_product.exs
 ```
@@ -222,19 +223,27 @@ distribution build and is compiled by the host-runnable software gate. The
 Android tables emitted by the generator are ignored because this host is
 iOS-only.
 
-Machine-specific paths and Apple signing values remain in ignored `mob.exs`:
+Portable build and plugin settings live in the committed `mob.exs`. Put
+machine-specific paths and Apple signing values in ignored `mob.local.exs`:
 
 ```sh
-cp mob.exs.example mob.exs
+# Keep machine paths and signing values in ignored mob.local.exs.
 mise install
 WOTEX_PATH_DEPS=1 MIX_ENV=dev mise exec -- mix deps.get
 WOTEX_PATH_DEPS=1 MIX_ENV=dev mise exec -- mix mob.doctor
 ```
 
-After accepting the installed Xcode licence manually and signing into the
-intended Apple team, boot a simulator or connect a named iPhone. A local native
-build is then. The local entitlement file is intentionally ignored so a
-development value cannot be mistaken for a production release value:
+Compile a simulator bundle without discovering or installing on any device:
+
+```sh
+WOTEX_PATH_DEPS=1 MIX_ENV=dev mise exec -- mix run --no-start \
+  -e 'true = MobDev.NativeBuild.build_all(platforms: [:ios], requested: [:ios], devices: [])'
+```
+
+For a signed physical-device build, accept the installed Xcode licence and sign
+into the intended Apple team, then connect a named iPhone. The local entitlement
+file is intentionally ignored so a development value cannot be mistaken for a
+production release value:
 
 ```sh
 cp ios/WotexTrackerMobile.development.entitlements.example \
@@ -257,9 +266,8 @@ distribution preparation begins by copying
 --distribution`. Keep team IDs, certificate names, profile UUIDs and API-key
 paths only in ignored local configuration or the CI secret store.
 
-MobDev 0.7.1's generated distribution-signing script omits `aps-environment`
-even when the App Store profile contains it, so do not invoke `mix mob.release`
-directly. The repository-owned release command runs that build, extracts the
+Use the repository-owned release command so the final artifact enforces the
+closed APNs entitlement contract. The command runs MobDev's build, extracts the
 embedded App Store profile, requires the exact production application/team/APNs
 identity, re-signs with the minimal admitted entitlement set, verifies the
 signature and signed entitlements, and only then atomically replaces the IPA:
@@ -277,13 +285,12 @@ show `"aps-environment" => "production"` under `codesign -d --entitlements -`
 before TestFlight upload. Apple signing authority remains a separate
 user-managed prerequisite.
 
-This repository has generated and software-tested the native tree, but has not
-claimed a signed build. On the current machine the Xcode licence still requires
-manual acceptance, and no signing team/profile or physical iPhone is available.
-MobDev's published 0.7.1 constraint also predates Mob 0.9 even though the pinned
-override compiles and its current native templates target Mob 0.9; a physical
-build must qualify that exact override before release. The distribution
-entitlement repair is software-tested but has not run against a signed artifact.
+The portable `mob.exs` configuration is committed; `mob.local.exs` holds only
+machine paths and signing/provisioning choices. MobDev now supports the selected
+Mob version without a resolver override. A native build needs Xcode and the
+selected runtime artifacts. A signed build additionally needs the operator's
+team and provisioning material. The distribution entitlement finalizer has
+software coverage, which does not establish a signed-artifact result.
 Physical notification delivery, cold/warm/background tap distinction,
 secure-storage behavior, suspend/resume, network handoff, target-profile BLE
 provisioning, share-sheet behavior and all other physical-iPhone evidence remain

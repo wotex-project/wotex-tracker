@@ -11,19 +11,19 @@
     "sqlite_nif_aarch64": true
   },
   "firmware": {
-    "bytes": 60292910,
+    "bytes": 60596378,
     "metadata": {
       "meta-architecture": "aarch64",
       "meta-author": "The Nerves Team",
-      "meta-creation-date": "2026-09-20T05:08:19Z",
-      "meta-nickname": "all-open",
+      "meta-creation-date": "2026-10-15T13:21:21Z",
+      "meta-nickname": "dynamic-away",
       "meta-platform": "rpi5",
       "meta-product": "wotex_tracker_nerves",
-      "meta-uuid": "0f972945-59cf-5355-9b43-6e5cc3b56554",
+      "meta-uuid": "4f06de6c-e860-52b2-c1f3-020b00d594aa",
       "meta-version": "0.1.0"
     },
-    "sha256": "2c6d03963da420c9efae93fb00fcf475d953ca36cb1cb8e198a8942800ba701b",
-    "sqlite_nif": "ELF 64-bit LSB shared object, ARM aarch64, version 1 (SYSV), dynamically linked, BuildID[sha1]=a3dc0ce06a84ffe46914bb4a81e11c04c5f811c6, not stripped",
+    "sha256": "d24b46143b649163bd7d338a83ec7f898bd74bda1db7d03686239659cc5b8fb2",
+    "sqlite_nif": "ELF 64-bit LSB shared object, ARM aarch64, version 1 (SYSV), dynamically linked, BuildID[sha1]=7398946b68d11d80f1ca346b62b518c067c93532, not stripped",
     "target_elixir": "1.20.4",
     "target_erts": "17.0.6"
   },
@@ -82,27 +82,27 @@
     "nerves": "1.15.0",
     "nerves_runtime": "0.13.13",
     "nerves_system_rpi5": "2.1.2",
-    "nerves_time": "0.4.12",
+    "nerves_time": "0.4.13",
     "nerves_toolchain_aarch64_nerves_linux_gnu": "15.3.1",
-    "vintage_net": "0.13.12",
+    "vintage_net": "0.13.14",
     "vintage_net_ethernet": "0.11.2"
   },
   "schema": "wtr.nerves-headless-build.v1",
   "sources": {
     "wotex": {
-      "commit": "c5a16af4df6bb11a75048fb6940daec3670c01d7",
+      "commit": "ba8ea373244ce57987f47a731b8eca3ccae9b45f",
       "tracked_changes": false
     },
     "wotex_binding_http": {
-      "commit": "c5a16af4df6bb11a75048fb6940daec3670c01d7",
+      "commit": "ba8ea373244ce57987f47a731b8eca3ccae9b45f",
       "tracked_changes": false
     },
     "wotex_runtime": {
-      "commit": "c5a16af4df6bb11a75048fb6940daec3670c01d7",
+      "commit": "ba8ea373244ce57987f47a731b8eca3ccae9b45f",
       "tracked_changes": false
     },
     "wotex_tracker": {
-      "commit": "8c8baf154d590dc4ba30ad39ad4af150d07481fa",
+      "commit": "c37fb17fe260130f09632d04e7ef87fdc047364d",
       "tracked_changes": true
     }
   }

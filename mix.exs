@@ -42,15 +42,18 @@ defmodule WotexTracker.MixProject do
   defp deps do
     [
       wotex(),
-      {:stream_data, "~> 1.3", only: :test},
-      {:excoveralls, "~> 0.18", only: :test},
-      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
-      {:ex_check, "~> 0.16", only: [:dev, :test], runtime: false},
-      {:ex_doc, "~> 0.38", only: [:dev, :test, :docs], runtime: false},
-      {:doctest_formatter, "~> 0.4", only: [:dev, :test], runtime: false},
-      {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false},
-      {:yamerl, "~> 0.10", only: [:dev, :test], runtime: false}
+      # Keep fresh and minimum consumers above Decimal's allocation fix.
+      {:ex_json_schema, "~> 0.11.5"},
+      {:decimal, "~> 3.2.0"},
+      {:stream_data, "~> 1.4.0", only: :test},
+      {:excoveralls, "~> 0.18.5", only: :test},
+      {:credo, "~> 1.7.19", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.4.8", only: [:dev, :test], runtime: false},
+      {:ex_check, "~> 0.17.0", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.40.4", only: [:dev, :test, :docs], runtime: false},
+      {:doctest_formatter, "~> 0.4.1", only: [:dev, :test], runtime: false},
+      {:mix_audit, "~> 2.1.5", only: [:dev, :test], runtime: false},
+      {:yamerl, "~> 0.10.0", only: [:dev, :test], runtime: false}
     ]
   end
 

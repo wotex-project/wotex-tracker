@@ -123,7 +123,8 @@ defmodule Wotex.Tracker.Nerves.BuildRecord do
     false = String.contains?(sys_config, "secret_key")
     false = String.contains?(sys_config, "token_sha256")
 
-    nif = Path.join(release_root, "lib/exqlite-0.40.0/priv/sqlite3_nif.so")
+    {exqlite_version, _} = Map.fetch!(apps, "exqlite")
+    nif = Path.join(release_root, "lib/exqlite-#{exqlite_version}/priv/sqlite3_nif.so")
     {nif_type, 0} = System.cmd("file", ["-b", nif])
     true = String.contains?(nif_type, "ARM aarch64")
 

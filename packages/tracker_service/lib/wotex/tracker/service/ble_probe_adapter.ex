@@ -16,13 +16,12 @@ defmodule Wotex.Tracker.Service.BLEProbeAdapter do
 
   @impl true
   def read(session, request, timeout_ms) do
-    ble = Wotex.BLE
-
     with true <- available?(),
          true <- session?(session),
          {:ok, target} <- target(request),
+         read = Function.capture(Wotex.BLE, :read, 3),
          result <-
-           ble.read(
+           read.(
              session,
              target,
              value_type: :bytes,

@@ -8,7 +8,7 @@ prerequisites never block locally executable implementation.
 
 Implemented as the source/package verification floor for the root library,
 service, shared UI and applicable hosts. The declared Elixir 1.18.4 / OTP
-27.3.4.15 and Elixir 1.20.4 / OTP 29.0.4 lanes run their configured compiler,
+27.3.4.15 and Elixir 1.20.4 / OTP 29.1.2 lanes run their configured compiler,
 test/coverage, analysis, documentation, dependency, archive, contract, licence
 and language-policy gates as applicable. Each root, service and shared-UI
 archive gate resolves its own project root and requires every regular packaged
@@ -88,7 +88,7 @@ have their own startup callback; that callback is not part of the Tracker packag
 ## Planned runtime and dependencies
 
 Phase 0 declares Elixir `~> 1.18`. Required initial verification lanes are
-Elixir 1.18.4 / OTP 27.3.4.15 and Elixir 1.20.4 / OTP 29.0.4, recorded with exact
+Elixir 1.18.4 / OTP 27.3.4.15 and Elixir 1.20.4 / OTP 29.1.2, recorded with exact
 OS/architecture and dependencies. These are intended lanes until executed, not
 a claim that every combination allowed by the Mix requirement has passed.
 Only APIs available on the floor may enter the core. Optional adapters/hosts

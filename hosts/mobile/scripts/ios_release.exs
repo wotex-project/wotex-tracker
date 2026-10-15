@@ -2,7 +2,7 @@ defmodule Wotex.Tracker.Mobile.IOSRelease do
   @moduledoc """
   Repairs and verifies the narrow APNs entitlement seam in a Mob iOS release.
 
-  MobDev 0.7.1 creates a correctly provisioned application but signs its
+  MobDev's distribution template creates a provisioned application but signs its
   distribution bundle with a fixed entitlement document that omits
   `aps-environment`. This tool extracts the already embedded App Store profile,
   admits only the expected production identity, re-signs with a minimal closed

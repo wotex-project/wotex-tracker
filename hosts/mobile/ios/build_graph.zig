@@ -57,11 +57,13 @@ pub fn build(b: *std.Build, comptime flavor: Flavor) void {
         .simulator => b.resolveTargetQuery(.{
             .cpu_arch = .aarch64,
             .os_tag = .ios,
+            .os_version_min = .{ .semver = .{ .major = 17, .minor = 0, .patch = 0 } },
             .abi = .simulator,
         }),
         .device => b.resolveTargetQuery(.{
             .cpu_arch = .aarch64,
             .os_tag = .ios,
+            .os_version_min = .{ .semver = .{ .major = 17, .minor = 0, .patch = 0 } },
         }),
     };
     const optimize: std.builtin.OptimizeMode = .ReleaseSmall;
@@ -154,12 +156,13 @@ pub fn build(b: *std.Build, comptime flavor: Flavor) void {
     // referenced by MobRootView) compiles without editing this template.
     {
         const glob_io = b.graph.io;
-        var mob_ios = b.build_root.handle.openDir(glob_io, b.fmt("{s}/ios", .{mob_dir}), .{ .iterate = true }) catch @panic("mob ios dir not found");
+        b.dependOnDirectoryContents(.{ .cwd_relative = b.fmt("{s}/ios", .{mob_dir}) });
+        var mob_ios = std.Io.Dir.openDirAbsolute(glob_io, b.fmt("{s}/ios", .{mob_dir}), .{ .iterate = true }) catch @panic("mob ios dir not found");
         defer mob_ios.close(glob_io);
         var swift_entries = mob_ios.iterate();
         while (swift_entries.next(glob_io) catch @panic("mob ios dir iterate failed")) |entry| {
             if (entry.kind == .file and std.mem.endsWith(u8, entry.name, ".swift")) {
-                swift_run.addFileArg(.{ .cwd_relative = b.fmt("{s}/ios/{s}", .{ mob_dir, entry.name }) });
+                swift_run.addFileArg2(.{ .cwd_relative = b.fmt("{s}/ios/{s}", .{ mob_dir, entry.name }) }, .{});
             }
         }
     }
@@ -167,7 +170,7 @@ pub fn build(b: *std.Build, comptime flavor: Flavor) void {
         var swift_it = std.mem.splitScalar(u8, project_swift_sources, ',');
         while (swift_it.next()) |source| {
             if (source.len == 0) continue;
-            swift_run.addFileArg(.{ .cwd_relative = source });
+            swift_run.addFileArg2(.{ .cwd_relative = source }, .{});
         }
     }
     // Plugin-contributed Swift sources compile in the same step so the
@@ -176,15 +179,15 @@ pub fn build(b: *std.Build, comptime flavor: Flavor) void {
         var plugin_swift_it = std.mem.splitScalar(u8, plugin_swift_files, ',');
         while (plugin_swift_it.next()) |source| {
             if (source.len == 0) continue;
-            swift_run.addFileArg(.{ .cwd_relative = source });
+            swift_run.addFileArg2(.{ .cwd_relative = source }, .{});
         }
     }
     swift_run.addArg("-c");
     swift_run.addArg("-emit-objc-header");
     swift_run.addArg("-emit-objc-header-path");
-    const swift_header = swift_run.addOutputFileArg("MobApp-Swift.h");
+    const swift_header = swift_run.addOutputFileArg2("MobApp-Swift.h", .{});
     swift_run.addArg("-o");
-    const swift_obj = swift_run.addOutputFileArg("swift_mob.o");
+    const swift_obj = swift_run.addOutputFileArg2("swift_mob.o", .{});
     installAndCollect(b, objects_step, &objs, swift_obj, "swift_mob.o");
 
     // --- Plain C via zig cc ----------------------------------------------------
@@ -265,7 +268,7 @@ pub fn build(b: *std.Build, comptime flavor: Flavor) void {
         .{
             .name = "mob_nif",
             .source = b.fmt("{s}/ios/mob_nif.m", .{mob_dir}),
-            .extra_flags = &.{"-DSTATIC_ERLANG_NIF"},
+            .extra_flags = &.{"-DSTATIC_ERLANG_NIF="},
             .swift_header = swift_header,
         },
         .{
@@ -370,7 +373,7 @@ pub fn build(b: *std.Build, comptime flavor: Flavor) void {
             if (nif_name.len == 0) continue;
             const flags = b.allocator.alloc([]const u8, c_flags_base.len + 2) catch unreachable;
             @memcpy(flags[0..c_flags_base.len], c_flags_base);
-            flags[c_flags_base.len] = "-DSTATIC_ERLANG_NIF";
+            flags[c_flags_base.len] = "-DSTATIC_ERLANG_NIF=";
             flags[c_flags_base.len + 1] = b.fmt("-DSTATIC_ERLANG_NIF_LIBNAME={s}", .{nif_name});
 
             installAndCollect(b, objects_step, &objs, addCObject(b, .{
@@ -415,7 +418,7 @@ pub fn build(b: *std.Build, comptime flavor: Flavor) void {
                     .name = name,
                     .source = path,
                     .extra_flags = &.{
-                        "-DSTATIC_ERLANG_NIF",
+                        "-DSTATIC_ERLANG_NIF=",
                         b.fmt("-DSTATIC_ERLANG_NIF_LIBNAME={s}", .{name}),
                     },
                     .mob_dir = mob_dir,
@@ -429,7 +432,7 @@ pub fn build(b: *std.Build, comptime flavor: Flavor) void {
 
             const flags = b.allocator.alloc([]const u8, c_flags_base.len + 2) catch unreachable;
             @memcpy(flags[0..c_flags_base.len], c_flags_base);
-            flags[c_flags_base.len] = "-DSTATIC_ERLANG_NIF";
+            flags[c_flags_base.len] = "-DSTATIC_ERLANG_NIF=";
             flags[c_flags_base.len + 1] = b.fmt("-DSTATIC_ERLANG_NIF_LIBNAME={s}", .{name});
 
             installAndCollect(b, objects_step, &objs, addCObject(b, .{
@@ -592,9 +595,9 @@ fn addObjcObject(b: *std.Build, opts: ObjcObjectOptions) std.Build.LazyPath {
 
     for (opts.extra_flags) |flag| run.addArg(flag);
     run.addArg("-c");
-    run.addFileArg(.{ .cwd_relative = opts.source });
+    run.addFileArg2(.{ .cwd_relative = opts.source }, .{});
     run.addArg("-o");
-    return run.addOutputFileArg(b.fmt("{s}.o", .{opts.name}));
+    return run.addOutputFileArg2(b.fmt("{s}.o", .{opts.name}), .{});
 }
 
 const EpmdObjectOptions = struct {
@@ -688,9 +691,9 @@ fn addLink(b: *std.Build, step: *std.Build.Step, opts: LinkOptions) void {
         opts.platform.swift_target,
     });
 
-    // All compiled object files. addFileArg propagates the dependency so
+    // All compiled object files. addFileArg2 propagates the dependency so
     // each .o's compile step is implicitly required by the link step.
-    for (opts.objects) |obj| run.addFileArg(obj);
+    for (opts.objects) |obj| run.addFileArg2(obj, .{});
 
     // OTP + crypto static libs. Same order as the iOS sim link (and the
     // prior CMake-based device link). Order matters — libbeam.a first so
@@ -742,25 +745,25 @@ fn addLink(b: *std.Build, step: *std.Build.Step, opts: LinkOptions) void {
         var rust_it = std.mem.splitScalar(u8, opts.project_rust_libs, ',');
         while (rust_it.next()) |lib_path| {
             if (lib_path.len == 0) continue;
-            // `addFileArg` (not `addArg`) so the cache key picks up the
+            // `addFileArg2` (not `addArg`) so the cache key picks up the
             // contents of the .a, not just its path. Otherwise rebuilding
             // a project-side rust crate produces a new .a that the link
             // step ignores as UP-TO-DATE.
             const lp: std.Build.LazyPath = .{ .cwd_relative = lib_path };
-            run.addFileArg(lp);
+            run.addFileArg2(lp, .{});
         }
     }
 
     // Plugin cpp_archive NIFs (e.g. an Nx CPU backend). Each lib<mod>.a exports
     // <mod>_nif_init, referenced by driver_tab_ios, so the linker pulls it in —
-    // same mechanism as project_rust_libs / libnx_eigen.a above. addFileArg so
+    // same mechanism as project_rust_libs / libnx_eigen.a above. addFileArg2 so
     // the cache key tracks archive contents.
     if (opts.plugin_static_libs.len > 0) {
         var ps_it = std.mem.splitScalar(u8, opts.plugin_static_libs, ',');
         while (ps_it.next()) |lib_path| {
             if (lib_path.len == 0) continue;
             const lp: std.Build.LazyPath = .{ .cwd_relative = lib_path };
-            run.addFileArg(lp);
+            run.addFileArg2(lp, .{});
         }
     }
 
@@ -797,7 +800,7 @@ fn addLink(b: *std.Build, step: *std.Build.Step, opts: LinkOptions) void {
     }
 
     run.addArg("-o");
-    const binary = run.addOutputFileArg(opts.module_name);
+    const binary = run.addOutputFileArg2(opts.module_name, .{});
 
     const install = b.addInstallFile(binary, opts.module_name);
     step.dependOn(&install.step);

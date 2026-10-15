@@ -23,7 +23,7 @@ jobs:
           - elixir: "1.18.4-otp-27"
             otp: "27.3.4.15"
           - elixir: "1.20.4-otp-29"
-            otp: "29.0.4"
+            otp: "29.1.2"
     defaults:
       run:
         working-directory: wotex-tracker
@@ -31,14 +31,14 @@ jobs:
       MIX_ENV: test
       WOTEX_PATH_DEPS: "1"
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: wotex-tracker
           persist-credentials: false
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: wotex-project/wotex
-          ref: 960d8c12ced1c18b885652cfeadf16c7f3961e6e
+          ref: ba8ea373244ce57987f47a731b8eca3ccae9b45f
           path: wotex
           persist-credentials: false
       - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
@@ -88,8 +88,8 @@ jobs:
           - profile: mobile
             directory: hosts/mobile
             ui: false
-            elixir: "1.20.1-otp-29"
-            otp: "29.0"
+            elixir: "1.20.4-otp-29"
+            otp: "29.1.2"
     defaults:
       run:
         working-directory: wotex-tracker/${{ matrix.directory }}
@@ -100,14 +100,14 @@ jobs:
       CI_PROFILE: ${{ matrix.profile }}
       CI_TRACKER_UI: ${{ matrix.ui }}
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: wotex-tracker
           persist-credentials: false
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: wotex-project/wotex
-          ref: 960d8c12ced1c18b885652cfeadf16c7f3961e6e
+          ref: ba8ea373244ce57987f47a731b8eca3ccae9b45f
           path: wotex
           persist-credentials: false
       - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
@@ -117,12 +117,12 @@ jobs:
       - name: Install Nerves bootstrap
         if: startsWith(matrix.profile, 'nerves')
         working-directory: wotex-tracker
-        run: mix archive.install hex nerves_bootstrap 1.17.2 --force
+        run: mix archive.install hex nerves_bootstrap 1.17.3 --force
       - name: Install native toolchain
         if: startsWith(matrix.profile, 'host') || matrix.profile == 'mobile'
-        uses: mlugg/setup-zig@8d6198c65fb0feaa111df26e6b467fea8345e46f # v2.0.5
+        uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
         with:
-          version: 0.17.0-dev.269+ebff43698
+          version: 0.17.0
       - name: Check locked dependencies
         run: |
           if [ "$CI_TRACKER_UI" = "true" ]; then export WOTEX_TRACKER_UI=1; fi

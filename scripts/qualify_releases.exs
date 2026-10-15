@@ -4,11 +4,12 @@ defmodule Wotex.Tracker.ReleaseQualifier do
   alias Wotex.Tracker.Command
 
   @root Path.expand("..", __DIR__)
-  @builder "wotex-tracker-builder:elixir-1.18.4-otp-27.3.4.15"
+  @builder "wotex-tracker-builder:elixir-1.20.4-otp-29.1.2"
+  @runtime {"1.20.4-otp-29", "29.1.2"}
   @image "wotex-tracker:0.1.0-linux-arm64-local"
   @ui_image "wotex-tracker-ui:0.1.0-linux-arm64-local"
-  @builder_base "hexpm/elixir@sha256:473f77ee88977dc8cc5d05fb91080a308be86be3fc27d50aef9a837d07c8268b"
-  @runtime_base "debian@sha256:88200866dfff7ea7f5cbcb6ec7c8a701889efe6fe859fe64d6990e4b07ea4171"
+  @builder_base "hexpm/elixir@sha256:94157a01ad1a93a419cd9824df3b8dcc6af35afba3e6b57467a87b540968f449"
+  @runtime_base "debian@sha256:7c7b2c966bc9ee8cedfeef67e0e279108992c77681fa595db4a9d65c06ccc587"
   @native_client "wotex-tracker-protocol-consumer"
   @linux_native_target "aarch64-linux-musl"
 
@@ -64,7 +65,7 @@ defmodule Wotex.Tracker.ReleaseQualifier do
           ~w(mix compile --warnings-as-errors),
           ~w(mix release wotex_tracker)
         ] do
-      Command.run!(command, source, build_environment)
+      Command.run!(command, source, build_environment, @runtime)
     end
 
     release = Path.join(release_build_path(source, ui?), "rel/wotex_tracker")
@@ -365,10 +366,9 @@ defmodule Wotex.Tracker.ReleaseQualifier do
         "--prefix",
         target,
         "--cache-dir",
-        cache,
-        "--global-cache-dir",
-        global_cache
-      ]
+        cache
+      ],
+      env: [{"ZIG_GLOBAL_CACHE_DIR", global_cache}]
     )
 
     Path.join([target, "bin", @native_client])
@@ -381,19 +381,21 @@ defmodule Wotex.Tracker.ReleaseQualifier do
     global_cache = Path.join(build, "zig-global-cache")
     IO.puts("Host Linux ARM64: cross-compiling independent static Zig protocol consumer")
 
-    Command.plain!("zig", [
-      "build",
-      "--build-file",
-      Path.join(source, "build.zig"),
-      "-Doptimize=ReleaseSafe",
-      "-Dtarget=#{@linux_native_target}",
-      "--prefix",
-      target,
-      "--cache-dir",
-      cache,
-      "--global-cache-dir",
-      global_cache
-    ])
+    Command.plain!(
+      "zig",
+      [
+        "build",
+        "--build-file",
+        Path.join(source, "build.zig"),
+        "-Doptimize=ReleaseSafe",
+        "-Dtarget=#{@linux_native_target}",
+        "--prefix",
+        target,
+        "--cache-dir",
+        cache
+      ],
+      env: [{"ZIG_GLOBAL_CACHE_DIR", global_cache}]
+    )
 
     Path.join([target, "bin", @native_client])
   end

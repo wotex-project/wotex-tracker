@@ -15,9 +15,9 @@ defmodule Wotex.Tracker.Mobile.NativeArtifactTest do
     assert delegate =~ "scene:willConnectToSession"
     assert delegate =~ "didRegisterForRemoteNotificationsWithDeviceToken"
     assert delegate =~ "mob_send_push_token"
-    assert delegate =~ "mob_set_launch_notification_json"
-    assert delegate =~ "connectionOptions.notificationResponse"
-    assert delegate =~ ~s(@"wtr.notification-reference.v1")
+    assert delegate =~ "mob_init_ui()"
+    refute delegate =~ "mob_set_launch_notification_json"
+    refute delegate =~ "connectionOptions.notificationResponse"
     assert delegate =~ "mob_boot_runtime"
     assert beam =~ ~s(#define APP_MODULE "wotex_tracker_mobile")
     assert bootstrap =~ "'Elixir.Wotex.Tracker.Mobile.MobApp':start()"
@@ -30,7 +30,7 @@ defmodule Wotex.Tracker.Mobile.NativeArtifactTest do
   end
 
   test "native build configuration activates only the bounded application plugins" do
-    config = read!("mob.exs.example")
+    config = read!("mob.exs")
     ble = read!("plugins/wotex_mobile_ble/priv/mob_plugin.exs")
     secure_store = read!("plugins/wotex_mobile_secure_store/priv/mob_plugin.exs")
     driver_table = read!("priv/generated/driver_tab_ios.zig")
@@ -42,7 +42,7 @@ defmodule Wotex.Tracker.Mobile.NativeArtifactTest do
     assert config =~
              "config :mob, :plugins, [:mob_notify, :wotex_mobile_ble, :wotex_mobile_secure_store]"
 
-    assert config =~ "ed25519:Fdps1S9I5/BFuCIS6WOpQ0s7Rf98zvsc04wWy4+IqIE="
+    assert config =~ "ed25519:nc56w+1Kx0gIt/4EkHxnMZCKHMzp4+S5kS/HoSzEZkg="
     assert config =~ ":wotex_mobile_ble"
     assert config =~ ":wotex_mobile_secure_store"
 
@@ -98,7 +98,7 @@ defmodule Wotex.Tracker.Mobile.NativeArtifactTest do
     ignore = read!(".gitignore")
 
     for entry <- [
-          "/mob.exs",
+          "/mob.local.exs",
           "/.mob/",
           "/ios/build/",
           "/ios/DerivedData/",

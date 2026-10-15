@@ -1,7 +1,7 @@
 {
   "boot_log_sha256": {
-    "first": "3ed081de27d5ce5c95a26299e381166a21394a5b575d770f3030370ff08bbd22",
-    "reboot": "9f5aab44f0a0755f45924e2655eb0a9e39f435bb6a3ec13b701eeaa6a31c0011"
+    "first": "47edc70c3ad7657398adb6648b1d7bf976233c25a86d612678bc008c875ddd72",
+    "reboot": "ba629116af4ce0f5b0926fff2e5013fb4db11fbadc468162d5cbd366a653a5cd"
   },
   "checks": {
     "core_health_before_firmware_validation": true,
@@ -27,25 +27,26 @@
     "sqlite_nif_aarch64": true
   },
   "firmware": {
-    "bytes": 31346311,
+    "bytes": 31438828,
     "metadata": {
       "meta-architecture": "arm",
       "meta-author": "The Nerves Team",
-      "meta-creation-date": "2026-09-20T23:18:11Z",
-      "meta-nickname": "beach-lazy",
+      "meta-creation-date": "2026-10-15T13:24:46Z",
+      "meta-nickname": "rug-job",
       "meta-platform": "qemu_aarch64",
       "meta-product": "wotex_tracker_nerves",
-      "meta-uuid": "1674d92d-2120-54e1-3a5c-587340f2ce4c",
+      "meta-uuid": "c37d4fa9-72cb-5d44-f944-22582d7a7bed",
       "meta-version": "0.1.0"
     },
-    "sha256": "8ebf3affca5ab77c8fd6c2f62ce2387eb0560ca0e43a9226c8b070ba5c0cac69",
-    "sqlite_nif": "ELF 64-bit LSB shared object, ARM aarch64, version 1 (SYSV), dynamically linked, BuildID[sha1]=a3dc0ce06a84ffe46914bb4a81e11c04c5f811c6, not stripped",
+    "sha256": "24ff67afe366b17f5b8e7636126ecb24493c4f3351457c958fe59a741142d5dd",
+    "sqlite_nif": "ELF 64-bit LSB shared object, ARM aarch64, version 1 (SYSV), dynamically linked, BuildID[sha1]=7398946b68d11d80f1ca346b62b518c067c93532, not stripped",
     "target_elixir": "1.20.4",
     "target_erts": "17.0.6"
   },
   "hardware_acceptance": "not_executed",
   "kind": "virtual_firmware_boot",
   "physical_boot": "not_executed",
+  "profile": "qemu_headless",
   "release_applications": [
     "asn1",
     "bandit",
@@ -97,30 +98,98 @@
   "schema": "wtr.nerves-qemu-boot.v1",
   "sources": {
     "wotex": {
-      "commit": "a1bcee748062e5d48aeeedc9958f3af2f28d3116",
+      "commit": "ba8ea373244ce57987f47a731b8eca3ccae9b45f",
       "tracked_changes": false,
       "tracked_paths": []
     },
     "wotex_binding_http": {
-      "commit": "a1bcee748062e5d48aeeedc9958f3af2f28d3116",
+      "commit": "ba8ea373244ce57987f47a731b8eca3ccae9b45f",
       "tracked_changes": false,
       "tracked_paths": []
     },
     "wotex_runtime": {
-      "commit": "a1bcee748062e5d48aeeedc9958f3af2f28d3116",
+      "commit": "ba8ea373244ce57987f47a731b8eca3ccae9b45f",
       "tracked_changes": false,
       "tracked_paths": []
     },
     "wotex_tracker": {
-      "commit": "db534aa2acd0142d53472dd183a51a1524737ef3",
-      "tracked_changes": false,
-      "tracked_paths": []
+      "commit": "c37fb17fe260130f09632d04e7ef87fdc047364d",
+      "tracked_changes": true,
+      "tracked_paths": [
+        ".github/workflows/ci.yml",
+        "CONTRIBUTING.md",
+        "docs/provenance/portable-decoder-artifacts.md",
+        "docs/specs/WTR.13-elixir-otp-and-verification.md",
+        "hosts/app/.check.exs",
+        "hosts/app/Dockerfile",
+        "hosts/app/Dockerfile.builder",
+        "hosts/app/README.md",
+        "hosts/app/mix.exs",
+        "hosts/app/mix.lock",
+        "hosts/app/mix.ui.lock",
+        "hosts/mobile/.check.exs",
+        "hosts/mobile/.gitignore",
+        "hosts/mobile/README.md",
+        "hosts/mobile/ios/AppDelegate.m",
+        "hosts/mobile/ios/build_graph.zig",
+        "hosts/mobile/lib/wotex/tracker/mobile/notifications.ex",
+        "hosts/mobile/mise.toml",
+        "hosts/mobile/mix.exs",
+        "hosts/mobile/mix.lock",
+        "hosts/mobile/mob.exs.example",
+        "hosts/mobile/scripts/ios_release.exs",
+        "hosts/mobile/test/native_artifact_test.exs",
+        "hosts/mobile/test/notification_registration_test.exs",
+        "hosts/nerves/README.md",
+        "hosts/nerves/mix.exs",
+        "hosts/nerves/mix.lock",
+        "hosts/nerves/mix.qemu-ui.lock",
+        "hosts/nerves/mix.qemu.lock",
+        "hosts/nerves/mix.ui.lock",
+        "hosts/nerves/scripts/record_build.exs",
+        "hosts/nerves/scripts/record_qemu_boot.exs",
+        "mise.toml",
+        "mix.exs",
+        "mix.lock",
+        "native/protocol_consumer/src/main.zig",
+        "packages/tracker_service/.check.exs",
+        "packages/tracker_service/lib/wotex/tracker/service/ble_probe_adapter.ex",
+        "packages/tracker_service/mix.exs",
+        "packages/tracker_service/mix.lock",
+        "packages/tracker_ui/.check.exs",
+        "packages/tracker_ui/mix.exs",
+        "packages/tracker_ui/mix.lock",
+        "scripts/qualify_releases.exs",
+        "scripts/qualify_source.exs",
+        "scripts/release_probe.exs",
+        "test/ci_workflow_test.exs",
+        "hosts/app/priv/licenses/elixir-1.20.4/LICENSE",
+        "hosts/app/priv/licenses/elixir-1.20.4/LICENSES/Apache-2.0.txt",
+        "hosts/app/priv/licenses/elixir-1.20.4/LICENSES/LicenseRef-elixir-trademark-policy.txt",
+        "hosts/app/priv/licenses/elixir-1.20.4/LICENSES/LicenseRef-scancode-unicode.txt",
+        "hosts/app/priv/licenses/elixir-1.20.4/SOURCE.md",
+        "hosts/app/priv/licenses/erlang-OTP-29.1.2/LICENSE.txt",
+        "hosts/app/priv/licenses/erlang-OTP-29.1.2/LICENSES/BSD-2-Clause.txt",
+        "hosts/app/priv/licenses/erlang-OTP-29.1.2/LICENSES/BSD-3-Clause.txt",
+        "hosts/app/priv/licenses/erlang-OTP-29.1.2/LICENSES/LicenseRef-IETF-MIB.txt",
+        "hosts/app/priv/licenses/erlang-OTP-29.1.2/LICENSES/LicenseRef-RSA-PKCS3.txt",
+        "hosts/app/priv/licenses/erlang-OTP-29.1.2/LICENSES/LicenseRef-RSA-PKCS5v2-0.txt",
+        "hosts/app/priv/licenses/erlang-OTP-29.1.2/LICENSES/LicenseRef-scancode-ietf-trust.txt",
+        "hosts/app/priv/licenses/erlang-OTP-29.1.2/LICENSES/LicenseRef-scancode-ietf.txt",
+        "hosts/app/priv/licenses/erlang-OTP-29.1.2/LICENSES/LicenseRef-scancode-w3c-docs-19990405.txt",
+        "hosts/app/priv/licenses/erlang-OTP-29.1.2/LICENSES/LicenseRef-scancode-wxwindows-free-doc-3.txt",
+        "hosts/app/priv/licenses/erlang-OTP-29.1.2/LICENSES/MIT.txt",
+        "hosts/app/priv/licenses/erlang-OTP-29.1.2/LICENSES/SGI-B-2.0.txt",
+        "hosts/app/priv/licenses/erlang-OTP-29.1.2/LICENSES/W3C-19980720.txt",
+        "hosts/app/priv/licenses/erlang-OTP-29.1.2/SOURCE.md",
+        "hosts/mobile/mob.exs"
+      ]
     }
   },
   "virtual_system": {
     "kernel_version": "6.18.34",
     "nerves_system_qemu_aarch64": "0.4.2",
     "nerves_toolchain_aarch64_nerves_linux_gnu": "15.3.1",
-    "qemu_version": "11.1.1"
+    "qemu_version": "7.2.22"
   }
 }

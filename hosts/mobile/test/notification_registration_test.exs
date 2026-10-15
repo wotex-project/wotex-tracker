@@ -331,11 +331,56 @@ defmodule Wotex.Tracker.Mobile.NotificationRegistrationTest do
     assert :ok = Notifications.retry_registration(42)
   end
 
+  test "foreground arrivals do not navigate while explicit notification taps do" do
+    socket = Mob.Socket.new(MobScreen)
+    data = %{schema: "wtr.notification-reference.v1", event_ref: "alert-one"}
+
+    {:ok, arrival} =
+      Mob.Notification.decode(Jason.encode!(%{presentation: "foreground", data: data}))
+
+    assert Notifications.route(socket, arrival, WebView) == socket
+    refute_received {:notification_navigation, _}
+
+    for presentation <- [:foreground, :unknown, nil] do
+      assert Notifications.route(socket, %{presentation: presentation, data: data}, WebView) ==
+               socket
+
+      refute_received {:notification_navigation, _}
+    end
+
+    {:ok, tap} = Mob.Notification.decode(Jason.encode!(%{presentation: "tap", data: data}))
+
+    assert %{assigns: %{notification_navigation: true}} =
+             Notifications.route(socket, tap, WebView)
+
+    assert_received {:notification_navigation,
+                     ~s|window.location.assign("/protection/alerts/alert-one")|}
+
+    for presentation <- ["foreground", "unknown", nil] do
+      payload = %{
+        "presentation" => presentation,
+        "data" => %{"schema" => "wtr.notification-reference.v1", "event_ref" => "alert-one"}
+      }
+
+      assert Notifications.route(socket, payload, WebView) == socket
+      refute_received {:notification_navigation, _}
+    end
+
+    assert %{assigns: %{notification_navigation: true}} =
+             Notifications.route(
+               socket,
+               %{"presentation" => "tap", "data" => data},
+               WebView
+             )
+
+    assert_received {:notification_navigation, _}
+  end
+
   test "pins and activates the signed iOS notification plugin manifest" do
     manifest_path = Application.app_dir(:mob_notify, "priv/mob_plugin.exs")
     {manifest, _} = Code.eval_file(manifest_path)
 
-    assert Application.spec(:mob_notify, :vsn) == ~c"0.1.2"
+    assert Application.spec(:mob_notify, :vsn) == ~c"0.2.1"
 
     assert Application.get_env(:mob, :plugins) == [
              :mob_notify,

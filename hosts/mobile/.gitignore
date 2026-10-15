@@ -1,4 +1,4 @@
-/mob.exs
+/mob.local.exs
 /.mob/
 /ios/build/
 /ios/DerivedData/
@@ -9,5 +9,8 @@
 /_build/mob_release/
 /priv/generated/driver_tab_android.c
 /priv/generated/driver_tab_android.zig
+/priv/generated/.mob_plugin_artifacts/
+/priv/generated/mob_plugins.exs
+/erl_nif.o
 /*.xcodeproj/xcuserdata/
 /*.xcworkspace/xcuserdata/

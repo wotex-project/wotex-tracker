@@ -1,6 +1,6 @@
 # Package a Linux ARM64 release produced and verified by the artifact harness.
 # The build context contains only the assembled release, never configuration.
-FROM debian@sha256:88200866dfff7ea7f5cbcb6ec7c8a701889efe6fe859fe64d6990e4b07ea4171
+FROM debian@sha256:7c7b2c966bc9ee8cedfeef67e0e279108992c77681fa595db4a9d65c06ccc587
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends libstdc++6 libssl3 libncurses6 ca-certificates \

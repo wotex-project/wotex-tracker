@@ -80,9 +80,12 @@ defmodule Wotex.Tracker.Host.Config do
   def load_passive_simulator(path, service_options) when is_list(service_options) do
     module = Wotex.Tracker.Host.Development.PassiveSimulatorConfig
 
-    if Code.ensure_loaded?(module) and function_exported?(module, :load, 2),
-      do: module.load(path, service_options),
-      else: {:error, :invalid_configuration}
+    if Code.ensure_loaded?(module) and function_exported?(module, :load, 2) do
+      load = Function.capture(module, :load, 2)
+      load.(path, service_options)
+    else
+      {:error, :invalid_configuration}
+    end
   end
 
   def load_passive_simulator(_, _), do: {:error, :invalid_configuration}

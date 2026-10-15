@@ -1,0 +1,1029 @@
+{
+  "all_quality_gates_passed": false,
+  "audit_network_limit": "Final audits ran successfully against cached Hex/advisory records while GitHub stalled. Root audit fetch was stopped after >2 minutes; no records, findings or package checks were suppressed. Earlier complete component lanes had passed; HTTP/2-only exact Bandit advisory remains the user-authorized exception.",
+  "blockers": {
+    "current_ios_vendor_download": "Repeated official GitHub runtime asset TLS/framing/reset errors; final45second retry0bytes. Prior native graph+simulator proof used960d8c12; currentba8ea373 unit/software/integrated product94tests pass. Own shutdown simulator deleted.",
+    "linux_builder_download": "Pinned SDK base was resolved. Debian Bookworm/security package downloads repeatedly timed out over399seconds; dedicated builder stopped after recording network failure. No Linux production release/compiler/probe pass claimed; all four Nerves target builds/QEMU proofs had completed earlier.",
+    "upstream_http_dialyzer": "Official WoTex ba8ea373244ce57987f47a731b8eca3ccae9b45f: packages/wotex-binding-http/test/support/fake_client.ex:18 unmatched_return, ignored nil|pid from conditional link_owner. Reproduced both canonical1.20.2/29.0.4 and current1.20.4/29.1.2. All other HTTP full-gate tools, including actual archive consumer after physical TMPDIR correction, pass. Source producer is reserved/excluded; no source/test patches or suppressions applied."
+  },
+  "browser_availability": {
+    "actual_local_ui_http": "200; own seeded service/UI started normally",
+    "cleanup": "Stopped exact owned UI fixture BEAM; no browser tab was created",
+    "evidence": "CUA browsers inventory empty; both Chrome and in-app browser unavailable",
+    "graphical_browser": "unavailable",
+    "runtime_browser_session_proof": "Packaged macOS UI black-box HTTP/session/revocation/native-resource probes passed"
+  },
+  "commands": [
+    "WOTEX_PATH_DEPS=1 MIX_ENV=test mix check --no-retry (root/service/UI/app/app-UI on floor/current; mobile on current)",
+    "WOTEX_PATH_DEPS=1 MIX_TARGET=host MIX_ENV=test mix format/compile --warnings-as-errors/test --no-start/credo --strict/dialyzer/docs --warnings-as-errors/hex.audit/deps.audit (both Nerves profiles)",
+    "mix run scripts/qualify_source.exs (strict core)",
+    "mix run scripts/qualify_source.exs --host (blocked immutable upstream HTTP Dialyzer)",
+    "Independent signed local registry: fresh/locked/minimum consumers on floor/current",
+    "scripts/run_release_script RELEASE scripts/release_probe.exs RELEASE FIXTURES --native-consumer CLIENT [--browser --native-resource darwin_system_tools]",
+    "actionlint .github/workflows/ci.yml"
+  ],
+  "compatibility_holds": {
+    "doc_shell": "0.4.0 is the immutable source cohort dev constraint; 0.5.0 not forced over it",
+    "nerves_system_br": "1.34.4 is required by released rpi5 2.1.2 and qemu_aarch64 0.4.2; 1.35.1 not forced over it"
+  },
+  "final_native_release_probes": [
+    {
+      "exit_code": 0,
+      "log": "wotex-tracker-final-native-headless-release-probe.log",
+      "profile": "headless-release",
+      "result": {
+        "browser": "not-in-artifact",
+        "cli_analytics": "pass",
+        "cli_property_resume": "pass",
+        "external_beam_tools_absent": true,
+        "external_compiler_absent": false,
+        "history": "pass",
+        "http_openapi_sse": "pass",
+        "invalid_storage_permissions": "pass",
+        "native_protocol_client": "pass",
+        "native_resource": "not-requested",
+        "notification_delivery": "pass",
+        "property_observation": "pass",
+        "readonly_filesystem": "not-executed",
+        "restart_and_idempotency": "pass",
+        "retained_revocation": "pass",
+        "runtime": {
+          "elixir": "1.20.4",
+          "erts": "17.1.1",
+          "otp": "29"
+        },
+        "runtime_licenses": "pass",
+        "shutdown_seconds": 0.057,
+        "sigkill_recovery": "pass",
+        "sigterm_active_stream": "pass",
+        "sqlite_full_rollback": "pass"
+      },
+      "sha256": "3f694f32c24401fa9964ed121f368a09e79673358566de4c55c6cfaed3561b69"
+    },
+    {
+      "exit_code": 0,
+      "log": "wotex-tracker-final-native-native-ui-only-probe.log",
+      "profile": "native-ui-only",
+      "result": {
+        "browser": "pass",
+        "cli_analytics": "pass",
+        "cli_property_resume": "pass",
+        "external_beam_tools_absent": true,
+        "external_compiler_absent": false,
+        "history": "pass",
+        "http_openapi_sse": "pass",
+        "invalid_storage_permissions": "pass",
+        "native_protocol_client": "pass",
+        "native_resource": "pass",
+        "notification_delivery": "pass",
+        "property_observation": "pass",
+        "readonly_filesystem": "not-executed",
+        "restart_and_idempotency": "pass",
+        "retained_revocation": "pass",
+        "runtime": {
+          "elixir": "1.20.4",
+          "erts": "17.1.1",
+          "otp": "29"
+        },
+        "runtime_licenses": "pass",
+        "shutdown_seconds": 0.057,
+        "sigkill_recovery": "pass",
+        "sigterm_active_stream": "pass",
+        "sqlite_full_rollback": "pass"
+      },
+      "sha256": "17dd8fa3e8d54e1042304912fe603155f92d52f384bf4cbb6d19ded89ba7fbdd"
+    }
+  ],
+  "final_probe_checks": {
+    "final_probe_floor_options": "pass: six malformed option combinations rejected, both scripts compile with zero diagnostics on1.18.4",
+    "final_probe_strict_credo": "pass:126 modules/functions, zero findings"
+  },
+  "final_root_and_desktop_gates": [
+    {
+      "coverage": [
+        "95.1%"
+      ],
+      "exit_code": 0,
+      "lane": "current",
+      "log": "wotex-tracker-final-root-current-check.log",
+      "passed_tools": [
+        "archive",
+        "compiler",
+        "credo",
+        "dialyzer",
+        "docs_contracts",
+        "ex_doc",
+        "ex_unit",
+        "formatter",
+        "hex_audit",
+        "licenses",
+        "mix_audit",
+        "stack_language",
+        "unused_deps"
+      ],
+      "profile": "root",
+      "sha256": "7316503607e1a4d551a0e4a1182410b44d82ced379051e783f4e4cd89693d67f",
+      "tests": [
+        "Result: 248 passed"
+      ]
+    },
+    {
+      "coverage": [
+        "96.0%"
+      ],
+      "exit_code": 0,
+      "lane": "current",
+      "log": "wotex-tracker-final-app-current-check.log",
+      "passed_tools": [
+        "cli_compile",
+        "cli_credo",
+        "compiler",
+        "credo",
+        "dialyzer",
+        "ex_doc",
+        "ex_unit",
+        "formatter",
+        "hex_audit",
+        "licenses",
+        "mix_audit",
+        "native_compile",
+        "native_format",
+        "native_test",
+        "stack_language",
+        "unused_deps"
+      ],
+      "profile": "app",
+      "sha256": "e2f5490b88381b352d63fa6f8120d20f3b1f3cc40fe4210bb1faa89b0eaaf389",
+      "tests": [
+        "Result: 33 passed"
+      ]
+    },
+    {
+      "coverage": [
+        "96.0%"
+      ],
+      "exit_code": 0,
+      "lane": "floor",
+      "log": "wotex-tracker-final-app-floor-check.log",
+      "passed_tools": [
+        "cli_compile",
+        "cli_credo",
+        "compiler",
+        "credo",
+        "dialyzer",
+        "ex_doc",
+        "ex_unit",
+        "formatter",
+        "hex_audit",
+        "licenses",
+        "mix_audit",
+        "native_compile",
+        "native_format",
+        "native_test",
+        "stack_language",
+        "unused_deps"
+      ],
+      "profile": "app",
+      "sha256": "6625cd3af07907305e235185d5743f9460531b11dd35bc625d7004b3e6ee6dce",
+      "tests": [
+        "33 tests, 0 failures"
+      ]
+    },
+    {
+      "coverage": [
+        "96.3%"
+      ],
+      "exit_code": 0,
+      "lane": "current",
+      "log": "wotex-tracker-final-app-ui-current-check.log",
+      "passed_tools": [
+        "cli_compile",
+        "cli_credo",
+        "compiler",
+        "credo",
+        "dialyzer",
+        "ex_doc",
+        "ex_unit",
+        "formatter",
+        "hex_audit",
+        "licenses",
+        "mix_audit",
+        "native_compile",
+        "native_format",
+        "native_test",
+        "stack_language",
+        "unused_deps"
+      ],
+      "profile": "app-ui",
+      "sha256": "7efcb951962086ac3bcb344474bb44d54b0dcab0756a8a1833b9072e479a3da6",
+      "tests": [
+        "Result: 48 passed"
+      ]
+    },
+    {
+      "coverage": [
+        "96.2%"
+      ],
+      "exit_code": 0,
+      "lane": "floor",
+      "log": "wotex-tracker-final-app-ui-floor-check.log",
+      "passed_tools": [
+        "cli_compile",
+        "cli_credo",
+        "compiler",
+        "credo",
+        "dialyzer",
+        "ex_doc",
+        "ex_unit",
+        "formatter",
+        "hex_audit",
+        "licenses",
+        "mix_audit",
+        "native_compile",
+        "native_format",
+        "native_test",
+        "stack_language",
+        "unused_deps"
+      ],
+      "profile": "app-ui",
+      "sha256": "18d19f37e1bb8bd4a79d4713eb72789db82beb85b9b822155da480bcc69d0e89",
+      "tests": [
+        "48 tests, 0 failures"
+      ]
+    }
+  ],
+  "full_component_gates": [
+    {
+      "check": "check",
+      "coverage": [
+        "95.1%"
+      ],
+      "exit_code": 0,
+      "lane": "current",
+      "passed_tools": [
+        "archive",
+        "compiler",
+        "credo",
+        "dialyzer",
+        "docs_contracts",
+        "ex_doc",
+        "ex_unit",
+        "formatter",
+        "hex_audit",
+        "licenses",
+        "mix_audit",
+        "stack_language",
+        "unused_deps"
+      ],
+      "profile": "root",
+      "source_revision": "ba8ea373244ce57987f47a731b8eca3ccae9b45f",
+      "tests": [
+        "Result: 248 passed (1 doctest, 19 properties, 228 tests)"
+      ]
+    },
+    {
+      "check": "check",
+      "coverage": [
+        "95.1%"
+      ],
+      "exit_code": 0,
+      "lane": "floor",
+      "passed_tools": [
+        "archive",
+        "compiler",
+        "credo",
+        "dialyzer",
+        "docs_contracts",
+        "ex_doc",
+        "ex_unit",
+        "formatter",
+        "hex_audit",
+        "licenses",
+        "mix_audit",
+        "stack_language",
+        "unused_deps"
+      ],
+      "profile": "root",
+      "source_revision": "ba8ea373244ce57987f47a731b8eca3ccae9b45f",
+      "tests": [
+        "1 doctest, 19 properties, 228 tests, 0 failures"
+      ]
+    },
+    {
+      "check": "check",
+      "coverage": [
+        "95.2%"
+      ],
+      "exit_code": 0,
+      "lane": "current",
+      "passed_tools": [
+        "archive",
+        "boundary_credo",
+        "compiler",
+        "credo",
+        "dialyzer",
+        "ex_doc",
+        "ex_unit",
+        "formatter",
+        "hex_audit",
+        "licenses",
+        "mix_audit",
+        "openapi",
+        "stack_language",
+        "unused_deps"
+      ],
+      "profile": "service",
+      "source_revision": "ba8ea373244ce57987f47a731b8eca3ccae9b45f",
+      "tests": [
+        "Result: 398 passed (2 properties, 396 tests)"
+      ]
+    },
+    {
+      "check": "check",
+      "coverage": [
+        "95.1%"
+      ],
+      "exit_code": 0,
+      "lane": "floor",
+      "passed_tools": [
+        "archive",
+        "boundary_credo",
+        "compiler",
+        "credo",
+        "dialyzer",
+        "ex_doc",
+        "ex_unit",
+        "formatter",
+        "hex_audit",
+        "licenses",
+        "mix_audit",
+        "openapi",
+        "stack_language",
+        "unused_deps"
+      ],
+      "profile": "service",
+      "source_revision": "ba8ea373244ce57987f47a731b8eca3ccae9b45f",
+      "tests": [
+        "2 properties, 396 tests, 0 failures"
+      ]
+    },
+    {
+      "check": "check",
+      "coverage": [
+        "95.0%"
+      ],
+      "exit_code": 0,
+      "lane": "current",
+      "passed_tools": [
+        "archive",
+        "compiler",
+        "credo",
+        "dialyzer",
+        "ex_doc",
+        "ex_unit",
+        "formatter",
+        "hex_audit",
+        "licenses",
+        "mix_audit",
+        "stack_language",
+        "unused_deps"
+      ],
+      "profile": "ui",
+      "source_revision": "ba8ea373244ce57987f47a731b8eca3ccae9b45f",
+      "tests": [
+        "Result: 207 passed"
+      ]
+    },
+    {
+      "check": "check",
+      "coverage": [
+        "95.0%"
+      ],
+      "exit_code": 0,
+      "lane": "floor",
+      "passed_tools": [
+        "archive",
+        "compiler",
+        "credo",
+        "dialyzer",
+        "ex_doc",
+        "ex_unit",
+        "formatter",
+        "hex_audit",
+        "licenses",
+        "mix_audit",
+        "stack_language",
+        "unused_deps"
+      ],
+      "profile": "ui",
+      "source_revision": "ba8ea373244ce57987f47a731b8eca3ccae9b45f",
+      "tests": [
+        "207 tests, 0 failures"
+      ]
+    },
+    {
+      "check": "check",
+      "coverage": [
+        "96.0%"
+      ],
+      "exit_code": 0,
+      "lane": "current",
+      "passed_tools": [
+        "cli_compile",
+        "cli_credo",
+        "compiler",
+        "credo",
+        "dialyzer",
+        "ex_doc",
+        "ex_unit",
+        "formatter",
+        "hex_audit",
+        "licenses",
+        "mix_audit",
+        "native_compile",
+        "native_format",
+        "native_test",
+        "stack_language",
+        "unused_deps"
+      ],
+      "profile": "app",
+      "source_revision": "ba8ea373244ce57987f47a731b8eca3ccae9b45f",
+      "tests": [
+        "Result: 33 passed"
+      ]
+    },
+    {
+      "check": "check",
+      "coverage": [
+        "95.9%"
+      ],
+      "exit_code": 0,
+      "lane": "floor",
+      "passed_tools": [
+        "cli_compile",
+        "cli_credo",
+        "compiler",
+        "credo",
+        "dialyzer",
+        "ex_doc",
+        "ex_unit",
+        "formatter",
+        "hex_audit",
+        "licenses",
+        "mix_audit",
+        "native_compile",
+        "native_format",
+        "native_test",
+        "stack_language",
+        "unused_deps"
+      ],
+      "profile": "app",
+      "source_revision": "ba8ea373244ce57987f47a731b8eca3ccae9b45f",
+      "tests": [
+        "33 tests, 0 failures"
+      ]
+    },
+    {
+      "check": "check",
+      "coverage": [
+        "96.3%"
+      ],
+      "exit_code": 0,
+      "lane": "current",
+      "passed_tools": [
+        "cli_compile",
+        "cli_credo",
+        "compiler",
+        "credo",
+        "dialyzer",
+        "ex_doc",
+        "ex_unit",
+        "formatter",
+        "hex_audit",
+        "licenses",
+        "mix_audit",
+        "native_compile",
+        "native_format",
+        "native_test",
+        "stack_language",
+        "unused_deps"
+      ],
+      "profile": "app-ui",
+      "source_revision": "ba8ea373244ce57987f47a731b8eca3ccae9b45f",
+      "tests": [
+        "Result: 48 passed"
+      ]
+    },
+    {
+      "check": "check",
+      "coverage": [
+        "96.2%"
+      ],
+      "exit_code": 0,
+      "lane": "floor",
+      "passed_tools": [
+        "cli_compile",
+        "cli_credo",
+        "compiler",
+        "credo",
+        "dialyzer",
+        "ex_doc",
+        "ex_unit",
+        "formatter",
+        "hex_audit",
+        "licenses",
+        "mix_audit",
+        "native_compile",
+        "native_format",
+        "native_test",
+        "stack_language",
+        "unused_deps"
+      ],
+      "profile": "app-ui",
+      "source_revision": "ba8ea373244ce57987f47a731b8eca3ccae9b45f",
+      "tests": [
+        "48 tests, 0 failures"
+      ]
+    },
+    {
+      "check": "check",
+      "coverage": [
+        "95.3%"
+      ],
+      "exit_code": 0,
+      "lane": "current",
+      "log": "wotex-tracker-current-cohort-mobile-final-check.log",
+      "passed_tools": [
+        "compiler",
+        "credo",
+        "dialyzer",
+        "ex_doc",
+        "ex_unit",
+        "formatter",
+        "hex_audit",
+        "integrated_product",
+        "licenses",
+        "mix_audit",
+        "native_compile",
+        "native_driver_table",
+        "native_format",
+        "native_test",
+        "stack_language",
+        "unused_deps"
+      ],
+      "profile": "mobile",
+      "source_revision": "ba8ea373244ce57987f47a731b8eca3ccae9b45f",
+      "tests": [
+        "Result: 94 passed"
+      ]
+    }
+  ],
+  "independent_archive_consumers": {
+    "consumers": [
+      {
+        "elixir": "1.18.4-otp-27",
+        "lock_sha256": "4302c21185cf012e4db0e0dbeb89af56be8833bc13c7ce0f994ee96d0fdd2a8c",
+        "mode": "fresh",
+        "otp": "27.3.4.15",
+        "profile": "service",
+        "result": "pass"
+      },
+      {
+        "elixir": "1.18.4-otp-27",
+        "lock_sha256": "4302c21185cf012e4db0e0dbeb89af56be8833bc13c7ce0f994ee96d0fdd2a8c",
+        "mode": "locked",
+        "otp": "27.3.4.15",
+        "profile": "service",
+        "result": "pass"
+      },
+      {
+        "elixir": "1.18.4-otp-27",
+        "lock_sha256": "4302c21185cf012e4db0e0dbeb89af56be8833bc13c7ce0f994ee96d0fdd2a8c",
+        "mode": "minimum",
+        "otp": "27.3.4.15",
+        "profile": "service",
+        "result": "pass"
+      },
+      {
+        "elixir": "1.20.4-otp-29",
+        "lock_sha256": "4302c21185cf012e4db0e0dbeb89af56be8833bc13c7ce0f994ee96d0fdd2a8c",
+        "mode": "fresh",
+        "otp": "29.1.2",
+        "profile": "service",
+        "result": "pass"
+      },
+      {
+        "elixir": "1.20.4-otp-29",
+        "lock_sha256": "4302c21185cf012e4db0e0dbeb89af56be8833bc13c7ce0f994ee96d0fdd2a8c",
+        "mode": "locked",
+        "otp": "29.1.2",
+        "profile": "service",
+        "result": "pass"
+      },
+      {
+        "elixir": "1.20.4-otp-29",
+        "lock_sha256": "4302c21185cf012e4db0e0dbeb89af56be8833bc13c7ce0f994ee96d0fdd2a8c",
+        "mode": "minimum",
+        "otp": "29.1.2",
+        "profile": "service",
+        "result": "pass"
+      },
+      {
+        "elixir": "1.18.4-otp-27",
+        "lock_sha256": "c2288e313f304599bfeae213ed398d20a3afa266feb9af90cc809d23f2b22dcb",
+        "mode": "fresh",
+        "otp": "27.3.4.15",
+        "profile": "ui",
+        "result": "pass"
+      },
+      {
+        "elixir": "1.18.4-otp-27",
+        "lock_sha256": "c2288e313f304599bfeae213ed398d20a3afa266feb9af90cc809d23f2b22dcb",
+        "mode": "locked",
+        "otp": "27.3.4.15",
+        "profile": "ui",
+        "result": "pass"
+      },
+      {
+        "elixir": "1.18.4-otp-27",
+        "lock_sha256": "c2288e313f304599bfeae213ed398d20a3afa266feb9af90cc809d23f2b22dcb",
+        "mode": "minimum",
+        "otp": "27.3.4.15",
+        "profile": "ui",
+        "result": "pass"
+      },
+      {
+        "elixir": "1.20.4-otp-29",
+        "lock_sha256": "c2288e313f304599bfeae213ed398d20a3afa266feb9af90cc809d23f2b22dcb",
+        "mode": "fresh",
+        "otp": "29.1.2",
+        "profile": "ui",
+        "result": "pass"
+      },
+      {
+        "elixir": "1.20.4-otp-29",
+        "lock_sha256": "c2288e313f304599bfeae213ed398d20a3afa266feb9af90cc809d23f2b22dcb",
+        "mode": "locked",
+        "otp": "29.1.2",
+        "profile": "ui",
+        "result": "pass"
+      },
+      {
+        "elixir": "1.20.4-otp-29",
+        "lock_sha256": "c2288e313f304599bfeae213ed398d20a3afa266feb9af90cc809d23f2b22dcb",
+        "mode": "minimum",
+        "otp": "29.1.2",
+        "profile": "ui",
+        "result": "pass"
+      }
+    ],
+    "source_revision": "ba8ea373244ce57987f47a731b8eca3ccae9b45f",
+    "upstream_http_source_gate": "blocked: test/support/fake_client.ex:18 unmatched_return; no producer changes/suppressions"
+  },
+  "independent_native_releases": {
+    "headless": {
+      "archive_sha256": "0728908b76263b986f310d3f62621e6f36d796d7c5e21bd8338c9d6f06ac1177",
+      "linux": "blocked: Debian bookworm download stalls, Err connection timed out at399seconds; dedicated task build canceled afterward",
+      "published": false,
+      "result": {
+        "browser": "not-in-artifact",
+        "cli_analytics": "pass",
+        "cli_property_resume": "pass",
+        "external_beam_tools_absent": true,
+        "external_compiler_absent": false,
+        "history": "pass",
+        "http_openapi_sse": "pass",
+        "invalid_storage_permissions": "pass",
+        "native_protocol_client": "pass",
+        "native_resource": "not-requested",
+        "notification_delivery": "pass",
+        "property_observation": "pass",
+        "readonly_filesystem": "not-executed",
+        "restart_and_idempotency": "pass",
+        "retained_revocation": "pass",
+        "runtime": {
+          "elixir": "1.20.4",
+          "erts": "17.1.1",
+          "otp": "29"
+        },
+        "runtime_licenses": "pass",
+        "shutdown_seconds": 0.057,
+        "sigkill_recovery": "pass",
+        "sigterm_active_stream": "pass",
+        "sqlite_full_rollback": "pass"
+      },
+      "scope": "independent-darwin-arm64-headless-release-only",
+      "source_revision": "ba8ea373244ce57987f47a731b8eca3ccae9b45f"
+    },
+    "ui": {
+      "linux": "blocked: Debian downloads repeatedly timed out in pinned builder; dedicated build canceled after399seconds",
+      "published": false,
+      "result": {
+        "archive_sha256": "bac9340bfcc28c42303c724322aa28ef25070cf78fd1d8b214c0fc134330870f",
+        "native_client_sha256": "4af448041b2b13ebdf65e80e13cf1309585db9c6edcac20c4e0660156e86c7ba",
+        "native_compiler": "zig 0.17.0",
+        "platform": "aarch64-apple-darwin",
+        "result": {
+          "browser": "pass",
+          "cli_analytics": "pass",
+          "cli_property_resume": "pass",
+          "external_beam_tools_absent": true,
+          "external_compiler_absent": false,
+          "history": "pass",
+          "http_openapi_sse": "pass",
+          "invalid_storage_permissions": "pass",
+          "native_protocol_client": "pass",
+          "native_resource": "pass",
+          "notification_delivery": "pass",
+          "property_observation": "pass",
+          "readonly_filesystem": "not-executed",
+          "restart_and_idempotency": "pass",
+          "retained_revocation": "pass",
+          "runtime": {
+            "elixir": "1.20.4",
+            "erts": "17.1.1",
+            "otp": "29"
+          },
+          "runtime_licenses": "pass",
+          "shutdown_seconds": 0.057,
+          "sigkill_recovery": "pass",
+          "sigterm_active_stream": "pass",
+          "sqlite_full_rollback": "pass"
+        },
+        "source_sha256": "454b8ce9006a6ee395e5ac0d50f97b93b2dddf4c4d9c4a9e26280371f92f9316"
+      },
+      "scope": "independent-darwin-arm64-ui-release-only",
+      "source_revision": "ba8ea373244ce57987f47a731b8eca3ccae9b45f",
+      "upstream_http_source_gate": "blocked: immutable HTTP test helper unmatched_return"
+    }
+  },
+  "limits": [
+    "Source cohort evidence is not proof of a published WoTex Hex release.",
+    "Physical Pi/iPhone, signed distribution, live providers and remote CI were not exercised.",
+    "No source, test or warning suppression was applied to the reserved upstream repository."
+  ],
+  "lock_files": {
+    "hosts/app/mix.lock": {
+      "package_changes": 6,
+      "sha256": "0bb571e945ceee1c337bbda4a3047e719a94514d025b16e537d419558bdc3239"
+    },
+    "hosts/app/mix.ui.lock": {
+      "package_changes": 11,
+      "sha256": "778687a40d323d87d6f4ea9e1ec4a90a6fa653bde3c7e5124b82e8e6d4e4d9e4"
+    },
+    "hosts/mobile/mix.lock": {
+      "package_changes": 17,
+      "sha256": "13c767c8d42bb2275be703782ca51c824adb237d19d7f7838ff6251901eae074"
+    },
+    "hosts/nerves/mix.lock": {
+      "package_changes": 12,
+      "sha256": "9553fe046ab03381a835fe9a8975386dc7d36f5e3dabbca74a7f391c6d75d135"
+    },
+    "hosts/nerves/mix.qemu-ui.lock": {
+      "package_changes": 20,
+      "sha256": "6d5443ec516cac2fd931f62aace9922a9f2c96f69c941e9c15ae75b4f40d5ed9"
+    },
+    "hosts/nerves/mix.qemu.lock": {
+      "package_changes": 20,
+      "sha256": "10a786b51cb9e0f848be73aa140cdea6a93c84791eff9a8763dfae0ff1196d88"
+    },
+    "hosts/nerves/mix.ui.lock": {
+      "package_changes": 23,
+      "sha256": "fe2052498f7d4505a476dad289eb9419d7c459ca5699c135e9659682a6a25e2c"
+    },
+    "mix.lock": {
+      "package_changes": 3,
+      "sha256": "34595fc91c1a5d58b8c2f70e215e02993f57244e1e5b9af07c1efe12228ce50f"
+    },
+    "packages/tracker_service/mix.lock": {
+      "package_changes": 6,
+      "sha256": "0bb571e945ceee1c337bbda4a3047e719a94514d025b16e537d419558bdc3239"
+    },
+    "packages/tracker_ui/mix.lock": {
+      "package_changes": 11,
+      "sha256": "778687a40d323d87d6f4ea9e1ec4a90a6fa653bde3c7e5124b82e8e6d4e4d9e4"
+    }
+  },
+  "nerves_artifacts": {
+    "nerves-headless-build": {
+      "file": "verification/nerves-headless-build.json",
+      "sha256": "7c791c6a75cdd871a07e39857668e508572c21a8fd4b8663ad268fe8274cabad"
+    },
+    "nerves-kiosk-build": {
+      "file": "verification/nerves-kiosk-build.json",
+      "sha256": "6ded01e1b9d8e689962779ec37323d142688b4cb32c6efb84315f3e7a80dbd0f"
+    },
+    "nerves-qemu-boot": {
+      "file": "verification/nerves-qemu-boot.json",
+      "sha256": "82a4f62c923ca135b5cc599972f3ebd604351050823b20bc0cbd0311a5944e3a"
+    },
+    "nerves-qemu-kiosk-boot": {
+      "file": "verification/nerves-qemu-kiosk-boot.json",
+      "sha256": "784ad200db47e0af487c05eb0c86dab17bac905a86ea4759dd7f170eb089b833"
+    }
+  },
+  "nerves_host_gates": {
+    "checks": [
+      {
+        "check": "deps",
+        "exit_code": 0,
+        "profile": "headless",
+        "source_revision": "ba8ea373244ce57987f47a731b8eca3ccae9b45f"
+      },
+      {
+        "check": "compile-deps",
+        "exit_code": 0,
+        "profile": "headless",
+        "source_revision": "ba8ea373244ce57987f47a731b8eca3ccae9b45f"
+      },
+      {
+        "check": "format",
+        "exit_code": 0,
+        "profile": "headless",
+        "source_revision": "ba8ea373244ce57987f47a731b8eca3ccae9b45f"
+      },
+      {
+        "check": "compile",
+        "exit_code": 0,
+        "profile": "headless",
+        "source_revision": "ba8ea373244ce57987f47a731b8eca3ccae9b45f"
+      },
+      {
+        "check": "test",
+        "exit_code": 0,
+        "profile": "headless",
+        "source_revision": "ba8ea373244ce57987f47a731b8eca3ccae9b45f"
+      },
+      {
+        "check": "credo",
+        "exit_code": 0,
+        "profile": "headless",
+        "source_revision": "ba8ea373244ce57987f47a731b8eca3ccae9b45f"
+      },
+      {
+        "check": "dialyzer",
+        "exit_code": 0,
+        "profile": "headless",
+        "source_revision": "ba8ea373244ce57987f47a731b8eca3ccae9b45f"
+      },
+      {
+        "check": "docs",
+        "exit_code": 0,
+        "profile": "headless",
+        "source_revision": "ba8ea373244ce57987f47a731b8eca3ccae9b45f"
+      },
+      {
+        "check": "hex-audit",
+        "exit_code": 0,
+        "profile": "headless",
+        "source_revision": "ba8ea373244ce57987f47a731b8eca3ccae9b45f"
+      },
+      {
+        "check": "audit",
+        "exit_code": 0,
+        "profile": "headless",
+        "source_revision": "ba8ea373244ce57987f47a731b8eca3ccae9b45f"
+      },
+      {
+        "check": "deps",
+        "exit_code": 0,
+        "profile": "ui",
+        "source_revision": "ba8ea373244ce57987f47a731b8eca3ccae9b45f"
+      },
+      {
+        "check": "compile-deps",
+        "exit_code": 0,
+        "profile": "ui",
+        "source_revision": "ba8ea373244ce57987f47a731b8eca3ccae9b45f"
+      },
+      {
+        "check": "format",
+        "exit_code": 0,
+        "profile": "ui",
+        "source_revision": "ba8ea373244ce57987f47a731b8eca3ccae9b45f"
+      },
+      {
+        "check": "compile",
+        "exit_code": 0,
+        "profile": "ui",
+        "source_revision": "ba8ea373244ce57987f47a731b8eca3ccae9b45f"
+      },
+      {
+        "check": "test",
+        "exit_code": 0,
+        "profile": "ui",
+        "source_revision": "ba8ea373244ce57987f47a731b8eca3ccae9b45f"
+      },
+      {
+        "check": "credo",
+        "exit_code": 0,
+        "profile": "ui",
+        "source_revision": "ba8ea373244ce57987f47a731b8eca3ccae9b45f"
+      },
+      {
+        "check": "dialyzer",
+        "exit_code": 0,
+        "profile": "ui",
+        "source_revision": "ba8ea373244ce57987f47a731b8eca3ccae9b45f"
+      },
+      {
+        "check": "docs",
+        "exit_code": 0,
+        "profile": "ui",
+        "source_revision": "ba8ea373244ce57987f47a731b8eca3ccae9b45f"
+      },
+      {
+        "check": "hex-audit",
+        "exit_code": 0,
+        "profile": "ui",
+        "source_revision": "ba8ea373244ce57987f47a731b8eca3ccae9b45f"
+      },
+      {
+        "check": "audit",
+        "exit_code": 0,
+        "profile": "ui",
+        "source_revision": "ba8ea373244ce57987f47a731b8eca3ccae9b45f"
+      }
+    ],
+    "runtime": "1.18.4 / OTP27.3.4.15",
+    "source_revision": "ba8ea373244ce57987f47a731b8eca3ccae9b45f",
+    "tests": "52 headless +56 UI passed, strict Credo/Dialyzer/docs/audits/format/compile-WAE all pass"
+  },
+  "security_acknowledgements": {
+    "Bandit EEF-CVE-2026-105659 / GHSA-69m6-wcv4-rwcf": "Latest Hex 1.12.5 has no fixed release. All four Tracker-owned listeners explicitly disable HTTP/2. Exact advisory acknowledged in the affected Mix projects and audit commands; no other advisory is ignored."
+  },
+  "source_revision": "ba8ea373244ce57987f47a731b8eca3ccae9b45f",
+  "status": "blocked-candidate; no public release or main integration",
+  "strict_core_archive_qualification": {
+    "consumers": [
+      {
+        "elixir": "1.18.4-otp-27",
+        "lock_sha256": "e11600a25def66d7c22bc289023906b6d7a644ae802ecad2b5db4abba2b72de0",
+        "mode": "fresh",
+        "otp": "27.3.4.15",
+        "result": "pass"
+      },
+      {
+        "elixir": "1.18.4-otp-27",
+        "lock_sha256": "e11600a25def66d7c22bc289023906b6d7a644ae802ecad2b5db4abba2b72de0",
+        "mode": "locked",
+        "otp": "27.3.4.15",
+        "result": "pass"
+      },
+      {
+        "elixir": "1.18.4-otp-27",
+        "lock_sha256": "e11600a25def66d7c22bc289023906b6d7a644ae802ecad2b5db4abba2b72de0",
+        "mode": "minimum",
+        "otp": "27.3.4.15",
+        "result": "pass"
+      },
+      {
+        "elixir": "1.20.4-otp-29",
+        "lock_sha256": "e11600a25def66d7c22bc289023906b6d7a644ae802ecad2b5db4abba2b72de0",
+        "mode": "fresh",
+        "otp": "29.1.2",
+        "result": "pass"
+      },
+      {
+        "elixir": "1.20.4-otp-29",
+        "lock_sha256": "e11600a25def66d7c22bc289023906b6d7a644ae802ecad2b5db4abba2b72de0",
+        "mode": "locked",
+        "otp": "29.1.2",
+        "result": "pass"
+      },
+      {
+        "elixir": "1.20.4-otp-29",
+        "lock_sha256": "e11600a25def66d7c22bc289023906b6d7a644ae802ecad2b5db4abba2b72de0",
+        "mode": "minimum",
+        "otp": "29.1.2",
+        "result": "pass"
+      }
+    ],
+    "exit_code": 0,
+    "result": "Strict immutable core full gate +six actual fresh/locked/minimum floor/current archive consumers passed.",
+    "source_revision": "ba8ea373244ce57987f47a731b8eca3ccae9b45f",
+    "upstream_runtime": {
+      "elixir": "1.20.2-otp-29",
+      "otp": "29.0.4"
+    }
+  },
+  "toolchains": {
+    "compatibility_floor": {
+      "elixir": "1.18.4",
+      "otp": "27.3.4.15"
+    },
+    "development": {
+      "elixir": "1.20.4",
+      "otp": "29.1.2",
+      "zig": "0.17.0"
+    },
+    "target_runtimes": {
+      "ios_vendor_otp": "29.0",
+      "nerves_otp": "29.0.6"
+    },
+    "upstream_source_gates": {
+      "elixir": "1.20.2",
+      "otp": "29.0.4"
+    }
+  }
+}

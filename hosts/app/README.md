@@ -517,7 +517,7 @@ after restart. Linux also exercises the read-only, non-root container. The UI
 package has no endpoint or listener when consumed alone.
 
 Linux uses the pinned Debian Bookworm
-builder with Elixir 1.18.4 / OTP 27.3.4.15 and Hex 2.5.1. The runtime image is a
+builder with Elixir 1.20.4 / OTP 29.1.2 and Hex 2.5.3. The runtime image is a
 separate pinned Debian base with the libraries needed by the bundled ERTS; it
 contains no external Elixir, Erlang, Mix or C compiler. Artifact, base-image,
 compiler and dependency identities are recorded in
